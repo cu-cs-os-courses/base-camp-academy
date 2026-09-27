@@ -59,8 +59,8 @@ decks/                  lecture slides (PowerPoint); gitignored, local only, nev
 
 | token  | meaning                                            |
 |--------|----------------------------------------------------|
-| `--cz` | logical/virtual: page number, virtual address       |
-| `--cx` | offset d: the bits that pass through unchanged      |
-| `--cf` | physical: frame number, physical address, RAM       |
-| `--cd` | miss, fault, trap                                   |
-| `--co` | the kernel acting: privileged registers, fix-ups    |
+| `--cz` | logical/virtual, user side: page numbers, virtual addresses, the program |
+| `--cx` | data in flight: offsets, data registers, bytes moving     |
+| `--cf` | physical, hardware side: frames, RAM, controllers, devices |
+| `--cd` | miss, fault, trap, interrupt                              |
+| `--co` | the kernel acting: privileged registers, drivers, fix-ups  |
