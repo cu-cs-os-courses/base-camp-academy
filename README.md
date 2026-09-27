@@ -26,7 +26,7 @@ index.html              course index
 assets/academy.css      shared design system (tokens, chapters, widgets, present mode)
 assets/academy.js       shared runtime (terms, quizzes, scroll spy, present mode)
 lectures/NN-name.html   one self-contained page per lecture (content + its widgets)
-decks/                  the PowerPoint sources (NN-Title.pptx), see decks/README.md
+decks/                  lecture slides (PowerPoint); gitignored, local only, never pushed
 ```
 
 ## Authoring contract
