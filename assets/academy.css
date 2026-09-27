@@ -254,7 +254,6 @@ li::marker { color: var(--ink3); }
 .rail a .n { font-family: var(--f-mono); font-size: 11px; color: var(--ink3); margin-right: 7px; }
 .rail a:hover { background: var(--bg3); color: var(--ink); }
 .rail a.active { border-left-color: var(--cz); color: var(--ink); background: var(--cz-soft); }
-.rail .rail-foot { margin: 18px 0 0 10px; font-size: 12.5px; color: var(--ink3); line-height: 1.6; }
 main { min-width: 0; padding-bottom: 40px; }
 
 @media (max-width: 1020px) {

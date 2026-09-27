@@ -187,7 +187,6 @@
       if (b.dataset.nav === 'prev') prev(); else if (b.dataset.nav === 'next') next(); else setPresent(false);
     });
     doc.addEventListener('keydown', onKey);
-    doc.addEventListener('click', (e) => { if (e.target.closest('[data-action="present"]')) setPresent(true); });
     root.addEventListener('resize', () => { if (html.classList.contains('present')) fit(slides[cur]); });
   }
 
