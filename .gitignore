@@ -1,0 +1,3 @@
+.DS_Store
+# PowerPoint sources stay local, never pushed (originals: base-camp history, commit 90e0db9)
+decks/*.pptx
