@@ -1,0 +1,1570 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Paging · L14</title>
+<meta name="description" content="CSCI 3753 Lecture 14, interactive edition: pages and frames, page tables, the TLB, caches, shared pages, internal fragmentation.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+/* ---- lecture-local ---- */
+.bits { display: flex; flex-wrap: wrap; gap: 2px; font-family: var(--f-mono); font-size: 14px; }
+.bits span { width: 1.55em; text-align: center; padding: 3px 0; border-radius: 4px; background: var(--bg3); font-variant-numeric: tabular-nums; }
+.bits span.b-p { background: var(--cz-soft2); color: var(--cz-ink); }
+.bits span.b-d { background: var(--cx-soft2); color: var(--cx-ink); }
+.bits span.b-f { background: var(--cf-soft2); color: var(--cf-ink); }
+.bits span.gap { background: none; width: 0.6em; }
+.xl-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px 24px; align-items: start; }
+.xl-row { display: grid; gap: 6px; margin-bottom: 14px; }
+.xl-row .lab, .sub-lab { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); }
+.xl-row .val { font-family: var(--f-mono); font-size: 13.5px; line-height: 1.6; }
+.result { border-radius: 9px; padding: 8px 12px; background: var(--bg); border: 1px solid var(--line); font-size: 14px; line-height: 1.6; }
+.result.trap { border-color: var(--cd); background: var(--cd-soft); }
+.sim-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px 24px; align-items: start; }
+.hom-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.hom-steps > div { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--bg); font-size: 14px; line-height: 1.6; }
+.hom-steps .k { display: block; font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); margin-bottom: 4px; }
+.hom-steps .line { display: inline-block; margin-top: 6px; font-family: var(--f-mono); font-size: 12.5px; background: var(--bg3); border: 1px solid var(--line); border-radius: 5px; padding: 1px 7px; }
+.hom-steps .wrong { border-color: var(--bad); background: var(--bad-soft); }
+.hom-steps .right { border-color: var(--good); background: var(--good-soft); }
+.frag-bar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px; }
+.frag-bar .pg { width: 66px; height: 34px; border: 1.5px solid var(--line2); border-radius: 4px; position: relative; overflow: hidden; background: var(--bg); }
+.frag-bar .pg i { position: absolute; inset: 0 auto 0 0; background: var(--cz-soft2); border-right: 1.5px solid var(--cz); }
+.frag-bar .pg.waste { border-color: var(--cd); }
+.frag-bar .more-pg { align-self: center; font-family: var(--f-mono); font-size: 12.5px; color: var(--ink3); }
+@media (max-width: 760px) {
+  .xl-grid, .sim-grid, .hom-steps { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="7" height="7" class="hatch-bg"/><line x1="0" y1="0" x2="0" y2="7" class="hatch-line"/>
+    </pattern>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+    <marker id="ah-p" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-p"/></marker>
+    <marker id="ah-d" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-d"/></marker>
+    <marker id="ah-f" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-f"/></marker>
+    <marker id="ah-m" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-m"/></marker>
+    <marker id="ah-o" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-o"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><rect x="2.5" y="2.5" width="17" height="17" rx="1.5"/><path d="M2.5 8.2h17M2.5 13.8h17M8.2 2.5v17M13.8 2.5v17"/></g><rect x="3.3" y="3.3" width="4.1" height="4.1" fill="var(--cz)"/><rect x="14.6" y="14.6" width="4.1" height="4.1" fill="var(--cf)"/></svg>
+    <span>Lecture 14 · Paging</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <button class="btn small" type="button" data-action="present">Present <kbd>P</kbd></button>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Lecture 14 · Interactive notes</div>
+    <h1>Cut memory into pages,<br>and a process can live <span class="accent">anywhere</span></h1>
+    <p class="lede">Lecture 13 ended with external fragmentation: plenty of free memory, no hole big enough. Paging fixes it by making every piece the same size. This lecture builds the machinery that makes that work at full speed: the page table, the MMU's translation, the TLB, and the caches around it. It ends with what sharing a frame buys: shared libraries, shared memory, and copy-on-write <code>fork()</code>.</p>
+    <div class="promise">
+      <span>Before you start:</span><span class="mono">logical vs. physical address</span><span>and the MMU from Lecture 13. Everything else is built here.</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#ch0">Begin ↓</a>
+      <span class="muted small">About 50 minutes · 7 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 9 · Continues in Lecture 15, Virtual Memory</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="chapters">
+    <p class="rail-title">Contents</p>
+    <a href="#ch0"><span class="n">0</span>Recall: fragmentation</a>
+    <a href="#ch1"><span class="n">1</span>Pages, frames, page tables</a>
+    <a href="#ch2"><span class="n">2</span>How big is a page table?</a>
+    <a href="#ch3"><span class="n">3</span>Where the table lives</a>
+    <a href="#ch4"><span class="n">4</span>The TLB</a>
+    <a href="#ch5"><span class="n">5</span>Paging and L1/L2 caches</a>
+    <a href="#ch6"><span class="n">6</span>Shared pages</a>
+    <a href="#ch7"><span class="n">7</span>Internal fragmentation</a>
+    <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+    <p class="rail-foot">Teaching from this page?<br>Press <kbd>P</kbd> to present, <kbd>→</kbd> to step.</p>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#ch0"><span class="n">0</span>Recall: fragmentation</a>
+        <a href="#ch1"><span class="n">1</span>Pages, frames, page tables</a>
+        <a href="#ch2"><span class="n">2</span>How big is a page table?</a>
+        <a href="#ch3"><span class="n">3</span>Where the table lives</a>
+        <a href="#ch4"><span class="n">4</span>The TLB</a>
+        <a href="#ch5"><span class="n">5</span>Paging and L1/L2 caches</a>
+        <a href="#ch6"><span class="n">6</span>Shared pages</a>
+        <a href="#ch7"><span class="n">7</span>Internal fragmentation</a>
+        <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+      </nav>
+    </details>
+
+    <div class="sec present-only title-slide" id="title">
+      <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 14</div>
+      <h1>Paging</h1>
+      <p class="lede">Cut memory into pages, and a process can live anywhere.</p>
+      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 9</div>
+    </div>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch0">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 0</div>
+    <h2>Recall: where Lecture 13 left us</h2>
+    <p class="ch-lede">Contiguous allocation and segmentation both hand out variable-size chunks, and variable-size chunks fragment.</p>
+  </div>
+
+  <div class="sec" id="s0-1">
+    <h3><span class="sec-no">0.1</span>External fragmentation</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Over time, repeated allocation and deallocation leave many small, non-contiguous holes of free memory between processes.</p>
+        <p data-step="1">The result is <strong>external fragmentation</strong>: enough free memory in total, but no single hole big enough. In Fig. 0.1, 130 KB is free, and a 100 KB process still doesn't fit.</p>
+        <p data-step="2">The OS must then swap processes out to open a large enough hole, or <strong>compact</strong> memory by moving processes, which is very costly.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 380 420" width="330" role="img" aria-label="Memory with three free holes of 60, 30 and 40 KB; a 100 KB process fits in none of them">
+            <rect x="30" y="20" width="170" height="80" class="obox"/><text x="115" y="65" text-anchor="middle">OS</text>
+            <rect x="30" y="100" width="170" height="60" class="free"/><text x="210" y="135" class="lbl">60 KB free</text>
+            <rect x="30" y="160" width="170" height="70" class="box2"/><text x="115" y="200" text-anchor="middle">P1</text>
+            <rect x="30" y="230" width="170" height="30" class="free"/><text x="210" y="250" class="lbl">30 KB free</text>
+            <rect x="30" y="260" width="170" height="100" class="box2"/><text x="115" y="315" text-anchor="middle">P3</text>
+            <rect x="30" y="360" width="170" height="40" class="free"/><text x="210" y="385" class="lbl">40 KB free</text>
+            <g data-step="1">
+              <rect x="290" y="150" width="80" height="100" class="mbox"/>
+              <text x="330" y="195" text-anchor="middle">P4</text><text x="330" y="215" text-anchor="middle" class="lbl">100 KB</text>
+              <text x="330" y="275" text-anchor="middle" class="lbl">130 KB free,</text>
+              <text x="330" y="292" text-anchor="middle" class="lbl">no hole fits</text>
+            </g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 0.1</span>Free memory is split into three holes. Each one is too small for P4.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-2">
+    <h3><span class="sec-no">0.2</span>What if every chunk were the same size?</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Segmentation avoids one huge chunk per process and eases external fragmentation somewhat. But segments still come in every size, so the holes they leave do too.</p>
+        <p data-step="1">Now cut the logical address space into <span class="p">pages</span> of one fixed size, and physical memory into <span class="f">frames</span> of the same size.</p>
+        <p data-step="2">Any page can go in <strong>any</strong> free frame. A free frame is never too small, so external fragmentation is gone.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 380 320" width="330" role="img" aria-label="Segments of different sizes compared with pages of equal size">
+            <text x="85" y="20" text-anchor="middle" class="lbl">segments</text>
+            <rect x="20" y="30" width="130" height="84" class="pbox"/><text x="85" y="77" text-anchor="middle">code</text>
+            <rect x="20" y="114" width="130" height="48" class="pbox"/><text x="85" y="143" text-anchor="middle">data</text>
+            <rect x="20" y="162" width="130" height="36" class="pbox"/><text x="85" y="185" text-anchor="middle">stack</text>
+            <rect x="20" y="198" width="130" height="72" class="pbox"/><text x="85" y="239" text-anchor="middle">heap</text>
+            <g data-step="1">
+              <text x="285" y="20" text-anchor="middle" class="lbl">pages</text>
+              <rect x="220" y="30" width="130" height="48" class="pbox"/><text x="285" y="59" text-anchor="middle" class="mono">page 0</text>
+              <rect x="220" y="78" width="130" height="48" class="pbox"/><text x="285" y="107" text-anchor="middle" class="mono">page 1</text>
+              <rect x="220" y="126" width="130" height="48" class="pbox"/><text x="285" y="155" text-anchor="middle" class="mono">page 2</text>
+              <rect x="220" y="174" width="130" height="48" class="pbox"/><text x="285" y="203" text-anchor="middle" class="mono">page 3</text>
+              <rect x="220" y="222" width="130" height="48" class="pbox"/><text x="285" y="251" text-anchor="middle" class="mono">page 4</text>
+              <text x="285" y="300" text-anchor="middle" class="lbl">all the same size</text>
+            </g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 0.2</span>The same process, cut two ways.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#top">Back to<b>the top</b></a>
+    <a href="#ch1">Next<b>1 · Pages, frames, page tables</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch1">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 1</div>
+    <h2>Pages, frames, and the page table</h2>
+    <p class="ch-lede">Once pages can land in any frame, something has to remember where each one went. That is the page table, and the MMU reads it on every memory reference.</p>
+  </div>
+
+  <div class="sec" id="s1-1">
+    <h3><span class="sec-no">1.1</span>The page table</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>The OS keeps a <span class="term">page table<span class="tip">A per-process array indexed by logical page number. Entry l holds the frame number f where page l lives, plus status bits.</span></span> for <strong>each process</strong>. Entry <span class="p">l</span> says which <span class="f">frame</span> holds logical page <span class="p">l</span>.</p>
+        <p>Given a logical address, the <span class="term">MMU<span class="tip">Memory-management unit: hardware in the CPU that translates every logical address to a physical one at run time (Lecture 13).</span></span> finds its logical page, then looks up the physical frame in the page table.</p>
+        <p data-step="1">Frames 2, 5 and 6 are free. They can go to a new process P2, whatever its size.</p>
+        <p class="small muted read-only">Hover or tab to a row of the page table to follow it into RAM.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" id="pt-fig" viewBox="0 0 560 450" width="440" role="img" aria-label="Page table mapping logical pages 0 to 4 to frames 1, 4, 3, 7 and 0">
+            <text x="120" y="30" text-anchor="middle" class="big">Page table</text>
+            <rect x="20" y="50" width="100" height="44" class="box2"/><text x="70" y="77" text-anchor="middle" class="lbl">logical page</text>
+            <rect x="120" y="50" width="100" height="44" class="box2"/><text x="170" y="77" text-anchor="middle" class="lbl">physical frame</text>
+            <g id="pt-rows"></g>
+            <text x="455" y="28" text-anchor="middle" class="big">RAM</text>
+            <g id="pt-ram"></g>
+            <g id="pt-lines"></g>
+            <g data-step="1"><text x="455" y="444" text-anchor="middle" class="lbl">hatched = free, available to P2</text></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1.1</span>One process's page table: five pages, scattered over eight frames.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-2">
+    <h3><span class="sec-no">1.2</span>The program still sees one contiguous block</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>The program sees one contiguous logical address space, 0 to 5119 in Fig. 1.2: code, data, heap, stack.</p>
+        <p>Physically, its five 1 KB pages sit in frames scattered across RAM.</p>
+        <p data-step="1">The MMU performs this translation at run time, for <strong>every</strong> logical address, using the page table.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 560 420" width="440" role="img" aria-label="A contiguous logical address space of five 1 KB pages maps to scattered frames">
+            <text x="105" y="24" text-anchor="middle" class="lbl">logical address space</text>
+            <rect x="50" y="40" width="110" height="140" class="pbox"/><text x="105" y="82" text-anchor="middle">code</text>
+            <rect x="50" y="180" width="110" height="70" class="pbox"/><text x="105" y="220" text-anchor="middle">data</text>
+            <rect x="50" y="250" width="110" height="70" class="pbox"/><text x="105" y="290" text-anchor="middle">heap</text>
+            <rect x="50" y="320" width="110" height="70" class="pbox"/><text x="105" y="360" text-anchor="middle">stack</text>
+            <line x1="50" y1="110" x2="160" y2="110" class="dash"/>
+            <text x="44" y="45" text-anchor="end" class="lbl mono">0</text>
+            <text x="44" y="115" text-anchor="end" class="lbl mono">1024</text>
+            <text x="44" y="185" text-anchor="end" class="lbl mono">2048</text>
+            <text x="44" y="255" text-anchor="end" class="lbl mono">3072</text>
+            <text x="44" y="325" text-anchor="end" class="lbl mono">4096</text>
+            <text x="44" y="395" text-anchor="end" class="lbl mono">5120</text>
+            <text x="475" y="24" text-anchor="middle" class="lbl">RAM frames</text>
+            <rect x="420" y="40" width="110" height="44" class="fbox"/><text x="475" y="67" text-anchor="middle" class="mono">stack</text>
+            <rect x="420" y="84" width="110" height="44" class="fbox"/><text x="475" y="111" text-anchor="middle" class="mono">code ·0</text>
+            <rect x="420" y="128" width="110" height="44" class="free"/>
+            <rect x="420" y="172" width="110" height="44" class="fbox"/><text x="475" y="199" text-anchor="middle" class="mono">data</text>
+            <rect x="420" y="216" width="110" height="44" class="fbox"/><text x="475" y="243" text-anchor="middle" class="mono">code ·1</text>
+            <rect x="420" y="260" width="110" height="44" class="free"/>
+            <rect x="420" y="304" width="110" height="44" class="free"/>
+            <rect x="420" y="348" width="110" height="44" class="fbox"/><text x="475" y="375" text-anchor="middle" class="mono">heap</text>
+            <text x="410" y="67" text-anchor="end" class="lbl mono">0</text><text x="410" y="111" text-anchor="end" class="lbl mono">1</text>
+            <text x="410" y="155" text-anchor="end" class="lbl mono">2</text><text x="410" y="199" text-anchor="end" class="lbl mono">3</text>
+            <text x="410" y="243" text-anchor="end" class="lbl mono">4</text><text x="410" y="287" text-anchor="end" class="lbl mono">5</text>
+            <text x="410" y="331" text-anchor="end" class="lbl mono">6</text><text x="410" y="375" text-anchor="end" class="lbl mono">7</text>
+            <g data-step="1">
+              <path d="M160 75 C 270 75, 290 106, 392 106" class="wire f thin" marker-end="url(#ah-f)"/>
+              <path d="M160 145 C 270 145, 290 238, 392 238" class="wire f thin" marker-end="url(#ah-f)"/>
+              <path d="M160 215 C 270 215, 290 194, 392 194" class="wire f thin" marker-end="url(#ah-f)"/>
+              <path d="M160 285 C 270 285, 290 370, 392 370" class="wire f thin" marker-end="url(#ah-f)"/>
+              <path d="M160 355 C 270 355, 290 62, 392 62" class="wire f thin" marker-end="url(#ah-f)"/>
+              <text x="280" y="414" text-anchor="middle" class="lbl">page table: 0→1, 1→4, 2→3, 3→7, 4→0</text>
+            </g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1.2</span>Contiguous on the left, scattered on the right. The page table from Fig. 1.1 connects them.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-3">
+    <h3><span class="sec-no">1.3</span>Splitting a logical address</h3>
+    <div class="prose">
+      <p>Every logical address now has two parts:</p>
+      <ul>
+        <li>The most significant bits are the <span class="p">logical page l</span>. It equals the address divided by the page size, and it indexes the page table to find the <span class="f">frame f</span>.</li>
+        <li>The least significant bits are the <span class="d">page offset d</span>: the position inside the page. It is copied into the physical address unchanged.</li>
+      </ul>
+    </div>
+    <div data-step="1">
+      <div class="formula center"><span class="p">l</span> = ⌊A ÷ page size⌋ &nbsp;<span class="dim">·</span>&nbsp; <span class="d">d</span> = A mod page size</div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 760 110" width="660" role="img" aria-label="32-bit address split into a 20-bit page number 0x00403 and a 12-bit offset 0xA7C">
+            <rect x="10" y="20" width="475" height="44" class="pbox"/>
+            <text x="247" y="48" text-anchor="middle" class="mono big">0x00403</text>
+            <rect x="485" y="20" width="265" height="44" class="dbox"/>
+            <text x="617" y="48" text-anchor="middle" class="mono big">0xA7C</text>
+            <text x="247" y="92" text-anchor="middle" class="lbl">page number l · 20 bits</text>
+            <text x="617" y="92" text-anchor="middle" class="lbl">offset d · 12 bits</text>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1.3</span>32-bit address <code>0x00403A7C</code> with 4 KB (2<sup>12</sup>-byte) pages.</figcaption>
+      </figure>
+    </div>
+    <div class="note note-key" data-step="2">
+      <span class="note-tag">Key idea</span>
+      <p>Page sizes are powers of two, so the split is a cut between two bit positions. The hardware never divides.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-4">
+    <h3><span class="sec-no">1.4</span>The MMU translates every address</h3>
+    <figure class="fig" style="max-width:860px">
+      <div class="fig-frame">
+        <svg class="dia" viewBox="0 0 900 370" width="800" role="img" aria-label="CPU sends logical address l, d; l indexes the page table to get f; f and d form the physical address sent to RAM">
+          <rect x="10" y="130" width="90" height="60" class="box2"/><text x="55" y="165" text-anchor="middle" class="big">CPU</text>
+          <rect x="130" y="40" width="570" height="315" class="dash"/><text x="415" y="30" text-anchor="middle" class="big">MMU</text>
+          <path d="M100 160 H156" class="wire" marker-end="url(#ah)"/>
+          <text x="230" y="130" text-anchor="middle" class="lbl">logical address</text>
+          <rect x="160" y="140" width="70" height="40" class="pbox"/><text x="195" y="166" text-anchor="middle" class="mono big">l</text>
+          <rect x="230" y="140" width="70" height="40" class="dbox"/><text x="265" y="166" text-anchor="middle" class="mono big">d</text>
+          <g data-step="1">
+            <text x="440" y="192" text-anchor="middle" class="lbl">page table</text>
+            <rect x="380" y="200" width="120" height="140" class="box"/>
+            <path d="M195 180 V305 H376" class="wire p" marker-end="url(#ah-p)"/>
+            <text x="370" y="250" text-anchor="end" class="lbl">row l</text>
+          </g>
+          <g data-step="2">
+            <rect x="380" y="290" width="120" height="30" class="fbox"/><text x="440" y="311" text-anchor="middle" class="mono">f</text>
+            <path d="M500 305 H560 V184" class="wire f" marker-end="url(#ah-f)"/>
+            <rect x="525" y="140" width="70" height="40" class="fbox"/><text x="560" y="166" text-anchor="middle" class="mono big">f</text>
+            <text x="595" y="130" text-anchor="middle" class="lbl">physical address</text>
+          </g>
+          <g data-step="3">
+            <path d="M265 140 V90 H630 V136" class="wire d" marker-end="url(#ah-d)"/>
+            <text x="448" y="82" text-anchor="middle" class="lbl">offset copied unchanged</text>
+            <rect x="595" y="140" width="70" height="40" class="dbox"/><text x="630" y="166" text-anchor="middle" class="mono big">d</text>
+          </g>
+          <g data-step="4">
+            <path d="M665 160 H741" class="wire f" marker-end="url(#ah-f)"/>
+            <rect x="745" y="40" width="140" height="315" class="fbox"/><text x="815" y="200" text-anchor="middle" class="big">RAM</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption><span class="fno">Fig. 1.4</span><span class="p">l</span> picks a row of the page table; the row gives <span class="f">f</span>; <span class="d">d</span> rides along untouched.</figcaption>
+    </figure>
+  </div>
+
+  <div class="sec" id="s1-5">
+    <h3><span class="sec-no">1.5</span>Translate an address yourself</h3>
+    <p class="prose read-only">The page table from Fig. 1.1, in a 16-bit address space with 8 physical frames. Type any address, or pick an example.</p>
+    <div class="widget" id="xl">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Logical → physical, bit by bit</span><button class="w-reset" type="button" id="xl-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="xl-ps">Page size
+          <select id="xl-ps"><option value="8">256 B</option><option value="10" selected>1 KB</option><option value="12">4 KB</option></select>
+        </label>
+        <label class="ctl-label" for="xl-addr">Logical address <input id="xl-addr" type="text" value="0x0A2C" spellcheck="false" autocomplete="off"></label>
+        <span class="seg" aria-label="Example addresses">
+          <button type="button" class="mono" data-addr="0x0A2C">0x0A2C</button>
+          <button type="button" class="mono" data-addr="0x13FF">0x13FF</button>
+          <button type="button" class="mono" data-addr="0x2A2C">0x2A2C</button>
+        </span>
+      </div>
+      <div class="widget-body">
+        <div class="xl-grid">
+          <div>
+            <div class="xl-row"><span class="lab">logical address · 16 bits</span><div class="bits" id="xl-bits"></div><span class="val" id="xl-split"></span></div>
+            <div class="xl-row"><span class="lab">physical address</span><div id="xl-out"></div></div>
+          </div>
+          <div class="table-wrap" style="margin:0">
+            <table class="pt" id="xl-pt"><thead><tr><th>page l</th><th>frame f</th><th>valid</th></tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+      </div>
+      <div class="readout read-only">Try <b>0x2A2C</b> with 1 KB pages, then with 4 KB pages. It is page 10 in one case, which this process doesn't have, and page 2 in the other.</div>
+    </div>
+    <div class="note note-honest read-only">
+      <span class="note-tag">Simplified</span>
+      <p>A real page-table entry holds more than a frame number and a valid bit: protection bits (read/write/execute), a dirty bit, a referenced bit. Lecture 15 puts them to work.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="q1">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Chapter 1</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Pages are 1 KB and logical addresses are 16 bits. For logical address <code>0x0A2C</code>, what are <span class="p">l</span> and <span class="d">d</span>?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="That splits the hex digits 0x0A | 0x2C, which is an 8-bit offset: 256-byte pages. 1 KB needs a 10-bit offset.">l = 10, d = 44</button>
+          <button type="button" class="q-opt" data-ok>l = 2, d = 556</button>
+          <button type="button" class="q-opt" data-why="An offset of 2604 needs pages bigger than 2604 bytes, such as 4 KB. With 1 KB pages, d is always below 1024.">l = 0, d = 2604</button>
+          <button type="button" class="q-opt" data-why="6 and 10 are how many bits each part has, not their values.">l = 6, d = 10</button>
+        </div>
+        <div class="q-fb ok">Right. 1 KB = 2<sup>10</sup>, so d is the low 10 bits and l is the top 6. 0x0A2C = 2604 = 2 × 1024 + 556.</div>
+        <div class="q-fb no">Not quite. Work out how many offset bits a 1 KB page needs first.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch0">Back<b>0 · Recall: fragmentation</b></a>
+    <a href="#ch2">Next<b>2 · How big is a page table?</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 2</div>
+    <h2>How big is a page table?</h2>
+    <p class="ch-lede">One entry per page, one table per process. Multiply it out.</p>
+  </div>
+
+  <div class="sec" id="s2-1">
+    <h3><span class="sec-no">2.1</span>A 32-bit example</h3>
+    <div class="prose">
+      <ul>
+        <li>A typical page is 4 KB. Larger "huge pages" (2 MB, 1 GB) also exist.</li>
+        <li data-step="1">Take a 32-bit (4 GB) address space with 4 KB pages. The offset within a page takes 12 bits, which leaves 20 bits for the page number.</li>
+        <li data-step="1">2<sup>32</sup> / 2<sup>12</sup> = 2<sup>20</sup>: about one million entries in the page table.</li>
+        <li data-step="2">If each entry is 20 bits, that is 2<sup>20</sup> × 20 bits ≈ <strong>2.62 MB (2.5 MiB) per process</strong>, just for its page table.</li>
+      </ul>
+    </div>
+    <figure class="fig" data-step="1">
+      <div class="fig-frame">
+        <svg class="dia" viewBox="0 0 760 90" width="660" role="img" aria-label="32-bit address: 20-bit page number, 12-bit offset">
+          <rect x="10" y="10" width="475" height="40" class="pbox"/><text x="247" y="36" text-anchor="middle" class="mono">page number · 20 bits</text>
+          <rect x="485" y="10" width="265" height="40" class="dbox"/><text x="617" y="36" text-anchor="middle" class="mono">offset · 12 bits</text>
+          <text x="247" y="76" text-anchor="middle" class="lbl">2²⁰ ≈ 1 million pages → 1 million entries</text>
+          <text x="617" y="76" text-anchor="middle" class="lbl">2¹² = 4096 bytes per page</text>
+        </svg>
+      </div>
+      <figcaption><span class="fno">Fig. 2.1</span>Where the million entries come from.</figcaption>
+    </figure>
+  </div>
+
+  <div class="sec" id="s2-2">
+    <h3><span class="sec-no">2.2</span>The general formula</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Let the logical address space be 2<sup>m</sup> bytes, so addresses have m bits, and let pages be 2<sup>n</sup> bytes, so the offset has n bits.</p>
+        <p>The page number gets the remaining <strong>m − n</strong> bits, so the table has 2<sup>m−n</sup> entries.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 420 150" width="380" role="img" aria-label="An m-bit address: m minus n bits of page number, n bits of offset">
+            <rect x="10" y="30" width="240" height="46" class="pbox"/><text x="130" y="59" text-anchor="middle" class="mono">page number l</text>
+            <rect x="250" y="30" width="160" height="46" class="dbox"/><text x="330" y="59" text-anchor="middle" class="mono">offset d</text>
+            <text x="130" y="100" text-anchor="middle" class="mono">m − n bits</text>
+            <text x="330" y="100" text-anchor="middle" class="mono">n bits</text>
+            <path d="M12 16 H408" class="wire thin" marker-start="url(#ah)" marker-end="url(#ah)"/>
+            <text x="210" y="11" text-anchor="middle" class="lbl">m bits</text>
+            <text x="210" y="138" text-anchor="middle" class="lbl">2^(m−n) pages, 2^n bytes each</text>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 2.2</span>An m-bit logical address.</figcaption>
+      </figure>
+    </div>
+    <div data-step="1">
+      <div class="formula center">table size = 2<sup>m−n</sup> × (bits per entry) ÷ 8 &nbsp;bytes</div>
+      <p class="small muted">Check against §2.1: m = 32, n = 12, 20-bit entries → 2<sup>20</sup> × 20 ÷ 8 = 2,621,440 bytes.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-3">
+    <h3><span class="sec-no">2.3</span>Size a flat page table</h3>
+    <div class="widget" id="cost-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">What one flat page table costs</span><button class="w-reset" type="button" id="c-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="c-m">Address bits m
+          <select id="c-m">
+            <option value="16">16</option><option value="32" selected>32</option>
+            <option value="39">39 (RISC-V Sv39)</option><option value="48">48 (x86-64 today)</option><option value="57">57 (x86-64, 5-level)</option>
+          </select>
+        </label>
+        <label class="ctl-label" for="c-n">Page size
+          <select id="c-n"><option value="12" selected>4 KB</option><option value="14">16 KB</option><option value="16">64 KB</option><option value="21">2 MB</option></select>
+        </label>
+        <label class="ctl-label" for="c-e">Entry size
+          <select id="c-e"><option value="2.5" selected>20 bits (frame # only)</option><option value="4">4 bytes</option><option value="8">8 bytes (x86-64 PTE)</option></select>
+        </label>
+        <label class="ctl-label" for="c-p">Processes <input id="c-p" type="number" min="1" max="100000" value="100"></label>
+      </div>
+      <div class="widget-body"><div class="stats" id="c-out"></div></div>
+      <div class="readout" id="c-note"></div>
+    </div>
+    <details class="fold">
+      <summary>How do real 64-bit systems avoid this?</summary>
+      <div class="fold-body">
+        <p>A flat table for a 48-bit address space would be hundreds of gigabytes per process, and almost all of it would say "not mapped". Real CPUs use <strong>hierarchical page tables</strong> instead: a small top-level table points to lower-level tables, and lower levels exist only for regions the process actually uses. x86-64 walks four levels (five on newer CPUs). See Silberschatz §9.4, "Structure of the Page Table".</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch1">Back<b>1 · Pages, frames, page tables</b></a>
+    <a href="#ch3">Next<b>3 · Where the table lives</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch3">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 3</div>
+    <h2>Where the page table lives</h2>
+    <p class="ch-lede">Three options. Each fixes the previous one's weakness and brings its own cost.</p>
+  </div>
+
+  <div class="sec" id="s3-1">
+    <h3><span class="sec-no">3.1</span>Option 1: dedicated hardware registers</h3>
+    <div class="two-up">
+      <div>
+        <p class="prose">Keep the whole page table in a bank of registers or dedicated memory inside the MMU.</p>
+        <div class="pc one">
+          <div class="pro"><span class="tag">Good</span><ul><li>Fast translation on every instruction: the table is right inside the MMU.</li></ul></div>
+          <div class="con" data-step="1"><span class="tag">Bad</span><ul>
+            <li>Slow context switch: the whole page table must be reloaded for the new process.</li>
+            <li>Expensive hardware, and some tables are very large (one million entries).</li>
+          </ul></div>
+        </div>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 460 300" width="400" role="img" aria-label="Page table stored as a bank of registers inside the MMU">
+            <rect x="10" y="120" width="70" height="50" class="box2"/><text x="45" y="150" text-anchor="middle">CPU</text>
+            <rect x="110" y="30" width="200" height="250" class="dash"/><text x="210" y="22" text-anchor="middle" class="big">MMU</text>
+            <text x="210" y="60" text-anchor="middle" class="lbl">page-table registers</text>
+            <rect x="140" y="72" width="140" height="28" class="fbox"/><text x="210" y="91" text-anchor="middle" class="mono">r0 = 1</text>
+            <rect x="140" y="100" width="140" height="28" class="fbox"/><text x="210" y="119" text-anchor="middle" class="mono">r1 = 4</text>
+            <rect x="140" y="128" width="140" height="28" class="fbox"/><text x="210" y="147" text-anchor="middle" class="mono">r2 = 3</text>
+            <rect x="140" y="156" width="140" height="28" class="fbox"/><text x="210" y="175" text-anchor="middle" class="mono">r3 = 7</text>
+            <rect x="140" y="184" width="140" height="28" class="box2"/><text x="210" y="203" text-anchor="middle" class="mono">…</text>
+            <rect x="140" y="212" width="140" height="28" class="fbox"/><text x="210" y="231" text-anchor="middle" class="mono">rN−1</text>
+            <path d="M80 145 H136" class="wire" marker-end="url(#ah)"/>
+            <path d="M310 145 H366" class="wire f" marker-end="url(#ah-f)"/>
+            <rect x="370" y="30" width="80" height="250" class="fbox"/><text x="410" y="160" text-anchor="middle">RAM</text>
+            <g data-step="1"><text x="210" y="268" text-anchor="middle" class="lbl t-m">switch: reload all N</text></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 3.1</span>The table inside the MMU.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-2">
+    <h3><span class="sec-no">3.2</span>Option 2: main memory, plus one register</h3>
+    <div class="two-up">
+      <div>
+        <p class="prose">Store the page table in RAM. Keep a pointer to the current one in a special CPU register, the <span class="term">page-table base register (PTBR)<span class="tip">Holds the physical address of the running process's page table. On x86 this register is CR3.</span></span>.</p>
+        <div class="pc one">
+          <div class="pro"><span class="tag">Good</span><ul>
+            <li>Page tables can be large.</li>
+            <li data-step="1">Fast context switch: reload only the PTBR.</li>
+          </ul></div>
+        </div>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 460 300" width="400" role="img" aria-label="The PTBR in the MMU points at P1's page table in RAM; on a context switch it points at P2's">
+            <rect x="10" y="120" width="70" height="50" class="box2"/><text x="45" y="150" text-anchor="middle">CPU</text>
+            <rect x="110" y="70" width="150" height="150" class="dash"/><text x="185" y="62" text-anchor="middle" class="big">MMU</text>
+            <rect x="135" y="126" width="100" height="38" class="obox"/><text x="185" y="150" text-anchor="middle" class="mono">PTBR</text>
+            <path d="M80 145 H131" class="wire" marker-end="url(#ah)"/>
+            <rect x="300" y="20" width="150" height="270" class="box"/><text x="375" y="44" text-anchor="middle" class="big">RAM</text>
+            <rect x="320" y="60" width="110" height="80" class="pbox"/><text x="375" y="98" text-anchor="middle" class="mono">P1's table</text>
+            <rect x="320" y="180" width="110" height="80" class="pbox"/><text x="375" y="218" text-anchor="middle" class="mono">P2's table</text>
+            <path d="M235 140 C 275 140, 280 100, 316 100" class="wire p" marker-end="url(#ah-p)"/>
+            <g data-step="1">
+              <path d="M235 150 C 275 150, 280 220, 316 220" class="wire o dashed" marker-end="url(#ah-o)"/>
+              <text x="185" y="250" text-anchor="middle" class="lbl">switch to P2:</text>
+              <text x="185" y="268" text-anchor="middle" class="lbl">rewrite one register</text>
+            </g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 3.2</span>Switching processes means pointing the PTBR at a different table.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-3">
+    <h3><span class="sec-no">3.3</span>The price: two memory accesses</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Option 2 makes translation slow on every instruction. Each instruction fetch needs two memory accesses:</p>
+        <ol>
+          <li data-step="1">Find the page table in memory (via the PTBR) and index to entry <span class="p">l</span> to get the physical frame number <span class="f">f</span>.</li>
+          <li data-step="2">Fetch the instruction itself from frame <span class="f">f</span> at offset <span class="d">d</span>.</li>
+        </ol>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 440 320" width="390" role="img" aria-label="First memory access reads the page table entry, second reads the data">
+            <rect x="10" y="40" width="130" height="240" class="dash"/><text x="75" y="30" text-anchor="middle" class="big">CPU + MMU</text>
+            <rect x="35" y="140" width="80" height="36" class="obox"/><text x="75" y="163" text-anchor="middle" class="mono">PTBR</text>
+            <rect x="290" y="20" width="140" height="290" class="box"/><text x="360" y="44" text-anchor="middle" class="big">RAM</text>
+            <rect x="305" y="70" width="110" height="90" class="pbox"/><text x="360" y="92" text-anchor="middle" class="lbl">page table</text>
+            <rect x="305" y="120" width="110" height="26" class="fbox"/><text x="360" y="138" text-anchor="middle" class="mono">l → f</text>
+            <rect x="305" y="220" width="110" height="44" class="fbox"/><text x="360" y="247" text-anchor="middle" class="mono">frame f</text>
+            <g data-step="1">
+              <path d="M115 150 H300" class="wire p" marker-end="url(#ah-p)"/>
+              <circle cx="200" cy="132" r="13" class="box" style="stroke:var(--cz)"/><text x="200" y="137" text-anchor="middle" class="mono">1</text>
+            </g>
+            <g data-step="2">
+              <path d="M115 240 H300" class="wire f" marker-end="url(#ah-f)"/>
+              <circle cx="200" cy="222" r="13" class="box" style="stroke:var(--cf)"/><text x="200" y="227" text-anchor="middle" class="mono">2</text>
+              <text x="208" y="266" text-anchor="middle" class="lbl">read ⟨f, d⟩</text>
+            </g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 3.3</span>Two trips to RAM for one reference.</figcaption>
+      </figure>
+    </div>
+    <div class="note note-key" data-step="3">
+      <span class="note-tag">Key idea</span>
+      <p>With the page table in RAM, every memory reference costs two. The next option caches translations so that most references go back to costing one.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-4">
+    <h3><span class="sec-no">3.4</span>Option 3: cache translations in a TLB</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Cache a subset of page-table entries in a small set of CPU buffers: the <span class="term">translation look-aside buffer (TLB)<span class="tip">A small, fully associative cache of recent page → frame translations inside the MMU. Typically tens to a few thousand entries.</span></span>. It is a fast fix for option 2's two-step memory access.</p>
+        <p data-step="1">Which entries to keep? Several caching policies work:</p>
+        <ul data-step="1">
+          <li>cache the most popular, most frequently referenced pages;</li>
+          <li>cache the most recently used pages.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 300 250" width="280" role="img" aria-label="A TLB: a small table of page to frame pairs">
+            <text x="150" y="22" text-anchor="middle" class="big">TLB</text>
+            <text x="95" y="48" text-anchor="middle" class="lbl">page</text><text x="205" y="48" text-anchor="middle" class="lbl">frame</text>
+            <rect x="40" y="58" width="110" height="36" class="pbox"/><text x="95" y="81" text-anchor="middle" class="mono">2</text>
+            <rect x="150" y="58" width="110" height="36" class="fbox"/><text x="205" y="81" text-anchor="middle" class="mono">3</text>
+            <rect x="40" y="94" width="110" height="36" class="pbox"/><text x="95" y="117" text-anchor="middle" class="mono">0</text>
+            <rect x="150" y="94" width="110" height="36" class="fbox"/><text x="205" y="117" text-anchor="middle" class="mono">1</text>
+            <rect x="40" y="130" width="110" height="36" class="pbox"/><text x="95" y="153" text-anchor="middle" class="mono">4</text>
+            <rect x="150" y="130" width="110" height="36" class="fbox"/><text x="205" y="153" text-anchor="middle" class="mono">0</text>
+            <rect x="40" y="166" width="110" height="36" class="pbox"/><text x="95" y="189" text-anchor="middle" class="mono">1</text>
+            <rect x="150" y="166" width="110" height="36" class="fbox"/><text x="205" y="189" text-anchor="middle" class="mono">4</text>
+            <text x="150" y="232" text-anchor="middle" class="lbl">a few entries, searched all at once</text>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 3.4</span>Four cached translations from Fig. 1.1's page table.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch2">Back<b>2 · How big is a page table?</b></a>
+    <a href="#ch4">Next<b>4 · The TLB</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch4">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 4</div>
+    <h2>The TLB</h2>
+    <p class="ch-lede">Follow one memory reference through a hit and through a miss, then see what a context switch does to the cache.</p>
+  </div>
+
+  <div class="sec" id="s4-1">
+    <h3><span class="sec-no">4.1</span>Paging with PTBR and TLB</h3>
+    <div class="widget" id="walk-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">One memory reference, hit and miss</span><button class="w-reset" type="button" id="walk-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Scenario">
+          <button type="button" data-go="0">Overview</button>
+          <button type="button" data-go="1">TLB hit</button>
+          <button type="button" data-go="5">TLB miss</button>
+        </span>
+        <span class="gap"></span>
+        <button type="button" class="btn" data-walk="prev">‹ Back</button>
+        <button type="button" class="btn primary" data-walk="next">Next ›</button>
+      </div>
+      <div class="widget-body">
+        <div class="canvas-wrap">
+        <svg class="dia" id="walk-svg" viewBox="0 0 1000 532" width="800" style="min-width:620px" role="img" aria-label="MMU with TLB and PTBR, page table and target frame in RAM, showing hit and miss paths">
+          <g data-part="cpu"><rect x="20" y="50" width="110" height="56" class="box2"/><text x="75" y="84" text-anchor="middle" class="big">CPU</text></g>
+          <g data-part="w-cpu"><path d="M130 78 H166" class="wire" marker-end="url(#ah)"/></g>
+          <g data-part="la">
+            <text x="240" y="44" text-anchor="middle" class="lbl">logical address</text>
+            <rect x="170" y="56" width="70" height="44" class="pbox"/><text x="205" y="84" text-anchor="middle" class="mono big">l</text>
+            <rect x="240" y="56" width="70" height="44" class="dbox"/><text x="275" y="84" text-anchor="middle" class="mono big">d</text>
+          </g>
+          <rect x="150" y="140" width="580" height="350" class="dash"/><text x="170" y="478" class="big">MMU</text>
+          <g data-part="search">
+            <path d="M205 100 V335" class="wire p"/>
+            <path d="M205 215 H296" class="wire p thin" marker-end="url(#ah-p)"/>
+            <path d="M205 255 H296" class="wire p thin" marker-end="url(#ah-p)"/>
+            <path d="M205 295 H296" class="wire p thin" marker-end="url(#ah-p)"/>
+            <path d="M205 335 H296" class="wire p thin" marker-end="url(#ah-p)"/>
+            <text x="160" y="400" class="lbl">compare l with</text><text x="160" y="416" class="lbl">every entry at once</text>
+          </g>
+          <g data-part="tlb">
+            <text x="360" y="186" text-anchor="middle" class="lbl">page #</text><text x="480" y="186" text-anchor="middle" class="lbl">frame #</text>
+            <text x="560" y="220" class="big">TLB</text>
+            <rect x="300" y="195" width="120" height="40" class="box"/><rect x="420" y="195" width="120" height="40" class="box"/>
+            <rect x="300" y="235" width="120" height="40" class="box"/><rect x="420" y="235" width="120" height="40" class="box"/>
+            <rect x="300" y="275" width="120" height="40" class="box"/><rect x="420" y="275" width="120" height="40" class="box"/>
+            <rect x="300" y="315" width="120" height="40" class="box"/><rect x="420" y="315" width="120" height="40" class="box"/>
+            <text x="360" y="221" text-anchor="middle" class="mono">3</text><text x="480" y="221" text-anchor="middle" class="mono">7</text>
+            <text x="360" y="261" text-anchor="middle" class="mono">9</text><text x="480" y="261" text-anchor="middle" class="mono">2</text>
+          </g>
+          <g data-part="row-hit"><rect x="300" y="275" width="240" height="40" class="fbox"/><text x="360" y="301" text-anchor="middle" class="mono">l</text><text x="480" y="301" text-anchor="middle" class="mono">f</text></g>
+          <g data-part="row-alt"><text x="360" y="301" text-anchor="middle" class="mono">8</text><text x="480" y="301" text-anchor="middle" class="mono">1</text></g>
+          <g data-part="row-old"><text x="360" y="341" text-anchor="middle" class="mono">5</text><text x="480" y="341" text-anchor="middle" class="mono">0</text></g>
+          <g data-part="row-upd"><rect x="300" y="315" width="240" height="40" class="obox"/><text x="360" y="341" text-anchor="middle" class="mono">l</text><text x="480" y="341" text-anchor="middle" class="mono">f</text></g>
+          <g data-part="arr-hit">
+            <path d="M540 295 H635 V104" class="wire f" marker-end="url(#ah-f)"/>
+            <g class="badge"><circle cx="590" cy="318" r="14"/><text x="590" y="318">1</text></g>
+            <text x="560" y="350" class="lbl t-f">TLB hit</text>
+          </g>
+          <g data-part="pa">
+            <text x="670" y="44" text-anchor="middle" class="lbl">physical address</text>
+            <rect x="600" y="56" width="70" height="44" class="fbox"/><text x="635" y="84" text-anchor="middle" class="mono big">f</text>
+            <rect x="670" y="56" width="70" height="44" class="dbox"/><text x="705" y="84" text-anchor="middle" class="mono big">d</text>
+          </g>
+          <g data-part="arr-d"><path d="M275 56 V26 H705 V52" class="wire d" marker-end="url(#ah-d)"/></g>
+          <g data-part="arr-miss">
+            <path d="M420 355 V406" class="wire m" marker-end="url(#ah-m)"/>
+            <g class="badge"><circle cx="392" cy="385" r="14"/><text x="392" y="385">2</text></g>
+            <text x="440" y="392" class="lbl t-m">TLB miss</text>
+          </g>
+          <g data-part="ptbr"><rect x="360" y="410" width="120" height="36" class="obox"/><text x="420" y="434" text-anchor="middle" class="mono">PTBR</text></g>
+          <g data-part="arr-ptbr">
+            <path d="M480 428 H770 V170 H810" class="wire m" marker-end="url(#ah-m)"/>
+            <g class="badge"><circle cx="620" cy="428" r="16"/><text x="620" y="428">2a</text></g>
+          </g>
+          <rect x="800" y="40" width="170" height="450" class="box"/><text x="885" y="30" text-anchor="middle" class="big">RAM</text>
+          <g data-part="pt"><rect x="815" y="150" width="140" height="170" class="pbox"/><text x="885" y="172" text-anchor="middle" class="lbl">page table</text></g>
+          <g data-part="pte"><rect x="815" y="245" width="140" height="30" class="fbox"/><text x="885" y="265" text-anchor="middle" class="mono">entry l = f</text></g>
+          <g data-part="arr-pte"><path d="M812 260 H650 V104" class="wire f" marker-end="url(#ah-f)"/></g>
+          <g data-part="arr-upd">
+            <path d="M812 268 L700 335 H544" class="wire o" marker-end="url(#ah-o)"/>
+            <g class="badge"><circle cx="690" cy="360" r="16"/><text x="690" y="360">2b</text></g>
+          </g>
+          <g data-part="target"><rect x="800" y="390" width="170" height="44" class="fbox"/><text x="885" y="417" text-anchor="middle" class="mono">frame f, offset d</text></g>
+          <g data-part="arr-pa"><path d="M740 78 H785 V412 H796" class="wire f" marker-end="url(#ah-f)"/></g>
+          <g data-part="arr-ret">
+            <path d="M970 412 H988 V505 H75 V110" class="wire" marker-end="url(#ah)"/>
+            <text x="520" y="524" text-anchor="middle" class="lbl">return the code/data at offset d inside frame f</text>
+          </g>
+        </svg>
+        </div>
+      </div>
+      <div class="readout" id="walk-cap" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-2">
+    <h3><span class="sec-no">4.2</span>Hits, misses, and what they cost</h3>
+    <div class="prose">
+      <p>The MMU first looks in the TLB for the logical page.</p>
+      <ul>
+        <li><strong class="f">TLB hit:</strong> go straight to memory with frame <span class="f">f</span> plus offset <span class="d">d</span>. The TLB compares the page against all its entries in parallel, in hardware.</li>
+        <li data-step="1"><strong class="bad">TLB miss:</strong> do the regular two-step lookup (page table, then data), then <strong>update the TLB</strong> with the new entry. If the TLB is full, evict one using a replacement policy such as least recently used (LRU; more in Lecture 16).</li>
+        <li data-step="2">The goal: maximize hits, minimize misses. The effective access time shows why.</li>
+      </ul>
+    </div>
+    <div class="widget" id="eat-w" data-step="2">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Effective access time</span><button class="w-reset" type="button" id="eat-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="eat-h">TLB hit ratio <input id="eat-h" type="range" min="50" max="100" step="0.5" value="98"></label>
+        <label class="ctl-label" for="eat-m">One RAM access <select id="eat-m"><option value="10" selected>10 ns</option><option value="100">100 ns</option></select></label>
+      </div>
+      <div class="widget-body"><div class="stats" id="eat-out"></div></div>
+      <div class="readout" id="eat-f"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="q2">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Count the memory accesses</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A load instruction reads one word. Its page is <strong>not</strong> in the TLB, and the page table is one flat table in RAM. How many RAM accesses does the load take, counting the page-table read?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="One is the TLB-hit case. On a miss the MMU must first read the page-table entry.">1</button>
+          <button type="button" class="q-opt" data-ok>2</button>
+          <button type="button" class="q-opt" data-why="Updating the TLB writes into the MMU's own buffer, not RAM.">3</button>
+        </div>
+        <div class="q-fb ok">Right: one read for page-table entry l (found via the PTBR), one read for the data at ⟨f, d⟩. The TLB update happens inside the MMU.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-3">
+    <h3><span class="sec-no">4.3</span>The TLB across a context switch</h3>
+    <p class="prose">Different processes have different page tables, so P1's "page 3 → frame 7" means nothing for P2. On a <span class="term">context switch<span class="tip">The kernel saves one process's CPU state and loads another's (Lecture 3).</span></span>, the OS has three options:</p>
+    <div class="opts3">
+      <div><span class="tag">Flush everything</span>Invalidate all TLB entries on every switch. Classic x86 did this whenever CR3 changed.</div>
+      <div data-step="1"><span class="tag">Tag each entry</span>Add an <span class="term">address-space ID<span class="tip">ASID: a tag on each TLB entry naming the process it belongs to. Only entries whose tag matches the running process count. x86 calls it PCID.</span></span> to each entry; only entries matching the running process are valid. Costs extra hardware and one more comparison per lookup. Example: DEC Alpha.</div>
+      <div data-step="2"><span class="tag">Keep global pages</span>Don't invalidate frequently used pages, such as kernel pages, on a switch. Intel Pentium Pro: the PGE flag in CR4 plus the global (G) flag in a page-directory or page-table entry. ARM can also flush single entries by virtual address.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-4">
+    <h3><span class="sec-no">4.4</span>Flush or tag?</h3>
+    <div class="widget" id="tlb-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">A 4-entry TLB across context switches</span><button class="w-reset" type="button" id="tlb-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Context-switch policy" id="tlb-pol">
+          <button type="button" data-pol="flush">Flush on switch</button>
+          <button type="button" data-pol="asid">Tag with ASID</button>
+        </span>
+        <span class="seg" id="tlb-acc" aria-label="Access a page"></span>
+        <button type="button" class="btn" id="tlb-sw">Context switch</button>
+        <button type="button" class="btn primary" id="tlb-run">Run scenario</button>
+      </div>
+      <div class="widget-body">
+        <div class="sim-grid">
+          <div>
+            <div class="sub-lab">TLB · 4 entries · LRU</div>
+            <table class="pt" id="tlb-t"><thead></thead><tbody></tbody></table>
+          </div>
+          <div>
+            <div class="sub-lab">page tables (in RAM)</div>
+            <table class="pt" id="tlb-pts"><thead><tr><th>page</th><th>P1 frame</th><th>P2 frame</th></tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+      </div>
+      <div class="readout"><div id="tlb-stats"></div><div id="tlb-log" aria-live="polite"></div></div>
+    </div>
+    <p class="small muted read-only prose">The scenario runs P1 over pages 0–2 three times, switches to P2 for two passes over pages 0–1, then switches back to P1 for two more passes. Run it under each policy and compare the hit rate.</p>
+  </div>
+
+  <div class="sec" id="q3">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Why flush?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">This CPU's TLB has no ASIDs. Why must the OS flush the TLB when it switches from P1 to P2?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Size isn't the problem. Even one stale entry is a correctness bug, however big the TLB is.">The TLB is too small to hold entries for both processes.</button>
+          <button type="button" class="q-opt" data-ok>P2's page 7 may live in a different frame than P1's page 7. A leftover entry would send P2 into P1's memory.</button>
+          <button type="button" class="q-opt" data-why="The flush makes P2 slower at first: every first touch of a page misses.">Flushing makes P2 run faster.</button>
+        </div>
+        <div class="q-fb ok">Right. A TLB entry says "page 7 → frame 2" without saying whose page 7. Without an ASID, the only safe choice is to forget everything.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch3">Back<b>3 · Where the table lives</b></a>
+    <a href="#ch5">Next<b>5 · Paging and L1/L2 caches</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch5">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 5</div>
+    <h2>Paging and the L1/L2 caches</h2>
+    <p class="ch-lede">A data cache can be looked up by virtual address or by physical address. Each choice has its own problem.</p>
+  </div>
+
+  <div class="sec" id="s5-1">
+    <h3><span class="sec-no">5.1</span>Virtually or physically indexed?</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>How does the MMU interact with the L1 or L2 data and instruction caches? It depends on whether the cache is indexed by <span class="p">virtual</span> or <span class="f">physical</span> address.</p>
+        <p data-step="1"><strong class="f">Physically indexed:</strong> the MMU must translate before the cache can be consulted. Slower, but every entry is uniquely identified by its physical address.</p>
+        <p data-step="2"><strong class="p">Virtually indexed:</strong> the cache can be checked right away, without the MMU. On a miss, the MMU still has to translate.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 470 250" width="420" role="img" aria-label="A physically indexed cache sits after the MMU; a virtually indexed cache sits before it">
+            <g data-step="1">
+              <text x="10" y="22" class="lbl">physically indexed</text>
+              <rect x="10" y="34" width="70" height="46" class="box2"/><text x="45" y="62" text-anchor="middle">CPU</text>
+              <path d="M80 57 H116" class="wire p" marker-end="url(#ah-p)"/>
+              <rect x="120" y="34" width="80" height="46" class="box"/><text x="160" y="62" text-anchor="middle">MMU</text>
+              <path d="M200 57 H236" class="wire f" marker-end="url(#ah-f)"/>
+              <rect x="240" y="34" width="110" height="46" class="fbox"/><text x="295" y="62" text-anchor="middle">cache (PA)</text>
+              <path d="M350 57 H386" class="wire f" marker-end="url(#ah-f)"/>
+              <rect x="390" y="34" width="70" height="46" class="fbox"/><text x="425" y="62" text-anchor="middle">RAM</text>
+            </g>
+            <g data-step="2">
+              <text x="10" y="142" class="lbl">virtually indexed</text>
+              <rect x="10" y="154" width="70" height="46" class="box2"/><text x="45" y="182" text-anchor="middle">CPU</text>
+              <path d="M80 177 H116" class="wire p" marker-end="url(#ah-p)"/>
+              <rect x="120" y="154" width="110" height="46" class="pbox"/><text x="175" y="182" text-anchor="middle">cache (VA)</text>
+              <path d="M230 177 H266" class="wire p" marker-end="url(#ah-p)"/>
+              <text x="248" y="168" text-anchor="middle" class="lbl" style="font-size:11px">miss</text>
+              <rect x="270" y="154" width="80" height="46" class="box"/><text x="310" y="182" text-anchor="middle">MMU</text>
+              <path d="M350 177 H386" class="wire f" marker-end="url(#ah-f)"/>
+              <rect x="390" y="154" width="70" height="46" class="fbox"/><text x="425" y="182" text-anchor="middle">RAM</text>
+              <text x="175" y="228" text-anchor="middle" class="lbl">a hit never touches the MMU</text>
+            </g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 5.1</span>Where the cache sits relative to the MMU.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-2">
+    <h3><span class="sec-no">5.2</span>The homonym problem</h3>
+    <p class="prose">A virtually indexed cache has a problem. After a context switch, the new process may use the <strong>same virtual address V</strong> as the previous one, and a cache indexed only by V hands back the previous process's data. Pick a fix and see what P2 gets:</p>
+    <div class="widget" id="hom-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Same address, different process</span><button class="w-reset" type="button" id="hom-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Fix">
+          <button type="button" data-fix="none">No fix</button>
+          <button type="button" data-fix="flush">Flush on switch</button>
+          <button type="button" data-fix="asid">Tag lines with ASID</button>
+        </span>
+      </div>
+      <div class="widget-body"><div class="hom-steps" id="hom-steps"></div></div>
+    </div>
+    <details class="fold">
+      <summary>All three fixes, with their costs</summary>
+      <div class="fold-body">
+        <ul>
+          <li><strong>Flush the cache on each context switch.</strong> The process gets the whole cache to itself, but has to rebuild it from cold.</li>
+          <li><strong>Add an address-space ID (process ID) to each cache entry.</strong> Only the right process's data comes back for V. Needs hardware support and an extra comparison, and the processes now share the cache space.</li>
+          <li><strong>Give every process non-overlapping virtual addresses.</strong> Unlikely: it breaks the model that each process is compiled and runs independently in its own address space [0, MAX].</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="sec" id="s5-3">
+    <h3><span class="sec-no">5.3</span>In practice: L1 virtual, L2 physical</h3>
+    <div class="prose">
+      <ul>
+        <li>Most <strong>L1</strong> caches are <span class="p">virtually indexed</span>, which is fast.</li>
+        <li data-step="1">Most <strong>L2</strong> caches are <span class="f">physically indexed</span>. Each entry is unique, so there are no collisions. That suits shared library code and data: if several processes share the same code, the cache stores it once.</li>
+        <li data-step="2">So the virtually indexed cache is a small, fast L1, and the physically indexed cache is a much larger L2.</li>
+      </ul>
+    </div>
+    <details class="fold">
+      <summary>Going further: "virtually indexed, physically tagged"</summary>
+      <div class="fold-body">
+        <p>Many modern L1 caches are <strong>VIPT</strong>. They pick the cache set using only the page-offset bits, which are the same in the virtual and the physical address, so the lookup starts in parallel with the TLB. They then compare the <em>physical</em> frame number from the TLB against the stored tag. That keeps L1 fast and avoids homonyms without flushing. The trick works only while the set index fits inside the offset bits, which is one reason L1 caches stay small.</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="sec" id="s5-4">
+    <h3><span class="sec-no">5.4</span>The whole path</h3>
+    <figure class="fig" style="max-width:860px">
+      <div class="fig-frame">
+        <svg class="dia" viewBox="0 0 900 260" width="820" role="img" aria-label="CPU to virtually indexed L1, then TLB, then physically indexed L2, then RAM, with a page-table walk on a TLB miss">
+          <rect x="10" y="100" width="90" height="56" class="box2"/><text x="55" y="133" text-anchor="middle" class="big">CPU</text>
+          <path d="M100 128 H156" class="wire p" marker-end="url(#ah-p)"/><text x="128" y="120" text-anchor="middle" class="lbl">VA</text>
+          <rect x="160" y="100" width="160" height="56" class="pbox"/><text x="240" y="124" text-anchor="middle">L1 cache</text><text x="240" y="144" text-anchor="middle" class="lbl">virtually indexed</text>
+          <path d="M240 156 V190 H80 V160" class="wire thin" marker-end="url(#ah)"/><text x="250" y="186" class="lbl">L1 hit</text>
+          <g data-step="1">
+            <path d="M320 128 H366" class="wire p" marker-end="url(#ah-p)"/><text x="343" y="120" text-anchor="middle" class="lbl">miss</text>
+            <rect x="370" y="100" width="120" height="56" class="box"/><text x="430" y="124" text-anchor="middle">TLB</text><text x="430" y="144" text-anchor="middle" class="lbl mono">l → f</text>
+            <path d="M490 128 H536" class="wire f" marker-end="url(#ah-f)"/><text x="513" y="120" text-anchor="middle" class="lbl">PA</text>
+            <rect x="540" y="100" width="160" height="56" class="fbox"/><text x="620" y="124" text-anchor="middle">L2 cache</text><text x="620" y="144" text-anchor="middle" class="lbl">physically indexed</text>
+            <path d="M700 128 H746" class="wire f" marker-end="url(#ah-f)"/><text x="723" y="120" text-anchor="middle" class="lbl">miss</text>
+            <rect x="750" y="100" width="140" height="56" class="fbox"/><text x="820" y="133" text-anchor="middle" class="big">RAM</text>
+            <path d="M620 156 V212 H65 V160" class="wire thin" marker-end="url(#ah)"/><text x="630" y="208" class="lbl">L2 hit</text>
+            <path d="M820 156 V234 H50 V160" class="wire thin" marker-end="url(#ah)"/><text x="830" y="230" class="lbl">from RAM</text>
+          </g>
+          <g data-step="2">
+            <path d="M410 100 V64" class="wire m" marker-end="url(#ah-m)"/><text x="404" y="86" text-anchor="end" class="lbl t-m">TLB miss</text>
+            <rect x="340" y="14" width="180" height="46" class="obox"/><text x="430" y="36" text-anchor="middle">page-table walk</text><text x="430" y="53" text-anchor="middle" class="lbl">PTBR → RAM</text>
+            <path d="M450 60 V96" class="wire o" marker-end="url(#ah-o)"/><text x="456" y="86" class="lbl">update</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption><span class="fno">Fig. 5.2</span>The fastest case never leaves L1 and never asks the MMU. The slowest misses L1, the TLB and L2, and walks the page table first.</figcaption>
+    </figure>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch4">Back<b>4 · The TLB</b></a>
+    <a href="#ch6">Next<b>6 · Shared pages</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch6">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 6</div>
+    <h2>Shared pages</h2>
+    <p class="ch-lede">Two page tables can point at the same frame. That one fact gives shared libraries, shared memory, and a cheap <code>fork()</code>.</p>
+  </div>
+
+  <div class="sec" id="s6-1">
+    <h3><span class="sec-no">6.1</span>Shared code and shared memory</h3>
+    <div class="prose">
+      <p>Page tables of different processes can point to the <strong>same physical frames</strong>.</p>
+      <ul>
+        <li data-step="1"><strong>Shared code.</strong> Apps A and B run as processes P1 and P2 and share C library functions in two pages of code, lib1 and lib2. Each process keeps its own data. Both page tables map lib1 and lib2 to the same frames, so RAM holds one copy.</li>
+        <li data-step="2"><strong>Shared-memory IPC.</strong> Two or more processes that want to share memory can point their page tables at the same data frames. That is how shared-memory IPC works (Lecture 4).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s6-2">
+    <h3><span class="sec-no">6.2</span>Sharing, three ways</h3>
+    <div class="widget" id="sh-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">Two page tables, one RAM</span><button class="w-reset" type="button" id="sh-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Scenario">
+          <button type="button" data-sh="0">Shared library</button>
+          <button type="button" data-sh="1">Shared memory</button>
+          <button type="button" data-sh="2">After fork()</button>
+          <button type="button" data-sh="3">Child writes data1</button>
+        </span>
+      </div>
+      <div class="widget-body">
+        <div class="canvas-wrap">
+          <svg class="dia" id="sh-svg" viewBox="0 0 820 430" width="760" style="min-width:600px" role="img" aria-label="Two processes' page tables pointing into shared RAM frames"></svg>
+        </div>
+      </div>
+      <div class="legend">
+        <span class="li"><span class="sw" style="background:var(--cf)"></span>frame shared by both</span>
+        <span class="li"><span class="sw" style="background:var(--ink3)"></span>private frame</span>
+        <span class="li"><span class="sw" style="background:var(--co)"></span>changed by the kernel</span>
+      </div>
+      <div class="readout" id="sh-cap" aria-live="polite" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s6-3">
+    <h3><span class="sec-no">6.3</span>Shared pages and fork()</h3>
+    <div class="prose">
+      <ul>
+        <li><code>fork()</code> gives the child a copy of the parent's entire address space, code included.</li>
+        <li data-step="1">Rather than duplicating those pages, map the child's pages to the <strong>same frames</strong> as the parent's, and mark them read-only.</li>
+        <li data-step="2">When either process writes to a shared page, the write faults. The kernel copies that one page into a free frame and points the writer's entry at the copy. This is <span class="term">copy-on-write<span class="tip">COW: share pages read-only after fork(), and copy a page only when someone first writes to it. Most children call exec() soon, so most pages are never copied.</span></span>. Lecture 3 introduced it; Lecture 15 covers it in depth.</li>
+      </ul>
+      <p class="small muted read-only">The last two buttons of the widget in §6.2 show exactly this.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="q4">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Who gets the copy?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Right after a copy-on-write <code>fork()</code>, the <strong>parent</strong> writes to its data page. What happens?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="That's shared memory. With copy-on-write, the two processes must look independent.">The child sees the new value too.</button>
+          <button type="button" class="q-opt" data-why="The fault is expected. The kernel handles it, and the parent never notices.">The parent gets a segmentation fault.</button>
+          <button type="button" class="q-opt" data-ok>The write faults. The kernel copies the page, points the parent's entry at the copy, makes it writable, and re-runs the write.</button>
+          <button type="button" class="q-opt" data-why="Copying everything up front is exactly what copy-on-write avoids.">Nothing special. fork() already copied every page.</button>
+        </div>
+        <div class="q-fb ok">Right. Whichever process writes first gets its own copy. Parent and child are treated the same way.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch5">Back<b>5 · Paging and L1/L2 caches</b></a>
+    <a href="#ch7">Next<b>7 · Internal fragmentation</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch7">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 7</div>
+    <h2>Persistent internal fragmentation</h2>
+    <p class="ch-lede">Paging trades external fragmentation for a smaller, bounded kind.</p>
+  </div>
+
+  <div class="sec" id="s7-1">
+    <h3><span class="sec-no">7.1</span>The last page is rarely full</h3>
+    <div class="prose">
+      <ul>
+        <li>Paging has <strong>no external fragmentation</strong>: any free frame fits any page.</li>
+        <li data-step="1">It does have <strong>internal fragmentation</strong>. A 4097-byte process with 4 KB (4096-byte) pages needs two pages (8 KB), and 4095 bytes of the second page are wasted inside it.</li>
+        <li data-step="2">The OS also keeps a <strong>frame table</strong> (free-frame pool) to track which physical frames are free.</li>
+      </ul>
+    </div>
+    <div class="widget" id="fr-w" data-step="1">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Pages for a process of any size</span><button class="w-reset" type="button" id="fr-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="fr-s">Process size (bytes) <input id="fr-s" type="number" min="1" max="100000000" value="4097"></label>
+        <label class="ctl-label" for="fr-p">Page size <select id="fr-p"><option value="1024">1 KB</option><option value="4096" selected>4 KB</option><option value="16384">16 KB</option></select></label>
+      </div>
+      <div class="widget-body"><div class="frag-bar" id="fr-bar"></div><div class="stats" id="fr-out"></div></div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch6">Back<b>6 · Shared pages</b></a>
+    <a href="#tail">Next<b>∎ · Summary and glossary</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="tail">
+  <div class="ch-head">
+    <div class="ch-no">Epilogue</div>
+    <h2>Summary and glossary</h2>
+  </div>
+
+  <div class="sec" id="s-sum">
+    <h3><span class="sec-no">∎</span>What to take away</h3>
+    <div class="prose">
+      <ul>
+        <li>Paging cuts logical memory into <span class="p">pages</span> and RAM into <span class="f">frames</span> of the same size. No external fragmentation; at most one page of internal fragmentation per process.</li>
+        <li>Address = <span class="p">page l</span> | <span class="d">offset d</span>. The per-process page table maps <span class="p">l</span> → <span class="f">f</span>; <span class="d">d</span> passes through.</li>
+        <li>A flat page table is big: 2<sup>m−n</sup> entries. Keeping it in RAM behind the PTBR makes context switches cheap, but doubles memory accesses.</li>
+        <li>The TLB caches translations, so most references need one memory access. Context switches force a flush unless entries carry an ASID.</li>
+        <li>Pointing two page tables at one frame gives shared libraries, shared-memory IPC, and copy-on-write <code>fork()</code>.</li>
+      </ul>
+    </div>
+    <div class="note note-lab" data-step="1">
+      <span class="note-tag">In the lab</span>
+      <p>Basecamp 4, <em>Pages, Faults, and the Art of Eviction</em>: you count one page fault per 4096-byte page as a real kernel fills in your address space, then write the eviction policy yourself.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap read-only">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>page / frame</td><td>A fixed-size piece of logical memory / of physical memory. Pages live in frames.</td></tr>
+        <tr><td>page table</td><td>Per-process array: entry l holds the frame f of logical page l, plus status bits.</td></tr>
+        <tr><td>offset d</td><td>The low bits of an address: the position inside the page. Copied unchanged into the physical address.</td></tr>
+        <tr><td>MMU</td><td>Hardware that translates every logical address to a physical one at run time.</td></tr>
+        <tr><td>PTBR</td><td>Page-table base register: where the running process's page table starts. CR3 on x86.</td></tr>
+        <tr><td>TLB</td><td>Translation look-aside buffer: a small, fully associative cache of page → frame translations.</td></tr>
+        <tr><td>ASID</td><td>Address-space ID: a per-process tag on TLB or cache entries. PCID on x86.</td></tr>
+        <tr><td>homonym</td><td>One virtual address meaning different physical memory in two processes.</td></tr>
+        <tr><td>copy-on-write</td><td>Share pages read-only after fork(); copy a page only on its first write.</td></tr>
+        <tr><td>internal fragmentation</td><td>Space wasted inside an allocated page, almost always the last one.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Adapted from the Lecture 14 slides.
+  Press <kbd>P</kbd> to present, <kbd>→</kbd> / <kbd>←</kbd> to step, <kbd>F</kbd> for full screen, <kbd>Esc</kbd> to return.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  const hex = (v, w) => '0x' + v.toString(16).toUpperCase().padStart(w, '0');
+  const PT = [1, 4, 3, 7, 0];
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- hero: frames filling and emptying on graph paper ---------- */
+  (function () {
+    const cv = $('#hero-canvas'); if (!cv) return;
+    const CELL = 26;
+    let cols = 0, rows = 0, cells = [];
+    function tok(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+    function size() {
+      const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+      cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+      const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cols = Math.ceil(r.width / CELL); rows = Math.ceil(r.height / CELL);
+      cells = [];
+      for (let i = 0; i < cols * rows; i++) cells.push(Math.random() < 0.12 ? (Math.random() < 0.5 ? 1 : 2) : 0);
+      draw();
+    }
+    function draw() {
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, cols * CELL, rows * CELL);
+      const cz = tok('--cz'), cf = tok('--cf');
+      for (let i = 0; i < cells.length; i++) {
+        if (!cells[i]) continue;
+        const x = (i % cols) * CELL, y = Math.floor(i / cols) * CELL, c = cells[i] === 1 ? cz : cf;
+        ctx.globalAlpha = 0.16; ctx.fillStyle = c; ctx.fillRect(x + 2, y + 2, CELL - 3, CELL - 3);
+        ctx.globalAlpha = 0.45; ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.strokeRect(x + 2.5, y + 2.5, CELL - 4, CELL - 4);
+      }
+      ctx.globalAlpha = 1;
+    }
+    size();
+    addEventListener('resize', size);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    if (!reduce) setInterval(() => {
+      if (document.hidden || document.documentElement.classList.contains('present')) return;
+      for (let k = 0; k < 3; k++) {
+        const i = Math.floor(Math.random() * cells.length);
+        cells[i] = cells[i] ? 0 : (Math.random() < 0.5 ? 1 : 2);
+      }
+      draw();
+    }, 700);
+  })();
+
+  /* ---------- Fig. 1.1: page table with hover ---------- */
+  (function () {
+    const rows = $('#pt-rows'), ram = $('#pt-ram'), lines = $('#pt-lines');
+    const content = ['page 4', 'page 0', null, 'page 2', 'page 1', null, null, 'page 3'];
+    content.forEach((c, k) => {
+      const y = 44 + k * 48;
+      ram.appendChild(el('rect', { x: 400, y, width: 110, height: 48, class: c ? 'fbox' : 'free' }));
+      if (c) ram.appendChild(el('text', { x: 455, y: y + 30, 'text-anchor': 'middle', class: 'mono' }, c));
+      ram.appendChild(el('text', { x: 405, y: y + 15, class: 'lbl mono', style: 'font-size:11px' }, k));
+    });
+    PT.forEach((f, l) => {
+      const y = 94 + l * 52;
+      const g = el('g', { 'data-row': l, tabindex: 0, style: 'cursor:pointer' });
+      g.appendChild(el('rect', { x: 20, y, width: 100, height: 52, class: 'pbox' }));
+      g.appendChild(el('rect', { x: 120, y, width: 100, height: 52, class: 'fbox' }));
+      g.appendChild(el('text', { x: 70, y: y + 32, 'text-anchor': 'middle', class: 'mono big' }, l));
+      g.appendChild(el('text', { x: 170, y: y + 32, 'text-anchor': 'middle', class: 'mono big' }, f));
+      rows.appendChild(g);
+      const fy = 44 + f * 48 + 24;
+      lines.appendChild(el('path', { d: `M220 ${y + 26} C 310 ${y + 26}, 300 ${fy}, 396 ${fy}`, class: 'wire f thin', 'marker-end': 'url(#ah-f)', 'data-row': l }));
+    });
+    const hl = (l) => {
+      $$('#pt-lines path').forEach((p) => { p.style.opacity = l == null || p.dataset.row == l ? 1 : 0.15; p.style.strokeWidth = p.dataset.row == l ? 3.2 : ''; });
+      $$('#pt-rows g').forEach((g) => { g.style.opacity = l == null || g.dataset.row == l ? 1 : 0.4; });
+    };
+    $$('#pt-rows g').forEach((g) => {
+      g.addEventListener('mouseenter', () => hl(g.dataset.row));
+      g.addEventListener('focus', () => hl(g.dataset.row));
+      g.addEventListener('mouseleave', () => hl(null));
+      g.addEventListener('blur', () => hl(null));
+    });
+  })();
+
+  /* ---------- §1.5 address translation ---------- */
+  (function () {
+    const ps = $('#xl-ps'), inp = $('#xl-addr');
+    let step = 3;
+    function parse(s) {
+      s = s.trim();
+      const v = /^0x[0-9a-f]+$/i.test(s) ? parseInt(s, 16) : /^\d+$/.test(s) ? parseInt(s, 10) : NaN;
+      return v >= 0 && v < 65536 ? v : NaN;
+    }
+    function bitsHTML(v, width, split, hiCls, loCls, colored) {
+      let h = '';
+      for (let i = width - 1; i >= 0; i--) {
+        h += `<span class="${colored ? (i >= split ? hiCls : loCls) : ''}">${(v >> i) & 1}</span>`;
+        if (colored && i === split && split > 0) h += '<span class="gap"></span>';
+      }
+      return h;
+    }
+    function render() {
+      const n = +ps.value, A = parse(inp.value), tb = $('#xl-pt tbody');
+      if (Number.isNaN(A)) {
+        $('#xl-bits').innerHTML = '';
+        $('#xl-split').innerHTML = '<span class="bad">Enter an address from 0x0000 to 0xFFFF, or 0–65535.</span>';
+        $('#xl-out').innerHTML = ''; tb.innerHTML = '';
+        return;
+      }
+      const l = A >> n, d = A & ((1 << n) - 1), pbits = 16 - n;
+      $('#xl-bits').innerHTML = bitsHTML(A, 16, n, 'b-p', 'b-d', step >= 1);
+      $('#xl-split').innerHTML = step >= 1
+        ? `${hex(A, 4)} = ${A} → <span class="p">l = ${l}</span> (${pbits} bits), <span class="d">d = ${d}</span> (${n} bits)`
+        : `${hex(A, 4)} = ${A}`;
+      let rows = '';
+      for (let r = 0; r < 8; r++) {
+        const v = r < PT.length, cls = step >= 2 && r === l ? (v ? 'on' : 'bad') : '';
+        rows += `<tr class="${cls}"><td>${r}</td><td class="fcol ${v ? '' : 'inv'}">${v ? PT[r] : '—'}</td><td>${v ? 1 : 0}</td></tr>`;
+      }
+      if (l >= 8) rows += `<tr><td colspan="3" class="inv">⋮</td></tr><tr class="${step >= 2 ? 'bad' : ''}"><td>${l}</td><td class="fcol inv">—</td><td>0</td></tr>`;
+      tb.innerHTML = rows;
+      const out = $('#xl-out');
+      if (step < 3) { out.innerHTML = '<div class="result muted">…</div>'; return; }
+      if (l < PT.length) {
+        const f = PT[l], P = (f << n) | d, w = 3 + n;
+        out.innerHTML = `<div class="bits">${bitsHTML(P, w, n, 'b-f', 'b-d', true)}</div>
+          <div class="result" style="margin-top:8px"><span class="f">f = ${f}</span> × ${1 << n} + <span class="d">${d}</span> = <b class="mono">${P}</b> = <b class="mono">${hex(P, Math.ceil(w / 4))}</b></div>`;
+      } else {
+        out.innerHTML = `<div class="result trap"><b class="bad">No valid entry for page ${l}.</b> The MMU traps to the OS, which kills the process with a segmentation fault. Lecture 15 turns some of these traps into page faults that bring the page in from disk.</div>`;
+      }
+    }
+    ps.addEventListener('change', render);
+    inp.addEventListener('input', render);
+    $$('#xl [data-addr]').forEach((b) => b.addEventListener('click', () => { inp.value = b.dataset.addr; render(); }));
+    $('#xl-reset').addEventListener('click', () => { ps.value = '10'; inp.value = '0x0A2C'; render(); });
+    Academy.register('s1-5', { steps: 3, readStep: 3, show(i) { step = i; render(); } });
+    render();
+  })();
+
+  /* ---------- §2.3 page-table cost ---------- */
+  (function () {
+    function fmtBytes(b) {
+      const u = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB'];
+      let i = 0; while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+      return (b >= 100 ? b.toFixed(0) : b >= 10 ? b.toFixed(1) : b.toFixed(2)).replace(/\.0+$/, '') + ' ' + u[i];
+    }
+    function fmtCount(x) {
+      if (x < 1e6) return x.toLocaleString('en-US');
+      return '2^' + Math.round(Math.log2(x)) + ' ≈ ' + x.toExponential(2).replace('e+', '×10^');
+    }
+    function render() {
+      const m = +$('#c-m').value, n = +$('#c-n').value, e = +$('#c-e').value;
+      const p = Math.max(1, Math.min(100000, +$('#c-p').value || 1));
+      if (n >= m) { $('#c-out').innerHTML = '<div class="warn"><div class="big">—</div><div class="sub">The page is as big as the whole address space.</div></div>'; $('#c-note').textContent = ''; return; }
+      const entries = Math.pow(2, m - n), per = entries * e, all = per * p, ram = 16 * Math.pow(2, 30);
+      $('#c-out').innerHTML =
+        `<div><div class="lab">entries</div><div class="big">${fmtCount(entries)}</div><div class="sub">2^(${m} − ${n}) pages</div></div>` +
+        `<div class="${per > ram ? 'warn' : ''}"><div class="lab">table per process</div><div class="big">${fmtBytes(per)}</div><div class="sub">entries × ${e === 2.5 ? '20 bits' : e + ' bytes'}</div></div>` +
+        `<div class="${all > ram ? 'warn' : ''}"><div class="lab">${p.toLocaleString('en-US')} processes</div><div class="big">${fmtBytes(all)}</div><div class="sub">for page tables alone</div></div>`;
+      $('#c-note').innerHTML = per > ram
+        ? '<span class="no">More than a laptop\'s 16 GiB of RAM for one process.</span> A flat table can\'t work here.'
+        : per > Math.pow(2, 20) ? 'Megabytes per process, and every process has one.' : '<span class="ok">Small enough to ignore.</span>';
+    }
+    ['c-m', 'c-n', 'c-e', 'c-p'].forEach((id) => $('#' + id).addEventListener('input', render));
+    $('#c-reset').addEventListener('click', () => { $('#c-m').value = '32'; $('#c-n').value = '12'; $('#c-e').value = '2.5'; $('#c-p').value = '100'; render(); });
+    render();
+  })();
+
+  /* ---------- §4.1 TLB walkthrough ---------- */
+  (function () {
+    const svg = $('#walk-svg');
+    const HIT_HIDE = ['row-alt', 'row-upd'], MISS_HIDE = ['row-hit', 'row-upd'], UPD_HIDE = ['row-hit', 'row-old'];
+    const S = [
+      { lit: null, hide: HIT_HIDE, cap: 'Both paths at once. Choose <b>TLB hit</b> or <b>TLB miss</b>, then step with Next.' },
+      { lit: ['cpu', 'w-cpu', 'la'], hide: HIT_HIDE, cap: 'The CPU issues logical address ⟨<span class="p">l</span>, <span class="d">d</span>⟩.' },
+      { lit: ['la', 'search', 'tlb', 'row-hit'], hide: HIT_HIDE, cap: 'The MMU compares <span class="p">l</span> against every TLB entry at the same time.' },
+      { lit: ['tlb', 'row-hit', 'arr-hit', 'pa', 'arr-d'], hide: HIT_HIDE, cap: '<span class="ok">① TLB hit.</span> Frame <span class="f">f</span> comes straight out of the TLB; the offset <span class="d">d</span> is copied over unchanged.' },
+      { lit: ['pa', 'arr-pa', 'target', 'arr-ret', 'cpu'], hide: HIT_HIDE, cap: 'One RAM access reads the target at ⟨<span class="f">f</span>, <span class="d">d</span>⟩. <b>Total: 1 memory access.</b>' },
+      { lit: ['la', 'search', 'tlb', 'row-alt', 'row-old', 'arr-miss', 'ptbr'], hide: MISS_HIDE, cap: '<span class="no">② TLB miss.</span> No entry holds <span class="p">l</span>. Fall back to the page table.' },
+      { lit: ['ptbr', 'arr-ptbr', 'pt', 'pte'], hide: MISS_HIDE, cap: '<span class="no">②a</span> The PTBR says where this process\'s page table is. Read entry <span class="p">l</span> to get <span class="f">f</span>: <b>memory access #1</b>.' },
+      { lit: ['pte', 'arr-upd', 'tlb', 'row-upd', 'row-alt'], hide: UPD_HIDE, cap: '<span class="os">②b</span> Copy (<span class="p">l</span>, <span class="f">f</span>) into the TLB, evicting the least recently used entry if it is full. The next access to this page hits.' },
+      { lit: ['pte', 'arr-pte', 'pa', 'arr-d', 'arr-pa', 'target', 'arr-ret', 'cpu'], hide: UPD_HIDE, cap: 'Form ⟨<span class="f">f</span>, <span class="d">d</span>⟩ and read the target: <b>memory access #2</b>. A miss costs twice as many RAM accesses as a hit.' },
+    ];
+    let i = 0;
+    const parts = $$('[data-part]', svg);
+    function show(k) {
+      i = Math.max(0, Math.min(S.length - 1, k));
+      const s = S[i];
+      svg.classList.toggle('stepping', !!s.lit);
+      parts.forEach((p) => {
+        const name = p.dataset.part;
+        p.classList.toggle('lit', !!s.lit && s.lit.includes(name));
+        p.style.display = s.hide.includes(name) ? 'none' : '';
+      });
+      const label = i === 0 ? '' : i <= 4 ? `hit ${i}/4` : `miss ${i - 4}/4`;
+      $('#walk-cap').innerHTML = (label ? `<span class="step">${label}</span>` : '') + s.cap;
+      $$('#walk-w [data-go]').forEach((b) => b.setAttribute('aria-pressed', String(i === 0 ? b.dataset.go === '0' : i <= 4 ? b.dataset.go === '1' : b.dataset.go === '5')));
+      $('#walk-w [data-walk="prev"]').disabled = i === 0;
+      $('#walk-w [data-walk="next"]').disabled = i === S.length - 1;
+    }
+    const ctl = Academy.register('s4-1', { steps: S.length - 1, readStep: 0, show });
+    $$('#walk-w [data-go]').forEach((b) => b.addEventListener('click', () => ctl.go(+b.dataset.go)));
+    $('#walk-w [data-walk="prev"]').addEventListener('click', () => ctl.go(i - 1));
+    $('#walk-w [data-walk="next"]').addEventListener('click', () => ctl.go(i + 1));
+    $('#walk-reset').addEventListener('click', () => ctl.go(0));
+    show(0);
+  })();
+
+  /* ---------- §4.2 effective access time ---------- */
+  (function () {
+    function render() {
+      const h = +$('#eat-h').value / 100, m = +$('#eat-m').value;
+      const eat = h * m + (1 - h) * 2 * m, slow = (eat / m - 1) * 100;
+      $('#eat-f').innerHTML = `EAT = h × ${m} + (1 − h) × ${2 * m} = ${h.toFixed(3)} × ${m} + ${(1 - h).toFixed(3)} × ${2 * m} = <b>${eat.toFixed(2)} ns</b>`;
+      $('#eat-out').innerHTML =
+        `<div><div class="lab">hit ratio h</div><div class="big">${(h * 100).toFixed(1)}%</div></div>` +
+        `<div><div class="lab">effective access</div><div class="big">${eat.toFixed(2)} ns</div></div>` +
+        `<div class="${slow > 10 ? 'warn' : ''}"><div class="lab">slower than one access</div><div class="big">+${slow.toFixed(1)}%</div></div>`;
+    }
+    $('#eat-h').addEventListener('input', render); $('#eat-m').addEventListener('input', render);
+    $('#eat-reset').addEventListener('click', () => { $('#eat-h').value = '98'; $('#eat-m').value = '10'; render(); });
+    render();
+  })();
+
+  /* ---------- §4.4 TLB simulator ---------- */
+  (function () {
+    const PTS = { P1: [1, 4, 3, 7, 0, 9], P2: [2, 5, 8, 6, 10, 11] };
+    const CAP = 4;
+    let S, timer = null;
+    function fresh(pol) { return { pol, proc: 'P1', tlb: [], clock: 0, acc: 0, hit: 0, mem: 0, last: -1, lastHit: false, log: '' }; }
+    function access(page) {
+      S.clock++; S.acc++;
+      const k = S.tlb.findIndex((e) => e.page === page && (S.pol === 'flush' || e.asid === S.proc));
+      if (k >= 0) {
+        S.tlb[k].t = S.clock; S.hit++; S.mem += 1; S.last = k; S.lastHit = true;
+        S.log = `${S.proc} page ${page}: <span class="ok">hit</span> → frame ${S.tlb[k].frame} (1 RAM access)`;
+      } else {
+        const entry = { asid: S.proc, page, frame: PTS[S.proc][page], t: S.clock };
+        let at = S.tlb.length;
+        if (at >= CAP) { at = 0; S.tlb.forEach((e, j) => { if (e.t < S.tlb[at].t) at = j; }); }
+        const ev = S.tlb[at];
+        S.tlb[at] = entry; S.mem += 2; S.last = at; S.lastHit = false;
+        S.log = `${S.proc} page ${page}: <span class="no">miss</span> → page table → frame ${entry.frame} (2 RAM accesses)` + (ev ? `, evicted ${S.pol === 'asid' ? ev.asid + ' ' : ''}page ${ev.page}` : '');
+      }
+    }
+    function sw() {
+      S.proc = S.proc === 'P1' ? 'P2' : 'P1';
+      if (S.pol === 'flush') { S.tlb = []; S.log = `Switched to ${S.proc}. TLB flushed.`; }
+      else S.log = `Switched to ${S.proc}. The other process's entries stay, tagged, but don't match.`;
+      S.last = -1;
+    }
+    function render() {
+      $$('#tlb-pol [data-pol]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pol === S.pol)));
+      const asid = S.pol === 'asid';
+      $('#tlb-t thead').innerHTML = `<tr>${asid ? '<th>ASID</th>' : ''}<th>page</th><th>frame</th><th>last used</th></tr>`;
+      let rows = '';
+      for (let k = 0; k < CAP; k++) {
+        const e = S.tlb[k], cls = k === S.last ? (S.lastHit ? 'hit' : 'miss') : '';
+        rows += e
+          ? `<tr class="${cls}">${asid ? `<td>${e.asid}</td>` : ''}<td class="p">${e.page}</td><td class="f">${e.frame}</td><td>t=${e.t}</td></tr>`
+          : `<tr>${asid ? '<td class="inv">—</td>' : ''}<td class="inv">—</td><td class="inv">—</td><td class="inv">empty</td></tr>`;
+      }
+      $('#tlb-t tbody').innerHTML = rows;
+      $('#tlb-pts tbody').innerHTML = PTS.P1.map((f, p) => `<tr><td>${p}</td><td>${f}</td><td>${PTS.P2[p]}</td></tr>`).join('');
+      $('#tlb-acc').innerHTML = `<span class="seg-label">${S.proc} reads page</span>` +
+        PTS.P1.map((_, p) => `<button type="button" class="mono" data-page="${p}"${timer ? ' disabled' : ''}>${p}</button>`).join('');
+      const rate = S.acc ? Math.round(S.hit / S.acc * 100) + '%' : '—';
+      $('#tlb-stats').innerHTML = `running <b>${S.proc}</b> · accesses <b>${S.acc}</b> · hits <b>${S.hit}</b> · hit rate <b>${rate}</b> · RAM accesses <b>${S.mem}</b>`;
+      $('#tlb-log').innerHTML = S.log;
+      $('#tlb-sw').disabled = !!timer; $('#tlb-run').disabled = !!timer;
+    }
+    function reset(pol) {
+      if (timer) { clearInterval(timer); timer = null; }
+      S = fresh(pol);
+      [0, 1, 2, 0, 1].forEach(access);
+      S.log = 'Example start: P1 has already read pages 0, 1, 2, 0, 1.';
+      render();
+    }
+    function run() {
+      const pol = S.pol;
+      reset(pol);
+      S = fresh(pol);
+      const seq = [];
+      for (let r = 0; r < 3; r++) seq.push(0, 1, 2);
+      seq.push('sw'); for (let r = 0; r < 2; r++) seq.push(0, 1);
+      seq.push('sw'); for (let r = 0; r < 2; r++) seq.push(0, 1, 2);
+      const one = () => { const a = seq.shift(); if (a === 'sw') sw(); else access(a); };
+      const done = () => { S.log += ' · Scenario done: hit rate ' + Math.round(S.hit / S.acc * 100) + '% under ' + (pol === 'flush' ? 'flush' : 'ASID tags') + '.'; };
+      if (reduce) { while (seq.length) one(); done(); render(); return; }
+      timer = setInterval(() => {
+        one();
+        if (!seq.length) { clearInterval(timer); timer = null; done(); }
+        render();
+      }, 260);
+      render();
+    }
+    $('#tlb-w').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b || b.disabled) return;
+      if (b.dataset.page != null) { access(+b.dataset.page); render(); }
+      else if (b.dataset.pol) reset(b.dataset.pol);
+      else if (b.id === 'tlb-sw') { sw(); render(); }
+      else if (b.id === 'tlb-run') run();
+      else if (b.id === 'tlb-reset') reset(S.pol);
+    });
+    reset('flush');
+  })();
+
+  /* ---------- §5.2 homonym ---------- */
+  (function () {
+    const fixes = {
+      none: { sw: 'Nothing happens to the cache.', line: 'VA 0x4000 → "100"', res: 'wrong',
+        out: 'Cache <b>hit</b> on 0x4000. P2 reads <b class="bad">100</b>, which is P1\'s balance. Its own value is 42.' },
+      flush: { sw: 'The whole cache is emptied.', line: '(cache empty)', res: 'right',
+        out: 'Cache <b>miss</b>. The MMU translates P2\'s 0x4000 to P2\'s frame and returns <b class="f">42</b>. Correct, but P2 starts with a cold cache.' },
+      asid: { sw: 'P1\'s line stays, tagged P1.', line: 'P1 · VA 0x4000 → "100"', res: 'right',
+        out: 'The tag says P1 and the running process is P2: <b>miss</b>. P2 gets <b class="f">42</b>, and P1\'s line survives for when P1 comes back.' },
+    };
+    function render(fix) {
+      const f = fixes[fix];
+      $$('#hom-w [data-fix]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.fix === fix)));
+      $('#hom-steps').innerHTML =
+        `<div><span class="k">1 · P1 runs</span>P1 stores <code>balance = 100</code> at virtual address <code>0x4000</code>.<br><span class="line">${fix === 'asid' ? 'P1 · ' : ''}VA 0x4000 → "100"</span></div>` +
+        `<div><span class="k">2 · switch to P2</span>${f.sw}<br><span class="line">${f.line}</span></div>` +
+        `<div class="${f.res}"><span class="k">3 · P2 loads 0x4000</span>${f.out}</div>`;
+    }
+    $$('#hom-w [data-fix]').forEach((b) => b.addEventListener('click', () => render(b.dataset.fix)));
+    $('#hom-reset').addEventListener('click', () => render('none'));
+    render('none');
+  })();
+
+  /* ---------- §6.2 shared pages ---------- */
+  (function () {
+    const svg = $('#sh-svg');
+    const P1LIB = [['appA1', 4], ['appA2', 2], ['lib1', 3], ['lib2', 5], ['data1', 0]];
+    const SC = [
+      { t: ['P1 (app A)', 'P2 (app B)'], p1: P1LIB, p2: [['appB', 7], ['lib1', 3], ['lib2', 5], ['data2', 1]],
+        ram: ['data1', 'data2', 'appA2', 'lib1', 'appA1', 'lib2', null, 'appB'],
+        cap: 'Both page tables map <b>lib1</b> and <b>lib2</b> to frames 3 and 5, so RAM holds one copy of the library. Each process keeps private code and data.' },
+      { t: ['P1 (app A)', 'P2 (app B)'], p1: P1LIB.concat([['shm', 6]]), p2: [['appB', 7], ['lib1', 3], ['lib2', 5], ['data2', 1], ['shm', 6]],
+        ram: ['data1', 'data2', 'appA2', 'lib1', 'appA1', 'lib2', 'shm', 'appB'],
+        cap: 'A shared-memory region: both processes map a page to frame 6. A write by one is immediately visible to the other. That is shared-memory IPC.' },
+      { t: ['parent', 'child'], p1: P1LIB, p2: P1LIB, ro: true,
+        ram: ['data1', null, 'appA2', 'lib1', 'appA1', 'lib2', null, 'other'],
+        cap: 'Right after <code>fork()</code>: the child\'s page table is a copy of the parent\'s. Every entry points at the same frame, and every entry is marked <b class="os">read-only</b>. No page has been copied yet.' },
+      { t: ['parent', 'child'], p1: P1LIB, p2: [['appA1', 4], ['appA2', 2], ['lib1', 3], ['lib2', 5], ['data1', 1]], ro: true, rw2: 4, fresh: 1,
+        ram: ['data1', 'data1′', 'appA2', 'lib1', 'appA1', 'lib2', null, 'other'],
+        cap: 'The child writes to data1. The page is read-only, so the write <b class="bad">faults</b>. The kernel copies frame 0 into free frame 1, points the child\'s entry 4 at it, and makes that entry writable. The parent\'s entry stays read-only until it writes too; then the kernel sees the parent is the only user left and simply makes the page writable.' },
+    ];
+    const RH = 46, RY = 44, FH = 44, FY = 44;
+    function render(k) {
+      const s = SC[k];
+      $$('#sh-w [data-sh]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.sh === k)));
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      const refs = {};
+      s.p1.concat(s.p2).forEach(([, f]) => { refs[f] = (refs[f] || 0) + 1; });
+      [[70, s.t[0] + ' logical'], [165, 'page table'], [410, 'RAM frames'], [655, 'page table'], [750, s.t[1] + ' logical']]
+        .forEach(([x, t]) => svg.appendChild(el('text', { x, y: 26, 'text-anchor': 'middle', class: 'lbl' }, t)));
+      s.ram.forEach((c, f) => {
+        const y = FY + f * FH, shared = refs[f] > 1, isFresh = s.fresh === f;
+        svg.appendChild(el('rect', { x: 350, y, width: 120, height: FH, class: c == null ? 'free' : isFresh ? 'obox' : shared ? 'fbox' : 'box' }));
+        if (c) svg.appendChild(el('text', { x: 410, y: y + 28, 'text-anchor': 'middle', class: 'mono' }, c));
+        svg.appendChild(el('text', { x: 357, y: y + 16, class: 'lbl mono', style: 'font-size:11px' }, f));
+      });
+      function side(list, left, rwIdx) {
+        const lx = left ? 20 : 700, px = left ? 140 : 630;
+        list.forEach(([name, f], p) => {
+          const y = RY + p * RH, changed = rwIdx === p;
+          svg.appendChild(el('rect', { x: lx, y, width: 100, height: RH, class: 'pbox' }));
+          svg.appendChild(el('text', { x: lx + 50, y: y + 29, 'text-anchor': 'middle', class: 'mono' }, name));
+          svg.appendChild(el('text', { x: left ? lx - 6 : lx + 106, y: y + 29, 'text-anchor': left ? 'end' : 'start', class: 'lbl mono' }, p));
+          svg.appendChild(el('rect', { x: px, y, width: 50, height: RH, class: changed ? 'obox' : 'box' }));
+          svg.appendChild(el('text', { x: px + 25, y: y + (s.ro ? 23 : 29), 'text-anchor': 'middle', class: 'mono' }, f));
+          if (s.ro) svg.appendChild(el('text', { x: px + 25, y: y + 39, 'text-anchor': 'middle', class: 'lbl mono ' + (changed ? 't-o' : ''), style: 'font-size:10px' }, changed ? 'r/w' : 'r/o'));
+          const y1 = y + RH / 2, y2 = FY + f * FH + FH / 2;
+          const x1 = left ? px + 50 : px, x2 = left ? 346 : 474;
+          const c1 = left ? x1 + 70 : x1 - 70, c2 = left ? x2 - 60 : x2 + 60;
+          const kind = changed ? 'o' : refs[f] > 1 ? 'f' : '';
+          svg.appendChild(el('path', { d: `M${x1} ${y1} C ${c1} ${y1}, ${c2} ${y2}, ${x2} ${y2}`, class: 'wire ' + (kind || 'thin'), 'marker-end': kind ? `url(#ah-${kind})` : 'url(#ah)' }));
+        });
+      }
+      side(s.p1, true, -1);
+      side(s.p2, false, s.rw2);
+      $('#sh-cap').innerHTML = s.cap;
+    }
+    const ctl = Academy.register('s6-2', { steps: 3, readStep: 0, show: render });
+    $$('#sh-w [data-sh]').forEach((b) => b.addEventListener('click', () => ctl.go(+b.dataset.sh)));
+    $('#sh-reset').addEventListener('click', () => ctl.go(0));
+    render(0);
+  })();
+
+  /* ---------- §7.1 internal fragmentation ---------- */
+  (function () {
+    function render() {
+      const size = Math.max(1, Math.floor(+$('#fr-s').value || 1)), pg = +$('#fr-p').value;
+      const pages = Math.ceil(size / pg), alloc = pages * pg, waste = alloc - size;
+      const lastFill = (size - (pages - 1) * pg) / pg, show = Math.min(pages, 8);
+      let h = '';
+      for (let k = 0; k < show; k++) {
+        const isLast = k === show - 1 && show === pages;
+        h += `<div class="pg ${isLast && waste ? 'waste' : ''}" title="page ${k}"><i style="width:${isLast ? lastFill * 100 : 100}%"></i></div>`;
+      }
+      if (pages > show) h += `<span class="more-pg">… ${pages - show} more</span><div class="pg ${waste ? 'waste' : ''}"><i style="width:${lastFill * 100}%"></i></div>`;
+      $('#fr-bar').innerHTML = h;
+      $('#fr-out').innerHTML =
+        `<div><div class="lab">pages</div><div class="big">${pages.toLocaleString('en-US')}</div><div class="sub">${alloc.toLocaleString('en-US')} bytes allocated</div></div>` +
+        `<div class="${waste > pg / 2 ? 'warn' : ''}"><div class="lab">wasted in the last page</div><div class="big">${waste.toLocaleString('en-US')} B</div><div class="sub">${(waste / alloc * 100).toFixed(1)}% of the allocation</div></div>`;
+    }
+    $('#fr-s').addEventListener('input', render); $('#fr-p').addEventListener('input', render);
+    $('#fr-reset').addEventListener('click', () => { $('#fr-s').value = '4097'; $('#fr-p').value = '4096'; render(); });
+    render();
+  })();
+})();
+</script>
+</body>
+</html>

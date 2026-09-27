@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Base Camp Academy</title>
+<meta name="description" content="Interactive lecture notes for CSCI 3753 Operating Systems at CU Boulder.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="assets/academy.css">
+<style>
+.lec-wrap { max-width: 880px; margin: 0 auto; padding: 36px 24px 60px; }
+.lec { list-style: none; padding: 0; margin: 0; border-top: 2px solid var(--ink); }
+.lec li { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr) auto; gap: 16px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.lec .n { font-family: var(--f-mono); font-size: 13px; color: var(--cz-ink); font-weight: 600; letter-spacing: 0.08em; }
+.lec .t { font-family: var(--f-display); font-size: 19px; font-weight: 600; color: var(--ink); text-decoration: none; }
+.lec a.t:hover { color: var(--cz-ink); }
+.lec .d { display: block; font-family: var(--f-body); font-size: 14px; font-weight: 400; color: var(--ink2); margin-top: 2px; }
+.lec .st { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
+.lec .st.live { color: var(--cx-ink); border: 1px solid var(--cx); background: var(--cx-soft); border-radius: 999px; padding: 2px 9px; }
+</style>
+</head>
+<body>
+<div class="hero" id="top">
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 Operating Systems · CU Boulder</div>
+    <h1>Base Camp <span class="accent">Academy</span></h1>
+    <p class="lede">Lecture notes you can read on your own or present in class. Each page reads like a tutorial, with hands-on experiments running in your browser. Press <kbd>P</kbd> on any lecture to present it one slide at a time.</p>
+  </div>
+</div>
+<main class="lec-wrap">
+  <ul class="lec">
+    <li><span class="n">L14</span><a class="t" href="lectures/14-paging.html">Paging<span class="d">Pages and frames, page tables, the TLB, caches, shared pages.</span></a><span class="st live">interactive</span></li>
+  </ul>
+</main>
+</body>
+</html>
