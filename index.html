@@ -8,7 +8,9 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
 <link rel="stylesheet" href="assets/academy.css">
 <style>
-.lec-wrap { max-width: 880px; margin: 0 auto; padding: 36px 24px 60px; }
+.lec-wrap { max-width: 880px; padding: 30px 0 60px; }
+.layout .rail { top: 12px; padding-top: 30px; }
+.grp { scroll-margin-top: 16px; }
 .lec { list-style: none; padding: 0; margin: 0; border-top: 2px solid var(--ink); }
 .lec li { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr) auto; gap: 16px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .lec .n { font-family: var(--f-mono); font-size: 13px; color: var(--cz-ink); font-weight: 600; letter-spacing: 0.08em; }
@@ -22,6 +24,7 @@
 .grp .gn { font-family: var(--f-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink3); }
 .grp .gd { color: var(--ink2); margin: 0 0 12px; font-size: 15px; }
 .lec span.t { color: var(--ink3); }
+.lec li.rec .n { color: var(--cf-ink); }
 </style>
 </head>
 <body>
@@ -29,36 +32,66 @@
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 Operating Systems · CU Boulder</div>
     <h1>Base Camp <span class="accent">Academy</span></h1>
-    <p class="lede">Lecture notes you can read on your own or present in class. Each page reads like a tutorial, with hands-on experiments running in your browser.</p>
+    <p class="lede">Lecture notes you can read on your own or present in class, and the Friday recitations that go with them. Each lecture reads like a tutorial, with hands-on experiments running in your browser. Lectures are numbered L, recitations R.</p>
   </div>
 </div>
-<main class="lec-wrap">
-  <section class="grp">
+<div class="layout">
+  <nav class="rail" aria-label="contents">
+    <p class="rail-title">Contents</p>
+    <a href="#part-i"><span class="n">I</span>Foundations</a>
+    <a href="#part-ii"><span class="n">II</span>Processes and threads</a>
+    <a href="#part-iii"><span class="n">III</span>CPU scheduling</a>
+    <a href="#part-iv"><span class="n">IV</span>Synchronization and deadlock</a>
+    <a href="#part-v"><span class="n">V</span>Memory</a>
+    <a href="#part-vi"><span class="n">VI</span>I/O and storage</a>
+    <a href="#part-vii"><span class="n">VII</span>Networks and virtualization</a>
+    <a href="#part-viii"><span class="n">VIII</span>Protection and security</a>
+  </nav>
+  <main class="lec-wrap">
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#part-i"><span class="n">I</span>Foundations</a>
+    <a href="#part-ii"><span class="n">II</span>Processes and threads</a>
+    <a href="#part-iii"><span class="n">III</span>CPU scheduling</a>
+    <a href="#part-iv"><span class="n">IV</span>Synchronization and deadlock</a>
+    <a href="#part-v"><span class="n">V</span>Memory</a>
+    <a href="#part-vi"><span class="n">VI</span>I/O and storage</a>
+    <a href="#part-vii"><span class="n">VII</span>Networks and virtualization</a>
+    <a href="#part-viii"><span class="n">VIII</span>Protection and security</a>
+      </nav>
+    </details>
+  <section class="grp" id="part-i">
     <h2><span class="gn">Part I</span>Foundations</h2>
     <p class="gd">What an operating system is and how programs reach it.</p>
     <ul class="lec">
     <li><span class="n">L01</span><a class="t" href="lectures/01-overview.html">Overview<span class="d">What an OS is, interrupts, the storage hierarchy, multiprogramming, dual mode.</span></a><span class="st live">interactive</span></li>
     <li><span class="n">L02</span><a class="t" href="lectures/02-os-services.html">OS Services<span class="d">Services, the boot chain, system calls on Linux x86-64, loadable kernel modules.</span></a><span class="st live">interactive</span></li>
+    <li class="rec"><span class="n">R01</span><a class="t" href="recitations/r01-c-and-linux.html">C and the Linux command line<span class="d">Strings and argv; warnings and AddressSanitizer; pipes, redirection, exit status; Lab00 help.</span></a><span class="st live">recitation</span></li>
+    <li class="rec"><span class="n">R02</span><span class="t">Looking at a running system<span class="d">A tour of /proc; strace on ls to see system calls; Lab00 help.</span></span><span class="st">week 2</span></li>
     </ul>
   </section>
-  <section class="grp">
+  <section class="grp" id="part-ii">
     <h2><span class="gn">Part II</span>Processes and threads</h2>
     <p class="gd">The units of execution and how they communicate.</p>
     <ul class="lec">
     <li><span class="n">L03</span><a class="t" href="lectures/03-process.html">Process<span class="d">Memory layout, fork/exec/wait, zombies and orphans, the PCB, queues, context switches.</span></a><span class="st live">interactive</span></li>
     <li><span class="n">L04</span><a class="t" href="lectures/04-ipc.html">IPC<span class="d">Signals, shared memory, pipes, sockets, remote procedure calls.</span></a><span class="st live">interactive</span></li>
     <li><span class="n">L05</span><a class="t" href="lectures/05-thread.html">Thread<span class="d">Threads vs processes, user and kernel threads, pthreads, races, thread safety, reentrancy.</span></a><span class="st live">interactive</span></li>
+    <li class="rec"><span class="n">R03</span><span class="t">fork, exec, wait<span class="d">A fork–exec–wait program traced step by step; zombies in ps; Lab01 help.</span></span><span class="st">week 3</span></li>
     </ul>
   </section>
-  <section class="grp">
+  <section class="grp" id="part-iii">
     <h2><span class="gn">Part III</span>CPU scheduling</h2>
     <p class="gd">Who runs next, and for how long.</p>
     <ul class="lec">
     <li><span class="n">L06</span><a class="t" href="lectures/06-scheduling.html">Scheduling<span class="d">CPU–I/O bursts, dispatcher and context switch, criteria, FCFS, SJF, SRTF, round robin.</span></a><span class="st live">interactive</span></li>
     <li><span class="n">L07</span><a class="t" href="lectures/07-more-scheduling.html">More Scheduling<span class="d">Priorities and aging, multilevel feedback queues, Linux O(1) and CFS, EDF, multiprocessor scheduling.</span></a><span class="st live">interactive</span></li>
+    <li class="rec"><span class="n">R04</span><span class="t">Scheduling by hand<span class="d">FCFS, SJF, SRTF and RR Gantt charts on one workload; Lab01–02 help.</span></span><span class="st">week 4</span></li>
+    <li class="rec"><span class="n">R05</span><span class="t">Real schedulers; seeing a race<span class="d">MLFQ traces and CFS vruntime; Lab02–03 help.</span></span><span class="st">week 5</span></li>
     </ul>
   </section>
-  <section class="grp">
+  <section class="grp" id="part-iv">
     <h2><span class="gn">Part IV</span>Synchronization and deadlock</h2>
     <p class="gd">Sharing data safely, and what happens when everyone waits.</p>
     <ul class="lec">
@@ -67,9 +100,11 @@
     <li><span class="n">L10</span><a class="t" href="lectures/10-monitors.html">Monitors and Condition Variables<span class="d">Monitors, wait and signal, Hoare vs Mesa, condition variables vs semaphores, pthread_cond_wait.</span></a><span class="st live">interactive</span></li>
     <li><span class="n">L11</span><a class="t" href="lectures/11-synchronization-examples.html">Synchronization Examples<span class="d">Readers–writers in four solutions; dining philosophers: deadlock, three fixes, the monitor solution, starvation.</span></a><span class="st live">interactive</span></li>
     <li><span class="n">L12</span><a class="t" href="lectures/12-deadlocks.html">Deadlocks<span class="d">Four conditions, resource-allocation graphs, prevention, Banker's algorithm, detection and recovery, priority inversion.</span></a><span class="st live">interactive</span></li>
+    <li class="rec"><span class="n">R06</span><span class="t">Finding concurrency bugs<span class="d">ThreadSanitizer; the if-vs-while condition-variable bug; Lab02–03 help.</span></span><span class="st">week 6</span></li>
+    <li class="rec"><span class="n">R07</span><span class="t">Deadlock and classic problems<span class="d">Banker's algorithm and resource-allocation graphs; Lab03 help.</span></span><span class="st">week 7</span></li>
     </ul>
   </section>
-  <section class="grp">
+  <section class="grp" id="part-v">
     <h2><span class="gn">Part V</span>Memory</h2>
     <p class="gd">From addresses to frames to virtual memory.</p>
     <ul class="lec">
@@ -77,9 +112,12 @@
     <li><span class="n">L14</span><a class="t" href="lectures/14-paging.html">Paging<span class="d">Pages and frames, page tables, the TLB, caches, shared pages.</span></a><span class="st live">interactive</span></li>
     <li><span class="n">L15</span><a class="t" href="lectures/15-virtual-memory.html">Virtual Memory<span class="d">Demand paging and locality, page faults and their cost, copy-on-write, replacement and dirty bits.</span></a><span class="st live">interactive</span></li>
     <li><span class="n">L16</span><a class="t" href="lectures/16-paging-policy.html">Paging Policy<span class="d">FIFO, optimal and LRU replacement, Belady's anomaly, reference bits and the clock algorithm.</span></a><span class="st live">interactive</span></li>
+    <li class="rec"><span class="n">R08</span><span class="t">Midterm debrief; watching page faults<span class="d">The most-missed midterm questions; counting page faults; Lab04 help.</span></span><span class="st">week 9</span></li>
+    <li class="rec"><span class="n">R09</span><span class="t">Paging arithmetic<span class="d">Address translation, two-level page tables, TLB effective access time; Lab04 help.</span></span><span class="st">week 10</span></li>
+    <li class="rec"><span class="n">R10</span><span class="t">Replacement, and the file syscalls<span class="d">FIFO, LRU and OPT on a reference string; Lab04–05 help.</span></span><span class="st">week 12</span></li>
     </ul>
   </section>
-  <section class="grp">
+  <section class="grp" id="part-vi">
     <h2><span class="gn">Part VI</span>I/O and storage</h2>
     <p class="gd">Devices, disks, and file systems.</p>
     <ul class="lec">
@@ -87,30 +125,28 @@
     <li><span class="n">L18</span><a class="t" href="lectures/18-device-strategies.html">Device Strategies<span class="d">Interrupt-driven I/O, DMA, port-mapped and memory-mapped I/O.</span></a><span class="st live">interactive</span></li>
     <li><span class="n">L19</span><a class="t" href="lectures/19-storage-management.html">Storage Management<span class="d">Disks and disk scheduling, flash memory and wear leveling, RAID.</span></a><span class="st live">interactive</span></li>
     <li><span class="n">L20</span><a class="t" href="lectures/20-file-system-implementation.html">File System Implementation<span class="d">Open-file tables, file allocation, free space, crash recovery with logs.</span></a><span class="st live">interactive</span></li>
+    <li class="rec"><span class="n">R11</span><span class="t">Kernel modules<span class="d">Build, load and unload a hello-world module; dmesg; Lab05 help.</span></span><span class="st">week 13</span></li>
+    <li class="rec"><span class="n">R12</span><span class="t">File systems from the inside<span class="d">stat, inodes, hard and symbolic links, debugfs; Lab05 help.</span></span><span class="st">week 14</span></li>
     </ul>
   </section>
-  <section class="grp">
+  <section class="grp" id="part-vii">
     <h2><span class="gn">Part VII</span>Networks and virtualization</h2>
     <p class="gd">The OS beyond one machine.</p>
     <ul class="lec">
     <li><span class="n">L21</span><a class="t" href="lectures/21-network-and-vms.html">Network &amp; VMs<span class="d">The network stack, packetization, TCP/UDP, routing; virtual machines and trap-and-emulate.</span></a><span class="st live">interactive</span></li>
     </ul>
   </section>
-  <section class="grp">
+  <section class="grp" id="part-viii">
     <h2><span class="gn">Part VIII</span>Protection and security</h2>
     <p class="gd">Who may do what, and defending it.</p>
     <ul class="lec">
     <li><span class="n">L22</span><a class="t" href="lectures/22-protection.html">Protection<span class="d">Domains, the access matrix, ACLs and capabilities, MAC, sandboxing, stack inspection.</span></a><span class="st live">interactive</span></li>
     <li><span class="n">L23</span><a class="t" href="lectures/23-security.html">Security<span class="d">Threats, cryptography and RSA, certificates, passwords and salt, firewalls, defense in depth.</span></a><span class="st live">interactive</span></li>
-    </ul>
-  </section>
-  <section class="grp" id="recitations">
-    <h2><span class="gn">Fridays</span>Recitations</h2>
-    <p class="gd">50 minutes each: recap, a worked example, lab help, and an exit ticket.</p>
-    <ul class="lec">
-    <li><span class="n">R01</span><a class="t" href="recitations/r01-c-and-linux.html">C and the Linux command line<span class="d">Strings and argv; warnings and AddressSanitizer; pipes, redirection, exit status; Lab00 help to get your VM booted.</span></a><span class="st live">week 1</span></li>
+    <li class="rec"><span class="n">R13</span><span class="t">Protection in practice<span class="d">Permission bits, setuid, chmod and chown in the course VM.</span></span><span class="st">week 15</span></li>
     </ul>
   </section>
 </main>
+</div>
+<script src="assets/academy.js"></script>
 </body>
 </html>
