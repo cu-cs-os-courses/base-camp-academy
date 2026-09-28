@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>File Systems Inside · R12</title>
+<meta name="description" content="CSCI 3753 Recitation 12: inodes and directories on a real ext4 file system, hard and symbolic links, finding a file's data blocks with debugfs and reading them raw with dd, and Lab05 help.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+.agenda { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 1em 0 1.4em; }
+.agenda div { border-top: 3px solid var(--line2); padding-top: 6px; font-size: 14px; }
+.agenda div b { display: block; font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
+.agenda div:nth-child(2) { border-color: var(--cz); } .agenda div:nth-child(3) { border-color: var(--cx); } .agenda div:nth-child(4) { border-color: var(--cf); }
+.code { font-family: var(--f-mono); font-size: 13px; line-height: 1.7; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 0; overflow-x: auto; margin: 0.8em 0 1.2em; }
+.code .ln { display: block; padding: 0 14px; white-space: pre; }
+.code .ln.hl { background: var(--cx-soft); }
+.code .c { color: var(--ink3); }
+table.cs { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.cs td { border-bottom: 1px solid var(--line); padding: 5px 10px; vertical-align: top; }
+table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-space: nowrap; }
+@media (max-width: 760px) { .agenda { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M3 5h6l2 2h8v11H3z" stroke="currentColor" stroke-width="1.4" fill="none"/><rect x="6" y="10" width="4" height="5" fill="var(--cz)"/><rect x="12" y="10" width="4" height="5" fill="var(--cx)"/></svg>
+    <span>Recitation 12 · File systems from the inside</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Recitation 12 · Week 14</div>
+    <h1>A file is an inode and some <span class="accent">blocks</span></h1>
+    <p class="lede">Lecture 20 described how a file system lays files out on disk. Today you look at the real thing, the course VM's own ext4 disk. You see an inode and a directory, give one file two names, make a link that dangles, then find exactly which disk block holds a file's bytes and read that block straight off the device. Then Lab05 help: it is due Sunday.</p>
+    <div class="agenda">
+      <div><b>0–5</b>Recap: inodes, allocation, journaling</div>
+      <div><b>5–25</b>Worked example: inode, links, raw blocks</div>
+      <div><b>25–45</b>Lab05 help (due Sun Apr 11)</div>
+      <div><b>45–50</b>Exit ticket</div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="sections">
+    <p class="rail-title">Contents</p>
+    <a href="#a"><span class="n">1</span>The inode</a>
+    <a href="#b"><span class="n">2</span>Hard and symbolic links</a>
+    <a href="#c"><span class="n">3</span>Find the data on disk</a>
+    <a href="#help"><span class="n">4</span>Lab05 help</a>
+    <a href="#ticket"><span class="n">5</span>Exit ticket</a>
+    <a href="#sheet"><span class="n">∎</span>Cheat sheet</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#a"><span class="n">1</span>The inode</a>
+        <a href="#b"><span class="n">2</span>Hard and symbolic links</a>
+        <a href="#c"><span class="n">3</span>Find the data on disk</a>
+        <a href="#help"><span class="n">4</span>Lab05 help</a>
+        <a href="#ticket"><span class="n">5</span>Exit ticket</a>
+        <a href="#sheet"><span class="n">∎</span>Cheat sheet</a>
+      </nav>
+    </details>
+
+<section class="chapter" id="a">
+  <div class="ch-head">
+    <div class="ch-no">Part 1 · follow along</div>
+    <h2>The inode</h2>
+  </div>
+  <div class="sec">
+    <div class="code"><span class="ln">cd /tmp</span><span class="ln">echo hello &gt; a.txt</span><span class="ln">stat a.txt</span><span class="ln">ls -i a.txt</span><span class="ln">ls -ia /tmp | head -5</span></div>
+    <div class="code"><span class="ln"><span class="c"># from the course VM (your numbers may differ)</span></span><span class="ln">  File: a.txt</span><span class="ln">  Size: 6         	Blocks: 8          IO Block: 4096   regular file</span><span class="ln hl">Device: 253,0	Inode: 9485        Links: 1</span><span class="ln">Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)</span><span class="ln">…</span><span class="ln">9485 a.txt</span></div>
+    <div class="prose">
+      <ul>
+        <li>The <strong>inode</strong> holds the metadata: size, owner, mode, timestamps and the block map. It does <em>not</em> hold the name.</li>
+        <li><code>ls -ia</code> shows a directory's entries, including <code>.</code> and <code>..</code>. A directory is a file whose contents are pairs of (name, inode number).</li>
+        <li><code>Size: 6</code> but <code>Blocks: 8</code>: 8 × 512 bytes, one whole 4 KB block, for 6 bytes of data. The smallest allocation is a block.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="b">
+  <div class="ch-head">
+    <div class="ch-no">Part 2 · follow along</div>
+    <h2>Hard and symbolic links</h2>
+  </div>
+  <div class="sec">
+    <div class="two-up">
+      <div class="code"><span class="ln">ln a.txt b.txt</span><span class="ln">ls -li a.txt b.txt</span><span class="ln">rm a.txt</span><span class="ln">cat b.txt</span><span class="ln">ln -s b.txt c.txt</span><span class="ln">ls -li b.txt c.txt</span><span class="ln">rm b.txt</span><span class="ln">cat c.txt</span><span class="ln">ls -l c.txt</span></div>
+      <figure class="fig">
+        <div class="fig-frame"><svg class="dia" id="ln-svg" viewBox="0 0 330 190" width="320" role="img" aria-label="Directory entries a.txt and b.txt point to inode 9485; c.txt points to inode 9486, whose data is the path b.txt"></svg></div>
+        <figcaption><span class="fno">Fig. 1</span>Two names for one inode, and a link that holds a path.</figcaption>
+      </figure>
+    </div>
+    <details class="fold"><summary>What you should see, and why</summary><div class="prose">
+      <ul>
+        <li>After <code>ln</code>, both names show inode <b>9485</b> and link count <b>2</b>: two directory entries, one file.</li>
+        <li>After <code>rm a.txt</code>, <code>cat b.txt</code> still prints <code>hello</code>. <code>rm</code> removes a <em>name</em>. The inode and its blocks are freed only when the link count reaches 0 and no process has the file open.</li>
+        <li><code>c.txt</code> is a <b>different</b> inode (9486), type <code>l</code>, size <b>5</b>: its data is the five characters <code>b.txt</code>.</li>
+        <li>After <code>rm b.txt</code>, <code>cat c.txt</code> fails with <code>No such file or directory</code>, but <code>ls -l c.txt</code> still shows <code>c.txt -&gt; b.txt</code>. A symbolic link is a path, looked up at every open, and it can dangle.</li>
+      </ul>
+    </div></details>
+  </div>
+</section>
+
+<section class="chapter" id="c">
+  <div class="ch-head">
+    <div class="ch-no">Part 3 · follow along</div>
+    <h2>Find the data on the disk</h2>
+  </div>
+  <div class="sec">
+    <div class="code"><span class="ln">cd /root</span><span class="ln">echo "hello, disk" &gt; note.txt</span><span class="ln">sync                                          <span class="c"># make sure it reached the disk</span></span><span class="ln">debugfs -R "stat /root/note.txt" /dev/vda     <span class="c"># read-only by default</span></span><span class="ln">debugfs -R "blocks /root/note.txt" /dev/vda</span></div>
+    <div class="code"><span class="ln"><span class="c"># from the course VM</span></span><span class="ln">Inode: 9485   Type: regular    Mode:  0644   Flags: 0x80000</span><span class="ln">User:     0   Group:     0   Project:     0   Size: 12</span><span class="ln">Links: 1   Blockcount: 8</span><span class="ln">…</span><span class="ln">EXTENTS:</span><span class="ln hl">(0):186368</span></div>
+    <div class="prose"><p>Logical block 0 of the file is physical block <b>186368</b> of the disk. Read that block straight from the device, bypassing the file system (use the number <em>your</em> VM printed):</p></div>
+    <div class="code"><span class="ln">dd if=/dev/vda bs=4096 skip=186368 count=1 2&gt;/dev/null | head -c 12; echo</span><span class="ln hl">hello, disk</span></div>
+    <div class="prose"><p>There is nothing magic about a file: it is bytes in known blocks, and the inode is the map. Now a large file, and a directory read straight from disk:</p></div>
+    <div class="code"><span class="ln">filefrag -v /usr/bin/bash</span><span class="ln">debugfs -R "ls -l /root" /dev/vda</span></div>
+    <div class="code"><span class="ln">File size of /usr/bin/bash is 1265648 (309 blocks of 4096 bytes)</span><span class="ln"> ext:     logical_offset:        physical_offset: length:   expected: flags:</span><span class="ln hl">   0:        0..     308:       9372..      9680:    309:             last,eof</span><span class="ln">/usr/bin/bash: 1 extent found</span></div>
+    <div class="prose"><p>309 blocks in <b>one extent</b>: a single contiguous run, which is what ext4's extent-based allocation aims for (Lecture 20). <code>debugfs ls -l</code> lists the directory's entries with their inode numbers, read from the disk rather than through the kernel's caches.</p></div>
+    <p class="small muted prose">Clean up afterwards with <code>rm /root/note.txt</code>: <code>/root</code> persists in your VM image, while <code>/tmp</code> is cleared at every boot.</p>
+  </div>
+</section>
+
+<section class="chapter" id="help">
+  <div class="ch-head">
+    <div class="ch-no">Part 4</div>
+    <h2>Lab05 help</h2>
+    <p class="ch-lede">Lab05 is due Sunday, Apr 11. PS4 is due Apr 18.</p>
+  </div>
+  <div class="sec">
+    <div class="prose">
+      <ul>
+        <li>If Part 1 and Part 2 each pass but the <strong>capstone</strong> fails, run the same filetest commands against a regular file and against your device, and compare the outputs line by line. The first difference names the bug.</li>
+        <li>R10 and R11 cover the common Part 1 and Part 2 problems.</li>
+        <li><b>PS4</b>: TAs explain rules and definitions; they do not work its problems.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="ticket">
+  <div class="ch-head">
+    <div class="ch-no">Part 5</div>
+    <h2>Exit ticket</h2>
+    <p class="ch-lede">Not graded. Answer, then check.</p>
+  </div>
+  <div class="sec">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Exit ticket</span><span class="q-title">1 of 2</span></div>
+      <div class="quiz-body">
+        <div class="q-text"><code>a.txt</code> and <code>b.txt</code> are hard links to the same file. You delete <code>a.txt</code>. What happens to the data?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="rm removes one name; the other name still reaches the inode.">It is freed, and b.txt becomes empty.</button>
+          <button type="button" class="q-opt" data-ok>Nothing: the link count drops to 1 and b.txt still reaches it.</button>
+          <button type="button" class="q-opt" data-why="That is what happens to a symbolic link whose target is deleted.">b.txt becomes a dangling link.</button>
+        </div>
+        <div class="q-fb ok">Right. The blocks are freed only when the count reaches 0.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Exit ticket</span><span class="q-title">2 of 2</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Where is a file's name stored?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="The inode has no name field; that is why one inode can have several names.">In its inode</button>
+          <button type="button" class="q-opt" data-ok>In the directory that contains it, as a (name, inode) entry</button>
+          <button type="button" class="q-opt" data-why="The data blocks hold only the file's contents.">In its first data block</button>
+        </div>
+        <div class="q-fb ok">Right: debugfs ls -l showed exactly those entries.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="sheet">
+  <div class="ch-head">
+    <div class="ch-no">Keep</div>
+    <h2>Cheat sheet</h2>
+  </div>
+  <div class="sec">
+    <div class="table-wrap">
+      <table class="cs">
+        <tbody>
+          <tr><td>stat f · ls -i f</td><td>Inode number, size, blocks, link count, times.</td></tr>
+          <tr><td>ln a b · ln -s a b</td><td>Hard link (same inode) · symbolic link (new inode holding the path).</td></tr>
+          <tr><td>debugfs -R "stat /path" /dev/vda</td><td>The inode as stored on disk, including its extents.</td></tr>
+          <tr><td>debugfs -R "blocks /path" /dev/vda</td><td>Just the file's physical block numbers.</td></tr>
+          <tr><td>filefrag -v f</td><td>How many extents (contiguous runs) a file uses.</td></tr>
+          <tr><td>dd if=/dev/vda bs=4096 skip=N count=1</td><td>Read disk block N directly.</td></tr>
+          <tr><td>sync</td><td>Flush cached writes to the disk.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Recitation 12.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const NS = 'http://www.w3.org/2000/svg', svg = document.getElementById('ln-svg');
+  const add = (t, a, x) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (x != null) e.textContent = x; svg.appendChild(e); };
+  const box = (x, y, w, h, c, t) => { add('rect', { x, y, width: w, height: h, rx: 5, class: c }); add('text', { x: x + w / 2, y: y + h / 2 + 4, 'text-anchor': 'middle', class: 'mono', style: 'font-size:11px' }, t); };
+  add('text', { x: 10, y: 16, class: 'lbl', style: 'font-size:10.5px' }, 'directory /tmp');
+  box(10, 24, 110, 26, 'pbox', 'a.txt → 9485'); box(10, 56, 110, 26, 'pbox', 'b.txt → 9485'); box(10, 120, 110, 26, 'pbox', 'c.txt → 9486');
+  box(170, 34, 150, 40, 'dbox', 'inode 9485 · links 2');
+  box(170, 116, 150, 34, 'obox', 'inode 9486 · symlink');
+  box(210, 82, 110, 22, 'box2', 'data: "hello\\n"'); box(210, 158, 110, 22, 'box2', 'data: "b.txt"');
+  add('path', { d: 'M120 37 L168 50', class: 'wire thin', 'marker-end': 'url(#ah)' });
+  add('path', { d: 'M120 69 L168 60', class: 'wire thin', 'marker-end': 'url(#ah)' });
+  add('path', { d: 'M120 133 L168 133', class: 'wire thin', 'marker-end': 'url(#ah)' });
+  add('path', { d: 'M245 74 V80', class: 'wire thin', 'marker-end': 'url(#ah)' });
+  add('path', { d: 'M245 150 V156', class: 'wire thin', 'marker-end': 'url(#ah)' });
+  add('path', { d: 'M210 169 C150 169 140 80 120 72', class: 'wire thin', style: 'stroke-dasharray:4 3', 'marker-end': 'url(#ah)' });
+  add('text', { x: 138, y: 108, class: 'lbl', style: 'font-size:9.5px' }, 'looked up by name');
+})();
+</script>
+</body>
+</html>
