@@ -26,6 +26,8 @@
 .lec span.t { color: var(--ink3); }
 .lec li.rec .n { color: var(--cf-ink); }
 .lec .st.live.rec { color: var(--cf-ink); border-color: var(--cf); background: var(--cf-soft); }
+.lec li.lab .n { color: var(--co); }
+.lec .st.live.lab { color: var(--co); border-color: var(--co); background: var(--co-soft); }
 </style>
 </head>
 <body>
@@ -33,7 +35,7 @@
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 Operating Systems · CU Boulder</div>
     <h1>Base Camp <span class="accent">Academy</span></h1>
-    <p class="lede">Lecture notes you can read on your own or present in class, and the Friday recitations that go with them. Each lecture reads like a tutorial, with hands-on experiments running in your browser. Lectures are numbered L, recitations R.</p>
+    <p class="lede">Lecture notes you can read on your own or present in class, and the Friday recitations that go with them. Each lecture reads like a tutorial, with hands-on experiments running in your browser. Lectures are numbered L, recitations R; lab guides walk you through each Basecamp lab.</p>
   </div>
 </div>
 <div class="layout">
@@ -70,6 +72,7 @@
     <li><span class="n">L02</span><a class="t" href="lectures/02-os-services.html">OS Services<span class="d">Services, the boot chain, system calls on Linux x86-64, loadable kernel modules.</span></a><span class="st live">lecture</span></li>
     <li class="rec"><span class="n">R01</span><a class="t" href="recitations/r01-c-and-linux.html">C and the Linux command line<span class="d">Strings and argv; warnings and AddressSanitizer; pipes, redirection, exit status; Lab00 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="rec"><span class="n">R02</span><a class="t" href="recitations/r02-running-system.html">Looking at a running system<span class="d">/proc as a virtual file system; watching system calls with strace; Lab00 help.</span></a><span class="st live rec">recitation</span></li>
+    <li class="lab"><span class="n">Lab00</span><a class="t" href="tutorials/lab00-getting-started.html">Walkthrough: Learning to See a Running System<span class="d">Repository and VM setup, the edit–run loop, finding and checking the eight /proc facts, make check, submitting.</span></a><span class="st live lab">lab guide</span></li>
     </ul>
   </section>
   <section class="grp" id="part-ii">
@@ -80,6 +83,7 @@
     <li><span class="n">L04</span><a class="t" href="lectures/04-ipc.html">IPC<span class="d">Signals, shared memory, pipes, sockets, remote procedure calls.</span></a><span class="st live">lecture</span></li>
     <li><span class="n">L05</span><a class="t" href="lectures/05-thread.html">Thread<span class="d">Threads vs processes, user and kernel threads, pthreads, races, thread safety, reentrancy.</span></a><span class="st live">lecture</span></li>
     <li class="rec"><span class="n">R03</span><a class="t" href="recitations/r03-fork-exec-wait.html">fork, exec, wait<span class="d">Predicting fork; buffers copied by fork; a shell traced with strace; a zombie from the shell; Lab01 help.</span></a><span class="st live rec">recitation</span></li>
+    <li class="lab"><span class="n">Lab01</span><a class="t" href="tutorials/lab01-processes.html">Walkthrough: The Life and Times of a Process<span class="d">Reading a status file by hand, ptree.sh, fork/exec/wait in spawn.c, zombies and orphans in undead.c, make check.</span></a><span class="st live lab">lab guide</span></li>
     </ul>
   </section>
   <section class="grp" id="part-iii">
@@ -90,6 +94,7 @@
     <li><span class="n">L07</span><a class="t" href="lectures/07-more-scheduling.html">More Scheduling<span class="d">Priorities and aging, multilevel feedback queues, Linux O(1) and CFS, EDF, multiprocessor scheduling.</span></a><span class="st live">lecture</span></li>
     <li class="rec"><span class="n">R04</span><a class="t" href="recitations/r04-scheduling-by-hand.html">Scheduling by hand<span class="d">FCFS, SJF, SRTF and round-robin Gantt charts on one workload; the tie-breaking rules; Lab01–02 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="rec"><span class="n">R05</span><a class="t" href="recitations/r05-real-schedulers.html">Real schedulers; seeing a race<span class="d">An MLFQ traced by hand; CFS vruntime with nice weights; a lost update on paper; Lab02–03 help.</span></a><span class="st live rec">recitation</span></li>
+    <li class="lab"><span class="n">Lab02</span><a class="t" href="tutorials/lab02-scheduling.html">Walkthrough: Sharing the CPU<span class="d">A CPU-bound spinner, watching preemption, building and validating fairshare.sh, nice weights, SCHED_FIFO and throttling.</span></a><span class="st live lab">lab guide</span></li>
     </ul>
   </section>
   <section class="grp" id="part-iv">
@@ -103,6 +108,7 @@
     <li><span class="n">L12</span><a class="t" href="lectures/12-deadlocks.html">Deadlocks<span class="d">Four conditions, resource-allocation graphs, prevention, Banker's algorithm, detection and recovery, priority inversion.</span></a><span class="st live">lecture</span></li>
     <li class="rec"><span class="n">R06</span><a class="t" href="recitations/r06-concurrency-bugs.html">Finding concurrency bugs<span class="d">A data race caught by ThreadSanitizer; a lost wakeup; the predicate-in-a-while-loop fix; Lab02–03 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="rec"><span class="n">R07</span><a class="t" href="recitations/r07-deadlock.html">Deadlock and classic problems<span class="d">Banker's algorithm on a new state; a request refused although free; cycle or deadlock in a graph; Lab03 help.</span></a><span class="st live rec">recitation</span></li>
+    <li class="lab"><span class="n">Lab03</span><a class="t" href="tutorials/lab03-concurrency.html">Walkthrough: The Trouble with Threads<span class="d">Making a race visible, threads in /proc, designing a bounded buffer with a mutex and two condition variables, testing it scenario by scenario.</span></a><span class="st live lab">lab guide</span></li>
     </ul>
   </section>
   <section class="grp" id="part-v">
@@ -116,6 +122,7 @@
     <li class="rec"><span class="n">R08</span><a class="t" href="recitations/r08-address-spaces.html">Where a program lives<span class="d">Logical addresses and ASLR; regions and permissions in /proc/pid/maps; one address, two values; Lab04 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="rec"><span class="n">R09</span><a class="t" href="recitations/r09-paging-arithmetic.html">Paging arithmetic<span class="d">Translating addresses with 2 KB pages; why two-level tables save memory; EAT with a TLB and faults; Lab04 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="rec"><span class="n">R10</span><a class="t" href="recitations/r10-replacement.html">Replacement, and the file syscalls<span class="d">FIFO, LRU, OPT and clock traced on one string; where FIFO and LRU part ways; Lab04–05 help.</span></a><span class="st live rec">recitation</span></li>
+    <li class="lab"><span class="n">Lab04</span><a class="t" href="tutorials/lab04-virtual-memory.html">Walkthrough: Pages, Faults, and the Art of Eviction<span class="d">VmRSS and minor faults in touch.c, huge pages, the paging simulator, designing and tuning an LRU pager.</span></a><span class="st live lab">lab guide</span></li>
     </ul>
   </section>
   <section class="grp" id="part-vi">
@@ -128,6 +135,7 @@
     <li><span class="n">L20</span><a class="t" href="lectures/20-file-system-implementation.html">File System Implementation<span class="d">Open-file tables, file allocation, free space, crash recovery with logs.</span></a><span class="st live">lecture</span></li>
     <li class="rec"><span class="n">R11</span><a class="t" href="recitations/r11-kernel-modules.html">Kernel modules<span class="d">Build, load, inspect and unload a hello-world module; dmesg; how /dev names a driver by major and minor; Lab05 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="rec"><span class="n">R12</span><a class="t" href="recitations/r12-file-systems.html">File systems from the inside<span class="d">Inodes and directories on ext4; hard and symbolic links; a file's blocks found with debugfs and read raw with dd; Lab05 help.</span></a><span class="st live rec">recitation</span></li>
+    <li class="lab"><span class="n">Lab05</span><a class="t" href="tutorials/lab05-storage-and-io.html">Walkthrough: Everything Is a File<span class="d">A raw-syscall file tool, building and loading a kernel module, a 900-byte character driver, the capstone comparison.</span></a><span class="st live lab">lab guide</span></li>
     </ul>
   </section>
   <section class="grp" id="part-vii">

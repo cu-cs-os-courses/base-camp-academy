@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lab01 Walkthrough · Basecamp 1</title>
+<meta name="description" content="Step-by-step walkthrough for Basecamp 1, The Life and Times of a Process: reading a status file by hand, the family tree in ptree.sh, fork, exec and wait in spawn.c, zombies and orphans in undead.c, reading make check, and submitting.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+.code { font-family: var(--f-mono); font-size: 13px; line-height: 1.7; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 0; overflow-x: auto; margin: 0.8em 0 1.2em; }
+.code .ln { display: block; padding: 0 14px; white-space: pre; }
+.code .ln.hl { background: var(--cx-soft); }
+.code .c { color: var(--ink3); }
+.steps-map { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 1em 0 1.4em; }
+.steps-map div { border-top: 3px solid var(--co); padding-top: 6px; font-size: 14px; }
+.steps-map div b { display: block; font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
+.check { list-style: none; padding: 0; }
+.check li { padding-left: 1.6em; position: relative; margin: 6px 0; }
+.check li::before { content: "☐"; position: absolute; left: 0; color: var(--ink3); }
+table.t { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.t th, table.t td { border-bottom: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+table.t th { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); border-bottom-color: var(--line2); }
+table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-space: nowrap; }
+.chip-t { display: inline-block; font-family: var(--f-mono); font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--co); border: 1.5px solid var(--co); border-radius: 999px; padding: 1px 9px; }
+@media (max-width: 760px) { .steps-map { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M2 18L8 8l4 6 3-4 5 8z" stroke="currentColor" stroke-width="1.4" fill="none"/><circle cx="16" cy="5" r="2" fill="var(--co)"/></svg>
+    <span>Lab01 walkthrough · The Life and Times of a Process</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <div class="hero-inner">
+    <div class="eyebrow"><span class="chip-t">walkthrough</span> &nbsp;Basecamp 1 · Weeks 3–5 · due Sun Jan 31</div>
+    <h1>Birth, family, death, and <span class="accent">afterlife</span></h1>
+    <p class="lede">Three small programs, one process life cycle. For each one, this page says exactly what the program must do and print, which manual pages hold the pieces, and how to check each behavior yourself before <code>make check</code> does. It never shows code for the lab files. Keep <code>labs/01-processes/README.md</code> and the header comment of each file open beside it: those are the specification.</p>
+    <div class="steps-map">
+      <div><b>Step 0–1</b>The loop; read a status file by hand</div>
+      <div><b>Step 2</b>ptree.sh (shell)</div>
+      <div><b>Step 3–5</b>spawn.c and undead.c (C)</div>
+      <div><b>Step 6–7</b>make check, report, submit</div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="steps">
+    <p class="rail-title">Steps</p>
+    <a href="#s0"><span class="n">0</span>Set up the loop</a>
+    <a href="#s1"><span class="n">1</span>Read a status file</a>
+    <a href="#s2"><span class="n">2</span>ptree.sh</a>
+    <a href="#s3"><span class="n">3</span>spawn.c</a>
+    <a href="#s4"><span class="n">4</span>undead zombie</a>
+    <a href="#s5"><span class="n">5</span>undead orphan</a>
+    <a href="#s6"><span class="n">6</span>make check</a>
+    <a href="#s7"><span class="n">7</span>Report and submit</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Steps</summary>
+      <nav>
+        <a href="#s0"><span class="n">0</span>Set up the loop</a>
+        <a href="#s1"><span class="n">1</span>Read a status file</a>
+        <a href="#s2"><span class="n">2</span>ptree.sh</a>
+        <a href="#s3"><span class="n">3</span>spawn.c</a>
+        <a href="#s4"><span class="n">4</span>undead zombie</a>
+        <a href="#s5"><span class="n">5</span>undead orphan</a>
+        <a href="#s6"><span class="n">6</span>make check</a>
+        <a href="#s7"><span class="n">7</span>Report and submit</a>
+      </nav>
+    </details>
+
+<section class="chapter" id="s0">
+  <div class="ch-head">
+    <div class="ch-no">Step 0</div>
+    <h2>Set up the loop</h2>
+    <p class="ch-lede">Same loop as Lab00, now with a compiler in it. Edit on the laptop; compile and run in the VM.</p>
+  </div>
+  <div class="sec">
+    <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">SHARE=$PWD/labs/01-processes/submit env/run.sh</span><span class="ln"><span class="c"># VM</span></span><span class="ln">cd /share</span><span class="ln">gcc -Wall -Werror -O2 -o /tmp/spawn spawn.c     <span class="c"># the exact flags make check uses</span></span><span class="ln">gcc -Wall -Werror -O2 -o /tmp/undead undead.c</span><span class="ln">bash ptree.sh $$</span></div>
+    <div class="prose">
+      <ul>
+        <li>Put binaries in <code>/tmp</code>, not in <code>/share</code>. They are build products, not something to commit.</li>
+        <li>Compile with <code>-O2</code> as well as <code>-Wall -Werror</code>. Some warnings (an uninitialized variable, for example) appear only when optimizing, and the checker optimizes.</li>
+        <li>Before you have written anything, both C programs compile and print nothing, and <code>ptree.sh</code> prints nothing. That is the starting point, not a bug.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="s1">
+  <div class="ch-head">
+    <div class="ch-no">Step 1</div>
+    <h2>Read a status file by hand</h2>
+    <p class="ch-lede">Before scripting anything, find with your own eyes the three values ptree.sh has to print.</p>
+  </div>
+  <div class="sec">
+    <div class="code"><span class="ln">echo $$                          <span class="c"># your shell's PID</span></span><span class="ln">head -8 /proc/$$/status          <span class="c"># your shell's status file</span></span></div>
+    <div class="prose"><p>Find three lines, <code>Name:</code>, <code>State:</code> and <code>PPid:</code>, and note exactly what ptree.sh has to print from each:</p></div>
+    <div class="table-wrap">
+      <table class="t">
+        <thead><tr><th>line</th><th>what the file shows</th><th>what ptree.sh prints</th></tr></thead>
+        <tbody>
+          <tr><td>Name:</td><td>the command name</td><td>it, unchanged (COMM)</td></tr>
+          <tr><td>State:</td><td>a letter <em>and</em> a word in parentheses</td><td>only the capital letter (STATE)</td></tr>
+          <tr><td>PPid:</td><td>the parent's PID</td><td>it, unchanged (PPID); it is also the next PID to visit</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose"><p>Now follow the chain by hand: take the <code>PPid:</code> value, open <em>that</em> process's status file, and repeat until you reach PID 1. Write the chain down. That is exactly what ptree.sh automates, and your hand-written chain is what you will check it against.</p></div>
+    <div class="note"><span class="note-tag">A technique you already have</span><p>Lab00 Step 3 showed how to print one field of the line that begins with a given key. The same technique works here. Look at the State line: which field is the letter?</p></div>
+  </div>
+</section>
+
+<section class="chapter" id="s2">
+  <div class="ch-head">
+    <div class="ch-no">Step 2</div>
+    <h2>ptree.sh: the family tree</h2>
+    <p class="ch-lede">Goal: given a PID, print one line for it and one for each ancestor, up to and including PID 1, each exactly <code>&lt;PID&gt; &lt;COMM&gt; &lt;STATE&gt; &lt;PPID&gt;</code>.</p>
+  </div>
+  <div class="sec">
+    <div class="prose">
+      <p>Plan it in words before you write it. The loop keeps a "current PID", and each pass does three things:</p>
+      <ol>
+        <li>read the three values for the current PID from its status file;</li>
+        <li>print the line;</li>
+        <li>decide: if the current PID is 1, stop; otherwise the parent becomes the current PID.</li>
+      </ol>
+      <p>Get one pass right first: make the script print only the first line, run it on <code>$$</code>, and compare with your notes from Step 1. Then add the loop.</p>
+    </div>
+    <div class="prose"><p><b>How to check it yourself</b></p></div>
+    <div class="table-wrap">
+      <table class="t">
+        <thead><tr><th>try</th><th>what must be true</th></tr></thead>
+        <tbody>
+          <tr><td>bash ptree.sh $$</td><td>It matches the chain you wrote by hand in Step 1.</td></tr>
+          <tr><td>the last line</td><td>It is PID 1's line, its PPID is <code>0</code>, and nothing is printed after it.</td></tr>
+          <tr><td>every line</td><td>Exactly four fields, and the 4th field of each line equals the 1st field of the next.</td></tr>
+          <tr><td>sleep 60 &amp;<br>bash ptree.sh $!</td><td>The first line is the sleep, in state <code>S</code>, with your shell as its parent. <code>make check</code> runs exactly this test.</td></tr>
+          <tr><td>the README's nested bash -c</td><td>Run it, find the innermost sleep's PID, and walk its chain. Which ancestors did you not expect?</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>An error mentioning <code>/proc/0</code></b>: the loop did not stop after PID 1; there is no process 0 to visit. <b>STATE shows <code>S (sleeping)</code> or <code>(sleeping)</code></b>: you printed the wrong part of the line. <b><code>no-ps</code> fails though you never ran ps</b>: the check looks for the <em>word</em> <code>ps</code> anywhere outside comments, so a variable named <code>ps</code> trips it too.</p></div>
+  </div>
+</section>
+
+<section class="chapter" id="s3">
+  <div class="ch-head">
+    <div class="ch-no">Step 3</div>
+    <h2>spawn.c: fork, exec, wait</h2>
+    <p class="ch-lede">Goal: <code>spawn &lt;program&gt; [args…]</code> runs the program in a child, then prints exactly <code>CHILD &lt;pid&gt; EXITED &lt;status&gt;</code>.</p>
+  </div>
+  <div class="sec">
+    <div class="prose"><p>The file has three TODOs, one per system call. What each must do, and what to read first:</p></div>
+    <div class="table-wrap">
+      <table class="t">
+        <thead><tr><th>TODO</th><th>what it must do</th><th>read first</th></tr></thead>
+        <tbody>
+          <tr><td>1 · fork</td><td>Create the child. After the call, two processes run the same code; the return value is how each one knows which it is.</td><td><code>man 2 fork</code>, section RETURN VALUE: three cases.</td></tr>
+          <tr><td>2 · exec (child)</td><td>Replace the child with the program <code>argv[1]</code>, handing it <code>&amp;argv[1]</code> as its argument vector. If exec returns at all, it failed: leave with status 127.</td><td><code>man 3 execv</code>: what the second argument must look like, and why <code>&amp;argv[1]</code> already has that shape.</td></tr>
+          <tr><td>3 · wait (parent)</td><td>Wait for that child, decode the status, print the line.</td><td><code>man 2 waitpid</code>: <code>WIFEXITED</code>, <code>WEXITSTATUS</code>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose"><p><b>How to check it yourself.</b> These four runs are the contract, and they are exactly what <code>make check</code> runs:</p></div>
+    <div class="code"><span class="ln">/tmp/spawn /bin/true              <span class="c"># CHILD &lt;pid&gt; EXITED 0</span></span><span class="ln">/tmp/spawn /bin/false             <span class="c"># CHILD &lt;pid&gt; EXITED 1</span></span><span class="ln">/tmp/spawn /bin/echo hello        <span class="c"># hello, and only then the CHILD line</span></span><span class="ln">/tmp/spawn /no/such/program       <span class="c"># CHILD &lt;pid&gt; EXITED 127</span></span><span class="ln">/nonexistent; echo $?             <span class="c"># the shell's own convention, for comparison</span></span></div>
+    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>Status 256 instead of 1</b>: you printed the raw status word without decoding it. <b>Two CHILD lines for a missing program</b>: after exec failed, the child kept going and ran the parent's code too. <b>Some status other than 127 for a missing program</b>: the failure path is not exiting with 127. <b><code>hello</code> is missing</b>: look again at what you passed as the argument vector.</p></div>
+    <details class="fold"><summary>Why does the TODO say <code>_exit</code>, not <code>exit</code>?</summary><div class="prose"><p>Think about what <code>fork</code> copies, including any unwritten output sitting in the parent's stdio buffer. Then read what <code>exit(3)</code> does that <code>_exit(2)</code> does not. It is the same buffering problem you will meet in Step 4.</p></div></details>
+  </div>
+</section>
+
+<section class="chapter" id="s4">
+  <div class="ch-head">
+    <div class="ch-no">Step 4</div>
+    <h2>undead zombie</h2>
+    <p class="ch-lede">Goal: a child that is dead for 10 seconds but not yet gone, and is then reaped.</p>
+  </div>
+  <div class="sec">
+    <div class="prose"><p>The required timeline, from the file header:</p></div>
+    <div class="table-wrap">
+      <table class="t">
+        <thead><tr><th>who</th><th>does what, in order</th></tr></thead>
+        <tbody>
+          <tr><td>child</td><td>exits at once with status 42</td></tr>
+          <tr><td>parent</td><td>prints <code>CHILD &lt;the child's pid&gt;</code> → flushes stdout → sleeps 10 s without waiting → waits → prints <code>REAPED &lt;pid&gt; STATUS &lt;decoded status&gt;</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose"><p><b>How to check it yourself.</b> Send stdout to a file: that is what the checker does, and it is the case where a missing flush shows up.</p></div>
+    <div class="code"><span class="ln">/tmp/undead zombie &gt; /tmp/z.out &amp;</span><span class="ln">cat /tmp/z.out                          <span class="c"># right away: the CHILD line must already be there</span></span><span class="ln">cat /proc/&lt;that pid&gt;/stat               <span class="c"># during the 10 s, the third field is Z</span></span><span class="ln">ps -o pid,ppid,stat,comm -p &lt;that pid&gt;  <span class="c"># ps is fine here, in the terminal</span></span><span class="ln">sleep 10; cat /tmp/z.out                <span class="c"># now also REAPED &lt;pid&gt; STATUS 42</span></span><span class="ln">ls /proc/&lt;that pid&gt;                     <span class="c"># after reaping: No such file or directory</span></span></div>
+    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b><code>/tmp/z.out</code> stays empty for 10 seconds, then everything appears at once</b>: the output sat in the stdio buffer; the flush must come before the sleep. <b>The state is never Z</b>: either the parent waits before it sleeps, or the child does not exit at once. <b><code>STATUS 10752</code></b>: the raw status word again, as in Step 3.</p></div>
+  </div>
+</section>
+
+<section class="chapter" id="s5">
+  <div class="ch-head">
+    <div class="ch-no">Step 5</div>
+    <h2>undead orphan</h2>
+    <p class="ch-lede">Goal: the parent dies first; the child lives on and gets a new parent.</p>
+  </div>
+  <div class="sec">
+    <div class="table-wrap">
+      <table class="t">
+        <thead><tr><th>who</th><th>does what</th></tr></thead>
+        <tbody>
+          <tr><td>parent</td><td>exits immediately, without waiting</td></tr>
+          <tr><td>child</td><td>prints <code>CHILD &lt;its own pid&gt;</code> → flushes stdout → sleeps 10 s</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose"><p>Note who prints this time: the child, and it prints its <em>own</em> PID, so the number comes from a different place than in the zombie act. Where? <code>man 2 getpid</code>.</p></div>
+    <div class="code"><span class="ln">/tmp/undead orphan &gt; /tmp/o.out     <span class="c"># returns at once: the parent is gone</span></span><span class="ln">cat /tmp/o.out</span><span class="ln">grep PPid /proc/&lt;that pid&gt;/status   <span class="c"># within 10 s: who is the parent now?</span></span><span class="ln">bash /share/ptree.sh &lt;that pid&gt;     <span class="c"># your own tool, on your own orphan</span></span></div>
+    <div class="note"><span class="note-tag">What make check expects</span><p><code>orphan-ppid1</code> reads the sleeping child's <code>PPid:</code> and expects it to become <code>1</code>. If yours shows something else, first check that the parent really exits at once, and that you read the PPid within the 10 seconds.</p></div>
+  </div>
+</section>
+
+<section class="chapter" id="s6">
+  <div class="ch-head">
+    <div class="ch-no">Step 6</div>
+    <h2>make check, and reading a failure</h2>
+  </div>
+  <div class="sec">
+    <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">make check LAB=01-processes</span></div>
+    <div class="table-wrap">
+      <table class="t">
+        <thead><tr><th>check</th><th>what it tests</th><th>go back to</th></tr></thead>
+        <tbody>
+          <tr><td>report-present</td><td><code>report.md</code> is not empty</td><td>Step 7</td></tr>
+          <tr><td>no-ps, no-pstree, uses-proc</td><td>with comments removed, ptree.sh contains neither word and reads <code>/proc</code></td><td>Step 2</td></tr>
+          <tr><td>ptree-first</td><td>for a <code>sleep 60 &amp;</code> child, the first line is exactly <code>&lt;pid&gt; sleep S &lt;the checker's pid&gt;</code></td><td>Step 2, the sleep test</td></tr>
+          <tr><td>ptree-last</td><td>the last line is exactly <code>1 systemd S 0</code></td><td>Step 2, the last line</td></tr>
+          <tr><td>ptree-chain</td><td>each line's PPID is the next line's PID</td><td>Step 2, every line</td></tr>
+          <tr><td>spawn-compiles</td><td><code>gcc -Wall -Werror -O2</code> succeeds</td><td>Step 0</td></tr>
+          <tr><td>spawn-true, spawn-false, spawn-echo, spawn-127</td><td>the four contract runs</td><td>Step 3</td></tr>
+          <tr><td>undead-compiles</td><td>the same flags, for undead.c</td><td>Step 0</td></tr>
+          <tr><td>zombie-observed</td><td>state <code>Z</code> is seen from outside during the sleep</td><td>Step 4</td></tr>
+          <tr><td>zombie-reaped, zombie-gone</td><td>the REAPED line is right, and <code>/proc/&lt;pid&gt;</code> is gone afterwards</td><td>Step 4</td></tr>
+          <tr><td>orphan-ppid1</td><td>the sleeping child's <code>PPid:</code> becomes 1</td><td>Step 5</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose"><p>The undead checks read your output from a <strong>file</strong>, not a terminal. If one fails although it works when you watch it in the console, rerun it with stdout redirected to a file, as in Steps 4 and 5. A failed run keeps its artifacts; <code>result.txt</code> there is the raw check output.</p></div>
+  </div>
+</section>
+
+<section class="chapter" id="s7">
+  <div class="ch-head">
+    <div class="ch-no">Step 7</div>
+    <h2>Report and submit</h2>
+  </div>
+  <div class="sec">
+    <div class="prose">
+      <p><code>submit/report.md</code> already holds three questions. Each asks what your code made observable, so answer from an experiment you ran. How to investigate, not the answers:</p>
+      <ol>
+        <li><b>The zombie's purpose.</b> During the 10 seconds, compare the zombie's <code>/proc/&lt;pid&gt;/status</code> with a live process's: what is still there, and what is missing? Then ask what the parent gets from <code>wait</code> that it could get no other way.</li>
+        <li><b>What exec throws away.</b> Pick properties to test: the PID, the parent, the current directory, the open files, the command line, the program's memory. For each, design a probe with spawn, such as <code>/tmp/spawn /bin/cat /proc/self/&lt;some file&gt;</code>, and compare with what the process had before exec. Report only what you actually showed.</li>
+        <li><b>The adoption.</b> Your Step 5 output answers the first half. For the second half, find out what the kernel does with an orphan: <code>man 2 prctl</code>, and search for "orphan".</li>
+      </ol>
+    </div>
+    <div class="code"><span class="ln">cd labs/01-processes/submit</span><span class="ln">git add ptree.sh spawn.c undead.c report.md</span><span class="ln">git commit -m "Lab01"</span><span class="ln">git push</span></div>
+    <ul class="check prose">
+      <li><code>make check LAB=01-processes</code> shows no <code>FAIL</code>.</li>
+      <li>Both C files compile with <code>-Wall -Werror -O2</code>, with no warnings.</li>
+      <li><code>report.md</code> answers all three questions from your own experiments.</li>
+      <li>All four files are visible on GitHub, in <em>your</em> repository.</li>
+    </ul>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab01 walkthrough. The lab README is the specification; if they ever disagree, the README wins.
+</footer>
+
+<script src="../assets/academy.js"></script>
+</body>
+</html>
