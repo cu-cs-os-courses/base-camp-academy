@@ -673,7 +673,7 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     <details class="fold">
       <summary>How does the CPU actually reach those registers?</summary>
       <div class="fold-body">
-        <p>Two ways, and real machines use both. With <strong>port-mapped I/O</strong>, registers live in a separate I/O address space reached by special instructions (<code>in</code> and <code>out</code> on x86). With <strong>memory-mapped I/O</strong>, registers appear at physical addresses, and an ordinary load or store reaches the controller instead of RAM. The page tables of Lecture 14 mark those pages uncacheable, so every access really goes to the device. Silberschatz §12.2 has the details.</p>
+        <p>Two ways, and real machines use both. With <strong>port-mapped I/O</strong>, registers live in a separate I/O address space reached by special instructions (<code>in</code> and <code>out</code> on x86). With <strong>memory-mapped I/O</strong>, registers appear at physical addresses, and an ordinary load or store reaches the controller instead of RAM. The page tables of Lecture 14 mark those pages uncacheable, so every access really goes to the device. <a href="18-device-strategies.html#ch3">Lecture 18, Chapter 3</a> takes both apart.</p>
       </div>
     </details>
   </div>

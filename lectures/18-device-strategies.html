@@ -1,0 +1,987 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Device Strategies · L18</title>
+<meta name="description" content="CSCI 3753 Lecture 18, interactive edition: polling, interrupt-driven I/O, DMA, port-mapped and memory-mapped I/O.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+/* ---- lecture-local ---- */
+.code { font-family: var(--f-mono); font-size: 13.5px; line-height: 1.75; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 0; overflow-x: auto; }
+.code .ln { display: block; padding: 0 14px; white-space: pre; }
+.code .c { color: var(--ink3); }
+.steps-list { counter-reset: st; list-style: none; padding-left: 0; }
+.steps-list li { counter-increment: st; position: relative; padding-left: 2.3em; margin: 0.45em 0; }
+.steps-list li::before { content: counter(st); position: absolute; left: 0; top: 0.1em; width: 1.6em; height: 1.6em; border-radius: 50%; border: 1.5px solid var(--cd); color: var(--cd); font: 600 12px/1.6em var(--f-mono); text-align: center; }
+.steps-list li.prep::before { content: "0"; border-color: var(--ink3); color: var(--ink3); }
+.steps-list li .k { font-family: var(--f-mono); font-size: 12px; color: var(--ink3); }
+.maps { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 24px; }
+.amap { border: 1px solid var(--line2); border-radius: 10px; overflow: hidden; font-size: 13px; }
+.amap .hd { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); padding: 7px 10px; border-bottom: 1px solid var(--line); background: var(--bg3); }
+.amap .rg { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); transition: background 0.2s; }
+.amap .rg:last-child { border-bottom: 0; }
+.amap .rg .a { font-family: var(--f-mono); color: var(--ink2); font-size: 12.5px; }
+.amap .rg.ram { background: var(--bg); }
+.amap .rg.dev { background: var(--cf-soft); }
+.amap .rg.hit { background: var(--cx-soft2); box-shadow: inset 3px 0 0 var(--cx); }
+.amap.off { opacity: 0.4; }
+.instr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.instr button { text-align: left; border: 1px solid var(--line2); background: var(--bg); border-radius: 9px; padding: 7px 10px; font-family: var(--f-mono); font-size: 12.5px; line-height: 1.45; cursor: pointer; color: var(--ink); }
+.instr button:hover { border-color: var(--cz); }
+.instr button[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); background: var(--bg3); }
+.instr button small { display: block; font-family: var(--f-body); font-size: 11.5px; color: var(--ink3); }
+.verdict { font-family: var(--f-display); font-size: 20px; font-weight: 600; margin-top: 12px; }
+@media (max-width: 760px) {
+  .maps { grid-template-columns: minmax(0, 1fr); }
+  .instr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="7" height="7" class="hatch-bg"/><line x1="0" y1="0" x2="0" y2="7" class="hatch-line"/>
+    </pattern>
+    <pattern id="spin" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="8" height="8" style="fill:var(--cd-soft)"/><line x1="0" y1="0" x2="0" y2="8" style="stroke:var(--cd);stroke-width:1.4;opacity:.55"/>
+    </pattern>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+    <marker id="ah-p" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-p"/></marker>
+    <marker id="ah-d" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-d"/></marker>
+    <marker id="ah-f" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-f"/></marker>
+    <marker id="ah-m" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-m"/></marker>
+    <marker id="ah-o" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-o"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><path d="M2 15h4l2-6 3 10 2-7 2 3h5"/></g><circle cx="17" cy="5" r="2.4" fill="var(--cd)" stroke="none"/></svg>
+    <span>Lecture 18 · Device Strategies</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Lecture 18 · Interactive notes</div>
+    <h1>Stop asking the device.<br>Let it <span class="accent">tell you</span></h1>
+    <p class="lede">Lecture 17 ended with a driver spinning on a status register while the device worked. This lecture removes the spinning twice over: first with interrupts, so the CPU runs something else until the device calls back, then with DMA, so the device moves the data itself and calls back only once. It closes with the two ways a driver reaches a controller's registers at all: I/O ports and memory-mapped I/O.</p>
+    <div class="promise">
+      <span>Before you start:</span><span class="mono">controllers, BUSY/DONE, polling</span><span>from Lecture 17, and interrupts as an exception class.</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#ch0">Begin ↓</a>
+      <span class="muted small">About 45 minutes · 4 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 12 · Continues in Lecture 19, Storage Management</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="chapters">
+    <p class="rail-title">Contents</p>
+    <a href="#ch0"><span class="n">0</span>Recall: polling</a>
+    <a href="#ch1"><span class="n">1</span>Interrupt-driven I/O</a>
+    <a href="#ch2"><span class="n">2</span>Direct memory access</a>
+    <a href="#ch3"><span class="n">3</span>Ports and memory-mapped I/O</a>
+    <a href="#tail"><span class="n">∎</span>Recap · Glossary</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#ch0"><span class="n">0</span>Recall: polling</a>
+        <a href="#ch1"><span class="n">1</span>Interrupt-driven I/O</a>
+        <a href="#ch2"><span class="n">2</span>Direct memory access</a>
+        <a href="#ch3"><span class="n">3</span>Ports and memory-mapped I/O</a>
+        <a href="#tail"><span class="n">∎</span>Recap · Glossary</a>
+      </nav>
+    </details>
+
+    <div class="sec present-only title-slide" id="title">
+      <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 18</div>
+      <h1>Device Strategies</h1>
+      <p class="lede">Polling, interrupts, DMA, and how a driver reaches a device's registers.</p>
+      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 12</div>
+    </div>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch0">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 0</div>
+    <h2>Recall: polling, and three strategies</h2>
+    <p class="ch-lede">Where Lecture 17 stopped, and the map for today.</p>
+  </div>
+
+  <div class="sec" id="s0-1">
+    <h3><span class="sec-no">0.1</span>Direct I/O with polling</h3>
+    <div class="two-up">
+      <div>
+        <div class="code" aria-label="Polling write">
+          <span class="ln">while (dev.busy || dev.done) ;   <span class="c">/* spin 1 */</span></span>
+          <span class="ln">dev.data[0] = value;</span>
+          <span class="ln">dev.command = WRITE;</span>
+          <span class="ln">while (dev.busy) ;               <span class="c">/* spin 2 */</span></span>
+          <span class="ln"><span class="c">/* finished: read status bits … */</span></span>
+          <span class="ln">dev.done = FALSE;</span>
+        </div>
+        <p class="prose" style="margin-top:12px" data-step="1">The OS spins twice: once until the device is idle, once until it finishes. Every spin is a CPU cycle an application could have used. We want to <strong>overlap CPU and I/O</strong>.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 520 270" width="420" role="img" aria-label="Polling timeline: the CPU spins in a waiting state while the device executes">
+            <text x="10" y="34" class="lbl">CPU</text>
+            <text x="60" y="54" class="lbl t-p">executing</text><text x="60" y="110" class="lbl t-m">waiting</text>
+            <path d="M130 50 H200 V106 H360 V50 H500" class="wire p" style="stroke-width:2.6"/>
+            <rect x="200" y="72" width="160" height="34" style="fill:url(#spin)"/>
+            <text x="280" y="94" text-anchor="middle" class="lbl t-m">checking status…</text>
+            <text x="10" y="160" class="lbl">device</text>
+            <text x="60" y="180" class="lbl t-f">executing</text><text x="60" y="226" class="lbl">waiting</text>
+            <path d="M130 222 H200 V176 H360 V222 H500" class="wire f" style="stroke-width:2.6"/>
+            <path d="M200 258 V234" class="wire" marker-end="url(#ah)"/><text x="200" y="268" text-anchor="middle" class="lbl" dy="-2">request</text>
+            <path d="M360 258 V234" class="wire" marker-end="url(#ah)"/><text x="360" y="268" text-anchor="middle" class="lbl" dy="-2">done</text>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 0.1</span>Polling: the CPU and the device are never both doing useful work.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-2">
+    <h3><span class="sec-no">0.2</span>Three strategies</h3>
+    <p class="prose">Underneath the blocking, non-blocking, synchronous and asynchronous system calls, the device manager can move data in three ways:</p>
+    <div class="opts3">
+      <div><span class="tag">Direct I/O with polling</span>The device manager busy-waits. We have seen this.</div>
+      <div data-step="1"><span class="tag">Direct I/O with interrupts</span>No busy waiting, but the CPU still takes an interrupt and copies data for every transfer. <a href="#ch1">Chapter 1</a>.</div>
+      <div data-step="2"><span class="tag">DMA with interrupts</span>A DMA controller moves large blocks without the CPU and interrupts once at the end. <a href="#ch2">Chapter 2</a>.</div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#top">Back to<b>the top</b></a>
+    <a href="#ch1">Next<b>1 · Interrupt-driven I/O</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch1">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 1</div>
+    <h2>Direct I/O with interrupts</h2>
+    <p class="ch-lede">Issue the command, go do something else, and let the device interrupt when it is done.</p>
+  </div>
+
+  <div class="sec" id="s1-1">
+    <h3><span class="sec-no">1.1</span>What changes</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>The task makes its request to the driver, the driver starts the device, and the <strong>CPU goes back to executing instructions</strong>, for this program or another.</p>
+        <p data-step="1">When the device finishes, the driver interrupts the CPU. Only then does the CPU check the device's state and transfer the data.</p>
+        <p data-step="2">The CPU leaves useful work twice, briefly, instead of spinning for the whole operation.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 520 270" width="420" role="img" aria-label="Interrupt timeline: the CPU keeps executing and dips only at the request and the completion interrupt">
+            <text x="10" y="34" class="lbl">CPU</text>
+            <text x="60" y="54" class="lbl t-p">executing</text><text x="60" y="110" class="lbl t-m">checking</text>
+            <path d="M130 50 H196 V100 H206 V50" class="wire p" style="stroke-width:2.6"/>
+            <g data-step="1"><path d="M206 50 H354 V100 H366 V50 H500" class="wire p" style="stroke-width:2.6"/>
+              <path d="M360 234 C 360 160, 360 150, 360 108" class="wire m" marker-end="url(#ah-m)"/><text x="372" y="140" class="lbl t-m">interrupt</text></g>
+            <text x="10" y="160" class="lbl">device</text>
+            <text x="60" y="180" class="lbl t-f">executing</text><text x="60" y="226" class="lbl">waiting</text>
+            <path d="M130 222 H200 V176 H360 V222 H500" class="wire f" style="stroke-width:2.6"/>
+            <path d="M200 258 V234" class="wire" marker-end="url(#ah)"/><text x="200" y="268" text-anchor="middle" class="lbl" dy="-2">request</text>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1.1</span>With interrupts, the CPU and the device work at the same time.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-2">
+    <h3><span class="sec-no">1.2</span>Hardware interrupts</h3>
+    <div class="prose">
+      <ul>
+        <li>The CPU has a hardware <strong>interrupt flag</strong>.</li>
+        <li data-step="1">Whenever a device finishes a read or write, it signals the CPU and raises the flag. The CPU is free to run other tasks instead of polling devices.</li>
+        <li data-step="2">On an interrupt, the CPU suspends normal execution and invokes the OS's <strong>interrupt handler</strong>.</li>
+        <li data-step="3">After the interrupt is handled and the I/O results processed, the OS resumes normal execution. In Lecture 17's terms, this is the asynchronous exception class: it returns to the next instruction.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-3">
+    <h3><span class="sec-no">1.3</span>Inside the interrupt handler</h3>
+    <div class="two-up" style="align-items:start">
+      <ol class="steps-list prose">
+        <li class="prep"><strong>Prep: disable interrupts</strong>, so a second interrupt cannot land in the middle of the first.</li>
+        <li data-step="1"><strong>Save the processor state</strong>: the running app's program counter (PC) and register contents.</li>
+        <li data-step="2"><strong>Find the device</strong> that interrupted: ask the interrupt controller for the interrupt offset, or poll the devices.</li>
+        <li data-step="3"><strong>Jump to the device's handler</strong>: index into the <span class="term">interrupt vector<span class="tip">The table that maps an interrupt number to its handler's address; on x86, the IDT from Lecture 17.</span></span> with that offset. The code that runs is the <strong>interrupt service routine (ISR)</strong>.</li>
+        <li data-step="4"><strong>Re-enable interrupts</strong>, restore the saved state, and return to the interrupted program.</li>
+      </ol>
+      <figure class="fig" data-step="1">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 420 300" width="360" role="img" aria-label="The CPU saves PC and registers, the interrupt controller supplies the vector, the vector table points to the ISR">
+            <rect x="10" y="20" width="150" height="110" class="box"/><text x="85" y="42" text-anchor="middle" class="big">CPU</text>
+            <rect x="26" y="56" width="118" height="26" class="pbox"/><text x="85" y="74" text-anchor="middle" class="mono">PC</text>
+            <rect x="26" y="88" width="118" height="26" class="pbox"/><text x="85" y="106" text-anchor="middle" class="lbl">registers</text>
+            <rect x="250" y="20" width="160" height="110" class="box2"/><text x="330" y="42" text-anchor="middle" class="lbl">kernel stack</text>
+            <rect x="266" y="56" width="128" height="26" class="pbox"/><text x="330" y="74" text-anchor="middle" class="lbl mono">saved PC</text>
+            <rect x="266" y="88" width="128" height="26" class="pbox"/><text x="330" y="106" text-anchor="middle" class="lbl mono">saved regs</text>
+            <path d="M144 72 H262" class="wire p" marker-end="url(#ah-p)"/><text x="203" y="64" text-anchor="middle" class="lbl">1 save</text>
+            <g data-step="2">
+              <rect x="10" y="180" width="150" height="50" class="obox"/><text x="85" y="202" text-anchor="middle" class="lbl">interrupt</text><text x="85" y="218" text-anchor="middle" class="lbl">controller</text>
+              <path d="M85 180 V134" class="wire m" marker-end="url(#ah-m)"/><text x="94" y="160" class="lbl t-m">2 "it's #33"</text>
+            </g>
+            <g data-step="3">
+              <rect x="250" y="170" width="160" height="70" class="box"/><text x="330" y="190" text-anchor="middle" class="lbl">interrupt vector</text>
+              <rect x="262" y="200" width="136" height="26" class="fbox"/><text x="330" y="218" text-anchor="middle" class="lbl mono">33 → disk ISR</text>
+              <path d="M160 205 H246" class="wire o" marker-end="url(#ah-o)"/><text x="203" y="197" text-anchor="middle" class="lbl">3 index</text>
+              <rect x="250" y="262" width="160" height="30" class="fbox"/><text x="330" y="282" text-anchor="middle" class="lbl">disk ISR runs</text>
+              <path d="M330 240 V258" class="wire f" marker-end="url(#ah-f)"/>
+            </g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1.2</span>Save, identify, dispatch.</figcaption>
+      </figure>
+    </div>
+    <details class="fold">
+      <summary>Going further: top halves and bottom halves</summary>
+      <div class="fold-body">
+        <p>Interrupts are off while the handler runs, so a slow handler delays every other device. Linux therefore splits the work. The <strong>top half</strong> (the hard-IRQ handler) does the minimum: acknowledge the device, grab the data, schedule the rest. The <strong>bottom half</strong> (a softirq, tasklet or workqueue item) finishes the job later, with interrupts enabled.</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="sec" id="s1-4">
+    <h3><span class="sec-no">1.4</span>An interrupt-driven read, step by step</h3>
+    <div class="two-up" style="align-items:start">
+      <div class="prose small">
+        <ol>
+          <li>The program calls <code>read(device, …)</code>; the call reaches the <strong>read driver</strong>.</li>
+          <li data-step="2">The driver checks the device's <strong>status</strong>.</li>
+          <li data-step="3">If the device is idle, the driver writes the <strong>command</strong>.</li>
+          <li data-step="4">The driver puts the request on the <strong>request queue</strong>. The process blocks and the CPU runs something else.</li>
+          <li data-step="5">The device finishes and raises an <strong>interrupt</strong>, which lands in the interrupt handler.</li>
+          <li data-step="6">The interrupt handler calls the right <strong>device handler</strong>.</li>
+          <li data-step="7">The device handler takes the pending request off the queue.</li>
+          <li data-step="8"><strong>8a</strong> it reads the <strong>data</strong> register; <strong>8b</strong> it copies the data into the program's buffer.</li>
+          <li data-step="9">It wakes the program, and <code>read()</code> returns.</li>
+        </ol>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 660 470" width="480" role="img" aria-label="Interrupt-driven read: read driver, request queue, interrupt handler, device handler and device controller, steps 1 to 9">
+            <rect x="230" y="10" width="240" height="90" class="pbox"/><text x="350" y="38" text-anchor="middle" class="mono">read(device, …);</text>
+            <rect x="255" y="56" width="190" height="30" class="box"/><text x="350" y="76" text-anchor="middle">data</text>
+            <path d="M10 122 H650" class="wire" style="stroke-width:4"/><text x="40" y="114" class="lbl">system interface</text>
+            <rect x="40" y="150" width="170" height="40" class="obox"/><text x="125" y="175" text-anchor="middle">read driver</text>
+            <text x="295" y="144" text-anchor="middle" class="lbl">request queue</text>
+            <rect x="250" y="150" width="90" height="160" class="box"/>
+            <path d="M250 182 H340 M250 214 H340 M250 246 H340 M250 278 H340" class="wire thin" style="opacity:.4"/>
+            <rect x="440" y="150" width="160" height="50" class="obox"/><text x="520" y="180" text-anchor="middle">device handler</text>
+            <rect x="440" y="250" width="160" height="50" class="obox"/><text x="520" y="280" text-anchor="middle">interrupt handler</text>
+            <path d="M10 345 H650" class="wire" style="stroke-width:4"/><text x="380" y="359" class="lbl">hardware interface</text>
+            <rect x="40" y="365" width="560" height="90" class="fbox"/><text x="320" y="444" text-anchor="middle">device controller</text>
+            <rect x="60" y="380" width="120" height="36" class="box"/><text x="120" y="403" text-anchor="middle">command</text>
+            <rect x="260" y="380" width="120" height="36" class="box"/><text x="320" y="403" text-anchor="middle">status</text>
+            <rect x="460" y="380" width="120" height="36" class="box"/><text x="520" y="403" text-anchor="middle">data</text>
+            <g data-step="1"><path d="M230 34 H20 V168 H36" class="wire p" marker-end="url(#ah-p)"/><g class="badge"><circle cx="20" cy="96" r="12"/><text x="20" y="96">1</text></g></g>
+            <g data-step="2"><path d="M290 380 V300 H225 V174 H214" class="wire f" marker-end="url(#ah-f)"/><g class="badge"><circle cx="225" cy="240" r="12"/><text x="225" y="240">2</text></g></g>
+            <g data-step="3"><path d="M110 190 V376" class="wire o" marker-end="url(#ah-o)"/><g class="badge"><circle cx="110" cy="290" r="12"/><text x="110" y="290">3</text></g></g>
+            <g data-step="4"><path d="M210 158 H246" class="wire o" marker-end="url(#ah-o)"/><g class="badge"><circle cx="232" cy="140" r="12"/><text x="232" y="140">4</text></g></g>
+            <g data-step="5"><path d="M350 380 V325 H500 V304" class="wire m" marker-end="url(#ah-m)"/><g class="badge"><circle cx="425" cy="325" r="12"/><text x="425" y="325">5</text></g></g>
+            <g data-step="6"><path d="M520 250 V204" class="wire m" marker-end="url(#ah-m)"/><g class="badge"><circle cx="540" cy="226" r="12"/><text x="540" y="226">6</text></g></g>
+            <g data-step="7"><path d="M340 170 H436" class="wire o" marker-end="url(#ah-o)"/><g class="badge"><circle cx="388" cy="152" r="12"/><text x="388" y="152">7</text></g></g>
+            <g data-step="8">
+              <path d="M560 380 V355 H625 V180 H604" class="wire d" marker-end="url(#ah-d)"/><g class="badge"><circle cx="625" cy="270" r="14"/><text x="625" y="270">8a</text></g>
+              <path d="M580 150 V71 H449" class="wire d" marker-end="url(#ah-d)"/><g class="badge"><circle cx="580" cy="112" r="14"/><text x="580" y="112">8b</text></g>
+            </g>
+            <g data-step="9"><path d="M540 150 V30 H474" class="wire p" marker-end="url(#ah-p)"/><g class="badge"><circle cx="540" cy="96" r="12"/><text x="540" y="96">9</text></g></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1.3</span>An interrupt-driven read, after Nutt, <i>Operating Systems: A Modern Perspective</i>.</figcaption>
+      </figure>
+    </div>
+    <div class="note note-key" data-step="9">
+      <span class="note-tag">Two interrupts</span>
+      <p>If the device was busy at step 2, the request waits in the queue. The device then interrupts <strong>twice</strong>: once when it finishes the earlier request, so the handler can issue ours, and once when ours is done.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="q1">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Chapter 1</span></div>
+      <div class="quiz-body">
+        <div class="q-text">In Fig. 1.3, what is the process doing between step 4 and step 9?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="That is polling. With interrupts nobody checks the status until the device raises the interrupt.">Spinning on the status register.</button>
+          <button type="button" class="q-opt" data-ok>Blocked. The CPU runs other processes until the device's interrupt leads to the wake-up at step 9.</button>
+          <button type="button" class="q-opt" data-why="The data is not ready until the device finishes, so the process cannot have it yet. It is waiting, not running.">Running, and already reading its data.</button>
+        </div>
+        <div class="q-fb ok">Right. The read is blocking for the process, but the CPU is not wasted: that is the overlap of CPU and I/O.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-5">
+    <h3><span class="sec-no">1.5</span>When is polling better than interrupts?</h3>
+    <div class="prose">
+      <p>Interrupts are not free:</p>
+      <ul>
+        <li>setting up the interrupt takes overhead;</li>
+        <li>handling the interrupt takes overhead;</li>
+        <li>blocking the process and scheduling another one takes overhead.</li>
+      </ul>
+      <p data-step="1">So if the wait for the I/O is always short, or predictable, <strong>polling is better</strong>.</p>
+    </div>
+    <div class="widget" id="be-w" data-step="1">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">CPU time spent on one I/O request</span><button class="w-reset" type="button" id="be-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="be-lat">Device answers in <input id="be-lat" type="range" min="0" max="60" step="1" value="40"> <b id="be-lat-v" class="mono"></b></label>
+        <label class="ctl-label" for="be-ov">Interrupt + reschedule cost <select id="be-ov"><option value="2">2 µs</option><option value="5" selected>5 µs</option><option value="20">20 µs</option></select></label>
+      </div>
+      <div class="widget-body">
+        <div class="canvas-wrap">
+          <svg class="dia" id="be-svg" viewBox="0 0 700 130" width="700" style="min-width:520px" role="img" aria-label="Bars comparing CPU time for polling and interrupts"></svg>
+        </div>
+        <div class="verdict" id="be-verdict"></div>
+      </div>
+      <div class="readout" id="be-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch0">Back<b>0 · Recall: polling</b></a>
+    <a href="#ch2">Next<b>2 · Direct memory access</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 2</div>
+    <h2>Direct memory access</h2>
+    <p class="ch-lede">Interrupts free the CPU from waiting. DMA frees it from copying.</p>
+  </div>
+
+  <div class="sec" id="s2-1">
+    <h3><span class="sec-no">2.1</span>The problem with interrupt-driven I/O</h3>
+    <div class="prose">
+      <p>Moving data between memory and devices can become the bottleneck when there is a lot of it.</p>
+      <p data-step="1">Example: read a <strong>1 MB file</strong> from a disk that delivers <strong>1 KB blocks</strong>. Every time a block is ready, the disk raises an interrupt and the CPU copies 1 KB: <strong>1024 interrupts</strong>, each one slowing down the running programs and the OS.</p>
+      <p data-step="2">Worst case: an interrupt after every byte or character, or after every packet from the network card.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-2">
+    <h3><span class="sec-no">2.2</span>Polling, interrupts, DMA: where the CPU's time goes</h3>
+    <div class="widget" id="cmp-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Read a file from a disk that delivers 1 KB blocks</span><button class="w-reset" type="button" id="cmp-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Strategy">
+          <button type="button" data-s="0">Polling</button>
+          <button type="button" data-s="1">Interrupts</button>
+          <button type="button" data-s="2">DMA</button>
+        </span>
+        <label class="ctl-label" for="cmp-size">File size <select id="cmp-size"><option value="4">4 KB</option><option value="64">64 KB</option><option value="1024" selected>1 MB</option></select></label>
+      </div>
+      <div class="widget-body">
+        <div class="canvas-wrap">
+          <svg class="dia" id="cmp-svg" viewBox="0 0 760 150" width="760" style="min-width:560px" role="img" aria-label="Timeline of CPU and disk during the transfer"></svg>
+        </div>
+        <div class="legend" style="padding:10px 0 0">
+          <span class="li"><span class="sw" style="background:var(--cz)"></span>other programs run</span>
+          <span class="li"><span class="sw" style="background:var(--cd)"></span>busy waiting</span>
+          <span class="li"><span class="sw" style="background:var(--co)"></span>interrupt handling and copying</span>
+          <span class="li"><span class="sw" style="background:var(--cf)"></span>disk transferring</span>
+        </div>
+        <div class="stats" id="cmp-stats" style="margin-top:14px"></div>
+      </div>
+      <div class="readout" id="cmp-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Model: the disk takes 100 µs per 1 KB block; taking an interrupt costs the CPU 5 µs; copying 1 KB costs 10 µs; setting up a DMA transfer costs 10 µs. The timeline shows the first 16 blocks; the numbers cover the whole file.</p>
+  </div>
+
+  <div class="sec" id="s2-3">
+    <h3><span class="sec-no">2.3</span>The DMA idea</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>Bypass the CPU</strong> for large data copies, and raise an interrupt only at the very end of the transfer instead of after every block.</li>
+        <li data-step="1">Modern systems offload this work to a special-purpose processor, the <strong>direct-memory-access (DMA) controller</strong>.</li>
+        <li data-step="2">The DMA controller operates the memory bus directly: it places addresses on the bus and performs the transfers without the main CPU.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-4">
+    <h3><span class="sec-no">2.4</span>DMA with interrupts, step by step</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ol>
+          <li>The device driver is told to transfer bytes from the disk to memory at address <strong>X</strong>.</li>
+          <li data-step="2">The driver tells the disk controller.</li>
+          <li data-step="3">The disk controller starts the DMA transfer.</li>
+          <li data-step="4">The disk controller sends each byte to the DMA controller.</li>
+          <li data-step="5">The DMA controller writes each byte to memory at X, X+1, …</li>
+          <li data-step="6">When the count reaches zero, the DMA controller <strong>interrupts the CPU once</strong>.</li>
+        </ol>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 640 360" width="460" role="img" aria-label="CPU and memory on the CPU-memory bus, DMA controller between that bus and the I/O bus, disk controller on the I/O bus, steps 1 to 6">
+            <rect x="290" y="20" width="140" height="60" class="pbox"/><text x="360" y="55" text-anchor="middle" class="big">CPU</text>
+            <rect x="500" y="110" width="120" height="60" class="fbox"/><text x="560" y="145" text-anchor="middle">memory</text>
+            <path d="M160 150 H500" class="wire" style="stroke-width:6;opacity:.45"/><text x="330" y="170" text-anchor="middle" class="lbl">CPU / memory bus</text>
+            <path d="M360 80 V150" class="wire" style="stroke-width:4;opacity:.45"/>
+            <rect x="20" y="115" width="180" height="60" class="obox"/><text x="110" y="140" text-anchor="middle" class="lbl">DMA / bus / interrupt</text><text x="110" y="158" text-anchor="middle" class="lbl">controller</text>
+            <path d="M40 250 H600" class="wire" style="stroke-width:6;opacity:.45"/><text x="590" y="240" text-anchor="end" class="lbl">I/O bus</text>
+            <path d="M80 175 V250" class="wire" style="stroke-width:4;opacity:.45"/>
+            <rect x="300" y="285" width="160" height="56" class="fbox"/><text x="380" y="318" text-anchor="middle">disk controller</text>
+            <path d="M380 250 V285" class="wire" style="stroke-width:4;opacity:.45"/>
+            <g data-step="1"><g class="badge"><circle cx="450" cy="36" r="13"/><text x="450" y="36">1</text></g><text x="468" y="41" class="lbl">driver: read to X</text></g>
+            <g data-step="2"><path d="M290 64 H250 V305 H296" class="wire o" marker-end="url(#ah-o)"/><g class="badge"><circle cx="250" cy="210" r="13"/><text x="250" y="210">2</text></g></g>
+            <g data-step="3"><path d="M330 285 V268 H130 V179" class="wire o dashed" marker-end="url(#ah-o)"/><g class="badge"><circle cx="170" cy="268" r="13"/><text x="170" y="268">3</text></g></g>
+            <g data-step="4"><path d="M420 285 V222 H160 V179" class="wire d" marker-end="url(#ah-d)"/><g class="badge"><circle cx="300" cy="222" r="13"/><text x="300" y="222">4</text></g></g>
+            <g data-step="5"><path d="M200 130 H496" class="wire d" marker-end="url(#ah-d)"/><g class="badge"><circle cx="440" cy="130" r="13"/><text x="440" y="130">5</text></g></g>
+            <g data-step="6"><path d="M110 115 V50 H286" class="wire m" marker-end="url(#ah-m)"/><g class="badge"><circle cx="110" cy="80" r="13"/><text x="110" y="80">6</text></g></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 2.1</span>The CPU appears only at step 1 and step 6. The data never passes through it.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-5">
+    <h3><span class="sec-no">2.5</span>Sharing the memory bus</h3>
+    <p class="prose">The CPU and the DMA controller both need main memory. Who gets the bus?</p>
+    <div class="opts3">
+      <div><span class="tag">Burst mode</span>While DMA transfers, the CPU is blocked from accessing memory.</div>
+      <div data-step="1"><span class="tag">Cycle stealing</span>Interleaved: DMA moves one word, then the CPU gets a memory access, then DMA, then the CPU…</div>
+      <div data-step="2"><span class="tag">Transparent mode</span>DMA transfers only when the CPU is not using the bus. Most efficient, but hard to detect when that is.</div>
+    </div>
+    <div class="widget" id="bus-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">24 memory-bus cycles, 8 words to move</span><button class="w-reset" type="button" id="bus-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Mode">
+          <button type="button" data-m="0">Burst</button>
+          <button type="button" data-m="1">Cycle stealing</button>
+          <button type="button" data-m="2">Transparent</button>
+        </span>
+      </div>
+      <div class="widget-body">
+        <div class="canvas-wrap">
+          <svg class="dia" id="bus-svg" viewBox="0 0 760 150" width="760" style="min-width:560px" role="img" aria-label="Which of CPU and DMA uses the bus in each cycle"></svg>
+        </div>
+        <div class="stats" id="bus-stats" style="margin-top:14px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q2">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Count the interrupts</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A program reads a 1 MB file from a disk that delivers 1 KB blocks. How many interrupts does the transfer cause with interrupt-driven I/O, and with DMA?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Interrupt-driven I/O interrupts once per block, not once per file.">1 and 1</button>
+          <button type="button" class="q-opt" data-ok>1024 and 1</button>
+          <button type="button" class="q-opt" data-why="DMA moves all 1024 blocks itself and interrupts only when the whole transfer is done.">1024 and 1024</button>
+          <button type="button" class="q-opt" data-why="That would be an interrupt per byte, the worst case, not per 1 KB block.">1,048,576 and 1</button>
+        </div>
+        <div class="q-fb ok">Right: one interrupt per block without DMA, one per transfer with it. Check with the widget in §2.2.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch1">Back<b>1 · Interrupt-driven I/O</b></a>
+    <a href="#ch3">Next<b>3 · Ports and memory-mapped I/O</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch3">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 3</div>
+    <h2>Reaching the registers: ports and memory-mapped I/O</h2>
+    <p class="ch-lede">Every strategy above ends with a driver reading or writing a controller register. There are two ways to name one.</p>
+  </div>
+
+  <div class="sec" id="s3-1">
+    <h3><span class="sec-no">3.1</span>Port-mapped I/O</h3>
+    <div class="two-up" style="align-items:start">
+      <div class="prose">
+        <p>Controller registers live in a separate <strong>I/O port</strong> address space, reached by special machine instructions. On Intel x86 these are <code>IN</code> and <code>OUT</code>:</p>
+        <ul>
+          <li><code>OUT dest, src</code> writes CPU register <code>src</code> to device port <code>dest</code>;</li>
+          <li><code>IN dest, src</code> reads device port <code>src</code> into CPU register <code>dest</code>.</li>
+        </ul>
+        <p data-step="1">Only the OS, in kernel mode, may execute them. Later Intel added string versions (<code>INS</code>, <code>OUTS</code>) and width variants (<code>INSB</code>, <code>INSW</code>, <code>INSD</code>).</p>
+      </div>
+      <div data-step="1">
+        <div class="code" aria-label="Port I/O example">
+          <span class="ln"><span class="c">; send one byte out the primary serial port</span></span>
+          <span class="ln">mov  dx, 0x3F8     <span class="c">; port number</span></span>
+          <span class="ln">mov  al, 'A'       <span class="c">; the byte</span></span>
+          <span class="ln">out  dx, al        <span class="c">; write it to the port</span></span>
+          <span class="ln"> </span>
+          <span class="ln"><span class="c">; read the timer's counter</span></span>
+          <span class="ln">in   al, 0x40</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-2">
+    <h3><span class="sec-no">3.2</span>Device port locations on PCs</h3>
+    <div class="two-up" style="align-items:start">
+      <div class="table-wrap" style="margin:0">
+        <table class="glossary" style="font-size:14px">
+          <thead><tr><th>I/O address range (hex)</th><th>device</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">000–00F</td><td>DMA controller</td></tr>
+            <tr><td class="mono">020–021</td><td>interrupt controller</td></tr>
+            <tr><td class="mono">040–043</td><td>timer</td></tr>
+            <tr><td class="mono">200–20F</td><td>game controller</td></tr>
+            <tr><td class="mono">2F8–2FF</td><td>serial port (secondary)</td></tr>
+            <tr><td class="mono">320–32F</td><td>hard-disk controller</td></tr>
+            <tr><td class="mono">378–37F</td><td>parallel port</td></tr>
+            <tr><td class="mono">3D0–3DF</td><td>graphics controller</td></tr>
+            <tr><td class="mono">3F0–3F7</td><td>diskette-drive controller</td></tr>
+            <tr><td class="mono">3F8–3FF</td><td>serial port (primary)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="prose" data-step="1">
+        <p>A partial map of the classic PC's port space (Silberschatz, Fig. 12.3). Each range is a small block of registers: the primary serial port's data register is port <code>0x3F8</code>, and the next seven ports are its status and control registers.</p>
+        <p>Notice who sits at the very bottom: the DMA controller of Chapter 2 and the interrupt controller of Chapter 1 are devices too, programmed through ports like any other.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-3">
+    <h3><span class="sec-no">3.3</span>The limits of port I/O</h3>
+    <div class="prose">
+      <ul>
+        <li><code>IN</code> and <code>OUT</code> can only load and store. The CPU's full set of memory operations is not available.</li>
+        <li data-step="1">Example: to increment a device's data register, copy it into a CPU register, add one, and copy it back: three instructions and two bus trips.</li>
+        <li data-step="2">When AMD defined x86-64, it did not extend the port I/O instructions: there is no 64-bit <code>IN</code> or <code>OUT</code>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-4">
+    <h3><span class="sec-no">3.4</span>Memory-mapped I/O</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Device registers and device memory are mapped into the <strong>system's memory address space</strong>. Ordinary instructions reach them:</p>
+        <p><code>load R3, 0xC0FF01</code> reads a device register, because address <code>0xC0FF01</code> is assigned to that controller's command register.</p>
+        <p data-step="1">Each controller's registers get a block of addresses. When a value is written there, the device sees it, loads it, and carries out the command.</p>
+        <p data-step="2">Devices are typically mapped into lower memory. Display frame buffers take the most space; even a large display needs only 10–100 MB, which is modest in an address space of gigabytes. So memory-mapped I/O costs little address space.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 600 440" width="440" role="img" aria-label="An address space with two blocks of addresses that map to two device controllers' registers">
+            <text x="120" y="22" text-anchor="middle" class="big">address space</text>
+            <rect x="60" y="34" width="160" height="390" class="box"/>
+            <text x="54" y="44" text-anchor="end" class="lbl mono">0x000000</text><text x="54" y="422" text-anchor="end" class="lbl mono">0xFFFFFF</text>
+            <text x="140" y="80" text-anchor="middle" class="lbl">RAM</text>
+            <text x="70" y="124" class="mono" style="font-size:12px;fill:var(--cz-ink)">load R3, 0xC0FF01</text>
+            <path d="M70 132 V180 H86" class="wire p thin" marker-end="url(#ah-p)"/>
+            <rect x="60" y="164" width="160" height="30" class="dbox"/><text x="140" y="184" text-anchor="middle" class="lbl">command</text>
+            <text x="54" y="184" text-anchor="end" class="lbl mono t-p">0xC0FF01</text>
+            <rect x="60" y="194" width="160" height="30" class="dbox"/><text x="140" y="214" text-anchor="middle" class="lbl">status</text>
+            <rect x="60" y="224" width="160" height="30" class="dbox"/><text x="140" y="244" text-anchor="middle" class="lbl">data</text>
+            <rect x="60" y="300" width="160" height="30" class="dbox"/><text x="140" y="320" text-anchor="middle" class="lbl">command2</text>
+            <rect x="60" y="330" width="160" height="30" class="dbox"/><text x="140" y="350" text-anchor="middle" class="lbl">status2</text>
+            <rect x="60" y="360" width="160" height="30" class="dbox"/><text x="140" y="380" text-anchor="middle" class="lbl">data2</text>
+            <g data-step="1">
+              <rect x="380" y="140" width="210" height="130" class="fbox" style="fill-opacity:.5"/><text x="485" y="160" text-anchor="middle">device 1 controller</text>
+              <rect x="400" y="172" width="170" height="26" class="box"/><text x="485" y="190" text-anchor="middle" class="lbl">command</text>
+              <rect x="400" y="202" width="170" height="26" class="box"/><text x="485" y="220" text-anchor="middle" class="lbl">status</text>
+              <rect x="400" y="232" width="170" height="26" class="box"/><text x="485" y="250" text-anchor="middle" class="lbl">data</text>
+              <path d="M220 179 L396 185 M220 209 L396 215 M220 239 L396 245" class="wire d dashed" marker-end="url(#ah-d)"/>
+              <rect x="380" y="290" width="210" height="130" class="fbox" style="fill-opacity:.5"/><text x="485" y="310" text-anchor="middle">device 2 controller</text>
+              <rect x="400" y="322" width="170" height="26" class="box"/><text x="485" y="340" text-anchor="middle" class="lbl">command2</text>
+              <rect x="400" y="352" width="170" height="26" class="box"/><text x="485" y="370" text-anchor="middle" class="lbl">status2</text>
+              <rect x="400" y="382" width="170" height="26" class="box"/><text x="485" y="400" text-anchor="middle" class="lbl">data2</text>
+              <path d="M220 315 L396 335 M220 345 L396 365 M220 375 L396 395" class="wire d dashed" marker-end="url(#ah-d)"/>
+            </g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 3.1</span>Two controllers' registers, each at a block of addresses.</figcaption>
+      </figure>
+    </div>
+    <div class="note note-honest read-only">
+      <span class="note-tag">More precisely</span>
+      <p>The address in the example is a <strong>physical</strong> address. The MMU still translates the kernel's virtual address to it as usual (Lecture 14), and those page-table entries are marked uncacheable so every access really reaches the device. The routing from a physical address to the controller rather than RAM is done by the memory controller and the bus.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-5">
+    <h3><span class="sec-no">3.5</span>Where does this instruction go?</h3>
+    <div class="widget" id="as-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Two address spaces, one CPU</span><button class="w-reset" type="button" id="as-reset">Reset</button></div>
+      <div class="widget-body">
+        <div class="instr" id="as-instr"></div>
+        <div class="maps" style="margin-top:14px">
+          <div class="amap" id="as-mem"></div>
+          <div class="amap" id="as-port"></div>
+        </div>
+      </div>
+      <div class="readout" id="as-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-6">
+    <h3><span class="sec-no">3.6</span>Port vs. memory-mapped</h3>
+    <div class="table-wrap">
+      <table class="glossary" style="max-width:none">
+        <thead><tr><th></th><th>Port-mapped I/O</th><th>Memory-mapped I/O</th></tr></thead>
+        <tbody>
+          <tr><td>address space</td><td>a separate, dedicated I/O address space</td><td>the same address space as program and user memory</td></tr>
+          <tr data-step="1"><td>instructions</td><td>a dedicated set: <code>IN</code>, <code>OUT</code>, and variants</td><td>ordinary loads, stores, and any instruction that touches memory</td></tr>
+          <tr data-step="2"><td>who may use it</td><td>the OS in kernel mode</td><td>whoever has the addresses mapped; normally the kernel, but a driver can map a device's registers into a process</td></tr>
+          <tr data-step="2"><td>today</td><td>legacy PC devices (serial port, timer, PS/2 keyboard)</td><td>almost everything else: PCIe devices, NVMe, GPUs, network cards</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec" id="q3">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">One instruction</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A driver wants to increment a device's data register with a single <code>inc</code> instruction. Which kind of I/O makes that possible?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="IN and OUT only load and store. Port I/O needs three instructions: IN, INC, OUT.">Port-mapped I/O</button>
+          <button type="button" class="q-opt" data-ok>Memory-mapped I/O</button>
+          <button type="button" class="q-opt" data-why="The difference between the two is exactly which instructions can reach the register.">Both work the same way</button>
+        </div>
+        <div class="q-fb ok">Right. The register is just a memory address, so <code>inc [addr]</code> works on it directly. Try it in §3.5.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q4">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Pick the strategy</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A device always answers within 200 ns. Taking an interrupt and rescheduling costs about 5 µs. Which strategy wastes the least CPU time for a small request?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>Polling</button>
+          <button type="button" class="q-opt" data-why="The interrupt costs 5 µs of CPU to save 0.2 µs of spinning: 25 times more than it saves.">Interrupt-driven I/O</button>
+          <button type="button" class="q-opt" data-why="DMA pays off for large transfers. For one small request, setting it up plus the final interrupt costs more than the wait.">DMA</button>
+        </div>
+        <div class="q-fb ok">Right. When the wait is short and predictable, spinning for it is cheaper than the machinery of an interrupt (§1.5).</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch2">Back<b>2 · Direct memory access</b></a>
+    <a href="#tail">Next<b>∎ · Recap and glossary</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="tail">
+  <div class="ch-head">
+    <div class="ch-no">Epilogue</div>
+    <h2>Recap and glossary</h2>
+  </div>
+
+  <div class="sec" id="s-sum">
+    <h3><span class="sec-no">∎</span>Recap</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>The three device controller states:</strong> idle, working, finished.</li>
+        <li><strong>The three I/O strategies:</strong>
+          <ul>
+            <li><em>direct I/O with polling</em>: the CPU waits for the device to become idle, issues the I/O command, and waits for the device to finish;</li>
+            <li><em>direct I/O with interrupts</em>: no busy waiting, but an interrupt and a CPU copy for every transfer;</li>
+            <li><em>DMA with interrupts</em>: large transfers without the CPU, one interrupt at the end.</li>
+          </ul>
+        </li>
+        <li><strong>Port vs. memory-mapped I/O:</strong> port registers live in a separate I/O address space that only the OS reaches, with <code>IN</code>/<code>OUT</code>; memory-mapped registers sit at memory addresses, mapped into kernel (or user) space, and are accessed like any other memory.</li>
+      </ul>
+    </div>
+    <div class="note note-lab" data-step="1">
+      <span class="note-tag">In the lab</span>
+      <p>The Basecamp 5 driver has no real hardware behind it, so its <code>scd_read</code> copies from a kernel buffer with <code>copy_to_user</code>. A real disk driver does the same last step, but the data got into that buffer by DMA, and the driver learned it was there from an interrupt.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap read-only">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>polling</td><td>Repeatedly reading a status register until the device is ready.</td></tr>
+        <tr><td>interrupt flag</td><td>The CPU input a device raises to request attention.</td></tr>
+        <tr><td>interrupt handler / ISR</td><td>Kernel code that runs on an interrupt: save state, identify the device, run its service routine.</td></tr>
+        <tr><td>interrupt controller</td><td>Hardware that collects device interrupt lines and tells the CPU which one fired.</td></tr>
+        <tr><td>request queue</td><td>Pending I/O requests waiting for a busy device.</td></tr>
+        <tr><td>DMA controller</td><td>A processor that moves data between a device and memory by itself, then interrupts once.</td></tr>
+        <tr><td>burst / cycle stealing / transparent</td><td>DMA owns the bus for the whole block / alternates with the CPU / uses only cycles the CPU leaves idle.</td></tr>
+        <tr><td>port-mapped I/O</td><td>Device registers in a separate I/O address space, reached with IN and OUT.</td></tr>
+        <tr><td>memory-mapped I/O</td><td>Device registers at memory addresses, reached with ordinary loads and stores.</td></tr>
+        <tr><td>frame buffer</td><td>A display's pixel memory, the largest memory-mapped region on most machines.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Adapted from the Device Strategies slides.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  const clear = (svg) => { while (svg.firstChild) svg.removeChild(svg.firstChild); };
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  /* ---------- hero: interrupts flashing on graph paper ---------- */
+  (function () {
+    const cv = $('#hero-canvas'); if (!cv) return;
+    const CELL = 26;
+    let W = 0, H = 0, flashes = [];
+    function size() {
+      const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+      W = r.width; H = r.height;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+      flashes = [];
+      for (let i = 0; i < 18; i++) spawn(Math.random());
+      draw();
+    }
+    function spawn(life) {
+      flashes.push({ x: Math.floor(Math.random() * (W / CELL)) * CELL, y: Math.floor(Math.random() * (H / CELL)) * CELL, life: life == null ? 1 : life, c: Math.random() < 0.35 ? 'cd' : 'cz' });
+    }
+    function draw() {
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, W, H);
+      flashes.forEach((f) => {
+        const c = tok('--' + f.c);
+        ctx.globalAlpha = 0.45 * f.life; ctx.strokeStyle = c; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(f.x + CELL / 2, f.y + CELL / 2, 4 + (1 - f.life) * 14, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 0.5 * f.life; ctx.fillStyle = c; ctx.fillRect(f.x + CELL / 2 - 2.5, f.y + CELL / 2 - 2.5, 5, 5);
+      });
+      ctx.globalAlpha = 1;
+    }
+    size();
+    addEventListener('resize', size);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    if (!reduce) setInterval(() => {
+      if (document.hidden || document.documentElement.classList.contains('present')) return;
+      flashes.forEach((f) => { f.life -= 0.04; });
+      flashes = flashes.filter((f) => f.life > 0);
+      while (flashes.length < 18) spawn();
+      draw();
+    }, 80);
+  })();
+
+  /* ---------- §1.5 polling vs interrupts break-even ---------- */
+  (function () {
+    const svg = $('#be-svg');
+    // slider 0..60 maps to 0.1 µs .. 1000 µs on a log scale
+    const lat = () => Math.pow(10, -1 + (+$('#be-lat').value) / 15);
+    const fmt = (us) => us < 1 ? Math.round(us * 1000) + ' ns' : us < 1000 ? (us < 10 ? us.toFixed(1) : Math.round(us)) + ' µs' : (us / 1000).toFixed(1) + ' ms';
+    function render() {
+      const L = lat(), O = +$('#be-ov').value;
+      $('#be-lat-v').textContent = fmt(L);
+      clear(svg);
+      const max = Math.max(L, O) * 1.05, sc = (v) => 560 * v / max;
+      [['polling', L, 'spinning for the whole wait', 'url(#spin)', 'var(--cd)'], ['interrupts', O, 'fixed interrupt + reschedule cost', 'var(--co-soft)', 'var(--co)']].forEach(([name, v, note, fill, stroke], i) => {
+        const y = 18 + i * 56;
+        svg.appendChild(el('text', { x: 10, y: y + 22, class: 'lbl' }, name));
+        svg.appendChild(el('rect', { x: 100, y, width: Math.max(2, sc(v)), height: 32, style: `fill:${fill};stroke:${stroke};stroke-width:1.5` }));
+        const wv = Math.max(2, sc(v)), inside = wv > 380;
+        svg.appendChild(el('text', { x: inside ? 112 : 108 + wv, y: y + 21, class: 'lbl mono', style: inside ? 'fill:var(--ink)' : '' }, fmt(v) + ' · ' + note));
+      });
+      const poll = L < O;
+      $('#be-verdict').innerHTML = poll ? '<span class="bad">Polling</span> wastes less CPU here' : '<span class="os">Interrupts</span> waste less CPU here';
+      $('#be-out').innerHTML = poll
+        ? `The device answers in ${fmt(L)}, faster than the ${O} µs it costs to take an interrupt and switch processes. Spinning is cheaper, and the answer arrives with no extra latency.`
+        : `The wait (${fmt(L)}) is longer than the ${O} µs an interrupt costs, so every microsecond of spinning beyond that is pure waste. Let the device interrupt.`;
+    }
+    $('#be-lat').addEventListener('input', render); $('#be-ov').addEventListener('input', render);
+    $('#be-reset').addEventListener('click', () => { $('#be-lat').value = 40; $('#be-ov').value = '5'; render(); });
+    render();
+  })();
+
+  /* ---------- §2.2 polling / interrupts / DMA ---------- */
+  (function () {
+    const svg = $('#cmp-svg');
+    const BLK = 100, INT = 5, COPY = 10, SETUP = 10, SHOW = 16;
+    const NAMES = ['Polling', 'Interrupts', 'DMA'];
+    function render(s) {
+      $$('#cmp-w [data-s]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.s === s)));
+      const blocks = +$('#cmp-size').value, shown = Math.min(blocks, SHOW);
+      const dev = blocks * BLK;
+      const cpuIO = s === 0 ? dev + blocks * COPY : s === 1 ? blocks * (INT + COPY) : SETUP + INT;
+      const total = s === 0 ? dev + blocks * COPY : dev + (s === 1 ? COPY : 0);
+      const free = Math.max(0, total - cpuIO);
+      const ints = s === 0 ? 0 : s === 1 ? blocks : 1;
+      clear(svg);
+      const X0 = 80, Wd = 660, span = shown * BLK + (s === 0 ? shown * COPY : 0), sx = (t) => X0 + Wd * t / span;
+      svg.appendChild(el('text', { x: 10, y: 44, class: 'lbl' }, 'CPU'));
+      svg.appendChild(el('text', { x: 10, y: 104, class: 'lbl' }, 'disk'));
+      if (s === 0) {
+        for (let b = 0; b < shown; b++) {
+          const t0 = b * (BLK + COPY);
+          svg.appendChild(el('rect', { x: sx(t0), y: 26, width: sx(t0 + BLK) - sx(t0), height: 30, style: 'fill:url(#spin)' }));
+          svg.appendChild(el('rect', { x: sx(t0 + BLK), y: 26, width: sx(t0 + BLK + COPY) - sx(t0 + BLK), height: 30, class: 'obox' }));
+          svg.appendChild(el('rect', { x: sx(t0), y: 86, width: sx(t0 + BLK) - sx(t0) - 1, height: 30, class: 'fbox' }));
+        }
+      } else {
+        svg.appendChild(el('rect', { x: X0, y: 26, width: Wd, height: 30, class: 'pbox' }));
+        if (s === 2) svg.appendChild(el('rect', { x: X0, y: 26, width: Math.max(3, sx(SETUP) - X0), height: 30, class: 'obox' }));
+        for (let b = 0; b < shown; b++) {
+          svg.appendChild(el('rect', { x: sx(b * BLK), y: 86, width: sx((b + 1) * BLK) - sx(b * BLK) - 1, height: 30, class: 'fbox' }));
+          if (s === 1) {
+            svg.appendChild(el('rect', { x: sx((b + 1) * BLK) - (sx(INT + COPY) - X0), y: 26, width: sx(INT + COPY) - X0, height: 30, class: 'obox' }));
+            svg.appendChild(el('path', { d: `M${sx((b + 1) * BLK) - 2} 84 V60`, class: 'wire m thin', 'marker-end': 'url(#ah-m)' }));
+          }
+        }
+        if (s === 2 && shown === blocks) {
+          svg.appendChild(el('rect', { x: sx(blocks * BLK) - 5, y: 26, width: 5, height: 30, class: 'obox' }));
+          svg.appendChild(el('path', { d: `M${sx(blocks * BLK) - 3} 84 V60`, class: 'wire m', 'marker-end': 'url(#ah-m)' }));
+        }
+      }
+      svg.appendChild(el('text', { x: X0, y: 140, class: 'lbl' }, blocks > shown ? `first ${shown} of ${blocks} blocks shown` : `all ${blocks} blocks`));
+      if (s === 2 && blocks > shown) svg.appendChild(el('text', { x: X0 + Wd, y: 140, 'text-anchor': 'end', class: 'lbl t-m' }, 'the one interrupt comes at the end, off the right edge'));
+      const pct = Math.round(free / total * 100);
+      const ms = (us) => us >= 1000 ? (us / 1000).toFixed(1) + ' ms' : us + ' µs';
+      $('#cmp-stats').innerHTML =
+        `<div><div class="lab">interrupts</div><div class="big">${ints.toLocaleString('en-US')}</div></div>` +
+        `<div class="${s === 0 ? 'warn' : ''}"><div class="lab">CPU time on this I/O</div><div class="big">${ms(cpuIO)}</div><div class="sub">${s === 0 ? 'all of it, mostly spinning' : s === 1 ? `${blocks} × (${INT} + ${COPY}) µs` : `${SETUP} µs setup + ${INT} µs interrupt`}</div></div>` +
+        `<div class="${pct < 50 ? 'warn' : ''}"><div class="lab">CPU left for other programs</div><div class="big">${pct}%</div><div class="sub">of the ${ms(total)} transfer</div></div>`;
+      $('#cmp-out').innerHTML = ['<b>Polling.</b> The CPU spins through every block and copies each one. Nothing else runs until the file is in.',
+        `<b>Interrupts.</b> Other programs run while the disk works, but the CPU is interrupted and copies data ${blocks.toLocaleString('en-US')} times.`,
+        '<b>DMA.</b> The CPU sets the transfer up, runs other programs the whole time, and is interrupted once when the file is in memory.'][s];
+    }
+    let cur = 0;
+    const ctl = Academy.register('s2-2', { steps: 2, readStep: 0, show: (i) => { cur = i; render(i); } });
+    $$('#cmp-w [data-s]').forEach((b) => b.addEventListener('click', () => ctl.go(+b.dataset.s)));
+    $('#cmp-size').addEventListener('input', () => render(cur));
+    $('#cmp-reset').addEventListener('click', () => { $('#cmp-size').value = '1024'; ctl.go(0); });
+    render(0);
+  })();
+
+  /* ---------- §2.5 DMA bus sharing ---------- */
+  (function () {
+    const svg = $('#bus-svg');
+    const N = 24, WORDS = 8;
+    const WANT = [1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0]; // cycles the CPU wants the bus
+    const NAMES = ['Burst', 'Cycle stealing', 'Transparent'];
+    function sim(m) {
+      let left = WORDS, pending = 0, stalls = 0, done = -1, cpuDone = 0;
+      const owner = [], stall = [];
+      for (let t = 0; t < N; t++) {
+        pending += WANT[t];
+        let dma = false;
+        if (left > 0) {
+          if (m === 0) dma = true;
+          else if (m === 1) dma = t % 2 === 0;
+          else dma = pending === 0;
+        }
+        if (dma) { owner.push('dma'); left--; if (!left) done = t; stall.push(pending > 0); if (pending > 0) stalls++; }
+        else if (pending > 0) { owner.push('cpu'); pending--; cpuDone++; stall.push(false); }
+        else { owner.push(''); stall.push(false); }
+      }
+      return { owner, stall, stalls, done, cpuDone, leftCpu: pending };
+    }
+    function render(m) {
+      $$('#bus-w [data-m]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.m === m)));
+      const r = sim(m);
+      clear(svg);
+      const X = (t) => 100 + t * 27;
+      svg.appendChild(el('text', { x: 10, y: 34, class: 'lbl' }, 'CPU wants'));
+      svg.appendChild(el('text', { x: 10, y: 82, class: 'lbl' }, 'bus used by'));
+      for (let t = 0; t < N; t++) {
+        if (WANT[t]) svg.appendChild(el('rect', { x: X(t) + 6, y: 22, width: 13, height: 13, class: 'pbox' }));
+        const o = r.owner[t];
+        svg.appendChild(el('rect', { x: X(t), y: 60, width: 25, height: 34, class: o === 'dma' ? 'fbox' : o === 'cpu' ? 'pbox' : 'box' }));
+        svg.appendChild(el('text', { x: X(t) + 12.5, y: 82, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, o === 'dma' ? 'DMA' : o === 'cpu' ? 'CPU' : ''));
+        if (r.stall[t]) svg.appendChild(el('circle', { cx: X(t) + 12.5, cy: 106, r: 4, style: 'fill:var(--cd)' }));
+        if (t % 4 === 0) svg.appendChild(el('text', { x: X(t) + 12.5, y: 136, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, t));
+      }
+      svg.appendChild(el('text', { x: 10, y: 110, class: 'lbl t-m' }, 'CPU stalled'));
+      $('#bus-stats').innerHTML =
+        `<div class="${r.stalls ? 'warn' : ''}"><div class="lab">cycles the CPU stalled</div><div class="big">${r.stalls}</div></div>` +
+        `<div><div class="lab">DMA finished at cycle</div><div class="big">${r.done >= 0 ? r.done : '> ' + (N - 1)}</div></div>` +
+        `<div><div class="lab">CPU accesses still queued</div><div class="big">${r.leftCpu}</div><div class="sub">at the end of cycle ${N - 1}</div></div>`;
+    }
+    const ctl = Academy.register('s2-5', { steps: 2, readStep: 0, show: (i) => render(i) });
+    $$('#bus-w [data-m]').forEach((b) => b.addEventListener('click', () => ctl.go(+b.dataset.m)));
+    $('#bus-reset').addEventListener('click', () => ctl.go(0));
+    render(0);
+  })();
+
+  /* ---------- §3.5 two address spaces ---------- */
+  (function () {
+    const MEM = [
+      ['0x000000–0xBFFFFF', 'RAM', 'ram'],
+      ['0xC0FF01', 'device 1 · command', 'dev'], ['0xC0FF02', 'device 1 · status', 'dev'], ['0xC0FF03', 'device 1 · data', 'dev'],
+      ['0xC10001–03', 'device 2 · command, status, data', 'dev'],
+      ['0xD00000–0xEFFFFF', 'display frame buffer', 'dev'],
+      ['0xF00000–0xFFFFFF', 'RAM', 'ram'],
+    ];
+    const PORT = [['0x000–0x00F', 'DMA controller'], ['0x020–0x021', 'interrupt controller'], ['0x040–0x043', 'timer'], ['0x378–0x37F', 'parallel port'], ['0x3F8–0x3FF', 'serial port (primary)']];
+    const INS = [
+      { t: 'load R3, 0x004000', s: 'ordinary load', sp: 'mem', hit: 0, out: 'An ordinary load from RAM. Nothing special about it.' },
+      { t: 'load R3, 0xC0FF02', s: 'ordinary load', sp: 'mem', hit: 2, out: 'The same instruction as the RAM load, but <b>0xC0FF02</b> is device 1\'s status register: this is how a memory-mapped driver polls. The bus routes the access to the controller, not RAM.' },
+      { t: 'store R3, 0xD00400', s: 'ordinary store', sp: 'mem', hit: 5, out: 'A store into the frame buffer. The display controller shows the new pixel value on the next refresh.' },
+      { t: 'inc [0xC0FF03]', s: 'one instruction', sp: 'mem', hit: 3, out: 'Read-modify-write on device 1\'s data register in <b>one</b> instruction. With port I/O this takes three: <code>in al, dx</code> · <code>inc al</code> · <code>out dx, al</code>.' },
+      { t: 'out dx, al', s: 'dx = 0x3F8', sp: 'port', hit: 4, out: 'A write to I/O port <b>0x3F8</b>, the primary serial port\'s data register. The same number as a memory address would mean something else entirely: port space is separate.' },
+      { t: 'in al, 0x40', s: 'port 0x40', sp: 'port', hit: 2, out: 'Reads the timer\'s counter from port <b>0x40</b>. Only kernel mode may execute <code>IN</code> and <code>OUT</code>.' },
+      { t: 'out 0x21, al', s: 'port 0x21', sp: 'port', hit: 1, out: 'Writes the interrupt controller\'s mask register at port <b>0x21</b>: this is how the kernel turns individual device interrupts on and off (Chapter 1).' },
+      { t: 'in al, dx', s: 'dx = 0x004000', sp: 'port', hit: -1, out: 'There is no port 0x4000 on this map: port numbers are small, and this is <b>not</b> the RAM address 0x004000. The two address spaces do not overlap even when the numbers do.' },
+    ];
+    function render(k) {
+      const ins = INS[k];
+      $('#as-instr').innerHTML = INS.map((x, i) => `<button type="button" data-i="${i}" aria-pressed="${i === k}">${x.t}<small>${x.s}</small></button>`).join('');
+      $('#as-mem').className = 'amap' + (ins.sp === 'mem' ? '' : ' off');
+      $('#as-port').className = 'amap' + (ins.sp === 'port' ? '' : ' off');
+      $('#as-mem').innerHTML = '<div class="hd">memory address space</div>' + MEM.map(([a, d, c], i) => `<div class="rg ${c}${ins.sp === 'mem' && i === ins.hit ? ' hit' : ''}"><span class="a">${a}</span><span>${d}</span></div>`).join('');
+      $('#as-port').innerHTML = '<div class="hd">I/O port address space</div>' + PORT.map(([a, d], i) => `<div class="rg dev${ins.sp === 'port' && i === ins.hit ? ' hit' : ''}"><span class="a">${a}</span><span>${d}</span></div>`).join('');
+      $('#as-out').innerHTML = ins.out;
+    }
+    $('#as-instr').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b) render(+b.dataset.i); });
+    $('#as-reset').addEventListener('click', () => render(1));
+    render(1);
+  })();
+})();
+</script>
+</body>
+</html>
