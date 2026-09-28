@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scheduling · L06</title>
+<meta name="description" content="CSCI 3753 Lecture 06, interactive edition: CPU-I/O bursts, the scheduler and dispatcher, context switching, scheduling criteria, FCFS, SJF, SRTF, round robin, and weighted round robin.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+/* ---- lecture-local ---- */
+.sub-lab { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); }
+.code { font-family: var(--f-mono); font-size: 13px; line-height: 1.7; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 0; overflow-x: auto; }
+.code .ln { display: block; padding: 0 14px; white-space: pre; border-left: 3px solid transparent; }
+.code .ln.cur { background: var(--cx-soft); border-left-color: var(--cx); }
+.code .c { color: var(--ink3); }
+table.pr { border-collapse: collapse; font-family: var(--f-mono); font-size: 13px; }
+table.pr th { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line2); }
+table.pr td { padding: 3px 8px; border-bottom: 1px solid var(--line); }
+table.pr input { width: 4em; font: inherit; border: 1px solid var(--line2); border-radius: 5px; background: var(--bg2); padding: 1px 4px; }
+table.res { border-collapse: collapse; width: 100%; font-family: var(--f-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+table.res th { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line2); }
+table.res th:first-child, table.res td:first-child { text-align: left; }
+table.res td { padding: 3px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+table.res tr.avg td { font-weight: 600; border-top: 1.5px solid var(--line2); }
+.sch-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px 22px; align-items: start; }
+.regs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.regs .box3 { border: 1.5px solid var(--line2); border-radius: 9px; padding: 7px 9px; background: var(--bg); font-family: var(--f-mono); font-size: 12px; line-height: 1.6; }
+.regs .box3 .hd { font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
+.regs .box3.cpu { border-color: var(--ink); }
+.regs .box3 .hot { background: var(--cx-soft2); border-radius: 3px; padding: 0 3px; }
+@media (max-width: 760px) {
+  .sch-grid, .regs { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+    <marker id="ah-o" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-o"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><rect x="2.5" y="7" width="17" height="8" rx="1"/><path d="M8 7v8M12 7v8"/></g><rect x="3.3" y="7.8" width="4" height="6.4" fill="var(--cz)"/><rect x="12.8" y="7.8" width="6" height="6.4" fill="var(--cx)"/></svg>
+    <span>Lecture 06 · Scheduling</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Lecture 06 · Interactive notes</div>
+    <h1>Who runs <span class="accent">next</span>?</h1>
+    <p class="lede">Lecture 03 built the mechanism: ready queues, PCBs, context switches. This lecture is about the policy that uses it: whenever the CPU frees up, which ready process should get it? The answer depends on what you want to optimize, and the classic algorithms (first-come first-served, shortest job first, round robin) each win on some measures and lose on others.</p>
+    <div class="promise">
+      <span>Before you start:</span><span class="mono">process states, queues, the timer</span><span>from Lectures 01 and 03.</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#ch0">Begin ↓</a>
+      <span class="muted small">About 55 minutes · 5 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 5 · Continues in Lecture 07, More Scheduling</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="chapters">
+    <p class="rail-title">Contents</p>
+    <a href="#ch0"><span class="n">0</span>Bursts and the scheduler</a>
+    <a href="#ch1"><span class="n">1</span>Mechanism: switching</a>
+    <a href="#ch2"><span class="n">2</span>Criteria</a>
+    <a href="#ch3"><span class="n">3</span>FCFS and SJF</a>
+    <a href="#ch4"><span class="n">4</span>Round robin</a>
+    <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#ch0"><span class="n">0</span>Bursts and the scheduler</a>
+        <a href="#ch1"><span class="n">1</span>Mechanism: switching</a>
+        <a href="#ch2"><span class="n">2</span>Criteria</a>
+        <a href="#ch3"><span class="n">3</span>FCFS and SJF</a>
+        <a href="#ch4"><span class="n">4</span>Round robin</a>
+        <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+      </nav>
+    </details>
+
+    <div class="sec present-only title-slide" id="title">
+      <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 06</div>
+      <h1>Process Scheduling</h1>
+      <p class="lede">Mechanism: scheduler, dispatcher, context switch. Policy: criteria, FCFS, SJF, RR.</p>
+      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 5</div>
+    </div>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch0">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 0</div>
+    <h2>Bursts and the CPU scheduler</h2>
+    <p class="ch-lede">Processes alternate between computing and waiting; the scheduler fills the gaps.</p>
+  </div>
+
+  <div class="sec" id="s0-1">
+    <h3><span class="sec-no">0.1</span>The CPU–I/O burst cycle</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ul>
+          <li>Multiprogramming gets maximum CPU utilization (Lecture 01).</li>
+          <li data-step="1">A process's execution is a cycle of <strong>CPU bursts</strong> and <strong>I/O bursts</strong>: compute, wait for I/O, compute, wait…</li>
+          <li data-step="2">The distribution of CPU-burst lengths matters most: there are <strong>many short bursts</strong> and <strong>few long ones</strong>. I/O-bound programs have many short bursts; CPU-bound programs have a few long ones.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 420 220" width="380" role="img" aria-label="Histogram of CPU burst durations: many short bursts, a long tail">
+            <g id="hist-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 0.1</span>Histogram of CPU-burst durations (shape after Silberschatz Fig. 5.2).</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-2">
+    <h3><span class="sec-no">0.2</span>When does the scheduler run?</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>The <strong>CPU scheduler</strong> selects a process from the ready queue and gives it a core. A decision may be needed when a process:</p>
+        <ol>
+          <li>switches from running to waiting (an I/O request, wait());</li>
+          <li>switches from running to ready (an interrupt);</li>
+          <li>switches from waiting to ready (I/O completes);</li>
+          <li>terminates.</li>
+        </ol>
+        <p data-step="1">In cases 1 and 4 there is no choice: the core is free, so a new process must be picked. In 2 and 3 there is a choice: keep the current process, or switch.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 480 280" width="420" role="img" aria-label="Process state diagram with the four scheduling points numbered">
+            <g id="sd-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 0.2</span>The four points where scheduling may happen.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-3">
+    <h3><span class="sec-no">0.3</span>Preemptive or not</h3>
+    <div class="prose">
+      <ul>
+        <li>Scheduling only in cases 1 and 4 is <strong>nonpreemptive</strong>: once a process has the CPU, it keeps it until it terminates or waits.</li>
+        <li data-step="1">Otherwise it is <strong>preemptive</strong>: the OS may take the CPU away. Virtually all modern OSes (Windows, macOS, Linux, UNIX) are preemptive.</li>
+        <li data-step="2">Preemption is why shared data can suffer race conditions: a thread can be stopped anywhere (Lecture 05, and Lectures 08–11).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#top">Back to<b>the top</b></a>
+    <a href="#ch1">Next<b>1 · Mechanism: switching</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch1">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 1</div>
+    <h2>Mechanism: how to switch</h2>
+    <p class="ch-lede">The scheduler picks; the dispatcher does the switch.</p>
+  </div>
+
+  <div class="sec" id="s1-1">
+    <h3><span class="sec-no">1.1</span>The dispatcher</h3>
+    <div class="prose">
+      <ul>
+        <li>The <strong>dispatcher</strong> gives the CPU to the process the scheduler selected: it switches context, switches to user mode, and jumps to the right place in the user program.</li>
+        <li data-step="1"><strong>Dispatch latency</strong> is the time to stop one process and start another. At 10 µs on a 1 GHz CPU, that is 10,000 wasted cycles per switch.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-2">
+    <h3><span class="sec-no">1.2</span>A function that returns into another process</h3>
+    <div class="prose">
+      <p>A context switch is a function call that returns asynchronously: process A calls it, but process B continues after the return. It saves all registers in a scratch area (the process's kernel stack or its <code>task_struct</code>), switches address spaces, restores the new process's registers, and returns to B.</p>
+    </div>
+    <div class="widget" id="cx-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title"><code>ctx_swtch(&amp;A, &amp;B)</code>, simplified, one address space</span><button class="w-reset" type="button" id="cx-reset">Reset</button></div>
+      <div class="controls">
+        <button type="button" class="btn" id="cx-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="cx-next">Next ›</button>
+        <span class="mono muted" id="cx-n" style="font-size:13px"></span>
+      </div>
+      <div class="widget-body">
+        <div style="display:grid;gap:12px">
+          <div class="code" id="cx-code"></div>
+          <div class="regs" id="cx-r"></div>
+        </div>
+      </div>
+      <div class="readout" id="cx-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">32-bit x86 in AT&amp;T syntax, from the slides. The trick is the last two lines: pushing B's saved IP and executing <code>ret</code> "returns" into B.</p>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch0">Back<b>0 · Bursts and the scheduler</b></a>
+    <a href="#ch2">Next<b>2 · Criteria</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 2</div>
+    <h2>Policy: scheduling criteria</h2>
+    <p class="ch-lede">Before comparing algorithms, decide what "better" means.</p>
+  </div>
+
+  <div class="sec" id="s2-1">
+    <h3><span class="sec-no">2.1</span>Five measures</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ul>
+          <li><strong>CPU utilization</strong>: keep the CPU as busy as possible (40%–90% in practice).</li>
+          <li><strong>Throughput</strong>: processes completed per time unit.</li>
+          <li data-step="1"><strong>Execution (burst) time</strong>: CPU time needed to run the process fully.</li>
+          <li data-step="1"><strong>Waiting time</strong>: time spent in the <em>ready</em> queue, not running. It does not include time waiting for I/O.</li>
+          <li data-step="2"><strong>Turnaround time</strong>: from first entering the ready queue to finally exiting. It includes waiting and I/O.</li>
+          <li data-step="2"><strong>Response time</strong>: from first entering the ready queue to first running. It matters for interactive tasks.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 440 190" width="400" role="img" aria-label="One process's timeline: waiting, running, I/O, waiting, running, with the four times marked">
+            <g id="tm-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 2.1</span>One process: burst = <span class="p">blue</span>, waiting = grey, I/O = <span class="f">green</span>.</figcaption>
+      </figure>
+    </div>
+    <div class="note note-key" data-step="2">
+      <span class="note-tag">Goals</span>
+      <p>Maximize utilization, throughput and fairness; meet deadlines; respect priorities; minimize turnaround, waiting and response time. No single algorithm does all of that. For the analysis below, assume no blocking I/O: each process runs one burst to completion.</p>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch1">Back<b>1 · Mechanism: switching</b></a>
+    <a href="#ch3">Next<b>3 · FCFS and SJF</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch3">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 3</div>
+    <h2>First-come first-served and shortest job first</h2>
+    <p class="ch-lede">The simplest policy, and the one that is provably best at waiting time.</p>
+  </div>
+
+  <div class="sec" id="s3-1">
+    <h3><span class="sec-no">3.1</span>FCFS and the convoy effect</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>First-come, first-served</strong>: run processes in arrival order, each to completion. P1 = 24, P2 = 3, P3 = 3 arriving in that order: waits 0, 24, 27, <strong>average 17</strong>.</li>
+        <li data-step="1">The same processes arriving P2, P3, P1: waits 6, 0, 3, <strong>average 3</strong>. Much better.</li>
+        <li data-step="2">The <strong>convoy effect</strong>: short processes stuck behind a long one. Think of one CPU-bound process and many I/O-bound ones: the I/O-bound processes finish their I/O and then queue behind the CPU hog, while the devices sit idle.</li>
+        <li data-step="3">Nonpreemptive, simple, fair in arrival order, but poor waiting and response times.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-2">
+    <h3><span class="sec-no">3.2</span>SJF and SRTF</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>Shortest job first</strong>: associate each process with the length of its next CPU burst and run the shortest. SJF is <strong>optimal</strong>: it gives the minimum average waiting time for a given set of processes. Example: P1 6, P2 8, P3 7, P4 3 → order P4, P1, P3, P2, waits 3, 16, 9, 0: <strong>average 7</strong>.</li>
+        <li data-step="1">Its preemptive version is <strong>shortest remaining time first</strong> (SRTF): whenever a process arrives, re-decide by remaining time. With P1 (0, 8), P2 (1, 4), P3 (2, 9), P4 (3, 5): average wait <strong>6.5</strong>.</li>
+        <li data-step="2">The catch: how do we know the next burst's length? Ask the user, or <strong>estimate</strong> it (§3.4). And long jobs may <strong>starve</strong> behind a stream of short ones.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-3">
+    <h3><span class="sec-no">3.3</span>Schedule it yourself</h3>
+    <div class="widget" id="sc-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Four algorithms, one workload</span><button class="w-reset" type="button" id="sc-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Algorithm" id="sc-a"></span>
+        <label class="ctl-label" for="sc-q">RR quantum <input id="sc-q" type="number" min="1" max="30" value="4" style="width:4em"></label>
+        <span class="seg" aria-label="Example" id="sc-ex"></span>
+      </div>
+      <div class="widget-body">
+        <div class="sch-grid">
+          <div><div class="sub-lab">processes (editable)</div><table class="pr" id="sc-in"></table><button type="button" class="btn small" id="sc-add" style="margin-top:6px">+ process</button></div>
+          <div>
+            <div class="canvas-wrap"><svg class="dia" id="sc-g" viewBox="0 0 640 90" width="640" style="min-width:420px" role="img" aria-label="Gantt chart"></svg></div>
+            <div class="table-wrap" style="margin:10px 0 0"><table class="res" id="sc-r"></table></div>
+          </div>
+        </div>
+      </div>
+      <div class="readout" id="sc-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Ties go to the earlier arrival, then the lower process number. In RR, a process that arrives at the same moment another's quantum expires joins the queue first.</p>
+  </div>
+
+  <div class="sec" id="s3-4">
+    <h3><span class="sec-no">3.4</span>Predicting the next burst</h3>
+    <div class="prose">
+      <p>We can only estimate: assume the next burst resembles the previous ones, and use an <strong>exponential average</strong>:</p>
+      <div class="formula center">τ<sub>n+1</sub> = α · t<sub>n</sub> + (1 − α) · τ<sub>n</sub></div>
+      <p>where t<sub>n</sub> is the actual length of the n-th burst, τ<sub>n</sub> was its prediction, and 0 ≤ α ≤ 1 (commonly ½).</p>
+      <ul data-step="1">
+        <li>α = 0: τ<sub>n+1</sub> = τ<sub>n</sub>; recent history does not count.</li>
+        <li>α = 1: τ<sub>n+1</sub> = t<sub>n</sub>; only the last burst counts.</li>
+        <li>Expanding: τ<sub>n+1</sub> = α t<sub>n</sub> + (1−α) α t<sub>n−1</sub> + … + (1−α)<sup>j</sup> α t<sub>n−j</sub> + … + (1−α)<sup>n+1</sup> τ<sub>0</sub>. Each older term weighs less than the one after it.</li>
+      </ul>
+    </div>
+    <div class="widget" id="ea-w" data-step="1">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Predicted vs. actual burst lengths</span><button class="w-reset" type="button" id="ea-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="ea-a">α <input id="ea-a" type="range" min="0" max="1" step="0.05" value="0.5"> <b class="mono" id="ea-av"></b></label>
+        <label class="ctl-label" for="ea-t0">τ₀ <input id="ea-t0" type="number" min="0" max="20" value="10" style="width:4em"></label>
+      </div>
+      <div class="widget-body"><div class="canvas-wrap"><svg class="dia" id="ea-svg" viewBox="0 0 640 230" width="640" style="min-width:460px" role="img" aria-label="Actual bursts as steps and predictions as a line"></svg></div></div>
+      <div class="readout" id="ea-out"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="q1">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Chapter 3</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Why can't a real OS simply run SJF?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="SJF is optimal for average waiting time; the problem is not its outcome.">It gives worse average waiting time than FCFS.</button>
+          <button type="button" class="q-opt" data-ok>It needs to know the length of each process's next CPU burst, which the OS can only estimate; and long jobs can starve.</button>
+          <button type="button" class="q-opt" data-why="Sorting a ready queue is cheap.">Sorting the ready queue is too expensive.</button>
+        </div>
+        <div class="q-fb ok">Right. Exponential averaging (§3.4) is the usual estimate; aging (Lecture 07) fights starvation.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch2">Back<b>2 · Criteria</b></a>
+    <a href="#ch4">Next<b>4 · Round robin</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch4">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 4</div>
+    <h2>Round robin</h2>
+    <p class="ch-lede">Is it fair that long processes use the CPU as long as they want, or that they wait behind every shorter one? Take turns instead.</p>
+  </div>
+
+  <div class="sec" id="s4-1">
+    <h3><span class="sec-no">4.1</span>Time slices</h3>
+    <div class="prose">
+      <ul>
+        <li>Each process gets a small unit of CPU time, the <strong>time quantum</strong> q, usually 10–100 ms. When it expires, the process is preempted and put at the end of the ready queue. A timer interrupt fires every quantum.</li>
+        <li data-step="1">With n processes, each gets 1/n of the CPU in chunks of at most q; <strong>no process waits more than (n−1)q</strong> for its next turn.</li>
+        <li data-step="2">A process can finish before its quantum is up; the scheduler just takes the next one. Example: P1 24, P2 3, P3 3 with q = 4 runs P1 0–4, P2 4–7, P3 7–10, then P1 to 30.</li>
+        <li data-step="3">Typically higher average turnaround than SJF, but much better response; simple (just rotate, no burst lengths needed); fair (1/n each). Good for interactive systems, hence popular.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-2">
+    <h3><span class="sec-no">4.2</span>Choosing the quantum</h3>
+    <div class="prose">
+      <ul>
+        <li>q large → RR becomes FCFS. q small → many switches.</li>
+        <li data-step="1">q must be large relative to the <strong>context-switch</strong> time, or the overhead dominates. A 10-unit job with q = 12 needs 0 switches; q = 6, 1 switch; q = 1, 9 switches.</li>
+        <li data-step="2">Average turnaround does not improve steadily as q changes. A rule of thumb: most CPU bursts (about 80%) should fit in one quantum.</li>
+      </ul>
+    </div>
+    <div class="widget" id="qt-w" data-step="1">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Turnaround and switches vs. q, for P1 6, P2 3, P3 1, P4 7</span><button class="w-reset" type="button" id="qt-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="qt-cs">context-switch cost <select id="qt-cs"><option value="0" selected>0</option><option value="0.1">0.1</option><option value="0.5">0.5</option></select></label>
+      </div>
+      <div class="widget-body"><div class="canvas-wrap"><svg class="dia" id="qt-svg" viewBox="0 0 640 256" width="640" style="min-width:460px" role="img" aria-label="Average turnaround time and number of context switches for q from 1 to 8"></svg></div></div>
+      <div class="readout" id="qt-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-3">
+    <h3><span class="sec-no">4.3</span>Weighted round robin</h3>
+    <div class="prose">
+      <ul>
+        <li>Give some tasks more quanta per round than others: one way to implement <strong>priorities</strong> (more in Lecture 07).</li>
+        <li data-step="1">If P<sub>i</sub> gets N<sub>i</sub> quanta per round, its share of the CPU is</li>
+      </ul>
+      <div class="formula center" data-step="1">share<sub>i</sub> = N<sub>i</sub> / Σ<sub>j</sub> N<sub>j</sub></div>
+      <p data-step="2">In the example above, give P1 two quanta per round and P2, P3 one each: P1 gets 2/4 = 50% of the CPU while all three are running. Try "Weighted RR" in §3.3.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="q2">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Response time</span></div>
+      <div class="quiz-body">
+        <div class="q-text">P1 24, P2 3, P3 3, all arriving at 0. What is the average <strong>response</strong> time under FCFS, and under RR with q = 4?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>FCFS 17, RR 11/3 ≈ 3.7</button>
+          <button type="button" class="q-opt" data-why="Response is the time to first run: under RR P3 first runs at 7, not 10.">FCFS 17, RR 17</button>
+          <button type="button" class="q-opt" data-why="That is FCFS in the best order, P2, P3, P1.">FCFS 3, RR 3.7</button>
+        </div>
+        <div class="q-fb ok">Right. FCFS: 0, 24, 27. RR: 0, 4, 7. The price is P1's longer turnaround.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q3">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">The bound</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Five processes are ready under RR with q = 20 ms (ignore switching cost). At most how long does one wait before its next turn?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="That counts its own quantum too.">100 ms</button>
+          <button type="button" class="q-opt" data-ok>80 ms: (n − 1) q</button>
+          <button type="button" class="q-opt" data-why="The other four each run up to one quantum first.">20 ms</button>
+        </div>
+        <div class="q-fb ok">Right. That bound is what makes RR responsive.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q4">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Preemptive?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Which of these algorithms are preemptive?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="FCFS and SJF never take the CPU from a running process.">FCFS and SJF</button>
+          <button type="button" class="q-opt" data-ok>SRTF and RR</button>
+          <button type="button" class="q-opt" data-why="SRTF preempts when a shorter job arrives.">Only RR</button>
+        </div>
+        <div class="q-fb ok">Right. SRTF preempts on arrival; RR on every timer tick at the end of a quantum.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch3">Back<b>3 · FCFS and SJF</b></a>
+    <a href="#tail">Next<b>∎ · Summary and glossary</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="tail">
+  <div class="ch-head">
+    <div class="ch-no">Epilogue</div>
+    <h2>Summary and glossary</h2>
+  </div>
+
+  <div class="sec" id="s-sum">
+    <h3><span class="sec-no">∎</span>What to take away</h3>
+    <div class="prose">
+      <ul>
+        <li>Processes alternate CPU and I/O bursts; most bursts are short.</li>
+        <li>The scheduler decides at four points; deciding only when a process blocks or exits is nonpreemptive. The dispatcher performs the context switch, at a cost of dispatch latency.</li>
+        <li>Criteria: utilization, throughput, turnaround, waiting, response, fairness.</li>
+        <li>FCFS is simple but suffers the convoy effect. SJF minimizes average waiting time but needs burst estimates (exponential averaging) and can starve long jobs; SRTF is its preemptive form.</li>
+        <li>RR gives each process a quantum in turn: bounded waiting, good response, higher turnaround; q must be large relative to a context switch. Weighted RR gives shares N<sub>i</sub>/ΣN.</li>
+      </ul>
+    </div>
+    <div class="note note-lab" data-step="1">
+      <span class="note-tag">In the lab</span>
+      <p>Basecamp 2, <em>Sharing the CPU</em>: <code>fairshare.sh</code> runs two CPU-bound spinners at different nice values and measures their CPU shares, a weighted fair share in action (Lecture 07 explains Linux's version).</p>
+    </div>
+  </div>
+
+  <div class="table-wrap read-only">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>CPU / I/O burst</td><td>A stretch of computing / of waiting for I/O.</td></tr>
+        <tr><td>preemptive / nonpreemptive</td><td>The OS may / may not take the CPU from a running process.</td></tr>
+        <tr><td>dispatcher, dispatch latency</td><td>The code that switches to the chosen process / the time it takes.</td></tr>
+        <tr><td>waiting time</td><td>Time in the ready queue.</td></tr>
+        <tr><td>turnaround time</td><td>Arrival to completion.</td></tr>
+        <tr><td>response time</td><td>Arrival to first run.</td></tr>
+        <tr><td>FCFS, convoy effect</td><td>Run in arrival order / short jobs stuck behind a long one.</td></tr>
+        <tr><td>SJF / SRTF</td><td>Shortest next burst first / its preemptive version.</td></tr>
+        <tr><td>exponential average</td><td>τ<sub>n+1</sub> = α t<sub>n</sub> + (1−α) τ<sub>n</sub>.</td></tr>
+        <tr><td>round robin, quantum</td><td>Take turns / the length of one turn.</td></tr>
+        <tr><td>weighted RR</td><td>N<sub>i</sub> quanta per round; share N<sub>i</sub>/ΣN.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Adapted from the Lecture 06 slides.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; }
+  const clear = (n) => { while (n.firstChild) n.removeChild(n.firstChild); };
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const COL = ['pbox', 'dbox', 'fbox', 'obox', 'mbox', 'box2'];
+
+  /* ---------- hero: a scrolling Gantt ---------- */
+  (function () {
+    const cv = $('#hero-canvas'); if (!cv) return;
+    let W = 0, H = 0, off = 0, segs = [];
+    function size() { const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2); W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0); segs = []; let x = 0; while (x < W * 3) { const w = 26 * (1 + Math.floor(Math.random() * 4)); segs.push([x, w, ['--cz', '--cx', '--cf', '--co'][Math.floor(Math.random() * 4)]]); x += w; } draw(); }
+    function draw() { const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H); const y = H - 60; segs.forEach(([x, w, c]) => { const X = ((x - off) % (W * 3) + W * 3) % (W * 3); if (X > W) return; ctx.globalAlpha = 0.22; ctx.fillStyle = tok(c); ctx.fillRect(X + 1, y, w - 2, 26); }); ctx.globalAlpha = 1; }
+    size(); addEventListener('resize', size);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    if (!reduce) setInterval(() => { if (document.hidden || document.documentElement.classList.contains('present')) return; off += 1.5; draw(); }, 40);
+  })();
+
+  /* ---------- Fig. 0.1 histogram ---------- */
+  (function () {
+    const g = $('#hist-g'), V = [60, 150, 118, 72, 44, 28, 18, 12, 8, 6, 4, 3, 2];
+    g.appendChild(el('path', { d: 'M40 180 H410 M40 180 V10', class: 'wire thin' }));
+    V.forEach((v, i) => g.appendChild(el('rect', { x: 46 + i * 28, y: 180 - v, width: 22, height: v, class: i < 3 ? 'pbox' : 'box2' })));
+    g.appendChild(el('text', { x: 225, y: 204, 'text-anchor': 'middle', class: 'lbl' }, 'burst duration →'));
+    g.appendChild(el('text', { x: 14, y: 100, 'text-anchor': 'middle', class: 'lbl', transform: 'rotate(-90 14 100)' }, 'frequency'));
+    g.appendChild(el('text', { x: 150, y: 30, class: 'lbl t-p' }, 'many short bursts'));
+    g.appendChild(el('text', { x: 300, y: 150, class: 'lbl' }, 'few long ones'));
+  })();
+
+  /* ---------- Fig. 0.2 states with numbers ---------- */
+  (function () {
+    const g = $('#sd-g');
+    const S = { new: [60, 50], ready: [150, 170], running: [330, 170], waiting: [240, 250], terminated: [420, 50] };
+    [['M92 70 L130 150'], ['M190 160 Q240 130 290 160'], ['M290 185 Q240 210 190 185'], ['M320 196 L272 236'], ['M208 236 L164 196'], ['M350 150 L400 72']].forEach(([d]) => g.appendChild(el('path', { d, class: 'wire thin', 'marker-end': 'url(#ah)' })));
+    [['1', 312, 236], ['2', 240, 222], ['3', 168, 236], ['4', 392, 104]].forEach(([n, x, y]) => { g.appendChild(el('circle', { cx: x, cy: y - 4, r: 10, class: 'mbox' })); g.appendChild(el('text', { x, y: y + 1, 'text-anchor': 'middle', class: 'mono', style: 'font-size:12px' }, n)); });
+    g.appendChild(el('text', { x: 240, y: 126, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:11px' }, 'dispatch'));
+    Object.entries(S).forEach(([n, [x, y]]) => { g.appendChild(el('ellipse', { cx: x, cy: y, rx: 50, ry: 22, class: n === 'running' ? 'pbox' : n === 'waiting' ? 'obox' : n === 'ready' ? 'dbox' : 'box' })); g.appendChild(el('text', { x, y: y + 5, 'text-anchor': 'middle' }, n)); });
+  })();
+
+  /* ---------- §1.2 ctx switch ---------- */
+  (function () {
+    const CODE = ['# void ctx_swtch(struct context *old, struct context *new)', '# save old registers', 'movl 4(%esp), %eax     # eax = old', 'popl 0(%eax)           # old->ip = return address', 'movl %esp, 4(%eax)     # old->sp', 'movl %ebx, 8(%eax)     # old->ebx … ebp', '# load new registers', 'movl 4(%esp), %eax     # eax = new', 'movl 8(%eax), %ebx     # ebx … ebp = new->…', 'movl 4(%eax), %esp     # switch stacks!', 'pushl 0(%eax)          # push new->ip', 'ret                    # "return" into B'];
+    const S = [
+      [2, { ip: 'in A', sp: 'A stack', ebx: 'A: 7', run: 'A' }, { ip: '—', sp: '—', ebx: '—' }, { ip: 'B+0x40', sp: 'B stack', ebx: 'B: 99' }, 'A calls ctx_swtch(&A_ctx, &B_ctx). The first argument is the old context.'],
+      [3, { ip: 'in A', sp: 'A stack', ebx: 'A: 7', run: 'A' }, { ip: 'A+0x12', sp: '—', ebx: '—' }, { ip: 'B+0x40', sp: 'B stack', ebx: 'B: 99' }, 'popl pops the return address (where A will resume) and stores it as A\'s saved IP.', 'ip'],
+      [4, { ip: 'in A', sp: 'A stack', ebx: 'A: 7', run: 'A' }, { ip: 'A+0x12', sp: 'A stack', ebx: '—' }, { ip: 'B+0x40', sp: 'B stack', ebx: 'B: 99' }, 'Save A\'s stack pointer.', 'sp'],
+      [5, { ip: 'in A', sp: 'A stack', ebx: 'A: 7', run: 'A' }, { ip: 'A+0x12', sp: 'A stack', ebx: 'A: 7' }, { ip: 'B+0x40', sp: 'B stack', ebx: 'B: 99' }, 'Save the other callee-saved registers. A\'s context is complete.', 'ebx'],
+      [8, { ip: 'in switch', sp: 'A stack', ebx: 'B: 99', run: '—' }, { ip: 'A+0x12', sp: 'A stack', ebx: 'A: 7' }, { ip: 'B+0x40', sp: 'B stack', ebx: 'B: 99' }, 'Load B\'s saved registers into the CPU.', 'ebx'],
+      [9, { ip: 'in switch', sp: 'B stack', ebx: 'B: 99', run: '—' }, { ip: 'A+0x12', sp: 'A stack', ebx: 'A: 7' }, { ip: 'B+0x40', sp: 'B stack', ebx: 'B: 99' }, 'Switch stacks: from now on the CPU is on B\'s stack.', 'sp'],
+      [11, { ip: 'B+0x40', sp: 'B stack', ebx: 'B: 99', run: 'B' }, { ip: 'A+0x12', sp: 'A stack', ebx: 'A: 7' }, { ip: 'B+0x40', sp: 'B stack', ebx: 'B: 99' }, 'Push B\'s saved IP and ret: the function that A called returns in B, exactly where B called ctx_swtch last time. A resumes only when someone switches back to it.', 'ip'],
+    ];
+    let i = 0;
+    const box = (t, r, cls, hot) => `<div class="box3 ${cls}"><div class="hd">${t}</div>${['ip', 'sp', 'ebx'].map((k) => `<div>${k}: <span class="${hot === k ? 'hot' : ''}">${r[k]}</span></div>`).join('')}${r.run ? `<div>running: <b>${r.run}</b></div>` : ''}</div>`;
+    function show(k) {
+      i = Math.max(0, Math.min(S.length - 1, k));
+      const [ln, cpu, a, b, t, hot] = S[i];
+      $('#cx-code').innerHTML = CODE.map((c, j) => `<span class="ln${j === ln ? ' cur' : ''}">${c.replace(/#.*$/, (m) => `<span class="c">${m}</span>`)}</span>`).join('');
+      $('#cx-r').innerHTML = box('CPU', cpu, 'cpu', i >= 4 ? hot : null) + box('A context', a, '', i < 4 ? hot : null) + box('B context', b, '', null);
+      $('#cx-out').innerHTML = t; $('#cx-n').textContent = (i + 1) + '/' + S.length;
+      $('#cx-prev').disabled = i === 0; $('#cx-next').disabled = i === S.length - 1;
+    }
+    const ctl = Academy.register('s1-2', { steps: S.length - 1, readStep: 0, show });
+    $('#cx-prev').addEventListener('click', () => ctl.go(i - 1));
+    $('#cx-next').addEventListener('click', () => ctl.go(i + 1));
+    $('#cx-reset').addEventListener('click', () => ctl.go(0));
+    show(0);
+  })();
+
+  /* ---------- Fig. 2.1 times ---------- */
+  (function () {
+    const g = $('#tm-g'), X = (t) => 40 + t * 30;
+    const seg = [[0, 2, 'box2', 'wait'], [2, 4, 'pbox', 'run'], [4, 7, 'fbox', 'I/O'], [7, 9, 'box2', 'wait'], [9, 12, 'pbox', 'run']];
+    seg.forEach(([a, b, c, n]) => { g.appendChild(el('rect', { x: X(a), y: 70, width: X(b) - X(a), height: 30, class: c })); g.appendChild(el('text', { x: (X(a) + X(b)) / 2, y: 90, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:11px' }, n)); });
+    const br = (a, b, y, t, c) => { g.appendChild(el('path', { d: `M${X(a)} ${y} H${X(b)}`, class: 'wire thin ' + c, 'marker-start': 'url(#ah)', 'marker-end': 'url(#ah)' })); g.appendChild(el('text', { x: (X(a) + X(b)) / 2, y: y - 5, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:11px' }, t)); };
+    br(0, 2, 50, 'response', ''); br(0, 12, 26, 'turnaround = 12', '');
+    g.appendChild(el('text', { x: 40, y: 130, class: 'lbl', style: 'font-size:12px' }, 'burst time = 2 + 3 = 5'));
+    g.appendChild(el('text', { x: 40, y: 150, class: 'lbl', style: 'font-size:12px' }, 'waiting time = 2 + 2 = 4 (I/O not counted)'));
+    g.appendChild(el('text', { x: 40, y: 170, class: 'lbl', style: 'font-size:12px' }, 'response time = 2'));
+  })();
+
+  /* ---------- scheduler core ---------- */
+  function simulate(procs, alg, q, weights) {
+    // procs: [{n, arr, burst}] ; returns {segs:[[a,b,idx]], fin[], first[]}
+    const P = procs.map((p, i) => ({ ...p, i, rem: p.burst, first: null, fin: null }));
+    const segs = []; let t = 0, done = 0, cur = null, slice = 0, queue = [], lastAdded = 0;
+    const push = (seg) => { const s = segs[segs.length - 1]; if (s && s[2] === seg[2] && s[1] === seg[0]) s[1] = seg[1]; else segs.push(seg); };
+    const arrive = (upto) => { P.filter((p) => p.arr <= upto && !p.inq && p.rem > 0).sort((a, b) => a.arr - b.arr || a.i - b.i).forEach((p) => { p.inq = true; queue.push(p); }); };
+    const guard = 10000;
+    let steps = 0;
+    while (done < P.length && steps++ < guard) {
+      arrive(t);
+      if (alg === 'fcfs' || alg === 'sjf') {
+        if (!queue.length) { t = Math.min(...P.filter((p) => p.rem > 0).map((p) => p.arr)); continue; }
+        let pick = alg === 'fcfs' ? queue[0] : queue.slice().sort((a, b) => a.burst - b.burst || a.arr - b.arr || a.i - b.i)[0];
+        queue.splice(queue.indexOf(pick), 1);
+        if (pick.first == null) pick.first = t;
+        push([t, t + pick.rem, pick.i]); t += pick.rem; pick.rem = 0; pick.fin = t; done++;
+      } else if (alg === 'srtf') {
+        if (!queue.length) { t = Math.min(...P.filter((p) => p.rem > 0).map((p) => p.arr)); continue; }
+        const pick = queue.slice().sort((a, b) => a.rem - b.rem || a.arr - b.arr || a.i - b.i)[0];
+        if (pick.first == null) pick.first = t;
+        const nextArr = Math.min(Infinity, ...P.filter((p) => p.arr > t && p.rem > 0).map((p) => p.arr));
+        const run = Math.min(pick.rem, nextArr - t);
+        push([t, t + run, pick.i]); t += run; pick.rem -= run;
+        if (!pick.rem) { pick.fin = t; done++; queue.splice(queue.indexOf(pick), 1); }
+      } else { // rr / wrr
+        if (!queue.length) { t = Math.min(...P.filter((p) => p.rem > 0).map((p) => p.arr)); continue; }
+        const pick = queue.shift();
+        if (pick.first == null) pick.first = t;
+        const qq = alg === 'wrr' ? q * (weights[pick.i] || 1) : q;
+        const run = Math.min(pick.rem, qq);
+        push([t, t + run, pick.i]); t += run; pick.rem -= run;
+        arrive(t);
+        if (pick.rem) queue.push(pick); else { pick.fin = t; done++; }
+      }
+    }
+    return { segs, P };
+  }
+
+  /* ---------- §3.3 scheduler widget ---------- */
+  (function () {
+    const ALGS = [['fcfs', 'FCFS'], ['sjf', 'SJF'], ['srtf', 'SRTF'], ['rr', 'RR'], ['wrr', 'Weighted RR']];
+    const EX = [
+      ['24/3/3', [[0, 24], [0, 3], [0, 3]], 'fcfs'],
+      ['reversed', [[0, 3], [0, 3], [0, 24]], 'fcfs'],
+      ['SJF 6/8/7/3', [[0, 6], [0, 8], [0, 7], [0, 3]], 'sjf'],
+      ['SRTF arrivals', [[0, 8], [1, 4], [2, 9], [3, 5]], 'srtf'],
+    ];
+    let alg = 'fcfs', P = [];
+    const load = (k) => { P = EX[k][1].map(([a, b], i) => ({ n: 'P' + (i + 1), arr: a, burst: b, w: i === 0 ? 2 : 1 })); alg = EX[k][2]; };
+    $('#sc-a').innerHTML = ALGS.map(([k, n]) => `<button type="button" data-a="${k}">${n}</button>`).join('');
+    $('#sc-ex').innerHTML = '<span class="seg-label">example</span>' + EX.map(([n], k) => `<button type="button" data-e="${k}">${n}</button>`).join('');
+    function render() {
+      $$('#sc-a [data-a]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.a === alg)));
+      $('#sc-in').innerHTML = `<thead><tr><th>proc</th><th>arrival</th><th>burst</th>${alg === 'wrr' ? '<th>quanta</th>' : ''}<th></th></tr></thead><tbody>` + P.map((p, i) => `<tr><td><span class="mono">${p.n}</span></td><td><input type="number" min="0" max="50" value="${p.arr}" data-i="${i}" data-f="arr" aria-label="${p.n} arrival"></td><td><input type="number" min="1" max="50" value="${p.burst}" data-i="${i}" data-f="burst" aria-label="${p.n} burst"></td>${alg === 'wrr' ? `<td><input type="number" min="1" max="5" value="${p.w}" data-i="${i}" data-f="w" aria-label="${p.n} quanta"></td>` : ''}<td>${P.length > 1 ? `<button type="button" class="btn small" data-del="${i}" aria-label="remove">×</button>` : ''}</td></tr>`).join('') + '</tbody>';
+      const q = Math.max(1, +$('#sc-q').value || 1);
+      const { segs, P: R } = simulate(P, alg, q, P.map((p) => p.w));
+      const svg = $('#sc-g'); clear(svg);
+      const end = Math.max(...segs.map((s) => s[1])), X = (t) => 10 + t * (620 / end);
+      segs.forEach(([a, b, i]) => { svg.appendChild(el('rect', { x: X(a), y: 10, width: X(b) - X(a), height: 40, class: COL[i % COL.length] })); if (X(b) - X(a) > 18) svg.appendChild(el('text', { x: (X(a) + X(b)) / 2, y: 35, 'text-anchor': 'middle', class: 'mono', style: 'font-size:12px' }, P[i].n)); });
+      const ticks = new Set([0, ...segs.map((s) => s[1])]);
+      [...ticks].forEach((t) => svg.appendChild(el('text', { x: X(t), y: 68, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, t)));
+      let sw = 0, sr = 0, st = 0;
+      const rows = R.map((p) => { const ta = p.fin - p.arr, wt = ta - p.burst, rs = p.first - p.arr; sw += wt; sr += rs; st += ta; return `<tr><td>${p.n}</td><td>${p.arr}</td><td>${p.burst}</td><td>${p.fin}</td><td>${wt}</td><td>${ta}</td><td>${rs}</td></tr>`; }).join('');
+      const n = R.length, f = (x) => Number.isInteger(x) ? x : x.toFixed(2);
+      const switches = segs.length - 1;
+      $('#sc-r').innerHTML = `<thead><tr><th>proc</th><th>arrival</th><th>burst</th><th>finish</th><th>wait</th><th>turnaround</th><th>response</th></tr></thead><tbody>${rows}<tr class="avg"><td>average</td><td></td><td></td><td></td><td>${f(sw / n)}</td><td>${f(st / n)}</td><td>${f(sr / n)}</td></tr></tbody>`;
+      const notes = { fcfs: 'FCFS runs in arrival order, each to completion. Try the "reversed" example to see the convoy effect disappear.', sjf: 'SJF (nonpreemptive) picks the shortest burst among those that have arrived.', srtf: 'SRTF re-decides at every arrival, by remaining time.', rr: `RR with q = ${q}: each process gets at most ${q} at a time, then goes to the back of the queue.`, wrr: `Weighted RR: each process gets its number of quanta (× q = ${q}) per turn.` };
+      $('#sc-out').innerHTML = `${notes[alg]} Switches between processes: <b>${switches}</b>.`;
+    }
+    $('#sc-a').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) { alg = b.dataset.a; render(); } });
+    $('#sc-ex').addEventListener('click', (e) => { const b = e.target.closest('[data-e]'); if (b) { load(+b.dataset.e); render(); } });
+    $('#sc-in').addEventListener('change', (e) => { const x = e.target.closest('[data-f]'); if (x) { P[+x.dataset.i][x.dataset.f] = Math.max(x.dataset.f === 'arr' ? 0 : 1, Math.floor(+x.value || 0)); render(); } });
+    $('#sc-in').addEventListener('click', (e) => { const b = e.target.closest('[data-del]'); if (b) { P.splice(+b.dataset.del, 1); P.forEach((p, i) => { p.n = 'P' + (i + 1); }); render(); } });
+    $('#sc-add').addEventListener('click', () => { if (P.length < 6) { P.push({ n: 'P' + (P.length + 1), arr: 0, burst: 5, w: 1 }); render(); } });
+    $('#sc-q').addEventListener('input', render);
+    $('#sc-reset').addEventListener('click', () => { $('#sc-q').value = 4; load(0); render(); });
+    const ctl = Academy.register('s3-3', { steps: 4, readStep: 0, show: (k) => { const map = [[0, 'fcfs'], [1, 'fcfs'], [2, 'sjf'], [3, 'srtf'], [0, 'rr']]; load(map[k][0]); alg = map[k][1]; render(); } });
+    load(0); render();
+  })();
+
+  /* ---------- §3.4 exponential averaging ---------- */
+  (function () {
+    const T = [6, 4, 6, 4, 13, 13, 13];
+    function render() {
+      const a = +$('#ea-a').value, t0 = +$('#ea-t0').value || 0;
+      $('#ea-av').textContent = a.toFixed(2);
+      const tau = [t0]; T.forEach((t, n) => tau.push(a * t + (1 - a) * tau[n]));
+      const svg = $('#ea-svg'); clear(svg);
+      const X = (i) => 50 + i * 70, Y = (v) => 200 - v * 12;
+      [0, 2, 4, 6, 8, 10, 12, 14].forEach((v) => { svg.appendChild(el('path', { d: `M50 ${Y(v)} H620`, class: 'wire thin', style: 'opacity:.12' })); svg.appendChild(el('text', { x: 42, y: Y(v) + 4, 'text-anchor': 'end', class: 'lbl mono', style: 'font-size:10px' }, v)); });
+      let d = '';
+      T.forEach((t, i) => { d += `${i ? 'L' : 'M'}${X(i)} ${Y(t)} H${X(i + 1)}`; });
+      svg.appendChild(el('path', { d, class: 'wire f', style: 'stroke-width:2.5' }));
+      svg.appendChild(el('path', { d: tau.map((v, i) => `${i ? 'L' : 'M'}${X(i) + 35} ${Y(v)}`).join(' '), class: 'wire p', style: 'stroke-width:2' }));
+      tau.forEach((v, i) => { svg.appendChild(el('circle', { cx: X(i) + 35, cy: Y(v), r: 4, class: 'pbox' })); svg.appendChild(el('text', { x: X(i) + 35, y: Y(v) - 8, 'text-anchor': 'middle', class: 'lbl mono t-p', style: 'font-size:11px' }, (+v.toFixed(1)).toString())); });
+      T.forEach((t, i) => svg.appendChild(el('text', { x: X(i) + 35, y: 222, 'text-anchor': 'middle', class: 'lbl mono t-f', style: 'font-size:11px' }, 't=' + t)));
+      svg.appendChild(el('text', { x: 620, y: 20, 'text-anchor': 'end', class: 'lbl t-p' }, 'prediction τ'));
+      svg.appendChild(el('text', { x: 620, y: 36, 'text-anchor': 'end', class: 'lbl t-f' }, 'actual burst t'));
+      const err = T.reduce((s, t, i) => s + Math.abs(t - tau[i]), 0) / T.length;
+      $('#ea-out').innerHTML = `τ = ${tau.map((v) => +v.toFixed(2)).join(', ')} · mean prediction error <b>${err.toFixed(2)}</b>. ${a === 0 ? 'α = 0 never learns.' : a === 1 ? 'α = 1 just repeats the last burst.' : a === 0.5 ? 'With α = ½ and τ₀ = 10 these are the textbook\'s values: 10, 8, 6, 6, 5, 9, 11, 12.' : ''}`;
+    }
+    $('#ea-a').addEventListener('input', render); $('#ea-t0').addEventListener('input', render);
+    $('#ea-reset').addEventListener('click', () => { $('#ea-a').value = 0.5; $('#ea-t0').value = 10; render(); });
+    render();
+  })();
+
+  /* ---------- §4.2 quantum sweep ---------- */
+  (function () {
+    const P = [[0, 6], [0, 3], [0, 1], [0, 7]].map(([a, b], i) => ({ n: 'P' + (i + 1), arr: a, burst: b }));
+    function render() {
+      const cs = +$('#qt-cs').value, svg = $('#qt-svg'); clear(svg);
+      const data = [];
+      for (let q = 1; q <= 8; q++) {
+        const { segs, P: R } = simulate(P, 'rr', q, []);
+        const sw = segs.length - 1;
+        // add cs cost after each switch: shift finish times by number of switches before it
+        const fin = R.map((p) => { const lastSeg = segs.filter((s) => s[2] === p.i).pop(); const k = segs.indexOf(lastSeg); return p.fin + cs * k; });
+        const ta = fin.reduce((s, f, i) => s + f - R[i].arr, 0) / R.length;
+        data.push([q, ta, sw]);
+      }
+      const lo = Math.floor(Math.min(...data.map((d) => d[1]))), hi = Math.ceil(Math.max(...data.map((d) => d[1]))) + 0.5;
+      const X = (q) => 60 + (q - 1) * 76, Y = (v) => 125 - (v - lo) * (95 / (hi - lo)), Ys = (v) => 200 - v * 3.6;
+      for (let v = lo; v <= hi; v++) ((v) => { svg.appendChild(el('path', { d: `M60 ${Y(v)} H600`, class: 'wire thin', style: 'opacity:.12' })); svg.appendChild(el('text', { x: 52, y: Y(v) + 4, 'text-anchor': 'end', class: 'lbl mono', style: 'font-size:10px' }, v)); })(v);
+      data.forEach(([q, ta, sw]) => {
+        svg.appendChild(el('rect', { x: X(q) - 14, y: Ys(sw), width: 28, height: 200 - Ys(sw), class: 'box2' }));
+        svg.appendChild(el('text', { x: X(q), y: Ys(sw) - 4, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, sw));
+        svg.appendChild(el('text', { x: X(q), y: 220, 'text-anchor': 'middle', class: 'lbl mono' }, 'q=' + q));
+      });
+      svg.appendChild(el('path', { d: data.map(([q, ta], i) => `${i ? 'L' : 'M'}${X(q)} ${Y(ta)}`).join(' '), class: 'wire p', style: 'stroke-width:2.5' }));
+      data.forEach(([q, ta]) => { svg.appendChild(el('circle', { cx: X(q), cy: Y(ta), r: 4, class: 'pbox' })); svg.appendChild(el('text', { x: X(q) + 6, y: Y(ta) - 7, class: 'lbl mono t-p', style: 'font-size:11px' }, (+ta.toFixed(2)).toString())); });
+      svg.appendChild(el('text', { x: 60, y: 246, class: 'lbl t-p' }, 'line: average turnaround (left axis)'));
+      svg.appendChild(el('text', { x: 600, y: 246, 'text-anchor': 'end', class: 'lbl' }, 'grey bars: context switches'));
+      const best = data.reduce((b, d) => d[1] < b[1] ? d : b);
+      $('#qt-out').innerHTML = `Best average turnaround here: q = ${best[0]} (${best[1].toFixed(2)}). With no switch cost, turnaround does not fall steadily as q grows: 11, 11.5, 10.75, 11.5, 12.25, then 10.5 from q = 6 on, where every burst fits in (or finishes) its first quantum and RR has become FCFS. ${cs ? `With a switch cost of ${cs}, small quanta pay for all those switches.` : 'Add a switch cost to see small quanta pay for their switches.'}`;
+    }
+    $('#qt-cs').addEventListener('change', render);
+    $('#qt-reset').addEventListener('click', () => { $('#qt-cs').value = '0'; render(); });
+    render();
+  })();
+})();
+</script>
+</body>
+</html>
