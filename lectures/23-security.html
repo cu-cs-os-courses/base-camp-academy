@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Security · L23</title>
+<meta name="description" content="CSCI 3753 Lecture 23, interactive edition: the security problem, threats at a conceptual level, cryptography (symmetric, RSA, hashes, MACs, signatures, certificates, TLS), user authentication, and defenses.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+/* ---- lecture-local ---- */
+.sub-lab { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); }
+.rsa-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; }
+.calc { font-family: var(--f-mono); font-size: 13.5px; line-height: 1.9; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.calc b { color: var(--ink); }
+.calc .k-pub { color: var(--cf-ink); font-weight: 600; }
+.calc .k-priv { color: var(--cd); font-weight: 600; }
+table.pw { border-collapse: collapse; width: 100%; font-family: var(--f-mono); font-size: 12.5px; }
+table.pw th { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line2); }
+table.pw td { padding: 5px 8px; border-bottom: 1px solid var(--line); word-break: break-all; }
+table.pw tr.same td { background: var(--cd-soft); }
+table.pw tr.crack td { background: var(--bad-soft); }
+table.pw td.h { color: var(--ink2); font-size: 11.5px; }
+.mitm { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.party { border: 1.5px solid var(--line2); border-radius: 10px; padding: 10px 12px; background: var(--bg); font-size: 13.5px; line-height: 1.55; min-height: 8em; }
+.party .nm { font-family: var(--f-display); font-size: 18px; font-weight: 600; }
+.party .kk { font-family: var(--f-mono); font-size: 12px; }
+.party.act { border-color: var(--cx); background: var(--cx-soft); }
+.party.bad { border-color: var(--cd); background: var(--cd-soft); }
+.party.good { border-color: var(--good); background: var(--good-soft); }
+.rules { display: grid; gap: 4px; font-family: var(--f-mono); font-size: 12.5px; }
+.rules .r { display: grid; grid-template-columns: 2em 6em 10em 7em minmax(0, 1fr); gap: 8px; padding: 5px 9px; border-radius: 7px; border: 1px solid var(--line); background: var(--bg); }
+.rules .r.hd { border: 0; background: none; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
+.rules .r.hit { border-color: var(--cx); background: var(--cx-soft2); }
+.rules .r.pass { opacity: 0.45; }
+.rules .r .al { color: var(--good); font-weight: 600; }
+.rules .r .dn { color: var(--bad); font-weight: 600; }
+.pkts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.pkts button { text-align: left; font-family: var(--f-mono); font-size: 12px; line-height: 1.45; border: 1px solid var(--line2); background: var(--bg); border-radius: 8px; padding: 6px 9px; cursor: pointer; color: var(--ink); }
+.pkts button[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); background: var(--bg3); }
+.pkts button small { display: block; font-family: var(--f-body); color: var(--ink3); font-size: 11px; }
+@media (max-width: 760px) {
+  .rsa-grid, .mitm, .pkts { grid-template-columns: minmax(0, 1fr); }
+  .rules .r { grid-template-columns: 2em minmax(0, 1fr) minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><path d="M11 2.5l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9v-5z"/></g><path d="M7.5 11l2.5 2.5 4.5-5" stroke="var(--cf)" stroke-width="1.8" fill="none"/></svg>
+    <span>Lecture 23 · Security</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Lecture 23 · Interactive notes</div>
+    <h1>Protection assumes everyone<br>plays by the rules. Security <span class="accent">doesn't</span></h1>
+    <p class="lede">Lecture 22 built mechanisms that decide who may do what, assuming the system knows who is asking and the rules are followed. Security asks what happens when an adversary lies about who they are, feeds programs input they never expected, or listens on the network. This lecture surveys the threats at a conceptual level, then spends most of its time on the defenses: cryptography, authentication, and layered protection.</p>
+    <div class="promise">
+      <span>Before you start:</span><span class="mono">protection domains and least privilege</span><span>(L22) and the network stack (L21).</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#ch0">Begin ↓</a>
+      <span class="muted small">About 55 minutes · 4 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 16</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="chapters">
+    <p class="rail-title">Contents</p>
+    <a href="#ch0"><span class="n">0</span>The security problem</a>
+    <a href="#ch1"><span class="n">1</span>Threats</a>
+    <a href="#ch2"><span class="n">2</span>Cryptography</a>
+    <a href="#ch3"><span class="n">3</span>Authentication and keys</a>
+    <a href="#ch4"><span class="n">4</span>User authentication</a>
+    <a href="#ch5"><span class="n">5</span>Defenses</a>
+    <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#ch0"><span class="n">0</span>The security problem</a>
+        <a href="#ch1"><span class="n">1</span>Threats</a>
+        <a href="#ch2"><span class="n">2</span>Cryptography</a>
+        <a href="#ch3"><span class="n">3</span>Authentication and keys</a>
+        <a href="#ch4"><span class="n">4</span>User authentication</a>
+        <a href="#ch5"><span class="n">5</span>Defenses</a>
+        <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+      </nav>
+    </details>
+
+    <div class="sec present-only title-slide" id="title">
+      <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 23</div>
+      <h1>Security</h1>
+      <p class="lede">Threats, cryptography, authentication, and defense in depth.</p>
+      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 16</div>
+    </div>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch0">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 0</div>
+    <h2>The security problem</h2>
+    <p class="ch-lede">A system is secure if its resources are used and accessed as intended under all circumstances. That is unachievable; the goal is to make attacks cost more than they are worth.</p>
+  </div>
+
+  <div class="sec" id="s0-1">
+    <h3><span class="sec-no">0.1</span>Threats and attacks</h3>
+    <div class="prose">
+      <ul>
+        <li>A <strong>threat</strong> is a potential security violation; an <strong>attack</strong> is an attempt to breach security.</li>
+        <li data-step="1">Attacks can be accidental or malicious. Protecting against accidental misuse is much easier than against malicious misuse.</li>
+      </ul>
+    </div>
+    <div class="table-wrap" data-step="2">
+      <table class="glossary" style="max-width:none">
+        <thead><tr><th>Violation</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>breach of confidentiality</td><td>unauthorized <strong>reading</strong> of data</td></tr>
+          <tr><td>breach of integrity</td><td>unauthorized <strong>modification</strong> of data</td></tr>
+          <tr><td>breach of availability</td><td>unauthorized <strong>destruction</strong> of data</td></tr>
+          <tr><td>theft of service</td><td>unauthorized <strong>use</strong> of resources</td></tr>
+          <tr><td>denial of service (DoS)</td><td><strong>preventing</strong> legitimate use</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-2">
+    <h3><span class="sec-no">0.2</span>How violations happen</h3>
+    <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div><span class="tag">Masquerading</span>Pretending to be an authorized user: a breach of authentication, often to escalate privileges.</div>
+      <div data-step="1"><span class="tag">Replay</span>Resending a captured valid message, as is or modified.</div>
+      <div data-step="2"><span class="tag">Man in the middle</span>The intruder sits in the data flow, posing as the sender to the receiver and vice versa (§3.4).</div>
+      <div data-step="3"><span class="tag">Session hijacking · privilege escalation</span>Taking over an already-authenticated session; gaining access beyond what a user or resource is supposed to have.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-3">
+    <h3><span class="sec-no">0.3</span>Four levels, one weakest link</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Absolute security is impossible, but security must hold at four levels to be effective:</p>
+        <ul>
+          <li><strong>physical</strong>: data centers, servers, terminals;</li>
+          <li><strong>application</strong>: benign or malicious apps can cause problems;</li>
+          <li><strong>operating system</strong>: protection mechanisms, debugging;</li>
+          <li><strong>network</strong>: intercepted communications, interruption, DoS.</li>
+        </ul>
+        <p data-step="1">Security is only as strong as the <strong>weakest link</strong>. Humans are a link too: phishing and social engineering target people, not code. And too much security can backfire when users route around it.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 320 240" width="300" role="img" aria-label="Four nested layers: physical, network, operating system, application">
+            <rect x="10" y="10" width="300" height="220" rx="10" class="box2"/><text x="24" y="32" class="lbl">physical</text>
+            <rect x="40" y="44" width="240" height="176" rx="10" class="fbox" style="fill-opacity:.5"/><text x="54" y="66" class="lbl">network</text>
+            <rect x="70" y="78" width="180" height="132" rx="10" class="obox"/><text x="84" y="100" class="lbl">operating system</text>
+            <rect x="100" y="112" width="120" height="88" rx="10" class="pbox"/><text x="160" y="160" text-anchor="middle">application</text>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 0.1</span>Four layers of security (Silberschatz Fig. 16.2, redrawn).</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#top">Back to<b>the top</b></a>
+    <a href="#ch1">Next<b>1 · Threats</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch1">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 1</div>
+    <h2>Threats</h2>
+    <p class="ch-lede">What attackers try to do, at the level an OS designer needs: enough to know what the defenses are for.</p>
+  </div>
+
+  <div class="sec" id="s1-1">
+    <h3><span class="sec-no">1.1</span>Program threats: malware</h3>
+    <div class="prose">
+      <p><strong>Malware</strong> is software designed to exploit, disable or damage a computer. All of it tries to get around the principle of least privilege.</p>
+      <ul>
+        <li data-step="1"><strong>Trojan horse</strong>: a program that looks useful but misuses the environment it runs in. It exploits the fact that one user's programs run with another user's rights. Spyware and ransomware (which encrypts data and demands payment) are variants.</li>
+        <li data-step="2"><strong>Trap door</strong> (backdoor): a hidden identifier or password that skips normal security checks. It could even be planted in a compiler, which makes it very hard to detect.</li>
+        <li data-step="2"><strong>Logic bomb</strong>: code that misbehaves only when a condition is met.</li>
+        <li data-step="3"><strong>Virus</strong>: a fragment embedded in a legitimate program that replicates into other programs, usually spread by e-mail or document macros; <strong>worm</strong>: a standalone program that spreads itself over the network (§1.3).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-2">
+    <h3><span class="sec-no">1.2</span>Bugs as threats: memory-safety errors</h3>
+    <div class="prose">
+      <p>Even code that is not malicious can be a threat if it has bugs. The classic example is a program that copies input into a fixed-size buffer <strong>without checking the length</strong>, written in a language like C or C++ that lets pointers reach any memory. Overlong input then overwrites whatever lies next to the buffer, which can let an attacker change what the program does. This is the family of <strong>code-injection</strong> and buffer-overflow bugs.</p>
+      <p data-step="1">Finding such a bug takes skill, but once someone publishes an attack tool, anyone can run it. The damage is bounded by the rights of the process that has the bug, which is why least privilege (Lecture 22) matters so much.</p>
+    </div>
+    <div class="note note-key" data-step="2">
+      <span class="note-tag">Defenses, layered</span>
+      <p><strong>Write safe code</strong>: check lengths (<code>strncpy</code>, <code>snprintf</code>), review each other's code, use memory-safe languages. <strong>Let the OS and hardware help</strong>: mark stack and heap pages <em>non-executable</em> with the page-table NX bit (Lecture 14), randomize where code and data are loaded (ASLR), and have the compiler place guard values (stack canaries) that detect corruption before a function returns. Each can be defeated alone; together they make attacks much harder.</p>
+    </div>
+    <div class="note note-lab read-only">
+      <span class="note-tag">In the lab</span>
+      <p>This is why your Basecamp 5 driver clamps every offset and length to the 900-byte buffer and moves data only with <code>copy_to_user</code> / <code>copy_from_user</code>. A missing length check in a kernel module is a memory-safety bug with kernel privileges.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-3">
+    <h3><span class="sec-no">1.3</span>System and network threats</h3>
+    <div class="prose">
+      <ul>
+        <li>Some systems are "open" rather than secure by default. <strong>Reducing the attack surface</strong> (fewer services, fewer open ports) helps, at some cost in convenience.</li>
+        <li data-step="1">Network threats are harder to detect and prevent: there is no physical boundary once a machine is on the Internet, no easy shared secret, and an IP address is all you know about the other side.</li>
+        <li data-step="2"><strong>Worms</strong> spread by themselves. The 1988 Internet worm exploited bugs in the <code>finger</code> and <code>sendmail</code> services and the password-free trust of <code>rsh</code> between "friendly" machines, then tried password guessing.</li>
+        <li data-step="3"><strong>Port scanning</strong> probes which network services a host exposes. Administrators use the same tools to audit their own systems.</li>
+        <li data-step="4"><strong>Denial of service</strong> overloads a target so it cannot do useful work; <strong>distributed</strong> DoS comes from many machines at once. It can even be accidental: a buggy <code>fork()</code> loop in a lab (Lecture 3). Telling an attack apart from sudden popularity is hard.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="q1">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Chapter 1</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A web server process has a memory-safety bug. Which configuration limits the damage most if the bug is exploited?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Running as root gives any successful attack all of root's power.">The server runs as root so it can bind port 80.</button>
+          <button type="button" class="q-opt" data-ok>The server runs as an unprivileged user with only CAP_NET_BIND_SERVICE, non-executable stack, and ASLR enabled.</button>
+          <button type="button" class="q-opt" data-why="A firewall controls which packets reach the server; it cannot stop malformed input on an allowed port.">A firewall allows only port 80 to reach it.</button>
+        </div>
+        <div class="q-fb ok">Right: least privilege bounds what an attacker gains, and NX and ASLR make the attack itself harder. A firewall still helps, but not against this.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch0">Back<b>0 · The security problem</b></a>
+    <a href="#ch2">Next<b>2 · Cryptography</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 2</div>
+    <h2>Cryptography</h2>
+    <p class="ch-lede">Inside one computer the OS knows who sent a message. Across a network it cannot, unless secrets are involved.</p>
+  </div>
+
+  <div class="sec" id="s2-1">
+    <h3><span class="sec-no">2.1</span>Why cryptography</h3>
+    <div class="prose">
+      <ul>
+        <li>Within one machine, the OS creates and protects process IDs and communication ports, so the source and destination of a message can be trusted.</li>
+        <li data-step="1">On a network they cannot: an unauthorized host can be added to a LAN, and on the Internet an IP address proves nothing.</li>
+        <li data-step="2">Cryptography constrains who can <strong>send</strong> or <strong>receive</strong> a message, based on secrets called <strong>keys</strong>. It enables confirming the source, restricting who can read, and building trust between sender and receiver.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-2">
+    <h3><span class="sec-no">2.2</span>Encryption</h3>
+    <div class="prose">
+      <p>Encryption constrains the set of possible <strong>receivers</strong>. It has a set of keys K, messages M and ciphertexts C, with efficiently computable functions E<sub>k</sub>: M → C and D<sub>k</sub>: C → M.</p>
+      <p data-step="1">The essential property: given ciphertext c, a computer can find m with E<sub>k</sub>(m) = c <strong>only if it has k</strong>. Since ciphertexts are exposed on the network, it must also be infeasible to derive k from them.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-3">
+    <h3><span class="sec-no">2.3</span>Symmetric encryption</h3>
+    <div class="prose">
+      <ul>
+        <li>The <strong>same key</strong> encrypts and decrypts, so it must stay secret between the two parties.</li>
+        <li data-step="1"><strong>DES</strong> was the most common block cipher; its 56-bit keys are now far too short. Triple-DES applies it three times with two or three keys.</li>
+        <li data-step="2"><strong>AES</strong> (NIST, 2001) is the standard block cipher: 128-bit blocks, 128-, 192- or 256-bit keys.</li>
+        <li data-step="3">Stream ciphers encrypt a stream of bytes with a key-driven pseudo-random keystream. RC4 was the most common and is now considered broken; ChaCha20 is a modern replacement.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-4">
+    <h3><span class="sec-no">2.4</span>Asymmetric encryption: RSA</h3>
+    <div class="prose">
+      <p>Each user has two keys: a <strong>public key</strong> that anyone may use to encrypt, and a <strong>private key</strong> that only the owner uses to decrypt. The scheme must be public without revealing how to decrypt.</p>
+      <p data-step="1"><strong>RSA</strong> relies on the fact that testing whether a number is prime is efficient, but no efficient algorithm is known for factoring a large number into its primes.</p>
+      <ul data-step="2">
+        <li>pick primes p and q; N = p·q;</li>
+        <li>pick k<sub>e</sub> with k<sub>e</sub>·k<sub>d</sub> mod (p−1)(q−1) = 1;</li>
+        <li>encrypt: E(m) = m<sup>k<sub>e</sub></sup> mod N; decrypt: D(c) = c<sup>k<sub>d</sub></sup> mod N.</li>
+      </ul>
+      <p class="small muted" data-step="2">Real keys use N of 2048 bits or more. Asymmetric encryption is far more expensive than symmetric, so it is rarely used for bulk data.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-5">
+    <h3><span class="sec-no">2.5</span>RSA by hand</h3>
+    <div class="widget" id="rsa-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Toy RSA with tiny primes</span><button class="w-reset" type="button" id="rsa-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="rsa-p">p <select id="rsa-p"></select></label>
+        <label class="ctl-label" for="rsa-q">q <select id="rsa-q"></select></label>
+        <label class="ctl-label" for="rsa-e">k<sub>e</sub> <select id="rsa-e"></select></label>
+        <label class="ctl-label" for="rsa-m">message m <input id="rsa-m" type="number" min="0" value="69" style="width:6em"></label>
+      </div>
+      <div class="widget-body">
+        <div class="rsa-grid">
+          <div class="calc" id="rsa-keys"></div>
+          <div class="calc" id="rsa-run"></div>
+        </div>
+      </div>
+      <div class="readout" id="rsa-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Defaults are the textbook's example: p = 7, q = 13, public key (5, 91), private key (29, 91); 69 encrypts to 62.</p>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch1">Back<b>1 · Threats</b></a>
+    <a href="#ch3">Next<b>3 · Authentication and keys</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch3">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 3</div>
+    <h2>Authentication and keys</h2>
+    <p class="ch-lede">Encryption limits who can read. Authentication limits who can have sent it, and proves it was not changed.</p>
+  </div>
+
+  <div class="sec" id="s3-1">
+    <h3><span class="sec-no">3.1</span>Hashes, MACs, digital signatures</h3>
+    <div class="prose">
+      <p>An authentication algorithm produces an authenticator S<sub>k</sub>(m) and verifies it with V<sub>k</sub>(m, a). Only a holder of k can produce an authenticator that verifies; and k must not be derivable from exposed authenticators.</p>
+    </div>
+    <div class="opts3">
+      <div data-step="1"><span class="tag">Hash function</span>A small, fixed-size <strong>digest</strong> H(m). Must be <strong>collision resistant</strong>: infeasible to find m′ ≠ m with H(m′) = H(m). Alone it is not an authenticator: an attacker can change m and recompute H.</div>
+      <div data-step="2"><span class="tag">MAC</span>A message-authentication code: a cryptographic checksum computed with a <strong>shared secret key</strong>, usually over H(m). Anyone who can verify can also create one.</div>
+      <div data-step="3"><span class="tag">Digital signature</span>Asymmetric: sign with the <strong>private</strong> key, verify with the <strong>public</strong> one. RSA signing is RSA with the keys reversed: S(m) = H(m)<sup>k<sub>s</sub></sup> mod N. Anyone can verify; only the owner can sign.</div>
+    </div>
+    <p class="small muted prose" data-step="3">MD5 (128-bit) and SHA-1 (160-bit) are the textbook's examples; both now have practical collisions. Use SHA-256 or newer.</p>
+  </div>
+
+  <div class="sec" id="s3-2">
+    <h3><span class="sec-no">3.2</span>Why authenticate without encrypting?</h3>
+    <div class="prose">
+      <ul>
+        <li>It needs fewer computations (except RSA signatures), and authenticators are usually shorter than messages.</li>
+        <li data-step="1">Sometimes we want authenticity but not secrecy: a signed OS patch is public, but must be exactly what the vendor released (Lecture 22's code signing).</li>
+        <li data-step="2">Signatures can support <strong>non-repudiation</strong>: the signer cannot later deny having signed.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-3">
+    <h3><span class="sec-no">3.3</span>Key distribution and certificates</h3>
+    <div class="prose">
+      <ul>
+        <li>Delivering a <strong>symmetric</strong> key is a huge challenge; sometimes it is done out of band.</li>
+        <li data-step="1">Public keys can be published, but distribution still needs care: how do you know a public key really belongs to Bob?</li>
+        <li data-step="2">A <strong>digital certificate</strong> is a public key signed by a trusted party, a <strong>certificate authority</strong>, after it checked the owner's identity. Browsers ship with CA public keys; CAs vouch for other authorities by signing their keys, forming a chain.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-4">
+    <h3><span class="sec-no">3.4</span>Man in the middle, and how certificates stop it</h3>
+    <div class="widget" id="mm-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">Alice asks for Bob's public key</span><button class="w-reset" type="button" id="mm-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Setting"><button type="button" data-c="0">No certificates</button><button type="button" data-c="1">Signed certificate</button></span>
+        <span class="gap"></span>
+        <button type="button" class="btn" id="mm-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="mm-next">Next ›</button>
+      </div>
+      <div class="widget-body"><div class="mitm" id="mm-p"></div></div>
+      <div class="readout" id="mm-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-5">
+    <h3><span class="sec-no">3.5</span>Where cryptography lives: TLS</h3>
+    <div class="prose">
+      <ul>
+        <li>Cryptography can go at several layers: <strong>IPsec</strong> at the network layer (the basis of VPNs, with IKE for key exchange), <strong>TLS</strong> (formerly SSL) above the transport layer. Some things, like user authentication or e-mail delivery, need knowledge only higher layers have.</li>
+        <li data-step="1">TLS secures web traffic. The server proves its identity with a <strong>certificate</strong>; <strong>asymmetric</strong> cryptography establishes a fresh <strong>symmetric session key</strong>; the bulk of the session then uses fast symmetric encryption.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="q2">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Which tool?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">An OS vendor publishes an update that anyone may download. Customers must be sure it came from the vendor and was not altered. What should the vendor attach?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Anyone who alters the file can also recompute a plain hash.">A SHA-256 hash of the file.</button>
+          <button type="button" class="q-opt" data-why="A MAC needs a shared secret; every customer who can verify could then also forge.">A MAC with a key shared with all customers.</button>
+          <button type="button" class="q-opt" data-ok>A digital signature made with the vendor's private key.</button>
+          <button type="button" class="q-opt" data-why="The update is public; secrecy is not the goal, and encryption alone does not prove origin.">Encrypt the file with AES.</button>
+        </div>
+        <div class="q-fb ok">Right. Anyone can verify with the public key; only the vendor can sign.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch2">Back<b>2 · Cryptography</b></a>
+    <a href="#ch4">Next<b>4 · User authentication</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch4">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 4</div>
+    <h2>User authentication</h2>
+    <p class="ch-lede">Every protection decision of Lecture 22 depends on the user ID. So the OS must be sure who you are.</p>
+  </div>
+
+  <div class="sec" id="s4-1">
+    <h3><span class="sec-no">4.1</span>Passwords</h3>
+    <div class="prose">
+      <ul>
+        <li>Identity is most often established with a <strong>password</strong>, a special case of a key or a capability. It must stay secret: change it, don't reuse it, make it hard to guess, and log invalid attempts (but never the passwords).</li>
+        <li data-step="1">Protecting it in transit (against sniffing) does not help against shoulder surfing or a keystroke-logging Trojan horse. And how does the system store it?</li>
+        <li data-step="2">Store only a <strong>one-way hash</strong>: easy to compute, hard to invert, never decrypted. At login, hash what was typed and compare. Keep even the hashes secret anyway: UNIX puts them in <code>/etc/shadow</code>, readable only by root (Lecture 22, §1.4).</li>
+        <li data-step="3">Add a random <strong>salt</strong> per user, stored next to the hash, so that the same password does not hash to the same value and precomputed tables of common-password hashes are useless.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-2">
+    <h3><span class="sec-no">4.2</span>Store the passwords</h3>
+    <div class="widget" id="pw-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">A password file, with and without salt</span><button class="w-reset" type="button" id="pw-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Storage"><button type="button" data-s="0">Plain hash</button><button type="button" data-s="1">Salted hash</button></span>
+        <label class="ctl-label"><input type="checkbox" id="pw-dict"> check against a list of common passwords</label>
+      </div>
+      <div class="widget-body">
+        <div class="table-wrap" style="margin:0"><table class="pw" id="pw-t"></table></div>
+      </div>
+      <div class="readout" id="pw-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">The hash shown is SHA-256, truncated. Real systems use deliberately slow password hashes (bcrypt, scrypt, yescrypt, Argon2) so that each guess costs an attacker time.</p>
+  </div>
+
+  <div class="sec" id="s4-3">
+    <h3><span class="sec-no">4.3</span>Beyond passwords</h3>
+    <div class="opts3">
+      <div><span class="tag">One-time passwords</span>User and computer compute each password from a shared seed; a hardware token or phone app shows the current one, which changes frequently.</div>
+      <div data-step="1"><span class="tag">Biometrics</span>A physical attribute: fingerprint, face, hand geometry.</div>
+      <div data-step="2"><span class="tag">Multi-factor</span>Require two or more factors: something you know (password), have (token, phone), are (biometric). Stealing one is not enough.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="q3">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">What salt buys</span></div>
+      <div class="quiz-body">
+        <div class="q-text">An attacker steals a password file. What does per-user salt prevent?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Salt is stored in the clear next to the hash; the attacker can still try guesses against each account one by one.">Any password from ever being guessed.</button>
+          <button type="button" class="q-opt" data-ok>Spotting users who share a password, and using one precomputed table of hashes against every account.</button>
+          <button type="button" class="q-opt" data-why="Salt changes the stored value, not how the user logs in.">Keystroke loggers from capturing the password.</button>
+        </div>
+        <div class="q-fb ok">Right. Each account must be attacked separately. Slow hash functions then make each guess expensive.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch3">Back<b>3 · Authentication and keys</b></a>
+    <a href="#ch5">Next<b>5 · Defenses</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch5">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 5</div>
+    <h2>Defenses</h2>
+    <p class="ch-lede">No single mechanism is enough. Defense in depth stacks many.</p>
+  </div>
+
+  <div class="sec" id="s5-1">
+    <h3><span class="sec-no">5.1</span>Policy, assessment, detection</h3>
+    <div class="prose">
+      <ul>
+        <li>A <strong>security policy</strong> says what is being secured. A <strong>vulnerability assessment</strong> compares the real state of a system or network against that policy.</li>
+        <li data-step="1"><strong>Intrusion detection</strong> looks for attempted or successful intrusions: <em>signature-based</em> detection spots known bad patterns; <em>anomaly detection</em> spots departures from normal behavior and can catch never-seen ("zero-day") attacks. Both suffer false positives and false negatives.</li>
+        <li data-step="2"><strong>Virus protection</strong> scans programs for known patterns, or runs them in a sandbox. <strong>Auditing, accounting and logging</strong> record activity for later review.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-2">
+    <h3><span class="sec-no">5.2</span>Firewalls</h3>
+    <div class="prose">
+      <ul>
+        <li>A <strong>network firewall</strong> sits between trusted and untrusted hosts and limits access between the two security domains, often with a <em>DMZ</em> for public servers in between.</li>
+        <li data-step="1">It can be evaded: <strong>tunneling</strong> hides a disallowed protocol inside an allowed one, and rules based on addresses can be fooled by <strong>spoofed</strong> addresses.</li>
+        <li data-step="2">Variants: a <strong>personal firewall</strong> on one host; an <strong>application proxy</strong> that understands a protocol such as SMTP; a <strong>system-call firewall</strong> that applies rules to system calls (seccomp, Lecture 22).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-3">
+    <h3><span class="sec-no">5.3</span>Evaluate a firewall's rules</h3>
+    <div class="widget" id="fw-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">First matching rule wins</span><button class="w-reset" type="button" id="fw-reset">Reset</button></div>
+      <div class="controls"><span class="ctl-label">Incoming packet:</span></div>
+      <div class="widget-body">
+        <div class="pkts" id="fw-pk"></div>
+        <div class="rules" id="fw-r" style="margin-top:12px"></div>
+      </div>
+      <div class="readout" id="fw-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">A small office: the web server 10.0.1.5 is in the DMZ; the internal network is 10.0.2.0/24; the Internet is everything else.</p>
+  </div>
+
+  <div class="sec" id="s5-4">
+    <h3><span class="sec-no">5.4</span>Classifications and a real system</h3>
+    <div class="prose">
+      <p>The U.S. Department of Defense's classic criteria rated systems in four divisions: <strong>D</strong> minimal; <strong>C</strong> discretionary protection with auditing (C1, C2); <strong>B</strong> adds sensitivity labels on objects, i.e. mandatory access control (B1–B3); <strong>A</strong> formal design and verification. They have since been replaced by the international Common Criteria.</p>
+      <p data-step="1"><strong>Windows</strong> bases security on user accounts: each has a unique security ID, and login creates an <strong>access token</strong> with the user's and groups' IDs and privileges, copied into every process. Each object has a <strong>security descriptor</strong>: owner, group, a discretionary ACL, and a system ACL for auditing. Mandatory integrity labels on objects and subjects add MAC (Lecture 22, §4.2). Objects in a container inherit its permissions by default.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-5">
+    <h3><span class="sec-no">5.5</span>Defenses, summarized</h3>
+    <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div><span class="tag">People</span>Educate users about safe computing and phishing; verify unusual requests another way; use strong passphrases and never write them where they can be found.</div>
+      <div data-step="1"><span class="tag">Configuration</span>Minimize the attack surface; disable unused services; run daemons with least privilege; physically protect hardware.</div>
+      <div data-step="2"><span class="tag">Software</span>Use modern, patched systems; run only trusted, code-signed applications; use antivirus where appropriate; encrypt disks and important files.</div>
+      <div data-step="3"><span class="tag">Watching</span>Enable logging and auditing and review it; use intrusion detection and firewalls; test with periodic vulnerability assessments; keep the security policy up to date.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="q4">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Defense in depth</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A company's firewall allows only HTTPS into its network. Why is that not enough on its own?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>A bug in the allowed web service, a phished employee, or traffic tunneled inside HTTPS all pass straight through it.</button>
+          <button type="button" class="q-opt" data-why="HTTPS is encrypted, but the firewall still sees addresses and ports; it can enforce the rule.">Firewalls cannot filter encrypted traffic at all.</button>
+          <button type="button" class="q-opt" data-why="Blocking everything would also block the service the company exists to provide.">It should block HTTPS too.</button>
+        </div>
+        <div class="q-fb ok">Right. Each layer covers a different gap; that is the point of defense in depth.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch4">Back<b>4 · User authentication</b></a>
+    <a href="#tail">Next<b>∎ · Summary and glossary</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="tail">
+  <div class="ch-head">
+    <div class="ch-no">Epilogue</div>
+    <h2>Summary and glossary</h2>
+  </div>
+
+  <div class="sec" id="s-sum">
+    <h3><span class="sec-no">∎</span>What to take away</h3>
+    <div class="prose">
+      <ul>
+        <li>Security violations break confidentiality, integrity, availability or service; they come through masquerading, replay, man-in-the-middle, hijacking and privilege escalation, at the physical, application, OS and network levels.</li>
+        <li>Malware and memory-safety bugs threaten programs; worms, scanning and DoS threaten systems and networks. Least privilege bounds the damage; NX pages, ASLR and canaries raise the cost.</li>
+        <li>Symmetric ciphers (AES) are fast but need a shared key; asymmetric ones (RSA) solve distribution but are slow; TLS combines them.</li>
+        <li>Hashes detect change, MACs add a shared key, signatures let anyone verify. Certificates bind public keys to identities and defeat man-in-the-middle.</li>
+        <li>Store passwords as salted, slow hashes; add one-time passwords and multiple factors.</li>
+        <li>Defense in depth: policy, assessment, detection, firewalls, patching, logging, and educated users.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="table-wrap read-only">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>threat / attack</td><td>A potential violation / an attempt at one.</td></tr>
+        <tr><td>Trojan horse, trap door</td><td>A program that misuses its environment / a hidden way around authentication.</td></tr>
+        <tr><td>virus / worm</td><td>Self-replicating code inside other programs / a standalone program that spreads over the network.</td></tr>
+        <tr><td>NX, ASLR, canary</td><td>Non-executable pages / randomized load addresses / guard values that detect stack corruption.</td></tr>
+        <tr><td>DoS / DDoS</td><td>Denial of service, from one source / from many.</td></tr>
+        <tr><td>symmetric / asymmetric</td><td>One shared key / a public-private key pair.</td></tr>
+        <tr><td>hash, MAC, signature</td><td>Fixed-size digest / keyed checksum / private-key authenticator anyone can verify.</td></tr>
+        <tr><td>certificate, CA</td><td>A public key signed by a certificate authority that vouches for its owner.</td></tr>
+        <tr><td>TLS</td><td>Transport-level security: certificate, key exchange, then symmetric encryption.</td></tr>
+        <tr><td>salt</td><td>Random per-user value hashed with the password.</td></tr>
+        <tr><td>multi-factor</td><td>Authentication requiring two or more kinds of evidence.</td></tr>
+        <tr><td>firewall, DMZ</td><td>A filter between security domains / the zone for public servers between them.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Based on Silberschatz, Galvin and Gagne, <i>Operating System Concepts</i>, Ch. 16.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  /* ---------- hero: hex digits drifting ---------- */
+  (function () {
+    const cv = $('#hero-canvas'); if (!cv) return;
+    let W = 0, H = 0, cols = [];
+    function size() {
+      const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+      W = r.width; H = r.height;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+      cols = []; for (let x = 13; x < W; x += 26) if (Math.random() < 0.28) cols.push({ x, y: Math.random() * H, v: 0.4 + Math.random() });
+      draw();
+    }
+    function draw() {
+      const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H);
+      ctx.font = '12px "IBM Plex Mono", monospace'; ctx.textAlign = 'center';
+      cols.forEach((c) => {
+        for (let k = 0; k < 6; k++) {
+          ctx.globalAlpha = 0.35 - k * 0.05; ctx.fillStyle = tok(k ? '--cz' : '--cf');
+          ctx.fillText('0123456789abcdef'[(Math.floor(c.y / 26) + k * 7 + c.x) % 16], c.x, c.y - k * 26);
+        }
+      });
+      ctx.globalAlpha = 1;
+    }
+    size();
+    addEventListener('resize', size);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    if (!reduce) setInterval(() => {
+      if (document.hidden || document.documentElement.classList.contains('present')) return;
+      cols.forEach((c) => { c.y += c.v; if (c.y > H + 160) c.y = -20; }); draw();
+    }, 60);
+  })();
+
+  /* ---------- §2.5 toy RSA ---------- */
+  (function () {
+    const PR = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
+    const gcd = (a, b) => b ? gcd(b, a % b) : a;
+    const modpow = (b, e, m) => { let r = 1n, B = BigInt(b) % BigInt(m), E = BigInt(e), M = BigInt(m); while (E > 0n) { if (E & 1n) r = r * B % M; B = B * B % M; E >>= 1n; } return Number(r); };
+    const inv = (a, m) => { for (let x = 1; x < m; x++) if (a * x % m === 1) return x; return null; };
+    $('#rsa-p').innerHTML = PR.map((p) => `<option${p === 7 ? ' selected' : ''}>${p}</option>`).join('');
+    $('#rsa-q').innerHTML = PR.map((p) => `<option${p === 13 ? ' selected' : ''}>${p}</option>`).join('');
+    function fillE(keep) {
+      const p = +$('#rsa-p').value, q = +$('#rsa-q').value, phi = (p - 1) * (q - 1);
+      const es = []; for (let e = 3; e < phi && es.length < 14; e++) if (gcd(e, phi) === 1) es.push(e);
+      $('#rsa-e').innerHTML = es.map((e) => `<option${e === keep ? ' selected' : ''}>${e}</option>`).join('');
+    }
+    function render() {
+      const p = +$('#rsa-p').value, q = +$('#rsa-q').value;
+      if (p === q) { $('#rsa-keys').innerHTML = '<span class="bad">Pick two different primes.</span>'; $('#rsa-run').innerHTML = ''; $('#rsa-out').textContent = ''; return; }
+      const N = p * q, phi = (p - 1) * (q - 1), e = +$('#rsa-e').value, d = inv(e, phi);
+      let m = Math.floor(+$('#rsa-m').value || 0);
+      $('#rsa-keys').innerHTML = `N = ${p} × ${q} = <b>${N}</b><br>(p−1)(q−1) = <b>${phi}</b><br>k<sub>e</sub> = ${e} &nbsp;(gcd(${e}, ${phi}) = 1)<br>k<sub>d</sub> = ${d} &nbsp;since ${e}·${d} mod ${phi} = ${e * d % phi}<br>public key <span class="k-pub">(${e}, ${N})</span> · private key <span class="k-priv">(${d}, ${N})</span>`;
+      if (m >= N) { $('#rsa-run').innerHTML = `<span class="bad">m must be smaller than N = ${N}.</span>`; $('#rsa-out').textContent = 'Real RSA encrypts a number smaller than N: usually a symmetric session key, not the message itself.'; return; }
+      const c = modpow(m, e, N), back = modpow(c, d, N), s = modpow(m, d, N), v = modpow(s, e, N);
+      $('#rsa-run').innerHTML = `<b>encrypt</b> with <span class="k-pub">public</span>: ${m}<sup>${e}</sup> mod ${N} = <b>${c}</b><br><b>decrypt</b> with <span class="k-priv">private</span>: ${c}<sup>${d}</sup> mod ${N} = <b>${back}</b><br><br><b>sign</b> with <span class="k-priv">private</span>: ${m}<sup>${d}</sup> mod ${N} = <b>${s}</b><br><b>verify</b> with <span class="k-pub">public</span>: ${s}<sup>${e}</sup> mod ${N} = <b>${v}</b> ${v === m ? '✓' : '✕'}`;
+      const lam = (p - 1) * (q - 1) / gcd(p - 1, q - 1);
+      const same = e % lam === d % lam ? ` <span class="bad">Note:</span> here k<sub>d</sub> ≡ k<sub>e</sub> (mod ${lam}, the least common multiple of p−1 and q−1), so the two keys act identically: signing and encrypting give the same number. With tiny primes that happens often; real key generation rules it out.` : '';
+      $('#rsa-out').innerHTML = `Anyone may encrypt to the owner with (${e}, ${N}); only the owner, holding ${d}, decrypts. Reversing the keys gives a signature anyone can verify. Breaking it means factoring ${N}, trivial here; with a 2048-bit N no known method is feasible.` + same;
+    }
+    $('#rsa-p').addEventListener('change', () => { fillE(5); render(); });
+    $('#rsa-q').addEventListener('change', () => { fillE(5); render(); });
+    $('#rsa-e').addEventListener('change', render);
+    $('#rsa-m').addEventListener('input', render);
+    $('#rsa-reset').addEventListener('click', () => { $('#rsa-p').value = '7'; $('#rsa-q').value = '13'; fillE(5); $('#rsa-m').value = 69; render(); });
+    fillE(5); render();
+  })();
+
+  /* ---------- §3.4 man in the middle ---------- */
+  (function () {
+    const S = [
+      [ // no certificates
+        { a: 'wants to send Bob a secret', m: 'listening on the network', b: 'owns key pair (B<sub>pub</sub>, B<sub>priv</sub>)', act: 'a', t: 'Alice needs Bob\'s public key before she can encrypt to him.' },
+        { a: 'sends "Bob, your public key?"', m: 'intercepts the request', b: 'receives the request, relayed by Mallory', act: 'm', t: 'Mallory sits in the data flow and relays messages both ways.' },
+        { a: 'receives a key "from Bob": <span class="kk">M<sub>pub</sub></span>', m: 'replaces B<sub>pub</sub> with her own <span class="kk">M<sub>pub</sub></span>', b: 'sent <span class="kk">B<sub>pub</sub></span>', act: 'm', bad: 'a', t: 'Mallory swaps in her own public key. Nothing in the reply lets Alice tell the difference.' },
+        { a: 'encrypts the secret with M<sub>pub</sub>', m: 'decrypts with M<sub>priv</sub>, <b>reads it</b>, re-encrypts with B<sub>pub</sub>', b: 'decrypts normally; suspects nothing', act: 'm', bad: 'a', t: '<span class="bad">Confidentiality broken.</span> Both endpoints think they have a private conversation.' },
+      ],
+      [ // with certificates
+        { a: 'trusts the CA\'s public key (shipped with her OS/browser)', m: 'listening on the network', b: 'has a certificate: B<sub>pub</sub> signed by the CA', act: 'a', t: 'Bob earlier proved his identity to a certificate authority, which signed his public key.' },
+        { a: 'sends "Bob, your certificate?"', m: 'intercepts the request', b: 'receives the request', act: 'm', t: 'Same network position as before.' },
+        { a: 'receives a certificate for M<sub>pub</sub> claiming to be Bob; checks the CA signature: <b>invalid</b>', m: 'swaps in M<sub>pub</sub>, but cannot produce the CA\'s signature', b: 'sent the real certificate', act: 'a', good: 'a', t: 'Forging the certificate would need the CA\'s private key. Alice\'s verification fails, so she refuses to continue.' },
+        { a: 'with the genuine certificate: verifies it, encrypts with B<sub>pub</sub>', m: 'can relay but cannot read', b: 'decrypts; conversation is private', act: 'b', good: 'b', t: '<span class="ok">Attack defeated.</span> This is what a browser does in the TLS handshake (§3.5). The trust is only moved, not removed: it now rests on the CA.' },
+      ],
+    ];
+    let c = 0, i = 0;
+    function show(k) {
+      c = k <= 3 ? 0 : 1; i = k <= 3 ? k : k - 4;
+      const s = S[c][i];
+      $$('#mm-w [data-c]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.c === c)));
+      const cls = (w) => (s.act === w ? ' act' : '') + (s.bad === w ? ' bad' : '') + (s.good === w ? ' good' : '');
+      $('#mm-p').innerHTML = `<div class="party${cls('a')}"><div class="nm">Alice</div>${s.a}</div><div class="party${cls('m')}"><div class="nm">Mallory</div>${s.m}</div><div class="party${cls('b')}"><div class="nm">Bob</div>${s.b}</div>`;
+      $('#mm-out').innerHTML = `<span class="mono muted">${i + 1}/${S[c].length}</span> · ${s.t}`;
+      $('#mm-prev').disabled = i === 0; $('#mm-next').disabled = i === S[c].length - 1;
+    }
+    const ctl = Academy.register('s3-4', { steps: 7, readStep: 0, show });
+    const go = () => ctl.go(c * 4 + i);
+    $$('#mm-w [data-c]').forEach((b) => b.addEventListener('click', () => { c = +b.dataset.c; i = 0; go(); }));
+    $('#mm-prev').addEventListener('click', () => { if (i > 0) { i--; go(); } });
+    $('#mm-next').addEventListener('click', () => { if (i < S[c].length - 1) { i++; go(); } });
+    $('#mm-reset').addEventListener('click', () => { c = 0; i = 0; go(); });
+    show(0);
+  })();
+
+  /* ---------- §4.2 password storage (SHA-256) ---------- */
+  function sha256(str) {
+    const K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+    const bytes = new TextEncoder().encode(str), l = bytes.length;
+    const n = ((l + 9 + 63) >> 6) << 6, m = new Uint8Array(n); m.set(bytes); m[l] = 0x80;
+    const dv = new DataView(m.buffer); dv.setUint32(n - 4, l * 8);
+    let h = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+    const w = new Uint32Array(64), r = (x, k) => (x >>> k) | (x << (32 - k));
+    for (let o = 0; o < n; o += 64) {
+      for (let t = 0; t < 16; t++) w[t] = dv.getUint32(o + t * 4);
+      for (let t = 16; t < 64; t++) { const s0 = r(w[t-15],7) ^ r(w[t-15],18) ^ (w[t-15] >>> 3), s1 = r(w[t-2],17) ^ r(w[t-2],19) ^ (w[t-2] >>> 10); w[t] = (w[t-16] + s0 + w[t-7] + s1) >>> 0; }
+      let [a, b, c, d, e, f, g, hh] = h;
+      for (let t = 0; t < 64; t++) {
+        const t1 = (hh + (r(e,6) ^ r(e,11) ^ r(e,25)) + ((e & f) ^ (~e & g)) + K[t] + w[t]) >>> 0;
+        const t2 = ((r(a,2) ^ r(a,13) ^ r(a,22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
+        hh = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+      }
+      h = h.map((v, k) => (v + [a, b, c, d, e, f, g, hh][k]) >>> 0);
+    }
+    return h.map((v) => v.toString(16).padStart(8, '0')).join('');
+  }
+  (function () {
+    const USERS = [['alice', 'correct horse battery', '9f3a'], ['bob', 'password123', '1c7e'], ['carol', 'password123', 'b804'], ['dave', 'qwerty', '52d1']];
+    const COMMON = ['123456', 'password', 'password123', 'qwerty', 'letmein', 'iloveyou'];
+    let salted = 0;
+    function render() {
+      $$('#pw-w [data-s]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.s === salted)));
+      const dict = $('#pw-dict').checked;
+      const table = {}; COMMON.forEach((p) => { table[sha256(p)] = p; });
+      const rows = USERS.map(([u, p, s]) => ({ u, p, s, h: salted ? sha256(s + p) : sha256(p) }));
+      const counts = {}; rows.forEach((r) => { counts[r.h] = (counts[r.h] || 0) + 1; });
+      let cracked = 0;
+      $('#pw-t').innerHTML = `<thead><tr><th>user</th>${salted ? '<th>salt</th>' : ''}<th>stored hash</th>${dict ? '<th>precomputed table</th>' : ''}</tr></thead><tbody>` + rows.map((r) => {
+        const hit = dict && !salted && table[r.h]; if (hit) cracked++;
+        const same = counts[r.h] > 1;
+        return `<tr class="${hit ? 'crack' : same ? 'same' : ''}"><td>${r.u}</td>${salted ? `<td>${r.s}</td>` : ''}<td class="h">${r.h.slice(0, 32)}…</td>${dict ? `<td>${hit ? '<b class="bad">match: "' + hit + '"</b>' : salted ? 'no match' : 'no match'}</td>` : ''}</tr>`;
+      }).join('') + '</tbody>';
+      const dup = Object.values(counts).some((v) => v > 1);
+      $('#pw-out').innerHTML = !salted
+        ? (dict ? `One table of hashes of common passwords, computed once, matches <b class="bad">${cracked} of ${USERS.length}</b> accounts instantly.` : (dup ? 'bob and carol have <b class="bad">identical hashes</b>: anyone who reads the file learns they share a password, and cracking one cracks both.' : ''))
+        : (dict ? 'The precomputed table is useless: every hash includes a different salt. An attacker must guess separately for each account, with the salt included.' : 'Same passwords, different salts, different hashes. The salt is not secret; its job is to make every account a separate problem.');
+    }
+    $$('#pw-w [data-s]').forEach((b) => b.addEventListener('click', () => { salted = +b.dataset.s; render(); }));
+    $('#pw-dict').addEventListener('change', render);
+    $('#pw-reset').addEventListener('click', () => { salted = 0; $('#pw-dict').checked = false; render(); });
+    render();
+  })();
+
+  /* ---------- §5.3 firewall ---------- */
+  (function () {
+    const RULES = [
+      ['in', 'Internet', '10.0.1.5', 'tcp 443', 'allow', 'HTTPS to the DMZ web server'],
+      ['in', 'Internet', '10.0.1.5', 'tcp 80', 'allow', 'HTTP to the DMZ web server'],
+      ['in', '10.0.1.5', '10.0.2.0/24', 'any', 'deny', 'DMZ may not reach the internal network'],
+      ['in', 'Internet', '10.0.2.0/24', 'any', 'deny', 'nothing from outside to inside'],
+      ['out', '10.0.2.0/24', 'Internet', 'any', 'allow', 'inside may reach the Internet'],
+      ['*', 'any', 'any', 'any', 'deny', 'default: deny everything else'],
+    ];
+    const PK = [
+      ['203.0.113.7', '10.0.1.5', 'tcp 443', 'Internet → web server, HTTPS'],
+      ['203.0.113.7', '10.0.1.5', 'tcp 22', 'Internet → web server, SSH'],
+      ['203.0.113.7', '10.0.2.14', 'tcp 445', 'Internet → internal file server'],
+      ['10.0.1.5', '10.0.2.14', 'tcp 5432', 'web server → internal database'],
+      ['10.0.2.20', '198.51.100.9', 'tcp 443', 'employee laptop → outside site'],
+      ['10.0.2.14', '10.0.1.5', 'tcp 443', 'internal → DMZ (no rule written)'],
+    ];
+    const inNet = (ip, spec) => spec === 'any' || (spec === 'Internet' ? !ip.startsWith('10.') : spec.endsWith('/24') ? ip.startsWith(spec.split('.').slice(0, 3).join('.') + '.') : ip === spec);
+    const svcOk = (s, spec) => spec === 'any' || s === spec;
+    let p = 0;
+    $('#fw-pk').innerHTML = PK.map((x, i) => `<button type="button" data-p="${i}">${x[0]} → ${x[1]}<br>${x[2]}<small>${x[3]}</small></button>`).join('');
+    function render() {
+      $$('#fw-pk [data-p]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.p === p)));
+      const [src, dst, svc, what] = PK[p];
+      let hit = -1;
+      RULES.forEach((r, k) => { if (hit < 0 && inNet(src, r[1]) && inNet(dst, r[2]) && svcOk(svc, r[3])) hit = k; });
+      $('#fw-r').innerHTML = '<div class="r hd"><span>#</span><span>action</span><span>source → dest</span><span>service</span><span>why</span></div>' + RULES.map((r, k) =>
+        `<div class="r${k === hit ? ' hit' : k < hit ? ' pass' : ''}"><span>${k + 1}</span><span class="${r[4] === 'allow' ? 'al' : 'dn'}">${r[4]}</span><span>${r[1]} → ${r[2]}</span><span>${r[3]}</span><span style="font-family:var(--f-body)">${r[5]}</span></div>`).join('');
+      const R = RULES[hit];
+      $('#fw-out').innerHTML = `<b>${what}:</b> ${hit ? 'rules 1–' + hit + ' do not match; ' : ''}rule ${hit + 1} matches → <span class="${R[4] === 'allow' ? 'ok' : 'no'}">${R[4]}</span>. ` +
+        (p === 3 ? 'If the web server is compromised, the attacker still cannot reach the database directly: the DMZ contains the damage.' : p === 5 ? 'No rule was written for this, so the default deny applies. A default-deny policy fails safe.' : p === 1 ? 'SSH is not exposed to the Internet: a smaller attack surface.' : '');
+    }
+    $('#fw-pk').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) { p = +b.dataset.p; render(); } });
+    $('#fw-reset').addEventListener('click', () => { p = 0; render(); });
+    render();
+  })();
+})();
+</script>
+</body>
+</html>

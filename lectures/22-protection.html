@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Protection · L22</title>
+<meta name="description" content="CSCI 3753 Lecture 22, interactive edition: principles of protection, rings and domains, the access matrix and its implementations, revocation, RBAC, MAC, POSIX capabilities, sandboxing, and language-based protection.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+/* ---- lecture-local ---- */
+.sub-lab { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); }
+table.am { border-collapse: collapse; font-size: 13.5px; width: 100%; }
+table.am th, table.am td { border: 1px solid var(--line2); padding: 6px 8px; text-align: center; vertical-align: middle; }
+table.am th { font-family: var(--f-mono); font-size: 12px; font-weight: 600; background: var(--bg3); color: var(--ink2); }
+table.am th.dom { color: var(--cz-ink); }
+table.am td { font-family: var(--f-mono); font-size: 12.5px; background: var(--bg); min-width: 4.6em; line-height: 1.35; }
+table.am td.hit { background: var(--cx-soft2); box-shadow: inset 0 0 0 2px var(--cx); }
+table.am td.chg { background: var(--good-soft); box-shadow: inset 0 0 0 2px var(--good); }
+table.am td.rm { background: var(--cd-soft); box-shadow: inset 0 0 0 2px var(--cd); }
+table.am tr.me th.dom { background: var(--cz-soft2); }
+table.am td.dcol { color: var(--co); }
+.acts { display: grid; gap: 6px; }
+.acts button { text-align: left; font-family: var(--f-mono); font-size: 12.5px; line-height: 1.45; border: 1px solid var(--line2); background: var(--bg); border-radius: 8px; padding: 6px 10px; cursor: pointer; color: var(--ink); }
+.acts button:hover { border-color: var(--cz); }
+.acts button.ok { border-color: var(--good); background: var(--good-soft); }
+.acts button.no { border-color: var(--bad); background: var(--bad-soft); }
+.acts button small { display: block; font-family: var(--f-body); font-size: 11.5px; color: var(--ink3); }
+.am-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.am-grid .acts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.lists { display: grid; gap: 6px; font-family: var(--f-mono); font-size: 12.5px; }
+.lists .ln { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.lists .ln .k { font-weight: 600; min-width: 5.5em; color: var(--ink2); }
+.lists .ln .e { border: 1px solid var(--line2); border-radius: 5px; padding: 1px 6px; background: var(--bg2); }
+.lists .ln.visit { border-color: var(--cx); background: var(--cx-soft); }
+.lists .ln .e.hit { border-color: var(--good); background: var(--good-soft); font-weight: 600; }
+.lists .ln .e.gone { border-color: var(--cd); background: var(--cd-soft); text-decoration: line-through; }
+.proc { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.proc > div { border-top: 2px solid var(--line2); padding-top: 6px; }
+.proc .lab { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); }
+.proc .v { font-family: var(--f-mono); font-size: 16px; font-weight: 600; margin-top: 2px; }
+.proc .v.root { color: var(--cd); }
+.term { }
+.shell { font-family: var(--f-mono); font-size: 13px; line-height: 1.7; background: #1e2429; color: #e8eaed; border-radius: 10px; padding: 10px 14px; min-height: 9em; margin-top: 12px; overflow-x: auto; }
+.shell .pr { color: #7fd1b9; font-weight: 600; }
+.shell .er { color: #ff9aa8; }
+.shell .dim { opacity: 0.6; }
+.caps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; font-size: 13px; }
+.caps label { display: flex; gap: 8px; align-items: baseline; cursor: pointer; }
+.caps label code { font-size: 12px; }
+.ops { display: grid; gap: 4px; font-size: 13.5px; }
+.ops .op { display: grid; grid-template-columns: 1.6em minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 9px; border-radius: 7px; border: 1px solid var(--line); background: var(--bg); }
+.ops .op.ok { border-color: var(--good); background: var(--good-soft); }
+.ops .op.no { border-color: var(--bad); background: var(--bad-soft); }
+.ops .op .need { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink3); }
+.frames { display: grid; gap: 6px; }
+.frame { display: grid; grid-template-columns: 9em minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1.5px solid var(--line2); border-radius: 9px; padding: 7px 10px; background: var(--bg); font-size: 13px; }
+.frame .dm { font-family: var(--f-mono); font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; }
+.frame .dm.u { color: var(--cd); } .frame .dm.l { color: var(--co); } .frame .dm.n { color: var(--cf-ink); }
+.frame code { font-size: 12px; }
+.frame .ck { font-family: var(--f-mono); font-size: 12px; }
+.frame.scan { border-color: var(--cx); background: var(--cx-soft); }
+.frame.stop { border-color: var(--good); background: var(--good-soft); }
+.frame.deny { border-color: var(--bad); background: var(--bad-soft); }
+.frame.skip { opacity: 0.4; }
+@media (max-width: 760px) {
+  .am-grid .acts, .caps { grid-template-columns: minmax(0, 1fr); }
+  .proc { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .frame { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="7" height="7" class="hatch-bg"/><line x1="0" y1="0" x2="0" y2="7" class="hatch-line"/>
+    </pattern>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+    <marker id="ah-o" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-o"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><rect x="4" y="10" width="14" height="10" rx="1.5"/><path d="M7 10V7a4 4 0 0 1 8 0v3"/></g><circle cx="11" cy="15" r="1.8" fill="var(--co)"/></svg>
+    <span>Lecture 22 · Protection</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Lecture 22 · Interactive notes</div>
+    <h1>Who may do what,<br>to <span class="accent">which</span> object?</h1>
+    <p class="lede">Every mechanism in this course so far, from the mode bit to page tables to file permissions, answers one question on every access: is this allowed? This lecture turns that question into a model: processes run in domains, a matrix says what each domain may do to each object, and the OS stores and enforces that matrix. Then it looks at how real systems slice up power: setuid, roles, labels the owner cannot override, capabilities that split root into pieces, sandboxes, and the stack inspection of the Java VM.</p>
+    <div class="promise">
+      <span>Before you start:</span><span class="mono">kernel mode, rings, and file permissions</span><span>from Lectures 2, 20 and 21.</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#ch0">Begin ↓</a>
+      <span class="muted small">About 55 minutes · 5 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 17 · Continues in Lecture 23, Security</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="chapters">
+    <p class="rail-title">Contents</p>
+    <a href="#ch0"><span class="n">0</span>Goals and principles</a>
+    <a href="#ch1"><span class="n">1</span>Rings and domains</a>
+    <a href="#ch2"><span class="n">2</span>The access matrix</a>
+    <a href="#ch3"><span class="n">3</span>Implementing the matrix</a>
+    <a href="#ch4"><span class="n">4</span>Beyond user permissions</a>
+    <a href="#ch5"><span class="n">5</span>Language-based protection</a>
+    <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#ch0"><span class="n">0</span>Goals and principles</a>
+        <a href="#ch1"><span class="n">1</span>Rings and domains</a>
+        <a href="#ch2"><span class="n">2</span>The access matrix</a>
+        <a href="#ch3"><span class="n">3</span>Implementing the matrix</a>
+        <a href="#ch4"><span class="n">4</span>Beyond user permissions</a>
+        <a href="#ch5"><span class="n">5</span>Language-based protection</a>
+        <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+      </nav>
+    </details>
+
+    <div class="sec present-only title-slide" id="title">
+      <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 22</div>
+      <h1>Protection</h1>
+      <p class="lede">Domains, the access matrix, and how real systems enforce it.</p>
+      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 17</div>
+    </div>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch0">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 0</div>
+    <h2>Goals and principles</h2>
+    <p class="ch-lede">Protection is about mechanisms inside the system: making sure each object is used correctly, and only by those allowed to. (Lecture 23, Security, is about attackers from outside.)</p>
+  </div>
+
+  <div class="sec" id="s0-1">
+    <h3><span class="sec-no">0.1</span>The protection problem</h3>
+    <div class="prose">
+      <ul>
+        <li>In one protection model, a computer is a collection of <strong>objects</strong>, hardware (CPU, memory, printers, disks) or software (files, programs, semaphores).</li>
+        <li data-step="1">Each object has a unique name and is accessed through a well-defined set of <strong>operations</strong>: a file is read, written, executed; a semaphore gets wait and signal.</li>
+        <li data-step="2">The <strong>protection problem</strong>: ensure that each object is accessed correctly, and only by those processes that are allowed to do so.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-2">
+    <h3><span class="sec-no">0.2</span>The principle of least privilege</h3>
+    <div class="prose">
+      <p>The guiding principle: programs, users and systems get <strong>just enough privilege</strong> to do their tasks.</p>
+      <ul>
+        <li data-step="1">Properly set permissions limit the damage when an entity has a bug or is abused.</li>
+        <li data-step="1">Privilege can be <strong>static</strong> (for the life of the system or the process) or <strong>dynamic</strong>, changed by the process as needed: domain switching, privilege escalation.</li>
+        <li data-step="2"><strong>Compartmentalization</strong> is a derivative idea: protect each individual system component with its own specific permissions and access restrictions.</li>
+      </ul>
+    </div>
+    <div class="note note-key" data-step="2">
+      <span class="note-tag">Key idea</span>
+      <p>The question is never only "can this program do its job?" but "what else could it do, if it were buggy or hijacked?" Least privilege keeps that second answer small.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-3">
+    <h3><span class="sec-no">0.3</span>Grain, audit, defense in depth</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>Grain.</strong> Coarse-grained privilege management is simpler, but least privilege then comes in large chunks: a traditional UNIX process has either its user's powers or root's. Fine-grained management (file ACLs, role-based access control) is more complex and has more overhead, but protects more.</li>
+        <li data-step="1">A protection <strong>domain</strong> can be a user, a process, or even a procedure.</li>
+        <li data-step="2">An <strong>audit trail</strong> records all protection-related activity, to understand what happened and why, and to catch what should not have.</li>
+        <li data-step="3">No single principle is a cure-all: we need <strong>defense in depth</strong>, several independent layers.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#top">Back to<b>the top</b></a>
+    <a href="#ch1">Next<b>1 · Rings and domains</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch1">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 1</div>
+    <h2>Rings and domains</h2>
+    <p class="ch-lede">Hardware rings order privilege in a few big steps; protection domains describe it object by object.</p>
+  </div>
+
+  <div class="sec" id="s1-1">
+    <h3><span class="sec-no">1.1</span>Protection rings</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ul>
+          <li>Components are ordered by privilege and protected from each other: the kernel in one ring, applications in another. This separation needs <strong>hardware support</strong> (Lecture 21, §3.3).</li>
+          <li data-step="1"><strong>Gates</strong> transfer control between rings: the <code>syscall</code> instruction, and also traps and interrupts.</li>
+          <li data-step="2">Hypervisors needed yet another level. ARM added <strong>TrustZone</strong>, a secure world entered only through the <code>SMC</code> (Secure Monitor Call) instruction, to protect crypto keys and the NFC secure element even from the kernel. Android uses it for its keystore.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 360 300" width="320" role="img" aria-label="MULTICS rings: ring 0 innermost and most privileged; each inner ring's domain includes the outer ones">
+            <g id="rings-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1.1</span>MULTICS rings. For rings i and j with j &lt; i, D<sub>i</sub> ⊆ D<sub>j</sub>: an inner ring can do everything an outer one can.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-2">
+    <h3><span class="sec-no">1.2</span>Protection domains</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>A process operates inside a <strong>protection domain</strong>, which specifies the resources it may access: a set of objects and the operations allowed on each.</p>
+        <p data-step="1">The ability to execute an operation on an object is an <strong>access right</strong>: <code>&lt;object-name, rights-set&gt;</code>, where the rights-set is a subset of the object's valid operations. A domain is a set of access rights.</p>
+        <p data-step="2">Domains may share rights (O<sub>4</sub> in Fig. 1.2). The association between a process and a domain can be <strong>static</strong>, or <strong>dynamic</strong>, in which case the process can <em>switch</em> domains. A process should have access only to the objects it currently needs: the <strong>need-to-know</strong> principle.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 520 200" width="470" role="img" aria-label="Three domains as sets of access rights; D2 and D3 share print on O4">
+            <ellipse cx="100" cy="100" rx="95" ry="72" class="pbox"/><text x="100" y="22" text-anchor="middle" class="mono big">D1</text>
+            <text x="100" y="82" text-anchor="middle" class="lbl mono">&lt;O3, {read, write}&gt;</text>
+            <text x="100" y="104" text-anchor="middle" class="lbl mono">&lt;O1, {read, write}&gt;</text>
+            <text x="100" y="126" text-anchor="middle" class="lbl mono">&lt;O2, {execute}&gt;</text>
+            <ellipse cx="310" cy="100" rx="100" ry="72" class="pbox" style="fill-opacity:.5"/><text x="275" y="22" text-anchor="middle" class="mono big">D2</text>
+            <ellipse cx="420" cy="100" rx="95" ry="72" class="pbox" style="fill-opacity:.5"/><text x="455" y="22" text-anchor="middle" class="mono big">D3</text>
+            <text x="262" y="104" text-anchor="middle" class="lbl mono">&lt;O2, {write}&gt;</text>
+            <text x="366" y="104" text-anchor="middle" class="lbl mono" style="font-weight:600">&lt;O4, {print}&gt;</text>
+            <text x="466" y="92" text-anchor="middle" class="lbl mono">&lt;O1, {execute}&gt;</text>
+            <text x="466" y="114" text-anchor="middle" class="lbl mono">&lt;O3, {read}&gt;</text>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1.2</span>Domains as sets of access rights (Silberschatz Fig. 17.4).</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-3">
+    <h3><span class="sec-no">1.3</span>Domains in UNIX</h3>
+    <div class="prose">
+      <p>In UNIX, a <strong>domain is a user ID</strong>. There are three ways to switch domains:</p>
+      <ul>
+        <li data-step="1"><strong>Through the file system</strong>: each file has a domain bit, the <strong>setuid</strong> bit. When a file with setuid on is executed, the process's effective user ID becomes the file's <em>owner</em>; when it finishes, the ID is reset.</li>
+        <li data-step="2"><strong>Through passwords</strong>: <code>su</code> switches to another user's domain when that user's password is given.</li>
+        <li data-step="3"><strong>Through commands</strong>: <code>sudo cmd</code> runs one command in another domain, if the original domain is allowed to (the sudoers file) or a password is given.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-4">
+    <h3><span class="sec-no">1.4</span>Changing your password</h3>
+    <div class="widget" id="su-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">alice, <code>/etc/shadow</code>, and the setuid bit</span><button class="w-reset" type="button" id="su-reset">Reset</button></div>
+      <div class="controls">
+        <button type="button" class="btn" id="su-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="su-next">Next ›</button>
+        <span class="mono muted" id="su-n" style="font-size:13px"></span>
+      </div>
+      <div class="widget-body">
+        <div class="proc" id="su-proc"></div>
+        <div class="shell" id="su-shell" aria-live="polite"></div>
+      </div>
+      <div class="readout" id="su-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-5">
+    <h3><span class="sec-no">1.5</span>Domains in Android: one user ID per app</h3>
+    <div class="prose">
+      <ul>
+        <li>Android gives every <strong>application</strong> its own user ID. At install time the <code>installd</code> daemon assigns the app a distinct UID and GID and a private data directory, <code>/data/data/&lt;appname&gt;</code>, owned by that UID/GID alone.</li>
+        <li data-step="1">Apps then enjoy the same separation UNIX gives separate users: a quick, simple way to get isolation, security and privacy, reusing a mechanism that already existed.</li>
+        <li data-step="2">Android extends it: a modified kernel allows some operations, such as opening network sockets, only to members of a particular group (<code>AID_INET</code>, GID 3003). And some UIDs are marked <strong>isolated</strong>, which blocks them from making RPC requests to all but a bare minimum of services.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="q1">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Chapter 1</span></div>
+      <div class="quiz-body">
+        <div class="q-text"><code>/usr/bin/passwd</code> is owned by root and has the setuid bit set. alice runs it. Which statement is true while it runs?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Only the effective UID changes. The real UID stays alice, which is how passwd knows whose password to change.">The process's real and effective UIDs are both root.</button>
+          <button type="button" class="q-opt" data-ok>Its effective UID is root, so it may write /etc/shadow; its real UID is still alice.</button>
+          <button type="button" class="q-opt" data-why="Setuid changes the rights of this one process for as long as it runs. alice's shell never becomes root.">alice's shell becomes root until she logs out.</button>
+        </div>
+        <div class="q-fb ok">Right. The permission check uses the effective UID; the program uses the real UID to decide what alice is allowed to ask for.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch0">Back<b>0 · Goals and principles</b></a>
+    <a href="#ch2">Next<b>2 · The access matrix</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 2</div>
+    <h2>The access matrix</h2>
+    <p class="ch-lede">Write every domain's rights on every object into one table, and protection becomes a lookup.</p>
+  </div>
+
+  <div class="sec" id="s2-1">
+    <h3><span class="sec-no">2.1</span>Rows are domains, columns are objects</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>View protection as a matrix: <strong>rows</strong> are domains, <strong>columns</strong> are objects, and Access(i, j) is the set of operations a process in domain D<sub>i</sub> may invoke on object O<sub>j</sub>.</p>
+        <p data-step="1">If a process in D<sub>i</sub> tries operation <em>op</em> on O<sub>j</sub>, then <em>op</em> must be in Access(i, j). The user who creates an object can define its column.</p>
+      </div>
+      <div class="table-wrap" style="margin:0">
+        <table class="am" id="am-static"></table>
+        <p class="small muted" style="margin-top:6px">Fig. 2.1 · Silberschatz Fig. 17.5.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-2">
+    <h3><span class="sec-no">2.2</span>Changing the matrix itself</h3>
+    <div class="prose">
+      <p>For dynamic protection, the matrix needs operations that add and remove rights, controlled by special rights of their own:</p>
+    </div>
+    <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div><span class="tag">switch</span>Put <strong>domains in the columns</strong> too: <em>switch</em> in (D<sub>i</sub>, D<sub>j</sub>) lets a process move from D<sub>i</sub> to D<sub>j</sub>.</div>
+      <div data-step="1"><span class="tag">copy ( * )</span><code>read*</code> in (D<sub>i</sub>, O<sub>j</sub>) lets D<sub>i</sub> copy <code>read</code> into any other domain's entry in the same column.</div>
+      <div data-step="2"><span class="tag">owner</span><em>owner</em> of O<sub>j</sub> lets D<sub>i</sub> add or remove any right anywhere in column j.</div>
+      <div data-step="3"><span class="tag">control</span><em>control</em> in (D<sub>i</sub>, D<sub>j</sub>) lets D<sub>i</sub> remove rights from row D<sub>j</sub>. Copy and owner apply to objects; control applies to domain objects.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-3">
+    <h3><span class="sec-no">2.3</span>Operate the matrix</h3>
+    <div class="widget" id="am-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Four matrices from the textbook, and what each allows</span><button class="w-reset" type="button" id="am-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Scenario" id="am-sc"></span>
+      </div>
+      <div class="widget-body">
+        <div class="am-grid">
+          <div class="table-wrap" style="margin:0"><table class="am" id="am-t"></table></div>
+          <div class="acts" id="am-acts"></div>
+        </div>
+      </div>
+      <div class="readout" id="am-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-4">
+    <h3><span class="sec-no">2.4</span>Mechanism vs. policy</h3>
+    <div class="prose">
+      <p>The access matrix separates <strong>mechanism</strong> from <strong>policy</strong>:</p>
+      <ul>
+        <li data-step="1"><em>Mechanism</em>: the OS provides the matrix and its rules, and ensures the matrix is changed only by authorized agents and that the rules are strictly enforced.</li>
+        <li data-step="2"><em>Policy</em>: users decide who may access which object, in which mode.</li>
+      </ul>
+      <p data-step="3">But the matrix does not solve the general <strong>confinement problem</strong>: guaranteeing that no information held in an object ever leaks out of its execution environment. A domain allowed to read a file can always copy what it read somewhere else.</p>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch1">Back<b>1 · Rings and domains</b></a>
+    <a href="#ch3">Next<b>3 · Implementing the matrix</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch3">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 3</div>
+    <h2>Implementing the access matrix</h2>
+    <p class="ch-lede">The matrix is huge and mostly empty. Four ways to store only what matters.</p>
+  </div>
+
+  <div class="sec" id="s3-1">
+    <h3><span class="sec-no">3.1</span>Four representations</h3>
+    <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div><span class="tag">1 · Global table</span>Store triples <code>&lt;domain, object, rights-set&gt;</code>. For operation M on O<sub>j</sub> in D<sub>i</sub>, search for <code>&lt;D<sub>i</sub>, O<sub>j</sub>, R<sub>k</sub>&gt;</code> with M ∈ R<sub>k</sub>. Simple, but the table can be too big for memory, and grouping is hard: an object every domain can read needs an entry per domain.</div>
+      <div data-step="1"><span class="tag">2 · Access lists (per object)</span>Each <strong>column</strong> becomes the object's access-control list (ACL): pairs <code>&lt;domain, rights-set&gt;</code> for every domain with non-empty rights. Easily extended with a default set: if M is in the default set, allow it too.</div>
+      <div data-step="2"><span class="tag">3 · Capability lists (per domain)</span>Each <strong>row</strong> becomes the domain's capability list: objects with the operations allowed on them. An object's name or address in that list is a <strong>capability</strong>; holding it means access is allowed. The list belongs to the domain but the domain can never touch it directly: the OS keeps it, like a "secure pointer".</div>
+      <div data-step="3"><span class="tag">4 · Lock-key</span>A compromise: each object has a list of unique bit patterns, its <strong>locks</strong>; each domain has a list of <strong>keys</strong>. A process may access the object only if its domain holds a key matching one of the locks.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-2">
+    <h3><span class="sec-no">3.2</span>Columns or rows?</h3>
+    <div class="widget" id="im-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">The matrix of Fig. 2.1, stored three ways</span><button class="w-reset" type="button" id="im-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Representation" id="im-rep"></span>
+      </div>
+      <div class="controls" style="padding-top:2px">
+        <span class="seg" aria-label="Request" id="im-q"></span>
+      </div>
+      <div class="widget-body">
+        <div class="lists" id="im-lists"></div>
+        <div class="stats" id="im-stats" style="margin-top:12px"></div>
+      </div>
+      <div class="readout" id="im-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-3">
+    <h3><span class="sec-no">3.3</span>Comparison, and what real systems do</h3>
+    <div class="prose">
+      <ul>
+        <li>The <strong>global table</strong> is simple but can be large.</li>
+        <li data-step="1"><strong>Access lists</strong> match how users think ("who may use my file?"), but the rights of one domain are scattered over many lists, and every access must be checked: with many objects and rights, slow.</li>
+        <li data-step="2"><strong>Capability lists</strong> keep one process's rights together, but <strong>revoking</strong> a right to an object can be inefficient.</li>
+        <li data-step="3"><strong>Lock-key</strong> is effective and flexible: keys pass freely between domains, and revocation is easy.</li>
+      </ul>
+      <p data-step="4">Most systems <strong>combine</strong> access lists and capabilities. The first access to an object searches its access list; if allowed, a capability is created and attached to the process, and later accesses are not checked again; after the last access, the capability is destroyed. That is exactly UNIX files: <code>open()</code> checks the permission bits once, and the <strong>file descriptor</strong> it returns is the capability (Lecture 20).</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-4">
+    <h3><span class="sec-no">3.4</span>Revoking access rights</h3>
+    <div class="prose">
+      <p>Revocation can be <strong>immediate</strong> or delayed, <strong>selective</strong> (some users) or general, <strong>partial</strong> (some rights) or total, <strong>temporary</strong> or permanent.</p>
+      <p data-step="1"><strong>With access lists</strong> it is simple: search the object's list and delete the entry. Every kind of revocation above is easy.</p>
+      <p data-step="2"><strong>With capabilities</strong> the capabilities must first be found, since they are spread over the domains that hold them:</p>
+      <ul data-step="2">
+        <li><em>reacquisition</em>: delete capabilities periodically; a process must reacquire them, and is refused if its right was revoked;</li>
+        <li><em>back-pointers</em>: each object keeps pointers to all its capabilities (MULTICS);</li>
+        <li><em>indirection</em>: capabilities point to a global table entry that points to the object; delete the entry (CAL). Not selective;</li>
+        <li><em>keys</em>: each capability carries a key that must match the object's master key; revoke by changing the master key. Who may create and change keys, the owner or others, is a policy decision.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="q2">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Revoke one right</span></div>
+      <div class="quiz-body">
+        <div class="q-text">The owner of <code>grades.csv</code> wants to stop everyone else from reading it, right now. Which representation makes that one quick edit?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>An access list on grades.csv</button>
+          <button type="button" class="q-opt" data-why="The capabilities for grades.csv are scattered over every domain's list; each must be found first.">Capability lists on the domains</button>
+          <button type="button" class="q-opt" data-why="A global table works, but it holds every triple in the system; finding the ones for this object means searching it all, unless it is indexed by object, which makes it an access list.">A global table</button>
+        </div>
+        <div class="q-fb ok">Right. The column is stored in one place, so revoking by object is one edit (try "revoke all access to F3" in §3.2).</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch2">Back<b>2 · The access matrix</b></a>
+    <a href="#ch4">Next<b>4 · Beyond user permissions</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch4">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 4</div>
+    <h2>Beyond user permissions</h2>
+    <p class="ch-lede">UNIX permission bits let each owner decide. Modern systems add controls that are finer, or that even root cannot override.</p>
+  </div>
+
+  <div class="sec" id="s4-1">
+    <h3><span class="sec-no">4.1</span>Role-based access control (RBAC)</h3>
+    <div class="prose">
+      <ul>
+        <li>Protection can apply to non-file resources too. Oracle Solaris 10 uses <strong>RBAC</strong> to implement least privilege.</li>
+        <li data-step="1">A <strong>privilege</strong> is the right to execute a system call, or to use an option within one. Privileges can be assigned to processes.</li>
+        <li data-step="2">Users are assigned <strong>roles</strong>, which grant privileges and programs; a user enables a role (with a password) to gain its privileges. It resembles the access matrix, with roles in the rows.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-2">
+    <h3><span class="sec-no">4.2</span>Discretionary vs. mandatory access control</h3>
+    <div class="prose">
+      <ul>
+        <li>Traditionally, operating systems used <strong>discretionary access control (DAC)</strong>: UNIX file permissions, Windows ACLs. It is "discretionary" because owners decide, and that is a weakness: users and admins must act to increase protection.</li>
+        <li data-step="1"><strong>Mandatory access control (MAC)</strong> is stronger: a policy that <em>even root cannot circumvent</em> makes resources inaccessible except to their intended owners.</li>
+        <li data-step="2">At its heart are <strong>labels</strong> on objects and on subjects (including processes). When a subject requests an access, the policy decides whether that label may perform that action on that label.</li>
+        <li data-step="3">Modern systems implement both, with MAC as a stronger, optional configuration: SELinux, TrustedBSD (used in macOS), Trusted Solaris, Windows integrity levels (since Vista).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-3">
+    <h3><span class="sec-no">4.3</span>Capabilities: slicing up root</h3>
+    <div class="prose">
+      <ul>
+        <li>Hydra and CAP were the first capability-based systems. Linux and Android include a version based on POSIX.1e (a draft that never became a standard).</li>
+        <li data-step="1">It <strong>slices root's powers into distinct areas</strong>, each one a bit in a bitmap. Setting or masking bits gives fine-grained control over privileged operations.</li>
+        <li data-step="2">There are three bitmaps, <em>permitted</em>, <em>effective</em> and <em>inheritable</em>, per process or per thread. A process can start with privileges and voluntarily drop them during execution; once dropped from the permitted set, they cannot be regained. A direct implementation of least privilege.</li>
+        <li data-step="3">An improvement over all-powerful root, but inflexible: adding a new privilege is hard.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-4">
+    <h3><span class="sec-no">4.4</span>Give a process only what it needs</h3>
+    <div class="widget" id="cp-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Pick capabilities, see what the process can do</span><button class="w-reset" type="button" id="cp-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Preset" id="cp-pre"></span>
+      </div>
+      <div class="widget-body">
+        <div class="two-up" style="max-width:none;align-items:start">
+          <div class="caps" id="cp-caps"></div>
+          <div class="ops" id="cp-ops"></div>
+        </div>
+      </div>
+      <div class="readout" id="cp-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-5">
+    <h3><span class="sec-no">4.5</span>More protection mechanisms</h3>
+    <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div><span class="tag">System integrity protection</span>Apple, macOS 10.11: system files and resources are off limits even to root. Extended file attributes mark binaries to prevent changes and block debugging; only code-signed kernel extensions load, and optionally only code-signed apps.</div>
+      <div data-step="1"><span class="tag">System-call filtering</span>A firewall for system calls, possibly inspecting their arguments too. Linux implements it with <strong>seccomp-BPF</strong>: a process installs a filter program that allows, denies or kills on each system call.</div>
+      <div data-step="2"><span class="tag">Sandboxing</span>Impose irremovable restrictions early in a process's startup, before <code>main()</code>; afterwards it cannot reach anything outside its allowed set. Java and .NET do it in the VM; others use MAC. Apple's "seatbelt" (macOS 10.5) wrote dynamic profiles in Scheme, down to system-call arguments.</div>
+      <div data-step="3"><span class="tag">Code signing</span>The developer signs the executable with a cryptographic hash, so the system can trust the code is exactly as compiled. If it changes, the signature is invalid and some systems refuse to run it. A vendor can also revoke signatures to stop old programs running.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="q3">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Least privilege for ping</span></div>
+      <div class="quiz-body">
+        <div class="q-text"><code>ping</code> must open a raw ICMP socket. What is the least-privilege way to allow that?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Setuid root gives ping every power root has; a bug in ping then means full compromise.">Make ping setuid root.</button>
+          <button type="button" class="q-opt" data-ok>Give the ping binary only CAP_NET_RAW.</button>
+          <button type="button" class="q-opt" data-why="CAP_NET_ADMIN is far broader (routing tables, interfaces, firewall) than one raw socket needs.">Give it CAP_NET_ADMIN.</button>
+        </div>
+        <div class="q-fb ok">Right. Exactly one slice of root. Check it in §4.4 with the "ping" preset.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch3">Back<b>3 · Implementing the matrix</b></a>
+    <a href="#ch5">Next<b>5 · Language-based protection</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch5">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 5</div>
+    <h2>Language-based protection</h2>
+    <p class="ch-lede">Protection can also be written into the programming language and enforced by its runtime.</p>
+  </div>
+
+  <div class="sec" id="s5-1">
+    <h3><span class="sec-no">5.1</span>Protection in the language</h3>
+    <div class="prose">
+      <ul>
+        <li>Specifying protection in a programming language gives a <strong>high-level description</strong> of policies for allocating and using resources.</li>
+        <li data-step="1">The language implementation can enforce protection in software when hardware-supported checking is unavailable.</li>
+        <li data-step="2">Or it can interpret the protection specifications into calls on whatever protection the hardware and OS provide.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-2">
+    <h3><span class="sec-no">5.2</span>Protection in Java</h3>
+    <div class="prose">
+      <ul>
+        <li>The JVM handles protection. When the JVM loads a class, it assigns the class a <strong>protection domain</strong> that says which operations it may and may not perform.</li>
+        <li data-step="1">When a library method performs a privileged operation, the JVM <strong>inspects the stack</strong> to make sure the operation is allowed for everyone who led to it.</li>
+        <li data-step="2">A method can take responsibility with <code>doPrivileged</code>: stack inspection stops at that frame, so trusted code can do a specific privileged thing on behalf of untrusted callers.</li>
+        <li data-step="3">More generally, Java's load-time and run-time checks enforce <strong>type safety</strong>, and classes encapsulate and protect their data and methods from other classes.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-3">
+    <h3><span class="sec-no">5.3</span>Stack inspection</h3>
+    <div class="widget" id="st-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Can this call open a network connection?</span><button class="w-reset" type="button" id="st-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Call" id="st-call"></span>
+        <label class="ctl-label" for="st-dp"><input type="checkbox" id="st-dp" checked> <code>get()</code> uses <code>doPrivileged</code></label>
+      </div>
+      <div class="widget-body"><div class="frames" id="st-frames"></div></div>
+      <div class="readout" id="st-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">After Silberschatz Fig. 17.12. Domains: an untrusted applet (no socket permission), a trusted URL loader (may connect to <code>*.lucent.com:80</code>), and the networking library (any).</p>
+  </div>
+
+  <div class="sec" id="q4">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">DAC or MAC?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">On an SELinux system, root runs <code>chmod 777</code> on a file, yet a web-server process still cannot read it. Why?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="chmod 777 succeeded; the permission bits now allow everyone.">chmod silently failed.</button>
+          <button type="button" class="q-opt" data-ok>The permission bits are discretionary; SELinux's mandatory policy on the file's label still denies the web server's label.</button>
+          <button type="button" class="q-opt" data-why="Nothing needs refreshing: the check happens on every open.">The web server must restart to see new permissions.</button>
+        </div>
+        <div class="q-fb ok">Right. Both checks must pass. The owner, even root, controls only the discretionary one.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch4">Back<b>4 · Beyond user permissions</b></a>
+    <a href="#tail">Next<b>∎ · Summary and glossary</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="tail">
+  <div class="ch-head">
+    <div class="ch-no">Epilogue</div>
+    <h2>Summary and glossary</h2>
+  </div>
+
+  <div class="sec" id="s-sum">
+    <h3><span class="sec-no">∎</span>What to take away</h3>
+    <div class="prose">
+      <ul>
+        <li>Protection makes sure each object is used correctly and only by those allowed to. Guided by least privilege, compartmentalization, audit trails and defense in depth.</li>
+        <li>Hardware rings order privilege coarsely; protection domains (a UNIX user ID, an Android app's UID) describe it per object. Setuid, su and sudo switch domains.</li>
+        <li>The access matrix (domains × objects) is the model; switch, copy, owner and control rights let it change safely.</li>
+        <li>It is stored as a global table, access lists (columns), capability lists (rows) or locks and keys. Access lists make revocation easy; capabilities make repeated access fast; real systems combine them (open → file descriptor).</li>
+        <li>RBAC, MAC, POSIX capabilities, SIP, seccomp, sandboxes and code signing give finer or non-overridable control; the JVM adds stack inspection.</li>
+      </ul>
+    </div>
+    <div class="note note-lab" data-step="1">
+      <span class="note-tag">In the lab</span>
+      <p>Basecamp 5 shows both layers. Loading your module takes root inside the VM (in capability terms, <code>CAP_SYS_MODULE</code>); after that, whether <code>filetest</code> may open your device is decided only by the <code>/dev</code> node's permission bits, a discretionary access list.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap read-only">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>least privilege</td><td>Give each entity just the rights its task needs.</td></tr>
+        <tr><td>protection domain</td><td>A set of access rights <code>&lt;object, rights-set&gt;</code> a process runs with.</td></tr>
+        <tr><td>setuid</td><td>A file bit: running the file sets the process's effective UID to the file's owner.</td></tr>
+        <tr><td>access matrix</td><td>Rows = domains, columns = objects, entries = allowed operations.</td></tr>
+        <tr><td>copy / owner / control / switch</td><td>Rights over the matrix itself: copy a right in a column / edit a column / edit a row / change domain.</td></tr>
+        <tr><td>ACL</td><td>Access-control list: one object's column.</td></tr>
+        <tr><td>capability</td><td>An unforgeable token naming an object and rights; holding it grants access.</td></tr>
+        <tr><td>lock-key</td><td>Objects hold locks, domains hold keys; access if a key matches a lock.</td></tr>
+        <tr><td>RBAC</td><td>Role-based access control: privileges come with roles users enable.</td></tr>
+        <tr><td>DAC / MAC</td><td>Owners decide / a system-wide label policy decides, even over root.</td></tr>
+        <tr><td>POSIX capabilities</td><td>Root's powers split into bits (CAP_NET_RAW, CAP_SYS_MODULE, …).</td></tr>
+        <tr><td>seccomp-BPF</td><td>Linux system-call filtering.</td></tr>
+        <tr><td>stack inspection</td><td>The JVM checks every caller on the stack, up to a doPrivileged frame.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Based on Silberschatz, Galvin and Gagne, <i>Operating System Concepts</i>, Ch. 17.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  /* ---------- hero: an access matrix lighting up ---------- */
+  (function () {
+    const cv = $('#hero-canvas'); if (!cv) return;
+    const C = 26;
+    let W = 0, H = 0, cells = [];
+    function size() {
+      const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+      W = r.width; H = r.height;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+      cells = []; draw();
+    }
+    function draw() {
+      const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H);
+      cells.forEach((c) => {
+        const a = Math.max(0, c.life < 0.5 ? c.life * 2 : 2 - c.life * 2);
+        ctx.globalAlpha = a * 0.35; ctx.fillStyle = tok(c.ok ? '--cf' : '--cd');
+        ctx.fillRect(c.x * C + 3, c.y * C + 3, C - 5, C - 5);
+        ctx.globalAlpha = a * 0.6; ctx.strokeStyle = ctx.fillStyle; ctx.strokeRect(c.x * C + 3.5, c.y * C + 3.5, C - 6, C - 6);
+      });
+      ctx.globalAlpha = 1;
+    }
+    size();
+    addEventListener('resize', size);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    if (!reduce) setInterval(() => {
+      if (document.hidden || document.documentElement.classList.contains('present')) return;
+      if (cells.length < 22) cells.push({ x: Math.floor(Math.random() * W / C), y: Math.floor(Math.random() * H / C), life: 0, ok: Math.random() < 0.65 });
+      cells.forEach((c) => { c.life += 0.02; }); cells = cells.filter((c) => c.life < 1);
+      draw();
+    }, 60);
+  })();
+
+  /* ---------- Fig. 1.1 rings ---------- */
+  (function () {
+    const g = $('#rings-g'), cx = 150, cy = 150;
+    [[135, 'ring N−1'], [100, 'ring 1'], [62, 'ring 0']].forEach(([r, n], i) => {
+      g.appendChild(el('circle', { cx, cy, r, class: i === 2 ? 'obox' : i === 1 ? 'box2' : 'pbox' }));
+      g.appendChild(el('text', { x: cx, y: cy - r + 18, 'text-anchor': 'middle', class: 'lbl mono' }, n));
+    });
+    g.appendChild(el('text', { x: cx, y: cy + 6, 'text-anchor': 'middle' }, 'kernel'));
+    g.appendChild(el('text', { x: 300, y: 60, 'text-anchor': 'middle', class: 'lbl' }, 'more'));
+    g.appendChild(el('text', { x: 300, y: 76, 'text-anchor': 'middle', class: 'lbl' }, 'privilege'));
+    g.appendChild(el('path', { d: 'M300 250 V90', class: 'wire o', 'marker-end': 'url(#ah-o)' }));
+  })();
+
+  /* ---------- access matrix data ---------- */
+  const OBJS = ['F1', 'F2', 'F3', 'printer'];
+  const FIG_A = { D1: { F1: ['read'], F3: ['read'] }, D2: { printer: ['print'] }, D3: { F2: ['read'], F3: ['execute'] }, D4: { F1: ['read', 'write'], F3: ['read', 'write'] } };
+  function matrixHTML(M, cols, doms, opts) {
+    opts = opts || {};
+    let h = '<thead><tr><th>domain</th>' + cols.map((c) => `<th class="${/^D/.test(c) ? 'dom' : ''}">${c}</th>`).join('') + '</tr></thead><tbody>';
+    doms.forEach((d) => {
+      h += `<tr class="${opts.me === d ? 'me' : ''}"><th class="dom">${d}${opts.me === d ? ' ◀' : ''}</th>`;
+      cols.forEach((c) => {
+        const key = d + '|' + c, v = (M[d] && M[d][c]) || [];
+        const cls = [/^D/.test(c) ? 'dcol' : '', opts.hit === key ? 'hit' : '', opts.chg === key ? 'chg' : '', opts.rm === key ? 'rm' : ''].join(' ');
+        h += `<td class="${cls}">${v.join('<br>')}</td>`;
+      });
+      h += '</tr>';
+    });
+    return h + '</tbody>';
+  }
+  $('#am-static').innerHTML = matrixHTML(FIG_A, OBJS, ['D1', 'D2', 'D3', 'D4']);
+
+  /* ---------- §2.3 matrix operations ---------- */
+  (function () {
+    const clone = (o) => JSON.parse(JSON.stringify(o));
+    const SC = [
+      { n: 'Switch (17.6)', cols: ['F1', 'F2', 'F3', 'printer', 'D1', 'D2', 'D3', 'D4'], doms: ['D1', 'D2', 'D3', 'D4'], me: 'D1',
+        M: { D1: { F1: ['read'], F3: ['read'], D2: ['switch'] }, D2: { printer: ['print'], D3: ['switch'], D4: ['switch'] }, D3: { F2: ['read'], F3: ['execute'] }, D4: { F1: ['read', 'write'], F3: ['read', 'write'], D1: ['switch'] } },
+        acts: [['op', 'print', 'printer', 'Print from D1'], ['sw', 'D2'], ['op', 'print', 'printer', 'Print from D2'], ['sw', 'D3'], ['op', 'execute', 'F3', 'Execute F3 from D3'], ['sw', 'D1']] },
+      { n: 'Copy (17.7)', cols: ['F1', 'F2', 'F3'], doms: ['D1', 'D2', 'D3'],
+        M: { D1: { F1: ['execute'], F3: ['write*'] }, D2: { F1: ['execute'], F2: ['read*'], F3: ['execute'] }, D3: { F1: ['execute'] } },
+        acts: [['cp', 'D2', 'read', 'F2', 'D3'], ['cp', 'D2', 'execute', 'F3', 'D3'], ['cp', 'D1', 'write', 'F3', 'D3'], ['opd', 'D3', 'read', 'F2']] },
+      { n: 'Owner (17.8)', cols: ['F1', 'F2', 'F3'], doms: ['D1', 'D2', 'D3'],
+        M: { D1: { F1: ['owner', 'execute'], F3: ['write'] }, D2: { F2: ['read*', 'owner'], F3: ['read*', 'owner', 'write'] }, D3: { F1: ['execute'] } },
+        acts: [['own', 'D2', 'F2', 'D2', 'write*'], ['own', 'D2', 'F2', 'D3', 'write'], ['own', 'D2', 'F3', 'D3', 'write'], ['own', 'D2', 'F1', 'D3', 'read'], ['ownrm', 'D1', 'F1', 'D3', 'execute']] },
+      { n: 'Control (17.9)', cols: ['F1', 'F2', 'F3', 'printer', 'D1', 'D2', 'D3', 'D4'], doms: ['D1', 'D2', 'D3', 'D4'],
+        M: { D1: { F1: ['read'], F3: ['read'], D2: ['switch'] }, D2: { printer: ['print'], D3: ['switch'], D4: ['switch', 'control'] }, D3: { F2: ['read'], F3: ['execute'] }, D4: { F1: ['read', 'write'], F3: ['read', 'write'], D1: ['switch'] } },
+        acts: [['ctl', 'D2', 'D4', 'F1', 'read'], ['ctl', 'D2', 'D4', 'F3', 'read'], ['ctl', 'D1', 'D3', 'F2', 'read']] },
+    ];
+    let k = 0, S = null, me = null, done = {}, last = null;
+    $('#am-sc').innerHTML = SC.map((s, i) => `<button type="button" data-k="${i}">${s.n}</button>`).join('');
+    const has = (d, o, r) => ((S[d] && S[d][o]) || []).includes(r);
+    const add = (d, o, r) => { S[d] = S[d] || {}; S[d][o] = S[d][o] || []; if (!S[d][o].includes(r)) S[d][o].push(r); };
+    const del = (d, o, r) => { if (S[d] && S[d][o]) S[d][o] = S[d][o].filter((x) => x !== r); };
+    function label(a) {
+      switch (a[0]) {
+        case 'op': return `${me} · ${a[1]} ${a[2]}<small>a process in ${me} tries it</small>`;
+        case 'opd': return `${a[1]} · ${a[2]} ${a[3]}<small>a process in ${a[1]} tries it</small>`;
+        case 'sw': return `switch ${me} → ${a[1]}<small>change domain</small>`;
+        case 'cp': return `${a[1]} copies "${a[2]}" on ${a[3]} to ${a[4]}<small>needs ${a[2]}* in (${a[1]}, ${a[3]})</small>`;
+        case 'own': return `${a[1]} grants "${a[4]}" on ${a[2]} to ${a[3]}<small>needs owner in (${a[1]}, ${a[2]})</small>`;
+        case 'ownrm': return `${a[1]} removes "${a[4]}" on ${a[2]} from ${a[3]}<small>needs owner in (${a[1]}, ${a[2]})</small>`;
+        case 'ctl': return `${a[1]} removes "${a[4]}" on ${a[3]} from ${a[2]}<small>needs control in (${a[1]}, ${a[2]})</small>`;
+      }
+    }
+    function run(i) {
+      const a = SC[k].acts[i]; let ok = false, msg = '', hit = null, chg = null, rm = null;
+      if (a[0] === 'op' || a[0] === 'opd') {
+        const d = a[0] === 'op' ? me : a[1], op = a[0] === 'op' ? a[1] : a[2], o = a[0] === 'op' ? a[2] : a[3];
+        hit = d + '|' + o; ok = has(d, o, op) || has(d, o, op + '*');
+        msg = ok ? `"${op}" is in Access(${d}, ${o}): allowed.` : `Access(${d}, ${o}) does not contain "${op}": <b class="bad">denied</b>.`;
+      } else if (a[0] === 'sw') {
+        hit = me + '|' + a[1]; ok = has(me, a[1], 'switch');
+        msg = ok ? `(${me}, ${a[1]}) holds "switch": the process now runs in ${a[1]}, with ${a[1]}'s row of rights.` : `(${me}, ${a[1]}) has no "switch": <b class="bad">denied</b>.`;
+        if (ok) me = a[1];
+      } else if (a[0] === 'cp') {
+        hit = a[1] + '|' + a[3]; ok = has(a[1], a[3], a[2] + '*');
+        if (ok) { add(a[4], a[3], a[2]); chg = a[4] + '|' + a[3]; msg = `${a[1]} holds ${a[2]}* on ${a[3]}, so it may copy "${a[2]}" within column ${a[3]}. ${a[4]} gets plain "${a[2]}" (no star): it cannot pass it on.`; }
+        else msg = `${a[1]} has "${((S[a[1]] || {})[a[3]] || []).join(', ') || 'nothing'}" on ${a[3]}, without the copy star: <b class="bad">denied</b>.`;
+      } else if (a[0] === 'own' || a[0] === 'ownrm') {
+        hit = a[1] + '|' + a[2]; ok = has(a[1], a[2], 'owner');
+        if (ok) { if (a[0] === 'own') { add(a[3], a[2], a[4]); chg = a[3] + '|' + a[2]; } else { del(a[3], a[2], a[4]); rm = a[3] + '|' + a[2]; } msg = `${a[1]} owns ${a[2]}, so it may add or remove any right in column ${a[2]}.`; }
+        else msg = `${a[1]} is not the owner of ${a[2]}: <b class="bad">denied</b>.`;
+      } else if (a[0] === 'ctl') {
+        hit = a[1] + '|' + a[2]; ok = has(a[1], a[2], 'control');
+        if (ok) { del(a[2], a[3], a[4]); rm = a[2] + '|' + a[3]; msg = `${a[1]} holds "control" over ${a[2]}, so it may remove rights from row ${a[2]}.`; }
+        else msg = `(${a[1]}, ${a[2]}) has no "control": <b class="bad">denied</b>.`;
+      }
+      done[i] = ok; last = { hit, chg, rm, msg };
+      render();
+    }
+    function render() {
+      const sc = SC[k];
+      $$('#am-sc [data-k]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.k === k)));
+      $('#am-t').innerHTML = matrixHTML(S, sc.cols, sc.doms, Object.assign({ me }, last || {}));
+      $('#am-acts').innerHTML = sc.acts.map((a, i) => `<button type="button" data-a="${i}" class="${i in done ? (done[i] ? 'ok' : 'no') : ''}">${label(a)}</button>`).join('');
+      $('#am-out').innerHTML = last ? last.msg : ['A process starts in D1 (◀). Try the operations in order: a domain switch changes which row applies.', 'An asterisk is the copy right. Try each copy, then see whether D3 can use what it got.', 'The owner of an object controls its whole column; others cannot touch it.', 'D2 holds control over D4 (Fig. 17.9), so it can trim D4\'s row.'][k];
+    }
+    function load(i) { k = i; S = clone(SC[i].M); me = SC[i].me || null; done = {}; last = null; render(); }
+    const ctl = Academy.register('s2-3', { steps: 3, readStep: 0, show: load });
+    $('#am-sc').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (b) ctl.go(+b.dataset.k); });
+    $('#am-acts').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) run(+b.dataset.a); });
+    $('#am-reset').addEventListener('click', () => load(k));
+    load(0);
+  })();
+
+  /* ---------- §3.2 representations ---------- */
+  (function () {
+    const DOMS = ['D1', 'D2', 'D3', 'D4'];
+    const T = []; DOMS.forEach((d) => OBJS.forEach((o) => { const r = (FIG_A[d] || {})[o]; if (r) T.push([d, o, r.join(',')]); }));
+    const REPS = [['table', 'Global table'], ['acl', 'Access lists'], ['cap', 'Capability lists']];
+    const QS = [['chk', 'D4', 'write', 'F1', 'Can D4 write F1?'], ['chk', 'D1', 'write', 'F3', 'Can D1 write F3?'], ['revO', 'F3', 'Revoke all access to F3'], ['revD', 'D4', 'Revoke everything D4 has']];
+    let rep = 1, q = 0;
+    $('#im-rep').innerHTML = REPS.map(([, n], i) => `<button type="button" data-r="${i}">${n}</button>`).join('');
+    $('#im-q').innerHTML = QS.map((x, i) => `<button type="button" data-q="${i}">${x[x.length - 1]}</button>`).join('');
+    function render() {
+      $$('#im-rep [data-r]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.r === rep)));
+      $$('#im-q [data-q]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.q === q)));
+      const Q = QS[q], R = REPS[rep][0];
+      let lines = [], visited = 0, scanned = 0, verdict = '';
+      const match = (t) => Q[0] === 'chk' ? t[0] === Q[1] && t[1] === Q[3] : Q[0] === 'revO' ? t[1] === Q[1] : t[0] === Q[1];
+      const effect = (t) => Q[0] === 'chk' ? 'hit' : 'gone';
+      if (R === 'table') {
+        visited = 1; scanned = T.length;
+        lines.push(['all triples', T, true]);
+      } else {
+        const keys = R === 'acl' ? OBJS : DOMS;
+        keys.forEach((key) => {
+          const entries = T.filter((t) => (R === 'acl' ? t[1] : t[0]) === key);
+          const need = Q[0] === 'chk' ? key === (R === 'acl' ? Q[3] : Q[1]) : Q[0] === 'revO' ? (R === 'acl' ? key === Q[1] : true) : (R === 'acl' ? true : key === Q[1]);
+          if (need) { visited++; scanned += entries.length; }
+          lines.push([R === 'acl' ? key + ' ACL' : key + ' caps', entries, need]);
+        });
+      }
+      $('#im-lists').innerHTML = lines.map(([k2, entries, vis]) => `<div class="ln${vis ? ' visit' : ''}"><span class="k">${k2}</span>${entries.map((t) => {
+        const txt = R === 'table' ? `&lt;${t[0]}, ${t[1]}, ${t[2]}&gt;` : R === 'acl' ? `${t[0]}: ${t[2]}` : `${t[1]}: ${t[2]}`;
+        return `<span class="e${vis && match(t) ? ' ' + effect(t) : ''}">${txt}</span>`;
+      }).join('') || '<span class="muted">(empty)</span>'}</div>`).join('');
+      if (Q[0] === 'chk') {
+        const t = T.find((x) => x[0] === Q[1] && x[1] === Q[3]);
+        const ok = !!t && t[2].split(',').includes(Q[2]);
+        verdict = ok ? '<span class="ok">allowed</span>' : '<span class="no">denied</span>';
+      }
+      const cost = `${visited} list${visited === 1 ? '' : 's'} visited · ${scanned} entries scanned`;
+      $('#im-stats').innerHTML = `<div class="${visited > 1 ? 'warn' : ''}"><div class="lab">lists touched</div><div class="big">${visited}</div></div><div><div class="lab">entries scanned</div><div class="big">${scanned}</div></div>` + (verdict ? `<div><div class="lab">answer</div><div class="big" style="font-size:20px">${verdict}</div></div>` : '');
+      const why = {
+        table: 'One big table: every request scans it (or needs an index on both domain and object).',
+        acl: Q[0] === 'revD' ? 'D4\'s rights are scattered over every object\'s list: each must be visited.' : 'The object\'s own list answers it: go straight to that column.',
+        cap: Q[0] === 'revO' ? 'Capabilities for F3 may sit in any domain\'s list: every list must be searched (unless there are back-pointers or indirection).' : 'The domain\'s own list answers it: the process already holds its capabilities.',
+      };
+      $('#im-out').innerHTML = `${cost}. ${why[R]}`;
+    }
+    const ctl = Academy.register('s3-2', { steps: 2, readStep: 1, show: (i) => { rep = i; render(); } });
+    $('#im-rep').addEventListener('click', (e) => { const b = e.target.closest('[data-r]'); if (b) ctl.go(+b.dataset.r); });
+    $('#im-q').addEventListener('click', (e) => { const b = e.target.closest('[data-q]'); if (b) { q = +b.dataset.q; render(); } });
+    $('#im-reset').addEventListener('click', () => { q = 0; ctl.go(1); });
+    render();
+  })();
+
+  /* ---------- §1.4 setuid ---------- */
+  (function () {
+    const S = [
+      { p: 'bash', r: 'alice', e: 'alice', l: ['<span class="pr">alice$</span> ls -l /etc/shadow /usr/bin/passwd', '-rw-r----- 1 root shadow  1402 /etc/shadow', '-rw<b>s</b>r-xr-x 1 root root  68208 /usr/bin/passwd'], t: 'alice\'s shell runs in alice\'s domain. <code>/etc/shadow</code>, which holds password hashes, is writable only by root. <code>passwd</code> is owned by root and has the <b>setuid</b> bit: the <code>s</code> in place of the owner\'s <code>x</code>.' },
+      { p: 'cat', r: 'alice', e: 'alice', l: ['<span class="pr">alice$</span> cat /etc/shadow', '<span class="er">cat: /etc/shadow: Permission denied</span>'], t: 'An ordinary program started by alice runs as alice. Neither the owner (root) nor the group (shadow) permissions apply to her, and "other" has none: denied.' },
+      { p: 'passwd', r: 'alice', e: 'root', root: true, l: ['<span class="pr">alice$</span> passwd', 'Changing password for alice.', 'Current password: ········'], t: '<code>exec</code> of a setuid file: the kernel sets the <b>effective UID</b> to the file\'s owner, root. The <b>real UID</b> stays alice: that is how passwd knows whose password to change, and it will refuse to change anyone else\'s.' },
+      { p: 'passwd', r: 'alice', e: 'root', root: true, l: ['New password: ········', 'passwd: password updated successfully', '<span class="dim">(passwd opened /etc/shadow for writing: checked against euid root → allowed)</span>'], t: 'Permission checks use the effective UID, so passwd may rewrite <code>/etc/shadow</code>. alice gains this power only through passwd\'s own carefully written code: a controlled domain switch.' },
+      { p: 'bash', r: 'alice', e: 'alice', l: ['<span class="pr">alice$</span> cat /etc/shadow', '<span class="er">cat: /etc/shadow: Permission denied</span>'], t: 'passwd exited; alice\'s shell was never root. Back in alice\'s domain, the file is closed to her again.' },
+      { p: 'sudo → cat', r: 'root', e: 'root', root: true, l: ['<span class="pr">alice$</span> sudo cat /etc/shadow', '[sudo] password for alice: ········', 'root:$y$j9T$…:19000:0:99999:7:::'], t: 'sudo is itself a setuid-root program. It checks the sudoers file (is alice allowed?), asks for <em>her</em> password, then runs one command as root. Everything this command does is now root\'s power, which is why sudoers should grant as little as possible.' },
+    ];
+    let i = 0;
+    function show(k) {
+      i = Math.max(0, Math.min(S.length - 1, k));
+      const s = S[i];
+      $('#su-proc').innerHTML =
+        `<div><div class="lab">running</div><div class="v">${s.p}</div></div>` +
+        `<div><div class="lab">real UID</div><div class="v">${s.r}</div></div>` +
+        `<div><div class="lab">effective UID</div><div class="v ${s.root ? 'root' : ''}">${s.e}</div></div>` +
+        `<div><div class="lab">domain</div><div class="v ${s.root ? 'root' : ''}">${s.root ? 'root' : 'alice'}</div></div>`;
+      $('#su-shell').innerHTML = s.l.join('<br>');
+      $('#su-out').innerHTML = s.t;
+      $('#su-n').textContent = i + '/' + (S.length - 1);
+      $('#su-prev').disabled = i === 0; $('#su-next').disabled = i === S.length - 1;
+    }
+    const ctl = Academy.register('s1-4', { steps: S.length - 1, readStep: 0, show });
+    $('#su-prev').addEventListener('click', () => ctl.go(i - 1));
+    $('#su-next').addEventListener('click', () => ctl.go(i + 1));
+    $('#su-reset').addEventListener('click', () => ctl.go(0));
+    show(0);
+  })();
+
+  /* ---------- §4.4 capabilities ---------- */
+  (function () {
+    const CAPS = [['CAP_NET_RAW', 'raw and packet sockets'], ['CAP_NET_BIND_SERVICE', 'bind ports below 1024'], ['CAP_NET_ADMIN', 'configure interfaces, routes, firewall'], ['CAP_KILL', 'signal other users\' processes'], ['CAP_CHOWN', 'change any file\'s owner'], ['CAP_DAC_OVERRIDE', 'bypass file permission checks'], ['CAP_SYS_MODULE', 'load kernel modules'], ['CAP_SYS_ADMIN', 'mount, and much more']];
+    const OPS = [['send an ICMP echo (ping)', 'CAP_NET_RAW'], ['listen on port 80', 'CAP_NET_BIND_SERVICE'], ['add a firewall rule', 'CAP_NET_ADMIN'], ['kill another user\'s process', 'CAP_KILL'], ['chown a file to bob', 'CAP_CHOWN'], ['read /etc/shadow', 'CAP_DAC_OVERRIDE'], ['insmod char_driver.ko', 'CAP_SYS_MODULE'], ['mount a USB stick', 'CAP_SYS_ADMIN'], ['read your own files', null]];
+    const PRE = [['ordinary user', []], ['ping', ['CAP_NET_RAW']], ['web server', ['CAP_NET_BIND_SERVICE']], ['root', CAPS.map((c) => c[0])]];
+    let on = new Set(['CAP_NET_RAW']);
+    $('#cp-pre').innerHTML = PRE.map(([n], i) => `<button type="button" data-p="${i}">${n}</button>`).join('');
+    $('#cp-caps').innerHTML = CAPS.map(([c, d]) => `<label for="cap-${c}"><input type="checkbox" id="cap-${c}" data-c="${c}"><span><code>${c}</code><br><span class="small muted">${d}</span></span></label>`).join('');
+    function render() {
+      $$('#cp-caps [data-c]').forEach((x) => { x.checked = on.has(x.dataset.c); });
+      const preset = PRE.findIndex(([, cs]) => cs.length === on.size && cs.every((c) => on.has(c)));
+      $$('#cp-pre [data-p]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.p === preset)));
+      $('#cp-ops').innerHTML = OPS.map(([n, c]) => { const ok = !c || on.has(c); return `<div class="op ${ok ? 'ok' : 'no'}"><span>${ok ? '✓' : '✕'}</span><span>${n}</span><span class="need">${c || 'no capability needed'}</span></div>`; }).join('');
+      const n = on.size;
+      $('#cp-out').innerHTML = n === CAPS.length ? '<b class="bad">All of root.</b> Any bug in this process can do everything on the list.' : n === 0 ? 'An ordinary process: only what the permission bits allow.' : `${n} of ${CAPS.length} slices of root. If this process is compromised, the attacker gets exactly the green rows, nothing more.`;
+    }
+    $('#cp-caps').addEventListener('change', (e) => { const x = e.target.closest('[data-c]'); if (x) { x.checked ? on.add(x.dataset.c) : on.delete(x.dataset.c); render(); } });
+    $('#cp-pre').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) { on = new Set(PRE[+b.dataset.p][1]); render(); } });
+    $('#cp-reset').addEventListener('click', () => { on = new Set(['CAP_NET_RAW']); render(); });
+    render();
+  })();
+
+  /* ---------- §5.3 stack inspection ---------- */
+  (function () {
+    const CALLS = [['get', 'applet → get(url)'], ['open', 'applet → open(addr)']];
+    let call = 'get';
+    $('#st-call').innerHTML = CALLS.map(([k, n]) => `<button type="button" data-c="${k}">${n}</button>`).join('');
+    function render() {
+      $$('#st-call [data-c]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.c === call)));
+      const dp = $('#st-dp').checked;
+      // top of stack first
+      const F = call === 'get'
+        ? [['n', 'networking', 'connect(a) → checkPermission(a, connect)', 'any'], ['l', 'URL loader', dp ? 'get(url): doPrivileged { open("proxy.lucent.com:80") }' : 'get(url): open("proxy.lucent.com:80")', '*.lucent.com:80', dp], ['u', 'untrusted applet', 'gui: get(url)', 'none']]
+        : [['n', 'networking', 'open(addr) → checkPermission(a, connect)', 'any'], ['u', 'untrusted applet', 'gui: open(addr)', 'none']];
+      let verdict = null, res = [];
+      for (let k = 0; k < F.length; k++) {
+        const [cls, name, code, perm, isDp] = F[k];
+        if (verdict) { res.push('skip'); continue; }
+        if (perm === 'none') { res.push('deny'); verdict = 'deny'; continue; }
+        if (isDp) { res.push('stop'); verdict = 'allow'; continue; }
+        res.push('scan');
+      }
+      if (!verdict) verdict = 'allow';
+      $('#st-frames').innerHTML = '<div class="sub-lab">call stack · top first · checkPermission walks downward</div>' + F.map(([cls, name, code, perm], k) => {
+        const r = res[k];
+        const note = r === 'scan' ? 'permits: continue down' : r === 'stop' ? 'doPrivileged: stop here, permitted' : r === 'deny' ? 'no permission: <b>deny</b>' : 'not inspected';
+        return `<div class="frame ${r}"><span class="dm ${cls}">${name}<br><span class="muted" style="font-weight:400">socket: ${perm}</span></span><code>${code}</code><span class="ck">${note}</span></div>`;
+      }).join('');
+      $('#st-out').innerHTML = verdict === 'allow'
+        ? '<span class="ok">Connection allowed.</span> The trusted URL loader vouched for this one request with doPrivileged, and it has permission for the proxy. The applet never gains the permission itself.'
+        : call === 'open'
+          ? '<span class="no">SecurityException.</span> The applet asked the networking library directly; inspection reaches the applet\'s frame, which has no socket permission.'
+          : '<span class="no">SecurityException.</span> Without doPrivileged, inspection continues past the URL loader down to the applet. Every caller must be permitted, so the untrusted one spoils it.';
+    }
+    $('#st-call').addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (b) { call = b.dataset.c; render(); } });
+    $('#st-dp').addEventListener('change', render);
+    $('#st-reset').addEventListener('click', () => { call = 'get'; $('#st-dp').checked = true; render(); });
+    render();
+  })();
+})();
+</script>
+</body>
+</html>

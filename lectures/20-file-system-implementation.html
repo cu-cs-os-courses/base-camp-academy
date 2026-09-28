@@ -1,0 +1,1134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>File Systems · L20</title>
+<meta name="description" content="CSCI 3753 Lecture 20, interactive edition: on-disk and in-memory file system structures, open/read/close, file allocation, free-space management, performance, and crash recovery with logs.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+/* ---- lecture-local ---- */
+.dgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; max-width: 330px; }
+.dgrid .b { position: relative; aspect-ratio: 1.35; border-radius: 6px; border: 1.5px solid var(--line2); background: var(--bg2); font-family: var(--f-mono); font-size: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }
+.dgrid .b .n { position: absolute; top: 2px; left: 4px; font-size: 9.5px; color: var(--ink3); }
+.dgrid .b.other { background: var(--bg3); border-color: var(--line); color: var(--ink3); }
+.dgrid .b.other::after { content: ""; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7'%3E%3Cpath d='M0 7L7 0' stroke='%23999' stroke-opacity='.35'/%3E%3C/svg%3E"); border-radius: 5px; }
+.dgrid .b.file { border-color: var(--cz); background: var(--cz-soft); color: var(--cz-ink); font-weight: 600; }
+.dgrid .b.idx { border-color: var(--co); background: var(--co-soft); color: var(--co); font-weight: 600; }
+.dgrid .b.hit { box-shadow: 0 0 0 3px var(--cx); }
+.dgrid .b.lost { border-color: var(--cd); background: var(--cd-soft); color: var(--cd); text-decoration: line-through; }
+.dgrid .b.new { border-color: var(--cx); background: var(--cx-soft2); color: var(--cx-ink); font-weight: 600; }
+.dgrid .b small { font-size: 10px; font-weight: 500; }
+.fatrow { display: grid; grid-template-columns: repeat(25, minmax(1.6em, 1fr)); gap: 2px; font-family: var(--f-mono); font-size: 11px; margin-top: 8px; overflow-x: auto; }
+.fatrow div { text-align: center; border-radius: 3px; padding: 2px 0; background: var(--bg3); color: var(--ink3); }
+.fatrow div.i { background: none; font-size: 9.5px; }
+.fatrow div.on { background: var(--cz-soft2); color: var(--cz-ink); font-weight: 600; }
+.fatrow div.hit { box-shadow: inset 0 0 0 2px var(--cx); }
+.alloc-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px 22px; align-items: start; }
+.alloc-grid .dgrid { width: 330px; max-width: 100%; }
+.tbls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.tbl { border: 1px solid var(--line2); border-radius: 10px; overflow: hidden; background: var(--bg); font-size: 12.5px; }
+.tbl .hd { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); padding: 6px 9px; background: var(--bg3); border-bottom: 1px solid var(--line); }
+.tbl .r { font-family: var(--f-mono); padding: 5px 9px; border-bottom: 1px solid var(--line); }
+.tbl .r:last-child { border-bottom: 0; }
+.tbl .r.hot { background: var(--cx-soft2); }
+.tbl .r.dirty { box-shadow: inset 3px 0 0 var(--cd); }
+.tbl .empty { padding: 8px 9px; color: var(--ink3); font-style: italic; }
+.logstrip { display: flex; flex-wrap: wrap; gap: 4px; }
+.logstrip .rec { font-family: var(--f-mono); font-size: 12px; border: 1.5px solid var(--line2); border-radius: 6px; padding: 5px 8px; background: var(--bg); line-height: 1.35; }
+.logstrip .rec small { display: block; font-size: 10.5px; color: var(--ink3); }
+.logstrip .rec.cp { border-color: var(--cd); color: var(--cd); font-weight: 600; }
+.logstrip .rec.done { background: var(--bg3); color: var(--ink3); }
+.logstrip .rec.redo { border-color: var(--good); background: var(--good-soft); }
+.logstrip .rec.undo { border-color: var(--cx); background: var(--cx-soft2); }
+.logstrip .rec.gone { opacity: 0.18; border-style: dashed; }
+.freebits { font-family: var(--f-mono); font-size: 15px; letter-spacing: 0.08em; }
+.freebits span.f { color: var(--cf-ink); font-weight: 600; }
+.freebits span.u { color: var(--ink3); }
+.tree text { font-size: 13px; }
+@media (max-width: 760px) {
+  .alloc-grid, .tbls { grid-template-columns: minmax(0, 1fr); }
+  .alloc-grid .dgrid { width: auto; }
+}
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="7" height="7" class="hatch-bg"/><line x1="0" y1="0" x2="0" y2="7" class="hatch-line"/>
+    </pattern>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+    <marker id="ah-p" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-p"/></marker>
+    <marker id="ah-d" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-d"/></marker>
+    <marker id="ah-f" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-f"/></marker>
+    <marker id="ah-m" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-m"/></marker>
+    <marker id="ah-o" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-o"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><path d="M4 3h9l5 5v11H4z"/><path d="M13 3v5h5"/></g><rect x="7" y="11" width="3" height="3" fill="var(--cz)"/><rect x="12" y="15" width="3" height="3" fill="var(--co)"/></svg>
+    <span>Lecture 20 · File System Implementation</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Lecture 20 · Interactive notes</div>
+    <h1>A file is a name, a header,<br>and blocks <span class="accent">anywhere</span></h1>
+    <p class="lede">Lecture 19 gave us a disk: numbered blocks that remember their contents. A file system turns those blocks into named, growable files that survive a crash. This lecture builds one piece by piece: the structures on disk and in memory, what <code>open</code>, <code>read</code> and <code>close</code> actually do, four ways to lay a file's blocks out, how free blocks are tracked, and how a journal lets the system recover when the power dies halfway through an update.</p>
+    <div class="promise">
+      <span>Before you start:</span><span class="mono">page tables (L14) and disks (L19)</span><span>The file-allocation chapter reuses both ideas.</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#ch0">Begin ↓</a>
+      <span class="muted small">About 60 minutes · 5 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 14 · Continues in Lecture 21, Network &amp; VMs</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="chapters">
+    <p class="rail-title">Contents</p>
+    <a href="#ch0"><span class="n">0</span>What a file system stores</a>
+    <a href="#ch1"><span class="n">1</span>Open, read, close</a>
+    <a href="#ch2"><span class="n">2</span>File allocation</a>
+    <a href="#ch3"><span class="n">3</span>Free-space management</a>
+    <a href="#ch4"><span class="n">4</span>Performance</a>
+    <a href="#ch5"><span class="n">5</span>Reliability and recovery</a>
+    <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#ch0"><span class="n">0</span>What a file system stores</a>
+        <a href="#ch1"><span class="n">1</span>Open, read, close</a>
+        <a href="#ch2"><span class="n">2</span>File allocation</a>
+        <a href="#ch3"><span class="n">3</span>Free-space management</a>
+        <a href="#ch4"><span class="n">4</span>Performance</a>
+        <a href="#ch5"><span class="n">5</span>Reliability and recovery</a>
+        <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+      </nav>
+    </details>
+
+    <div class="sec present-only title-slide" id="title">
+      <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 20</div>
+      <h1>File System Implementation</h1>
+      <p class="lede">Structures on disk and in memory, file allocation, free space, and recovering from crashes.</p>
+      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 14</div>
+    </div>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch0">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 0</div>
+    <h2>What a file system stores</h2>
+    <p class="ch-lede">Some of it lives on disk and survives power loss; some lives in RAM and makes it fast.</p>
+  </div>
+
+  <div class="sec" id="s0-1">
+    <h3><span class="sec-no">0.1</span>Tree-structured directories</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Files are organized in a tree of directories. The fully qualified name of <code>foo.txt</code> is <code>/users/carl/SeniorProject/foo.txt</code>; everything before the file name is its <strong>path</strong>.</p>
+        <ul>
+          <li data-step="1">hierarchical organization that each user can customize;</li>
+          <li data-step="1">unique naming: carl's <code>mail</code> does not conflict with alice's <code>mail</code>;</li>
+          <li data-step="1">users can share and reach files in other directories.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia tree" viewBox="0 0 560 330" width="460" role="img" aria-label="Directory tree: root with users, bin, lib; users with alice, bob, carl; carl with SeniorProject containing foo.txt and mail">
+            <g id="tree-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 0.1</span>The path to <span class="p">foo.txt</span>. Two files named <code>mail</code>, no conflict.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-2">
+    <h3><span class="sec-no">0.2</span>On disk</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>The whole file system is stored on disk or flash, in five main elements:</p>
+        <ol>
+          <li>the entire <strong>directory tree</strong>;</li>
+          <li>each file's attributes, in a <strong>file control block (FCB)</strong>;</li>
+          <li>each file's <strong>data</strong>;</li>
+          <li data-step="1">a <strong>boot block</strong>, typically the first block of a volume, with what is needed to boot an OS from it (empty if there is none);</li>
+          <li data-step="1">a <strong>volume control block</strong> with the volume's details: which blocks are free, how many blocks, the block size.</li>
+        </ol>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 300 260" width="260" role="img" aria-label="An example file control block">
+            <text x="150" y="24" text-anchor="middle" class="big">FCB</text>
+            <g id="fcb-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 0.2</span>An example FCB. In UNIX this is the <strong>inode</strong>.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-3">
+    <h3><span class="sec-no">0.3</span>In memory</h3>
+    <div class="prose">
+      <p>The kernel keeps four structures in RAM:</p>
+      <ol>
+        <li><strong>recently used parts of the directory tree</strong>, for fast lookup;</li>
+        <li data-step="1">a <strong>system-wide open-file table (OFT)</strong> with process-independent information about each open file: its FCB, and an <strong>open count</strong> of the processes that have it open;</li>
+        <li data-step="2">a <strong>per-process OFT</strong> with every file that process opened: access rights, and a <strong>current file position</strong> pointer, where the process is reading or writing;</li>
+        <li data-step="3">a <strong>mount table</strong> of the devices whose file systems are mounted as volumes.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#top">Back to<b>the top</b></a>
+    <a href="#ch1">Next<b>1 · Open, read, close</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch1">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 1</div>
+    <h2>Open, read, close</h2>
+    <p class="ch-lede">The three calls that move a file's information from disk into those tables and back.</p>
+  </div>
+
+  <div class="sec" id="s1-1">
+    <h3><span class="sec-no">1.1</span>What <code>open("foo.txt")</code> does</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ol>
+          <li>Search the directory structure for <code>foo.txt</code>. Fast if the directory entries are in memory; otherwise read them from disk and cache them.</li>
+          <li data-step="2">The directory entry points to the file's FCB on disk. Read the FCB, copy it into the <strong>system OFT</strong>, which caches it for later opens, and increment the file's open count.</li>
+          <li data-step="3">Add an entry to the <strong>per-process OFT</strong> pointing to the FCB in the system OFT.</li>
+          <li data-step="4">Return a <strong>file descriptor</strong> (handle): the index of that per-process entry.</li>
+        </ol>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 620 340" width="480" role="img" aria-label="open: search the directory, load the FCB into the system open-file table, add a per-process entry, return a descriptor">
+            <text x="70" y="30" text-anchor="middle" class="lbl">process</text>
+            <rect x="10" y="150" width="120" height="44" class="pbox"/><text x="70" y="171" text-anchor="middle" class="mono" style="font-size:12px">fd = open(</text><text x="70" y="187" text-anchor="middle" class="mono" style="font-size:12px">"foo.txt")</text>
+            <rect x="160" y="20" width="250" height="300" class="box"/><text x="285" y="42" text-anchor="middle" class="lbl">kernel memory</text>
+            <rect x="180" y="56" width="210" height="70" class="box2"/><text x="285" y="76" text-anchor="middle" class="lbl">directory structure (cached)</text>
+            <rect x="200" y="90" width="170" height="22" class="dbox"/><text x="285" y="106" text-anchor="middle" class="lbl mono">foo.txt → FCB</text>
+            <rect x="180" y="200" width="95" height="100" class="box2"/><text x="227" y="218" text-anchor="middle" class="lbl">per-process</text><text x="227" y="232" text-anchor="middle" class="lbl">OFT</text>
+            <rect x="290" y="200" width="100" height="100" class="box2"/><text x="340" y="218" text-anchor="middle" class="lbl">system OFT</text>
+            <rect x="440" y="20" width="170" height="300" class="fbox" style="fill-opacity:.4"/><text x="525" y="42" text-anchor="middle" class="big">disk</text>
+            <rect x="460" y="60" width="130" height="60" class="box"/><text x="525" y="95" text-anchor="middle" class="lbl">directory structure</text>
+            <rect x="460" y="140" width="130" height="60" class="box"/><text x="525" y="175" text-anchor="middle" class="lbl">file control blocks</text>
+            <rect x="460" y="220" width="130" height="80" class="box"/><text x="525" y="265" text-anchor="middle" class="lbl">file data blocks</text>
+            <g data-step="1">
+              <path d="M130 160 H160 V101 H196" class="wire p" marker-end="url(#ah-p)"/>
+              <path d="M456 90 H394" class="wire thin dashed" marker-end="url(#ah)"/>
+              <g class="badge"><circle cx="150" cy="130" r="12"/><text x="150" y="130">1</text></g>
+            </g>
+            <g data-step="2">
+              <path d="M456 170 H420 V250 H394" class="wire o" marker-end="url(#ah-o)"/>
+              <rect x="300" y="238" width="80" height="24" class="obox"/><text x="340" y="255" text-anchor="middle" class="lbl mono" style="font-size:10px">FCB · count 1</text>
+              <g class="badge"><circle cx="420" cy="210" r="12"/><text x="420" y="210">2</text></g>
+            </g>
+            <g data-step="3">
+              <rect x="188" y="238" width="80" height="24" class="pbox"/><text x="228" y="255" text-anchor="middle" class="lbl mono" style="font-size:10px">fd 3 · pos 0</text>
+              <path d="M268 250 H296" class="wire thin" marker-end="url(#ah)"/>
+              <g class="badge"><circle cx="282" cy="276" r="12"/><text x="282" y="276">3</text></g>
+            </g>
+            <g data-step="4">
+              <path d="M188 250 H100 V198" class="wire p" marker-end="url(#ah-p)"/>
+              <text x="104" y="226" class="lbl mono t-p">fd = 3</text>
+              <g class="badge"><circle cx="144" cy="250" r="12"/><text x="144" y="250">4</text></g>
+            </g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1.1</span>File-system open, in four steps.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-2">
+    <h3><span class="sec-no">1.2</span><code>read</code> and <code>close</code></h3>
+    <div class="prose">
+      <p><strong><code>read(fd, buffer, size)</code></strong>: the descriptor indexes the per-process OFT, which points to the FCB in the system OFT; the FCB says where the data blocks are on disk; the data is copied into the user's buffer, and the file position advances.</p>
+      <p data-step="1"><strong><code>close(fd)</code></strong>:</p>
+      <ol data-step="1">
+        <li>remove the entry from the per-process OFT;</li>
+        <li>decrement the file's open count in the system OFT;</li>
+        <li>if the count is now 0, write any metadata changes in the FCB (its modification date, for instance) back to disk.</li>
+      </ol>
+    </div>
+    <div class="note note-warn" data-step="2">
+      <span class="note-tag">Watch out</span>
+      <p>Until that write-back, the FCB in memory and the FCB on disk disagree. File system designers must keep this temporary inconsistency in mind; Chapter 5 is about what happens if the machine crashes during it.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-3">
+    <h3><span class="sec-no">1.3</span>Two processes, one file</h3>
+    <div class="widget" id="oft-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">The open-file tables, call by call</span><button class="w-reset" type="button" id="oft-reset">Reset</button></div>
+      <div class="controls">
+        <button type="button" class="btn" id="oft-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="oft-next">Next call ›</button>
+        <span class="mono" id="oft-call" style="font-size:14px"></span>
+      </div>
+      <div class="widget-body">
+        <div class="tbls" id="oft-tbls"></div>
+        <div class="stats" id="oft-stats" style="margin-top:14px"></div>
+      </div>
+      <div class="readout" id="oft-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-4">
+    <h3><span class="sec-no">1.4</span>File locks</h3>
+    <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div><span class="tag">Mandatory locks</span>Only one process at a time may use an open file. The OS enforces it. Windows policy.</div>
+      <div data-step="1"><span class="tag">Advisory (optional) locks</span>Processes may take locks, but the OS does not force anyone to check. It is up to the users to synchronize access. UNIX policy.</div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch0">Back<b>0 · What a file system stores</b></a>
+    <a href="#ch2">Next<b>2 · File allocation</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 2</div>
+    <h2>File allocation</h2>
+    <p class="ch-lede">Which disk blocks hold a file, and how the file system remembers. Five approaches; the running example is one 4-block file, <code>foo</code>, on a 25-block disk shared with other files (hatched).</p>
+  </div>
+
+  <div class="sec" id="s2-1">
+    <h3><span class="sec-no">2.1</span>Approach 1: contiguous allocation</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>A file of n blocks gets a start block b and blocks b, b+1, …, b+n−1. The header stores only <strong>start</strong> and <strong>length</strong>. Fast: the blocks are next to each other, so seeks are short.</p>
+        <ul>
+          <li data-step="1"><strong>External fragmentation</strong>, the same problem as fitting processes into RAM contiguously: first fit, best fit, or compaction (defragmenting the disk, late at night).</li>
+          <li data-step="2">The file's size may not be known in advance. Allocate more than estimated; if it still outgrows its space, copy it to a larger free hole.</li>
+          <li data-step="3">Slow-growing files waste space: a file that will one day need 1 MB, growing 1 byte a second, wastes most of a 1 MB allocation for most of its life.</li>
+        </ul>
+      </div>
+      <figure class="fig"><div class="fig-frame"><div class="dgrid" data-mode="contig"></div></div><figcaption><span class="fno">Fig. 2.1</span><code>foo</code>: start 17, length 4.</figcaption></figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-2">
+    <h3><span class="sec-no">2.2</span>Borrowing from paging</h3>
+    <div class="prose">
+      <p>Page tables solved external fragmentation for processes (Lecture 14). Apply the same idea to files:</p>
+      <ul>
+        <li>divide the disk into fixed-size blocks, as RAM was divided into frames;</li>
+        <li data-step="1">let a file's blocks sit anywhere on the disk, not necessarily together;</li>
+        <li data-step="2">keep a data structure that says which file block is on which disk block: a <strong>linked list</strong> or an <strong>index</strong>, and their variants.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-3">
+    <h3><span class="sec-no">2.3</span>Approach 2: linked allocation</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Each file is a linked list of disk blocks: every block holds a pointer to the next. The header needs only the start (and, conveniently, the end).</p>
+        <div class="pc one">
+          <div class="pro"><span class="tag">Good</span><ul><li>no external fragmentation; no need to know the size in advance;</li><li>minimal header; good for sequential access; easy to insert in the middle.</li></ul></div>
+          <div class="con" data-step="1"><span class="tag">Bad</span><ul><li>random access is very slow: follow the list to the block you want;</li><li>every block spends space on a pointer;</li><li>fragile: one corrupted pointer loses the rest of the file.</li></ul></div>
+        </div>
+      </div>
+      <figure class="fig"><div class="fig-frame"><div class="dgrid" data-mode="linked"></div></div><figcaption><span class="fno">Fig. 2.2</span><code>foo</code>: start 8, end 2. The arrow in each block is its next-pointer.</figcaption></figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-4">
+    <h3><span class="sec-no">2.4</span>Approach 3: the file allocation table (FAT)</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>An important variation of linked allocation: take the pointers <strong>out of the data blocks</strong> and put them in one table at the beginning of the volume. Entry k of the FAT holds the number of the block after block k; a special EOF value ends the list; unused blocks are 0.</p>
+        <ul>
+          <li data-step="1">Allocating a block is simple: find the first 0 entry.</li>
+          <li data-step="1">Random access is faster than a pure linked list: all pointers sit together near the start of the disk, so little seeking (and the FAT is often cached in RAM).</li>
+          <li data-step="2">But finding block j still means walking j links.</li>
+        </ul>
+        <p class="small muted" data-step="2">FAT came from MS-DOS and Windows 95/98 (Bill Gates wrote the original); FAT16 and FAT32 name the size of a FAT entry. NTFS replaced it from Windows NT on; FAT lives on in USB sticks and SD cards.</p>
+      </div>
+      <figure class="fig"><div class="fig-frame"><div class="dgrid" data-mode="fat"></div><div class="fatrow" data-fat></div></div><figcaption><span class="fno">Fig. 2.3</span>The FAT for <code>foo</code> (start 8): FAT[8] = 3, FAT[3] = 7, FAT[7] = 2, FAT[2] = EOF.</figcaption></figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-5">
+    <h3><span class="sec-no">2.5</span>Approach 4: indexed allocation</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Collect all of a file's pointers into one list, the <strong>index block</strong>. Entry j points to the file's j-th block on disk. It looks like a page table, except that it can grow.</p>
+        <ul>
+          <li>Unlike the FAT, the index block can live anywhere on the disk, and it is just a linear list for one file.</li>
+          <li data-step="1">No external fragmentation, no size needed in advance, and <strong>no list to walk</strong>: index straight into the block.</li>
+          <li data-step="2">But how big should the index block be? Too small limits file size; too big wastes space on small files. Fixes: <strong>link</strong> index blocks together, or use a <strong>multilevel index</strong> (§2.7).</li>
+        </ul>
+      </div>
+      <figure class="fig"><div class="fig-frame"><div class="dgrid" data-mode="index"></div></div><figcaption><span class="fno">Fig. 2.4</span>Header → index block 12 → blocks 8, 3, 7, 2.</figcaption></figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-6">
+    <h3><span class="sec-no">2.6</span>The same file, four ways</h3>
+    <div class="widget" id="al-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Read one block, append one block</span><button class="w-reset" type="button" id="al-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Allocation method" id="al-m"></span>
+      </div>
+      <div class="controls" style="padding-top:2px">
+        <span class="seg" aria-label="Read a block" id="al-r"></span>
+        <button type="button" class="btn" id="al-app">Append a block</button>
+        <button type="button" class="btn" id="al-bad">Corrupt a pointer</button>
+      </div>
+      <div class="widget-body">
+        <div class="alloc-grid">
+          <div class="dgrid" id="al-grid"></div>
+          <div>
+            <div class="fatrow" id="al-fat"></div>
+            <div class="stats" id="al-stats" style="margin-top:10px"></div>
+          </div>
+        </div>
+      </div>
+      <div class="readout" id="al-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Counts assume the file's header is already in memory (the file is open) and, for FAT, that the table is cached in RAM.</p>
+  </div>
+
+  <div class="sec" id="s2-7">
+    <h3><span class="sec-no">2.7</span>Approach 5: multilevel indexed allocation</h3>
+    <div class="prose">
+      <p>Like hierarchical page tables: a <strong>first-level</strong> index block lists the second-level index blocks, and each <strong>second-level</strong> block lists the data blocks for its section of the file.</p>
+      <p data-step="1">The problem: small files pay the same as large ones. Every access walks the same number of levels, so even the data of a 100-byte file takes at least 4 block reads: header, first level, second level, data.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-8">
+    <h3><span class="sec-no">2.8</span>The UNIX inode</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>UNIX mixes the approaches in one small index of <strong>15 pointers</strong> inside the inode:</p>
+        <ul>
+          <li><strong>12 direct</strong> pointers to data blocks: small files need nothing else, so little space is wasted;</li>
+          <li data-step="1">a <strong>single indirect</strong> pointer to an index block;</li>
+          <li data-step="1">a <strong>double indirect</strong> pointer: index of index blocks;</li>
+          <li data-step="1">a <strong>triple indirect</strong> pointer: one more level.</li>
+        </ul>
+        <p data-step="2">Small files stay cheap, large files can span a huge number of blocks, and a small file that grows into a large one just starts using the indirect pointers.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 520 330" width="440" role="img" aria-label="UNIX inode: attributes, 12 direct pointers, single, double and triple indirect pointers leading to index blocks and data blocks">
+            <rect x="10" y="10" width="150" height="70" class="box2"/><text x="85" y="36" text-anchor="middle" class="lbl">attributes</text><text x="85" y="54" text-anchor="middle" class="lbl">size, times, mode…</text>
+            <rect x="10" y="80" width="150" height="120" class="pbox"/><text x="85" y="136" text-anchor="middle">12 direct</text><text x="85" y="154" text-anchor="middle" class="lbl">pointers</text>
+            <g data-step="1">
+              <rect x="10" y="200" width="150" height="40" class="obox"/><text x="85" y="225" text-anchor="middle" class="lbl">single indirect</text>
+              <rect x="10" y="240" width="150" height="40" class="obox"/><text x="85" y="265" text-anchor="middle" class="lbl">double indirect</text>
+              <rect x="10" y="280" width="150" height="40" class="obox"/><text x="85" y="305" text-anchor="middle" class="lbl">triple indirect</text>
+              <rect x="220" y="196" width="70" height="30" class="obox"/><text x="255" y="216" text-anchor="middle" class="lbl">index</text>
+              <path d="M160 220 H216" class="wire o thin" marker-end="url(#ah-o)"/>
+              <rect x="220" y="244" width="70" height="30" class="obox"/><text x="255" y="264" text-anchor="middle" class="lbl">L1</text>
+              <rect x="320" y="244" width="70" height="30" class="obox"/><text x="355" y="264" text-anchor="middle" class="lbl">L2</text>
+              <path d="M160 260 H216 M290 259 H316" class="wire o thin" marker-end="url(#ah-o)"/>
+              <rect x="220" y="290" width="54" height="28" class="obox"/><text x="247" y="309" text-anchor="middle" class="lbl">L1</text>
+              <rect x="290" y="290" width="54" height="28" class="obox"/><text x="317" y="309" text-anchor="middle" class="lbl">L2</text>
+              <rect x="360" y="290" width="54" height="28" class="obox"/><text x="387" y="309" text-anchor="middle" class="lbl">L3</text>
+              <path d="M160 304 H216 M274 304 H286 M344 304 H356" class="wire o thin" marker-end="url(#ah-o)"/>
+            </g>
+            <text x="470" y="26" text-anchor="middle" class="lbl">data blocks</text>
+            <g id="inode-data"></g>
+            <path d="M160 110 C 300 110, 330 60, 426 60 M160 170 C 300 170, 330 110, 426 110" class="wire p thin" marker-end="url(#ah-p)"/>
+            <g data-step="1"><path d="M290 211 C 360 211, 380 170, 426 160 M390 259 C 410 259, 410 210, 426 210 M414 304 C 430 304, 420 262, 426 260" class="wire o thin" marker-end="url(#ah-o)"/></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 2.5</span>The inode's 15 pointers.</figcaption>
+      </figure>
+    </div>
+    <div class="widget" id="in-w" data-step="2">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Where does this byte's block pointer live?</span><button class="w-reset" type="button" id="in-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="in-bs">Block size <select id="in-bs"><option value="1024">1 KB</option><option value="4096" selected>4 KB</option></select></label>
+        <span class="ctl-label">4-byte pointers</span>
+        <span class="seg" aria-label="Byte offset" id="in-off"></span>
+      </div>
+      <div class="widget-body">
+        <div class="canvas-wrap"><svg class="dia" id="in-svg" viewBox="0 0 700 80" width="700" style="min-width:520px" role="img" aria-label="The four pointer ranges on a log scale, with the chosen offset marked"></svg></div>
+        <div class="stats" id="in-stats" style="margin-top:14px"></div>
+      </div>
+      <div class="readout" id="in-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-9">
+    <h3><span class="sec-no">2.9</span>Files vs. processes</h3>
+    <div class="prose">
+      <p>Both problems map an entity onto storage: a process's address space onto RAM frames through page tables, a file's data onto disk or flash. The differences:</p>
+      <ul>
+        <li data-step="1">an address space has a fixed size known in advance; files grow and shrink, so they need a more flexible map than a page table, which cannot grow;</li>
+        <li data-step="2">an address space can be sparse and mostly unused, while a file's data is all in use.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="q1">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Chapter 2</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A program jumps straight to block 1000 of a big file. Which allocation method reaches it with the fewest steps, and which with the most?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Contiguous is the fastest (start + 1000), but FAT is not the slowest: its links sit together in a cached table, while linked allocation reads a disk block per link.">Fewest: contiguous · most: FAT</button>
+          <button type="button" class="q-opt" data-ok>Fewest: contiguous · most: linked</button>
+          <button type="button" class="q-opt" data-why="Indexed needs one index lookup plus the data block; contiguous needs only the data block. And linked is the slowest.">Fewest: indexed · most: contiguous</button>
+        </div>
+        <div class="q-fb ok">Right. Contiguous computes the address; linked must read 1000 blocks just to find the pointer to the 1001st.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch1">Back<b>1 · Open, read, close</b></a>
+    <a href="#ch3">Next<b>3 · Free-space management</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch3">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 3</div>
+    <h2>Free-space management</h2>
+    <p class="ch-lede">To allocate blocks, the file system must know which ones are free. Four ways to keep that "list".</p>
+  </div>
+
+  <div class="sec" id="s3-1">
+    <h3><span class="sec-no">3.1</span>Four representations</h3>
+    <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div><span class="tag">1 · Bit vector (bitmap)</span>One bit per block, concatenated into an array: bit j tells whether block j is allocated. Here bit = 1 means free, 0 allocated.</div>
+      <div data-step="1"><span class="tag">2 · Linked list</span>Link all free blocks together. It tracks only the free blocks (a bitmap also spends bits on allocated ones), and the first free block is found immediately. But allocating many blocks at once means traversing the list, which is slow.</div>
+      <div data-step="2"><span class="tag">3 · Grouping</span>A linked list whose list blocks each store n−1 pointers to free blocks, plus a pointer to the next list block. Many free blocks can be allocated at once.</div>
+      <div data-step="3"><span class="tag">4 · Counting</span>Grouping, plus a count on each entry: how many free blocks follow the one it points to. Even faster allocation of large numbers of free blocks.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-2">
+    <h3><span class="sec-no">3.2</span>Same free blocks, four records</h3>
+    <div class="widget" id="fs-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">A 20-block disk with 10 free blocks</span><button class="w-reset" type="button" id="fs-reset">Reset</button></div>
+      <div class="controls">
+        <span class="ctl-label">Request</span>
+        <span class="seg" aria-label="Request" id="fs-req"></span>
+      </div>
+      <div class="widget-body"><div id="fs-body"></div></div>
+      <div class="readout" id="fs-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch2">Back<b>2 · File allocation</b></a>
+    <a href="#ch4">Next<b>4 · Performance</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch4">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 4</div>
+    <h2>Performance</h2>
+    <p class="ch-lede">Most tricks either keep something in memory or put things on disk where the head will be.</p>
+  </div>
+
+  <div class="sec" id="s4-1">
+    <h3><span class="sec-no">4.1</span>In memory and on disk</h3>
+    <div class="pc">
+      <div class="pro" style="border-color:var(--cz)"><span class="tag" style="color:var(--cz-ink)">In memory</span><ul>
+        <li>cache the FCBs of open files;</li>
+        <li>cache directory entries, and hash the directory tree to find an entry and check whether it is in memory quickly;</li>
+        <li>cache file data.</li>
+      </ul></div>
+      <div class="pro" style="border-color:var(--cf)" data-step="1"><span class="tag" style="color:var(--cf-ink)">On disk</span><ul>
+        <li>file data: indexed allocation is generally faster than walking a linked list;</li>
+        <li>free blocks: counting or grouping allocates many blocks quickly;</li>
+        <li>smarter layout: keep the inode near the file's data, and the file's blocks near each other (Lecture 19);</li>
+        <li>the disk controller can have its own cache of data and FCBs.</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-2">
+    <h3><span class="sec-no">4.2</span>Read-ahead and asynchronous writes</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>Read-ahead</strong>: if the OS knows the access is sequential, it reads the requested page and several following ones into the cache, before they are asked for.</li>
+        <li data-step="1"><strong>Asynchronous writes</strong>: delay writing file data until later. <code>write()</code> returns without waiting for the disk, taking disk I/O off the program's critical path; the disk can schedule and group nearby writes; and if the data changes again soon, one write may be skipped entirely.</li>
+        <li data-step="2">Sometimes synchronous writes are preferable, for example for FCB metadata changed during <code>open()</code>. Chapter 5 explains why.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch3">Back<b>3 · Free-space management</b></a>
+    <a href="#ch5">Next<b>5 · Reliability and recovery</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch5">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 5</div>
+    <h2>Reliability and fault recovery</h2>
+    <p class="ch-lede">Part of the file system lives in RAM, and a power loss erases it. The OS must recover gracefully anyway.</p>
+  </div>
+
+  <div class="sec" id="s5-1">
+    <h3><span class="sec-no">5.1</span>A fragile file system</h3>
+    <div class="prose">
+      <p>Directories, file metadata and file data may all be cached in memory, and all be modified there. On a power loss, every modification not yet saved to disk is gone, and the copy on disk may be inconsistent.</p>
+      <ol>
+        <li data-step="1"><strong>Asynchronous writes</strong> create inconsistency between memory and disk. Promised writes of file data may be lost; directory information in RAM can be newer than on disk. <em>UNIX's answer</em>: cache directory entries for reads, but write any change to metadata or free-space allocation <strong>synchronously</strong>, before the data blocks.</li>
+        <li data-step="2"><strong>Even synchronous writes can fail halfway</strong>, leaving a half-written directory entry, FCB, or data block.</li>
+        <li data-step="3"><strong>Complex operations</strong> can be interrupted in the middle. <code>create()</code> updates the directory, the FCB, data blocks, and free-space structures; crash after the FCB is created, and the directory points to an FCB whose index block was never fully allocated.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-2">
+    <h3><span class="sec-no">5.2</span>Consistency checkers</h3>
+    <div class="prose">
+      <p>Run a checker such as <code>fsck</code> (UNIX) or <code>chkdsk</code> (MS-DOS) after a crash. With linked allocation it checks every list and every FCB against the directory structure (similar checks for indexed allocation), and verifies each allocated block's checksum.</p>
+      <p data-step="1">But it is computationally intensive and takes a long time on a whole file system, and it can detect an error without being able to correct it.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-3">
+    <h3><span class="sec-no">5.3</span>Log-based recovery</h3>
+    <div class="prose">
+      <ul>
+        <li>The OS keeps a <strong>log</strong> (journal) on disk of every operation on the file system. After a failure, it consults the log to reconstruct the file system.</li>
+        <li data-step="1"><strong>Write-ahead logging</strong>: each operation is written to the log <em>before</em> it is performed on the data: "I'm about to write this directory entry / file header / data block", then "I just finished".</li>
+        <li data-step="2">Operations are grouped into <strong>transactions</strong>. A <code>create()</code> has many steps, and you want the whole file created or nothing at all. Transactions are <strong>atomic</strong>: they succeed in their entirety or not at all.</li>
+        <li data-step="3">A transaction T<sub>i</sub> is logged as <code>&lt;Ti start&gt;</code>, then records like <code>write(X, old, new)</code>, then <code>&lt;Ti commit&gt;</code>. Each record keeps the transaction, the data item, and <strong>both the old and the new value</strong>, so recovery can go either way.</li>
+        <li data-step="4">Once <code>&lt;commit&gt;</code> is in the log, the log alone can finish the transaction after a crash, so the system call may return. The actual write of X to disk may come much later, and transactions may overlap in the log.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-4">
+    <h3><span class="sec-no">5.4</span>Checkpoints, redo, undo</h3>
+    <div class="prose">
+      <p>A <strong>checkpoint</strong> record confirms that every full transaction before it has been both committed to the log and executed on disk. Relative to the latest checkpoint:</p>
+      <ul>
+        <li data-step="1"><span class="muted"><strong>completed</strong></span>: full transactions before the checkpoint. Nothing to do; they can be removed from the log, or overwritten if it is circular.</li>
+        <li data-step="2"><strong class="f">committed</strong>: full transactions after the checkpoint, possibly not yet on disk. After a crash, <strong>redo()</strong> them.</li>
+        <li data-step="3"><strong class="d">partial</strong>: a start without a commit. After a crash, <strong>undo()</strong> them, rolling back to the old values. These are <em>aborted</em> transactions.</li>
+      </ul>
+      <p data-step="3">In normal operation the file system periodically replays committed transactions onto disk and appends a new checkpoint, turning them into completed ones.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-5">
+    <h3><span class="sec-no">5.5</span>Crash the system</h3>
+    <div class="widget" id="lg-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Pick the moment of the crash, then recover</span><button class="w-reset" type="button" id="lg-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="lg-k">Crash after record <input id="lg-k" type="range" min="0" max="9" step="1" value="9"> <b class="mono" id="lg-kv"></b></label>
+      </div>
+      <div class="widget-body">
+        <div class="logstrip" id="lg-strip"></div>
+        <div class="stats" id="lg-stats" style="margin-top:14px"></div>
+      </div>
+      <div class="readout" id="lg-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Before any transaction, the disk holds X = 1, Y = 2, Z = 3. The log is the one from the slides.</p>
+  </div>
+
+  <div class="sec" id="q2">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Redo or undo?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">After a crash, the log since the last checkpoint contains <code>&lt;T4 start&gt; write(A, 3, 8) &lt;T4 commit&gt; &lt;T5 start&gt; write(B, 1, 6)</code> and nothing more. What does recovery do?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="T5 never committed, so it must not take effect. Redoing it would expose half of an atomic operation.">Redo T4 and T5</button>
+          <button type="button" class="q-opt" data-ok>Redo T4 (A = 8), undo T5 (B = 1)</button>
+          <button type="button" class="q-opt" data-why="T4's commit is in the log, so the system call already returned to the program. Undoing it would lose a promised write.">Undo T4 and T5</button>
+          <button type="button" class="q-opt" data-why="T4 is after the checkpoint, so its writes may not have reached the disk yet. It must be redone.">Nothing: both are after the checkpoint</button>
+        </div>
+        <div class="q-fb ok">Right. Committed after the checkpoint → redo with the new value; started but not committed → undo with the old value.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-6">
+    <h3><span class="sec-no">5.6</span>Journaling, log-structured, copy-on-write</h3>
+    <div class="table-wrap">
+      <table class="glossary" style="max-width:none">
+        <thead><tr><th>Kind</th><th>How it works</th><th>Trade-off</th></tr></thead>
+        <tbody>
+          <tr><td>journaling</td><td>the log is a separate structure next to the normal file system. NTFS logs only metadata changes (file headers, directory entries), not file data</td><td>safe metadata; data written twice if it is journaled too</td></tr>
+          <tr data-step="1"><td>log-structured</td><td>the log <em>is</em> the file system: no separate structures for data and metadata. Storage is a circular log, written sequentially at its head. Assumes writes cost more than reads, since reads are mostly served from cache</td><td>fast batched writes with low seek time; snapshots and "time travel"; simple recovery from the last checkpoint. But files fragment, so reads from disk can be much slower</td></tr>
+          <tr data-step="2"><td>copy-on-write (ZFS, Btrfs)</td><td>never change data in place: write new blocks, then new metadata pointing to them, then new metadata pointing to that, up to the root</td><td>the correctness of a journal without its write-twice overhead; checksums guard data integrity</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-7">
+    <h3><span class="sec-no">5.7</span>ext4's three journal modes</h3>
+    <div class="opts3">
+      <div><span class="tag">journal</span>Both metadata and file data are logged. The safest mode, at the cost of two disk writes for every write.</div>
+      <div data-step="1"><span class="tag">ordered (default)</span>Only metadata is logged, and file contents are guaranteed to reach disk <em>before</em> the metadata is committed in the journal. The default on many Linux distributions.</div>
+      <div data-step="2"><span class="tag">writeback</span>Only metadata is logged, with no ordering guarantee, so a crash can leave a file whose metadata is new but whose contents are garbage. Fastest, least reliable.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="q3">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">After a crash in ordered mode</span></div>
+      <div class="quiz-body">
+        <div class="q-text">ext4 in ordered mode crashes right after a program appended to a file. Which outcome is <strong>impossible</strong> after recovery?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="If the metadata commit never made it to the journal, recovery keeps the old size: the append is simply lost. That is allowed.">The file has its old size; the append is gone.</button>
+          <button type="button" class="q-opt" data-why="If the metadata committed, ordered mode already wrote the data first, so the file shows the appended bytes. That is allowed.">The file has its new size and the new bytes.</button>
+          <button type="button" class="q-opt" data-ok>The file has its new size, but the new part contains stale garbage.</button>
+        </div>
+        <div class="q-fb ok">Right. That is exactly what ordered mode prevents by writing data before committing metadata. Writeback mode allows it.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q4">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">The open count</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Three processes have <code>foo.txt</code> open. One of them calls <code>close()</code>. What happens to the FCB in the system open-file table?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="The other two processes still use it; removing it would break their reads.">It is removed and written back to disk.</button>
+          <button type="button" class="q-opt" data-ok>Its open count drops from 3 to 2 and it stays in memory.</button>
+          <button type="button" class="q-opt" data-why="Only the closing process's per-process entry, with its file position, goes away. The shared FCB stays.">Every process's file position resets to 0.</button>
+        </div>
+        <div class="q-fb ok">Right. Write-back happens only when the count reaches 0 (§1.2; step through it in §1.3).</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch4">Back<b>4 · Performance</b></a>
+    <a href="#tail">Next<b>∎ · Summary and glossary</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="tail">
+  <div class="ch-head">
+    <div class="ch-no">Epilogue</div>
+    <h2>Summary and glossary</h2>
+  </div>
+
+  <div class="sec" id="s-sum">
+    <h3><span class="sec-no">∎</span>What to take away</h3>
+    <div class="prose">
+      <ul>
+        <li>On disk: directory tree, FCBs (inodes), data, boot block, volume control block. In memory: cached directories, the system OFT with open counts, per-process OFTs with file positions, the mount table.</li>
+        <li><code>open</code> finds the FCB and caches it; <code>read</code> follows descriptor → FCB → blocks; <code>close</code> writes metadata back when the last user closes.</li>
+        <li>Allocation: contiguous (fast, fragments), linked (flexible, slow random access, fragile), FAT (links in a table), indexed (direct access), multilevel and the UNIX inode (small files cheap, large files possible).</li>
+        <li>Free space: bitmap, linked list, grouping, counting.</li>
+        <li>Crashes: synchronous metadata writes, <code>fsck</code>, and write-ahead logging with transactions, checkpoints, redo and undo. Journaling, log-structured and copy-on-write file systems build on these ideas.</li>
+      </ul>
+    </div>
+    <div class="note note-lab" data-step="1">
+      <span class="note-tag">In the lab</span>
+      <p>Basecamp 5's <code>filetest</code> exercises exactly the per-process state of §0.3: every <code>r</code>, <code>w</code> and <code>s</code> command moves the file position that the kernel keeps in the open-file table, which is why <code>s 0 cur</code> works as "tell".</p>
+    </div>
+  </div>
+
+  <div class="table-wrap read-only">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>FCB / inode</td><td>A file's attributes and the location of its data. UNIX calls it the inode.</td></tr>
+        <tr><td>volume control block</td><td>Per-volume details: block count, block size, free blocks.</td></tr>
+        <tr><td>system OFT</td><td>One entry per open file: the cached FCB and an open count.</td></tr>
+        <tr><td>per-process OFT</td><td>One entry per file a process opened: access rights and the current position. A file descriptor indexes it.</td></tr>
+        <tr><td>contiguous / linked / indexed</td><td>Blocks b…b+n−1 / a list of blocks with next-pointers / an index block listing the blocks.</td></tr>
+        <tr><td>FAT</td><td>Linked allocation with the pointers moved into one table at the start of the volume.</td></tr>
+        <tr><td>direct / indirect pointer</td><td>Points to a data block / to an index block of further pointers.</td></tr>
+        <tr><td>bitmap / free list</td><td>One bit per block / a linked list of free blocks.</td></tr>
+        <tr><td>read-ahead</td><td>Reading the next blocks of a sequential file before they are requested.</td></tr>
+        <tr><td>write-ahead log</td><td>Recording an operation in the log before performing it.</td></tr>
+        <tr><td>transaction</td><td>A group of operations that takes effect entirely or not at all.</td></tr>
+        <tr><td>checkpoint</td><td>A log record confirming that everything before it is on disk.</td></tr>
+        <tr><td>redo / undo</td><td>Re-apply a committed transaction's new values / restore a partial transaction's old values.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Adapted from the File System Implementation slides.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  const clear = (n) => { while (n.firstChild) n.removeChild(n.firstChild); };
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  /* ---------- hero: blocks joining into files ---------- */
+  (function () {
+    const cv = $('#hero-canvas'); if (!cv) return;
+    const CELL = 26;
+    let W = 0, H = 0, chains = [];
+    function size() {
+      const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+      W = r.width; H = r.height;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+      chains = []; for (let k = 0; k < 6; k++) chains.push(mk());
+      draw();
+    }
+    function mk() {
+      const cols = Math.floor(W / CELL), rows = Math.floor(H / CELL), pts = [];
+      for (let i = 0; i < 4 + Math.floor(Math.random() * 3); i++) pts.push([Math.floor(Math.random() * cols), Math.floor(Math.random() * rows)]);
+      return { pts, life: 0, c: Math.random() < 0.5 ? 'cz' : 'co' };
+    }
+    function draw() {
+      const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H);
+      chains.forEach((ch) => {
+        const c = tok('--' + ch.c), a = Math.min(1, ch.life < 1 ? ch.life : 2 - ch.life) * 0.5;
+        ctx.globalAlpha = a; ctx.strokeStyle = c; ctx.fillStyle = c; ctx.lineWidth = 1;
+        ch.pts.forEach(([x, y], i) => {
+          ctx.globalAlpha = a * 0.35; ctx.fillRect(x * CELL + 3, y * CELL + 3, CELL - 5, CELL - 5);
+          ctx.globalAlpha = a; ctx.strokeRect(x * CELL + 3.5, y * CELL + 3.5, CELL - 6, CELL - 6);
+          if (i) { const [px, py] = ch.pts[i - 1]; ctx.beginPath(); ctx.moveTo(px * CELL + CELL / 2, py * CELL + CELL / 2); ctx.lineTo(x * CELL + CELL / 2, y * CELL + CELL / 2); ctx.stroke(); }
+        });
+      });
+      ctx.globalAlpha = 1;
+    }
+    size();
+    addEventListener('resize', size);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    if (!reduce) setInterval(() => {
+      if (document.hidden || document.documentElement.classList.contains('present')) return;
+      chains.forEach((ch, i) => { ch.life += 0.02; if (ch.life >= 2) chains[i] = mk(); });
+      draw();
+    }, 60);
+  })();
+
+  /* ---------- Fig. 0.1 directory tree ---------- */
+  (function () {
+    const g = $('#tree-g');
+    const N = { root: [300, 26, '/'], users: [150, 96, 'users'], bin: [300, 96, 'bin'], lib: [440, 96, 'lib'],
+      alice: [90, 166, 'alice'], bob: [190, 166, 'bob'], carl: [320, 166, 'carl'],
+      amail: [30, 236, 'mail'], p1: [100, 236, 'program1'], p2: [190, 236, 'program2'], sp: [320, 236, 'SeniorProject'], cmail: [440, 236, 'mail'],
+      foo: [320, 306, 'foo.txt'] };
+    const E = [['root', 'users'], ['root', 'bin'], ['root', 'lib'], ['users', 'alice'], ['users', 'bob'], ['users', 'carl'], ['alice', 'amail'], ['alice', 'p1'], ['alice', 'p2'], ['carl', 'sp'], ['carl', 'cmail'], ['sp', 'foo']];
+    const PATH = ['root', 'users', 'carl', 'sp', 'foo'], MAIL = ['amail', 'cmail'];
+    E.forEach(([a, b]) => {
+      const on = PATH.includes(a) && PATH.includes(b);
+      g.appendChild(el('path', { d: `M${N[a][0]} ${N[a][1] + 13} L${N[b][0]} ${N[b][1] - 13}`, class: 'wire ' + (on ? 'p' : 'thin'), 'marker-end': on ? 'url(#ah-p)' : 'url(#ah)' }));
+    });
+    Object.entries(N).forEach(([k, [x, y, t]]) => {
+      const w = Math.max(44, t.length * 8 + 16);
+      g.appendChild(el('rect', { x: x - w / 2, y: y - 13, width: w, height: 26, rx: 5, class: PATH.includes(k) ? 'pbox' : MAIL.includes(k) ? 'dbox' : k === 'root' ? 'box2' : 'box' }));
+      g.appendChild(el('text', { x, y: y + 5, 'text-anchor': 'middle', class: 'mono' }, t));
+    });
+  })();
+
+  /* ---------- Fig. 0.2 FCB ---------- */
+  (function () {
+    const g = $('#fcb-g');
+    [['name', 'foo.txt'], ['unique ID', '#48213'], ['permissions', 'rw-r--r--'], ['dates', 'created, modified'], ['size', '14,211 bytes'], ['location on disk', 'blocks 8, 3, 7, 2']].forEach(([k, v], i) => {
+      const y = 40 + i * 34;
+      g.appendChild(el('rect', { x: 20, y, width: 260, height: 30, class: i === 5 ? 'obox' : 'box' }));
+      g.appendChild(el('text', { x: 30, y: y + 20, class: 'lbl' }, k));
+      g.appendChild(el('text', { x: 270, y: y + 20, 'text-anchor': 'end', class: 'mono', style: 'font-size:12px' }, v));
+    });
+  })();
+
+  /* ---------- §1.3 open-file tables ---------- */
+  (function () {
+    const S = [
+      { call: '(nothing open yet)', dir: [], sys: [], p1: [], p2: [], dr: 0, dw: 0, t: 'Both processes start with empty tables. The directory cache is cold.' },
+      { call: 'P1: fd = open("foo.txt")', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 1'], p1: ['fd 3 → foo.txt · pos 0'], p2: [], dr: 2, dw: 0, hot: ['dir0', 'sys0', 'p10'], t: 'Directory miss: read the directory from disk and cache it. Read the FCB into the system OFT with count 1. P1 gets descriptor 3. <b>2 disk reads.</b>' },
+      { call: 'P2: fd = open("foo.txt")', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 2'], p1: ['fd 3 → foo.txt · pos 0'], p2: ['fd 3 → foo.txt · pos 0'], dr: 2, dw: 0, hot: ['sys0', 'p20'], t: 'Directory hit, and the FCB is already in the system OFT: just increment the count. <b>No disk reads.</b> P2 also gets descriptor 3; descriptors are per process.' },
+      { call: 'P1: read(3, buf, 100)', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 2'], p1: ['fd 3 → foo.txt · pos 100'], p2: ['fd 3 → foo.txt · pos 0'], dr: 3, dw: 0, hot: ['p10'], t: 'fd 3 → P1\'s entry → FCB → block 8 on disk. Copy 100 bytes to P1\'s buffer; P1\'s position moves to 100.' },
+      { call: 'P2: read(3, buf, 50)', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 2'], p1: ['fd 3 → foo.txt · pos 100'], p2: ['fd 3 → foo.txt · pos 50'], dr: 3, dw: 0, hot: ['p20'], t: 'P2 reads from its own position, 0, not P1\'s. Block 8 is still cached from P1\'s read: no disk read. Each process has its own file position.' },
+      { call: 'P1: write(3, "x", 1)', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 2 · modified'], p1: ['fd 3 → foo.txt · pos 101'], p2: ['fd 3 → foo.txt · pos 50'], dr: 3, dw: 0, hot: ['p10', 'sys0'], dirty: true, t: 'The write updates the cached data and the FCB\'s modification time, <em>in memory only</em>. The FCB on disk is now out of date.' },
+      { call: 'P1: close(3)', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 1 · modified'], p1: [], p2: ['fd 3 → foo.txt · pos 50'], dr: 3, dw: 0, hot: ['sys0'], dirty: true, t: 'Remove P1\'s entry and decrement the count to 1. P2 still uses the FCB, so nothing is written back yet.' },
+      { call: 'P2: close(3)', dir: ['foo.txt → FCB'], sys: [], p1: [], p2: [], dr: 3, dw: 1, t: 'The count reaches 0: write the modified FCB back to disk and drop it from the system OFT. <b>1 disk write.</b> The directory stays cached for the next open.' },
+    ];
+    let i = 0;
+    function tbl(name, rows, key, hot, dirty) {
+      return `<div class="tbl"><div class="hd">${name}</div>${rows.length ? rows.map((r, k) => `<div class="r${hot && hot.includes(key + k) ? ' hot' : ''}${dirty && key === 'sys' ? ' dirty' : ''}">${r}</div>`).join('') : '<div class="empty">empty</div>'}</div>`;
+    }
+    function show(k) {
+      i = Math.max(0, Math.min(S.length - 1, k));
+      const s = S[i];
+      $('#oft-call').textContent = s.call;
+      $('#oft-tbls').innerHTML = tbl('directory cache', s.dir, 'dir', s.hot) + tbl('system OFT', s.sys, 'sys', s.hot, s.dirty) + tbl('P1 OFT', s.p1, 'p1', s.hot) + tbl('P2 OFT', s.p2, 'p2', s.hot);
+      $('#oft-tbls').style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+      $('#oft-stats').innerHTML = `<div><div class="lab">disk reads so far</div><div class="big">${s.dr}</div></div><div class="${s.dirty ? 'warn' : ''}"><div class="lab">FCB on disk</div><div class="big" style="font-size:19px">${s.dirty ? 'out of date' : s.dw ? 'written back' : 'up to date'}</div></div><div><div class="lab">disk writes so far</div><div class="big">${s.dw}</div></div>`;
+      $('#oft-out').innerHTML = `<span class="mono muted">${i}/${S.length - 1}</span> · ${s.t}`;
+      $('#oft-prev').disabled = i === 0; $('#oft-next').disabled = i === S.length - 1;
+    }
+    const ctl = Academy.register('s1-3', { steps: S.length - 1, readStep: 0, show });
+    $('#oft-prev').addEventListener('click', () => ctl.go(i - 1));
+    $('#oft-next').addEventListener('click', () => ctl.go(i + 1));
+    $('#oft-reset').addEventListener('click', () => ctl.go(0));
+    show(0);
+  })();
+
+  /* ---------- allocation layouts ---------- */
+  const OTHER = [0, 1, 4, 5, 6, 9, 10, 11, 13, 14, 21, 22, 23];
+  const CHAIN = [8, 3, 7, 2], IDX = 12, CONTIG = [17, 18, 19, 20];
+  function layout(mode, opts) {
+    opts = opts || {};
+    const blocks = mode === 'contig' ? CONTIG.slice() : CHAIN.slice();
+    if (opts.appended != null) blocks.push(opts.appended);
+    const cells = [];
+    for (let b = 0; b < 25; b++) {
+      let cls = OTHER.includes(b) ? 'other' : '', label = '', sub = '';
+      const j = blocks.indexOf(b);
+      if (j >= 0) {
+        cls = 'file'; label = 'foo·' + j;
+        if (mode === 'linked') sub = j < blocks.length - 1 ? '→' + blocks[j + 1] : 'end';
+        if (opts.lost && opts.lost.includes(j)) cls = 'lost';
+        if (opts.appended === b) cls = 'new';
+      }
+      if (mode === 'index' && b === IDX) { cls = 'idx'; label = 'index'; sub = blocks.join(','); }
+      if (opts.hits && opts.hits.includes(b)) cls += ' hit';
+      cells.push(`<div class="b ${cls}"><span class="n">${b}</span>${label}${sub ? `<small>${sub}</small>` : ''}</div>`);
+    }
+    return cells.join('');
+  }
+  function fatRow(opts) {
+    opts = opts || {};
+    const blocks = CHAIN.slice(); if (opts.appended != null) blocks.push(opts.appended);
+    let h = '';
+    for (let b = 0; b < 25; b++) h += `<div class="i">${b}</div>`;
+    for (let b = 0; b < 25; b++) {
+      const j = blocks.indexOf(b);
+      const v = j >= 0 ? (j < blocks.length - 1 ? blocks[j + 1] : 'EOF') : OTHER.includes(b) ? '·' : 0;
+      h += `<div class="${j >= 0 ? 'on' : ''}${opts.hits && opts.hits.includes(b) ? ' hit' : ''}">${v}</div>`;
+    }
+    return h;
+  }
+  $$('.dgrid[data-mode]').forEach((g) => { g.innerHTML = layout(g.dataset.mode); });
+  $$('.fatrow[data-fat]').forEach((g) => { g.innerHTML = fatRow(); });
+
+  /* ---------- §2.6 allocation widget ---------- */
+  (function () {
+    const MODES = [['contig', 'Contiguous'], ['linked', 'Linked'], ['fat', 'FAT'], ['index', 'Indexed']];
+    let m = 0, act = { k: 'read', j: 2 }, bad = false;
+    $('#al-m').innerHTML = MODES.map(([, n], i) => `<button type="button" data-m="${i}">${n}</button>`).join('');
+    $('#al-r').innerHTML = '<span class="seg-label">read block</span>' + [0, 1, 2, 3].map((j) => `<button type="button" class="mono" data-j="${j}">${j}</button>`).join('');
+    function render() {
+      const mode = MODES[m][0];
+      $$('#al-m [data-m]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.m === m)));
+      $$('#al-r [data-j]').forEach((b) => b.setAttribute('aria-pressed', String(act.k === 'read' && +b.dataset.j === act.j)));
+      $('#al-bad').style.display = mode === 'linked' ? '' : 'none';
+      $('#al-bad').setAttribute('aria-pressed', String(bad));
+      let hits = [], reads = 0, writes = 0, extra = '', msg = '', opts = {};
+      const lost = mode === 'linked' && bad ? [2, 3] : null;
+      if (act.k === 'read') {
+        const j = act.j;
+        if (mode === 'contig') { hits = [CONTIG[0] + j]; reads = 1; msg = `Block ${j} is at start + ${j} = ${CONTIG[0] + j}. One disk read, computed without looking anything up.`; }
+        else if (mode === 'linked') {
+          if (bad && j >= 2) { hits = [8, 3]; reads = 2; msg = `Follow 8 → 3, but block 3's pointer is corrupted. Blocks 2 and 3 of the file are unreachable: <span class="bad">the rest of the file is lost</span>.`; }
+          else { hits = CHAIN.slice(0, j + 1); reads = j + 1; msg = `Start at 8 and follow the pointers stored in the data blocks: ${hits.join(' → ')}. <b>${reads} disk reads</b> to reach block ${j}.`; }
+        }
+        else if (mode === 'fat') { hits = [CHAIN[j]]; reads = 1; extra = `${j} FAT lookups`; msg = `Walk the chain in the FAT: ${CHAIN.slice(0, j + 1).join(' → ')} (${j} lookups in the cached table), then read block ${CHAIN[j]}. <b>1 disk read.</b>`; opts.fatHits = CHAIN.slice(0, j + 1); }
+        else { hits = [IDX, CHAIN[j]]; reads = 2; msg = `Read index block 12, take entry ${j} (block ${CHAIN[j]}), read it. <b>2 disk reads</b>, for any j; 1 if the index block is cached.`; }
+      } else {
+        if (mode === 'contig') { hits = [21]; msg = '<span class="bad">Block 21 belongs to another file.</span> The file must move to a free run of 5 blocks, and there is none (the largest free run is 2): external fragmentation. Compact the disk first.'; }
+        else {
+          opts.appended = 15; writes = mode === 'index' ? 2 : 2;
+          if (mode === 'linked') { hits = [2, 15]; msg = 'Take free block 15, write it, and set the old last block\'s (2) pointer to 15: <b>2 writes</b>. The header\'s end pointer now says 15.'; }
+          else if (mode === 'fat') { hits = [15]; opts.fatHits = [2, 15]; msg = 'Find the first 0 entry (15), set FAT[2] = 15 and FAT[15] = EOF, write block 15: <b>1 data write + the FAT block</b>.'; }
+          else { hits = [IDX, 15]; msg = 'Add 15 to the index block and write block 15: <b>2 writes</b>. No chain to walk, no data to move.'; }
+        }
+      }
+      $('#al-grid').innerHTML = layout(mode, { hits, lost, appended: opts.appended });
+      $('#al-fat').innerHTML = mode === 'fat' ? fatRow({ hits: opts.fatHits, appended: opts.appended }) : '';
+      $('#al-fat').style.display = mode === 'fat' ? '' : 'none';
+      $('#al-stats').innerHTML = act.k === 'read'
+        ? `<div class="${reads > 2 ? 'warn' : ''}"><div class="lab">disk reads</div><div class="big">${reads}</div>${extra ? `<div class="sub">+ ${extra}</div>` : ''}</div><div><div class="lab">space for pointers</div><div class="big" style="font-size:19px">${['none', 'one per block', 'one FAT entry per block', 'one index block'][m]}</div></div>`
+        : `<div class="${mode === 'contig' ? 'warn' : ''}"><div class="lab">append</div><div class="big" style="font-size:19px">${mode === 'contig' ? 'blocked' : 'block 15, ' + writes + ' writes'}</div></div>`;
+      $('#al-out').innerHTML = msg;
+    }
+    const ctl = Academy.register('s2-6', { steps: 3, readStep: 0, show: (i) => { m = i; bad = false; act = { k: 'read', j: 2 }; render(); } });
+    $('#al-m').addEventListener('click', (e) => { const b = e.target.closest('[data-m]'); if (b) ctl.go(+b.dataset.m); });
+    $('#al-r').addEventListener('click', (e) => { const b = e.target.closest('[data-j]'); if (b) { act = { k: 'read', j: +b.dataset.j }; render(); } });
+    $('#al-app').addEventListener('click', () => { act = { k: 'append' }; render(); });
+    $('#al-bad').addEventListener('click', () => { bad = !bad; act = { k: 'read', j: 3 }; render(); });
+    $('#al-reset').addEventListener('click', () => ctl.go(0));
+    render();
+  })();
+
+  /* ---------- Fig. 2.5 inode data blocks ---------- */
+  (function () {
+    const g = $('#inode-data');
+    for (let k = 0; k < 7; k++) {
+      g.appendChild(el('rect', { x: 430, y: 40 + k * 38, width: 80, height: 30, class: k < 2 ? 'pbox' : 'box' }));
+      g.appendChild(el('text', { x: 470, y: 60 + k * 38, 'text-anchor': 'middle', class: 'lbl' }, k < 2 ? 'data' : k === 6 ? '…' : 'data'));
+    }
+  })();
+
+  /* ---------- §2.8 inode calculator ---------- */
+  (function () {
+    const svg = $('#in-svg');
+    const OFFS = [['1 KB', 1024], ['40 KB', 40960], ['1 MB', 1 << 20], ['100 MB', 100 * (1 << 20)], ['10 GB', 10 * 2 ** 30], ['1 TB', 2 ** 40]];
+    let oi = 1;
+    $('#in-off').innerHTML = '<span class="seg-label">byte offset</span>' + OFFS.map(([n], i) => `<button type="button" data-o="${i}">${n}</button>`).join('');
+    const fmt = (b) => { const u = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']; let i = 0; while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; } return (b >= 100 ? b.toFixed(0) : b >= 10 ? b.toFixed(1) : b.toFixed(2)).replace(/\.0+$/, '') + ' ' + u[i]; };
+    function render() {
+      const B = +$('#in-bs').value, P = B / 4, off = OFFS[oi][1];
+      $$('#in-off [data-o]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.o === oi)));
+      const lim = [12 * B, 12 * B + P * B, 12 * B + P * B + P * P * B, 12 * B + P * B + P * P * B + P * P * P * B];
+      const names = ['direct', 'single indirect', 'double indirect', 'triple indirect'];
+      let lvl = lim.findIndex((l) => off < l);
+      clear(svg);
+      const X = (v) => 20 + 660 * Math.log2(Math.max(v, B)) / Math.log2(lim[3]);
+      let x0 = 20;
+      ['pbox', 'obox', 'obox', 'obox'].forEach((cls, k) => {
+        const x1 = X(lim[k]);
+        svg.appendChild(el('rect', { x: x0, y: 18, width: Math.max(2, x1 - x0), height: 26, class: cls, style: k ? `fill-opacity:${0.25 + k * 0.25}` : '' }));
+        svg.appendChild(el('text', { x: (x0 + x1) / 2, y: 36, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:11px' }, ['direct', 'single', 'double', 'triple'][k]));
+        x0 = x1;
+      });
+      if (lvl >= 0) {
+        const x = X(off);
+        svg.appendChild(el('path', { d: `M${x} 62 V48`, class: 'wire d', 'marker-end': 'url(#ah-d)' }));
+        svg.appendChild(el('text', { x, y: 76, 'text-anchor': 'middle', class: 'lbl mono' }, OFFS[oi][0]));
+      }
+      $('#in-stats').innerHTML = lvl < 0
+        ? `<div class="warn"><div class="lab">pointer</div><div class="big">beyond the maximum</div></div><div><div class="lab">max file size</div><div class="big">${fmt(lim[3])}</div></div>`
+        : `<div><div class="lab">pointer used</div><div class="big" style="font-size:20px">${names[lvl]}</div></div>` +
+          `<div class="${lvl >= 2 ? 'warn' : ''}"><div class="lab">disk reads for this block</div><div class="big">${lvl + 1}</div><div class="sub">${lvl} index block${lvl === 1 ? '' : 's'} + the data; inode already in memory</div></div>` +
+          `<div><div class="lab">max file size</div><div class="big">${fmt(lim[3])}</div><div class="sub">(12 + ${P} + ${P}² + ${P}³) × ${fmt(B)}</div></div>`;
+      $('#in-out').innerHTML = lvl < 0 ? 'This offset is past the largest file the inode can describe with this block size.'
+        : `With ${fmt(B)} blocks, one index block holds ${P} pointers. Direct pointers cover the first ${fmt(lim[0])}; single indirect reaches ${fmt(lim[1])}; double indirect ${fmt(lim[2])}. ${OFFS[oi][0]} falls in the <b>${names[lvl]}</b> range.`;
+    }
+    $('#in-off').addEventListener('click', (e) => { const b = e.target.closest('[data-o]'); if (b) { oi = +b.dataset.o; render(); } });
+    $('#in-bs').addEventListener('input', render);
+    $('#in-reset').addEventListener('click', () => { $('#in-bs').value = '4096'; oi = 1; render(); });
+    render();
+  })();
+
+  /* ---------- §3.2 free space ---------- */
+  (function () {
+    const FREE = [2, 3, 4, 8, 9, 10, 11, 12, 15, 18];
+    const REQ = [['1 block', 'one'], ['5 blocks', 'many'], ['5 contiguous blocks', 'run']];
+    let r = 0;
+    $('#fs-req').innerHTML = REQ.map(([n], i) => `<button type="button" data-r="${i}">${n}</button>`).join('');
+    const COST = {
+      one: [['bitmap', '1 read (usually cached)', 'scan for the first 1 bit: block 2'], ['linked list', '1 read', 'take the head, block 2; its pointer gives the new head, 3'], ['grouping', '1 read', 'block 2 lists 3, 4, 8: hand out 3'], ['counting', '1 read', 'first entry (2, 3): hand out 2']],
+      many: [['bitmap', '1 read', 'scan: 2, 3, 4, 8, 9'], ['linked list', '5 reads', 'walk 2 → 3 → 4 → 8 → 9, one block at a time'], ['grouping', '2 reads', 'block 2 lists 3, 4, 8; block 9 lists 10, 11, 12'], ['counting', '1–2 reads', '(2, 3) gives 2, 3, 4; (8, 5) gives 8, 9']],
+      run: [['bitmap', '1 read', 'find the run 11111 at bits 8–12'], ['linked list', 'up to 10 reads', 'walk the list and notice consecutive numbers'], ['grouping', '3 reads', 'read the list blocks and look for consecutive numbers'], ['counting', '1 read', 'the entry (8, 5) says it directly']],
+    };
+    function render() {
+      $$('#fs-req [data-r]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.r === r)));
+      const bits = Array.from({ length: 20 }, (_, b) => FREE.includes(b) ? '<span class="f">1</span>' : '<span class="u">0</span>').join('');
+      const rows = COST[REQ[r][1]];
+      const best = r === 0 ? [] : r === 1 ? [0, 3] : [0, 3];
+      $('#fs-body').innerHTML =
+        `<div class="table-wrap" style="margin:0 0 12px"><table class="glossary" style="max-width:none;font-size:13.5px"><thead><tr><th>method</th><th>what is stored</th><th>cost</th><th>how</th></tr></thead><tbody>` +
+        rows.map(([n, c, how], i) => `<tr${best.includes(i) ? ' style="background:var(--good-soft)"' : ''}><td>${n}</td><td class="mono" style="font-size:12.5px">${[
+          `<span class="freebits">${bits}</span><br><span class="muted">bits 0–19, 1 = free</span>`,
+          'head → 2 → 3 → 4 → 8 → 9 → 10 → 11 → 12 → 15 → 18',
+          'block 2: [3, 4, 8 | next 9] · block 9: [10, 11, 12 | next 15] · block 15: [18]',
+          '(2, 3) · (8, 5) · (15, 1) · (18, 1)'][i]}</td><td class="mono">${c}</td><td>${how}</td></tr>`).join('') + '</tbody></table></div>';
+      $('#fs-out').innerHTML = ['Every method finds one free block fast.', 'Allocating many blocks: the plain linked list pays one disk read per block; grouping and counting hand out several per read.', 'Finding a contiguous run: the bitmap and counting see it at once; lists must be walked.'][r];
+    }
+    const ctl = Academy.register('s3-2', { steps: 2, readStep: 0, show: (i) => { r = i; render(); } });
+    $('#fs-req').addEventListener('click', (e) => { const b = e.target.closest('[data-r]'); if (b) ctl.go(+b.dataset.r); });
+    $('#fs-reset').addEventListener('click', () => ctl.go(0));
+    render();
+  })();
+
+  /* ---------- §5.5 crash recovery ---------- */
+  (function () {
+    const LOG = [
+      { t: 'T1', k: 'start' }, { t: 'T1', k: 'w', x: 'X', o: 1, n: 5 }, { t: 'T1', k: 'w', x: 'Y', o: 2, n: 6 }, { t: 'T1', k: 'commit' },
+      { k: 'cp' },
+      { t: 'T2', k: 'start' }, { t: 'T2', k: 'w', x: 'X', o: 5, n: 7 }, { t: 'T2', k: 'commit' },
+      { t: 'T3', k: 'start' }, { t: 'T3', k: 'w', x: 'Z', o: 3, n: 9 },
+    ];
+    function render() {
+      const K = +$('#lg-k').value, seen = LOG.slice(0, K + 1);
+      $('#lg-kv').textContent = K;
+      let cp = -1; seen.forEach((r, i) => { if (r.k === 'cp') cp = i; });
+      const tx = {};
+      seen.forEach((r, i) => { if (!r.t) return; tx[r.t] = tx[r.t] || { start: -1, commit: -1 }; if (r.k === 'start') tx[r.t].start = i; if (r.k === 'commit') tx[r.t].commit = i; });
+      const cls = {};
+      Object.entries(tx).forEach(([t, v]) => { cls[t] = v.commit < 0 ? 'undo' : v.commit < cp ? 'done' : 'redo'; });
+      $('#lg-strip').innerHTML = LOG.map((r, i) => {
+        const gone = i > K;
+        const c = r.k === 'cp' ? 'cp' : cls[r.t] || '';
+        const txt = r.k === 'cp' ? '&lt;checkpoint&gt;' : r.k === 'w' ? `${r.t} write(${r.x}, ${r.o}, ${r.n})` : `${r.t} &lt;${r.k}&gt;`;
+        return `<div class="rec ${gone ? 'gone' : c}"><small>#${i}</small>${txt}</div>`;
+      }).join('') + `<div class="rec" style="border-color:var(--cd);color:var(--cd);font-weight:600;align-self:center">⚡ crash after #${K}</div>`;
+      // recovery: start from base (1,2,3), completed ones are on disk; redo committed in order; undo partial in reverse
+      const val = { X: 1, Y: 2, Z: 3 };
+      seen.forEach((r) => { if (r.k === 'w' && cls[r.t] === 'done') val[r.x] = r.n; });
+      seen.forEach((r) => { if (r.k === 'w' && cls[r.t] === 'redo') val[r.x] = r.n; });
+      seen.slice().reverse().forEach((r) => { if (r.k === 'w' && cls[r.t] === 'undo') val[r.x] = r.o; });
+      const list = (c) => Object.keys(cls).filter((t) => cls[t] === c);
+      $('#lg-stats').innerHTML =
+        `<div><div class="lab">completed (before checkpoint)</div><div class="big">${list('done').join(', ') || '—'}</div></div>` +
+        `<div><div class="lab">redo (committed)</div><div class="big" style="color:var(--good)">${list('redo').join(', ') || '—'}</div></div>` +
+        `<div><div class="lab">undo (partial)</div><div class="big" style="color:var(--cx-ink)">${list('undo').join(', ') || '—'}</div></div>` +
+        `<div><div class="lab">disk after recovery</div><div class="big" style="font-size:20px">X=${val.X} · Y=${val.Y} · Z=${val.Z}</div></div>`;
+      const parts = [];
+      if (cp < 0) parts.push('No checkpoint in the log yet, so every committed transaction is redone.');
+      else parts.push(`Latest checkpoint: record #${cp}.`);
+      if (list('redo').length) parts.push(`Redo ${list('redo').join(', ')} with the new values: the commit was logged, so the program was told it succeeded.`);
+      if (list('undo').length) parts.push(`Undo ${list('undo').join(', ')} with the old values: no commit, so it never happened.`);
+      $('#lg-out').innerHTML = parts.join(' ');
+    }
+    $('#lg-k').addEventListener('input', render);
+    $('#lg-reset').addEventListener('click', () => { $('#lg-k').value = 9; render(); });
+    render();
+  })();
+})();
+</script>
+</body>
+</html>

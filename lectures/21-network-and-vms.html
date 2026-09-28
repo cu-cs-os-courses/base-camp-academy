@@ -1,0 +1,1080 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Network &amp; VMs · L21</title>
+<meta name="description" content="CSCI 3753 Lecture 21, interactive edition: the OS network stack, packetization, TCP/UDP, routing, and virtual machines with trap-and-emulate.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+/* ---- lecture-local ---- */
+.enc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 28px; }
+.stack { display: grid; gap: 6px; }
+.stack .lay { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--bg); transition: background 0.2s, border-color 0.2s; }
+.stack .lay.cur { border-color: var(--cx); background: var(--cx-soft); }
+.stack .lay .nm { font-size: 12.5px; color: var(--ink2); line-height: 1.3; }
+.stack .lay .nm b { display: block; color: var(--ink); font-size: 13px; }
+.pkt { display: flex; flex-wrap: wrap; gap: 2px; font-family: var(--f-mono); font-size: 11.5px; min-height: 24px; }
+.pkt span { border-radius: 4px; padding: 3px 6px; border: 1px solid var(--line2); background: var(--bg2); white-space: nowrap; }
+.pkt .h5 { border-color: var(--cz); background: var(--cz-soft); color: var(--cz-ink); }
+.pkt .h4 { border-color: var(--co); background: var(--co-soft); color: var(--co); }
+.pkt .h3 { border-color: var(--cf); background: var(--cf-soft); color: var(--cf-ink); }
+.pkt .h2 { border-color: var(--cx); background: var(--cx-soft); color: var(--cx-ink); }
+.pkt .dat { border-color: var(--ink3); background: var(--bg3); color: var(--ink); }
+.pkt .bits { border: 0; background: none; color: var(--ink3); letter-spacing: 0.06em; }
+.pkt .sz { border: 0; background: none; color: var(--ink3); }
+.ins-list { display: grid; gap: 4px; font-family: var(--f-mono); font-size: 13px; }
+.ins-list .ins { display: grid; grid-template-columns: 2.2em 13em minmax(0, 1fr); gap: 8px; align-items: center; padding: 4px 8px; border-radius: 6px; border: 1px solid transparent; }
+.ins-list .ins .n { color: var(--ink3); font-size: 11px; }
+.ins-list .ins .how { font-family: var(--f-body); font-size: 12.5px; color: var(--ink2); }
+.ins-list .ins.cur { border-color: var(--ink); background: var(--bg3); }
+.ins-list .ins.direct .how { color: var(--cz-ink); }
+.ins-list .ins.exit .how { color: var(--co); font-weight: 600; }
+.ins-list .ins.bad .how { color: var(--cd); font-weight: 600; }
+.ins-list .ins.pend { opacity: 0.35; }
+.pkts-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.pkts-row button { font-family: var(--f-mono); font-size: 12.5px; border: 1.5px solid var(--cz); background: var(--cz-soft); color: var(--cz-ink); border-radius: 7px; padding: 4px 10px; cursor: pointer; }
+.pkts-row button[aria-pressed="true"] { border-color: var(--cd); background: var(--cd-soft); color: var(--cd); text-decoration: line-through; }
+.deliv { font-family: var(--f-mono); font-size: 13px; line-height: 1.8; }
+.deliv b { color: var(--ink); }
+.deliv .gap { color: var(--cd); font-weight: 600; }
+@media (max-width: 760px) {
+  .enc-grid { grid-template-columns: minmax(0, 1fr); }
+  .ins-list .ins { grid-template-columns: 2em minmax(0, 1fr); }
+  .ins-list .ins .how { grid-column: 2; }
+}
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="7" height="7" class="hatch-bg"/><line x1="0" y1="0" x2="0" y2="7" class="hatch-line"/>
+    </pattern>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+    <marker id="ah-p" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-p"/></marker>
+    <marker id="ah-d" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-d"/></marker>
+    <marker id="ah-f" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-f"/></marker>
+    <marker id="ah-m" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-m"/></marker>
+    <marker id="ah-o" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-o"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><rect x="2.5" y="3" width="17" height="11" rx="1.5"/><rect x="5.5" y="6" width="11" height="5" rx="1"/><path d="M8 19h6M11 14v5"/></g><circle cx="11" cy="8.5" r="1.6" fill="var(--co)"/></svg>
+    <span>Lecture 21 · Network &amp; VMs</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Lecture 21 · Interactive notes</div>
+    <h1>Two more illusions:<br>a reliable pipe, and a <span class="accent">whole machine</span></h1>
+    <p class="lede">The OS has spent the semester building illusions: a private CPU out of time slices, private memory out of page tables, files out of blocks. This lecture adds two more. The network stack turns a lossy, reordering Internet into a reliable pipe between two processes. A virtual machine goes further and gives an entire operating system the illusion of its own hardware.</p>
+    <div class="promise">
+      <span>Before you start:</span><span class="mono">system calls, kernel mode, traps</span><span>(L2, L17), and devices (L17–18).</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#ch0">Begin ↓</a>
+      <span class="muted small">About 60 minutes · 4 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 18–19 · Continues in Lecture 22, Protection</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="chapters">
+    <p class="rail-title">Contents</p>
+    <a href="#ch0"><span class="n">0</span>The network stack</a>
+    <a href="#ch1"><span class="n">1</span>Packetization</a>
+    <a href="#ch2"><span class="n">2</span>Layer by layer</a>
+    <a href="#ch3"><span class="n">3</span>Recall: modes and rings</a>
+    <a href="#ch4"><span class="n">4</span>Virtual machines</a>
+    <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#ch0"><span class="n">0</span>The network stack</a>
+        <a href="#ch1"><span class="n">1</span>Packetization</a>
+        <a href="#ch2"><span class="n">2</span>Layer by layer</a>
+        <a href="#ch3"><span class="n">3</span>Recall: modes and rings</a>
+        <a href="#ch4"><span class="n">4</span>Virtual machines</a>
+        <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+      </nav>
+    </details>
+
+    <div class="sec present-only title-slide" id="title">
+      <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 21</div>
+      <h1>Networking &amp; Virtualization</h1>
+      <p class="lede">The network stack in the OS, and virtual machines.</p>
+      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 18–19</div>
+    </div>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch0">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 0</div>
+    <h2>The network stack</h2>
+    <p class="ch-lede">Web search, peer-to-peer, streaming video, social networks, mobile apps: all send and receive data over the Internet, through one part of the kernel.</p>
+  </div>
+
+  <div class="sec" id="s0-1">
+    <h3><span class="sec-no">0.1</span>Sockets and the kernel</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Every networked application talks to a remote process through the <strong>socket API</strong>: <code>send(message)</code>, <code>receive(message)</code>.</p>
+        <p data-step="1">The socket library makes system calls into the kernel's <strong>network stack</strong>, a manager next to the process, memory, file and device managers.</p>
+        <p data-step="2">The stack drives the <strong>network interface cards</strong> (NICs) on the I/O bus: Ethernet, WiFi, Bluetooth. Those are devices, handled exactly as in Lectures 17–18.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 460 340" width="400" role="img" aria-label="A networked application calls the socket library, which makes system calls into the kernel's network stack, which drives network interface cards">
+            <rect x="20" y="10" width="200" height="44" class="pbox"/><text x="120" y="37" text-anchor="middle">networked application</text>
+            <rect x="20" y="74" width="200" height="40" class="pbox" style="fill-opacity:.5"/><text x="120" y="99" text-anchor="middle" class="lbl">socket library</text>
+            <path d="M100 54 V70 M140 70 V58" class="wire p thin" marker-end="url(#ah-p)"/><text x="232" y="68" class="lbl mono">send / receive</text>
+            <g data-step="1">
+              <path d="M100 114 V150 M140 150 V118" class="wire p thin" marker-end="url(#ah-p)"/><text x="232" y="138" class="lbl">system calls</text>
+              <rect x="10" y="154" width="440" height="110" class="box"/><text x="440" y="176" text-anchor="end" class="big">OS kernel</text>
+              <rect x="30" y="186" width="80" height="34" class="box2"/><text x="70" y="208" text-anchor="middle" class="lbl">process</text>
+              <rect x="116" y="186" width="80" height="34" class="box2"/><text x="156" y="208" text-anchor="middle" class="lbl">memory</text>
+              <rect x="202" y="186" width="70" height="34" class="box2"/><text x="237" y="208" text-anchor="middle" class="lbl">file</text>
+              <rect x="278" y="186" width="70" height="34" class="box2"/><text x="313" y="208" text-anchor="middle" class="lbl">device</text>
+              <rect x="30" y="226" width="200" height="30" class="obox"/><text x="130" y="246" text-anchor="middle">network stack</text>
+            </g>
+            <g data-step="2">
+              <path d="M10 290 H450" class="wire" style="stroke-width:5;opacity:.45"/><text x="440" y="284" text-anchor="end" class="lbl">I/O bus</text>
+              <path d="M130 256 V290" class="wire o thin"/>
+              <rect x="30" y="300" width="110" height="32" class="fbox"/><text x="85" y="321" text-anchor="middle" class="lbl">NIC · Ethernet</text>
+              <rect x="170" y="300" width="100" height="32" class="fbox"/><text x="220" y="321" text-anchor="middle" class="lbl">NIC · WiFi</text>
+              <rect x="300" y="300" width="130" height="32" class="fbox"/><text x="365" y="321" text-anchor="middle" class="lbl">NIC · Bluetooth</text>
+              <path d="M85 290 V300 M220 290 V300 M365 290 V300" class="wire thin"/>
+            </g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 0.1</span>From <code>send()</code> to the network card.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-2">
+    <h3><span class="sec-no">0.2</span>A stack of protocol layers</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>The network stack is organized into <strong>layers of protocols</strong>; each protocol performs a specific set of duties.</p>
+        <p data-step="1">To <strong>send</strong>, each layer passes the packet down to the layer below. To <strong>receive</strong>, each layer takes the packet from the layer below, processes it, and passes it up.</p>
+        <p data-step="2">The socket API sits between the application and the transport layer: everything below it is in the kernel (or the NIC).</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 470 330" width="420" role="img" aria-label="Five network layers with example protocols">
+            <g id="layers-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 0.2</span>The five layers and some protocols at each.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#top">Back to<b>the top</b></a>
+    <a href="#ch1">Next<b>1 · Packetization</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch1">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 1</div>
+    <h2>Packetization</h2>
+    <p class="ch-lede">Data leaves as a stack of headers wrapped around a payload, and arrives with the headers peeled off in reverse.</p>
+  </div>
+
+  <div class="sec" id="s1-1">
+    <h3><span class="sec-no">1.1</span>From a buffer to packets</h3>
+    <div class="prose">
+      <ul>
+        <li>To send, the application calls the socket API's <code>send()</code> with a pointer to a user-space buffer holding the data.</li>
+        <li data-step="1">A large file is cut into smaller packets: a 1 GB file into 1 KB pieces, say.</li>
+        <li data-step="2">Each layer N prepends its own header NH<sub>x</sub> to data x and hands the result down. The packet <strong>grows</strong> as it descends. The header carries what the peer layer at the receiver needs to decode the packet.</li>
+        <li data-step="3">On receipt, each layer N strips off its header, and the packet <strong>shrinks</strong> as it moves up.</li>
+      </ul>
+    </div>
+    <div class="note note-honest read-only">
+      <span class="note-tag">Who cuts</span>
+      <p>In practice the application usually hands the whole buffer to <code>send()</code>, and TCP does the cutting: into segments that fit one link-layer frame, about 1460 bytes of payload on Ethernet.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-2">
+    <h3><span class="sec-no">1.2</span>Down one stack, up the other</h3>
+    <div class="widget" id="enc-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">One HTTP request, wrapped and unwrapped</span><button class="w-reset" type="button" id="enc-reset">Reset</button></div>
+      <div class="controls">
+        <button type="button" class="btn" id="enc-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="enc-next">Next ›</button>
+        <span class="mono muted" id="enc-where" style="font-size:13px"></span>
+      </div>
+      <div class="widget-body">
+        <div class="enc-grid">
+          <div><div class="sub-lab" style="margin-bottom:6px">sender · web browser</div><div class="stack" id="enc-s"></div></div>
+          <div><div class="sub-lab" style="margin-bottom:6px">receiver · web server</div><div class="stack" id="enc-r"></div></div>
+        </div>
+      </div>
+      <div class="readout" id="enc-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Header sizes are the usual minimums: TCP 20 bytes, IPv4 20, Ethernet 14 plus a 4-byte trailer.</p>
+  </div>
+
+  <div class="sec" id="q1">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Chapter 1</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A packet arrives at the receiver's transport layer. What has already happened to it, and what does the transport layer do?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Headers are added on the way down, at the sender. The receiver only removes them.">The network layer added an IP header; transport adds its own.</button>
+          <button type="button" class="q-opt" data-ok>The link and network layers have stripped their headers; transport reads and strips the TCP header and passes the rest up.</button>
+          <button type="button" class="q-opt" data-why="If nothing were stripped, every layer would have to understand every other layer's header. Each layer handles only its own.">Nothing has been removed; the application strips all headers at once.</button>
+        </div>
+        <div class="q-fb ok">Right. Each layer on the way up removes exactly the header its peer added on the way down.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch0">Back<b>0 · The network stack</b></a>
+    <a href="#ch2">Next<b>2 · Layer by layer</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 2</div>
+    <h2>Layer by layer</h2>
+    <p class="ch-lede">What each layer is responsible for, from the application down to the voltages on a wire.</p>
+  </div>
+
+  <div class="sec" id="s2-1">
+    <h3><span class="sec-no">2.1</span>Application layer (5)</h3>
+    <div class="prose">
+      <p>Ignore the lower layers for a moment. The layer-5 sender exchanges application-specific information with its <strong>peer</strong> layer 5 at the receiver. A web (HTTP) client sends a <code>GET</code> request for a page; the remote web server's layer 5 answers with the page.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-2">
+    <h3><span class="sec-no">2.2</span>Transport layer (4): TCP</h3>
+    <div class="prose">
+      <ul>
+        <li>The Internet can <strong>lose</strong> the application's message. The transport layer's job is end-to-end error recovery, if wanted: <strong>retransmit lost packets</strong>. That is TCP, the Transmission Control Protocol.</li>
+        <li data-step="1">How does the sender know a packet arrived? The receiver sends an <strong>acknowledgment (ACK)</strong>. When should it retransmit? It sets a <strong>timer</strong>; if the timer expires before the ACK arrives, it retransmits.</li>
+        <li data-step="2">TCP also guarantees <strong>in-order delivery</strong>. The web and email need both: a page with holes, or with its text reordered, is unreadable.</li>
+        <li data-step="3">So an application can treat a TCP connection as a <strong>pipe</strong>: everything put in comes out the other end, in the same order.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-3">
+    <h3><span class="sec-no">2.3</span>When reliability is too slow: UDP</h3>
+    <div class="prose">
+      <ul>
+        <li>Reliability costs delay: every retransmission waits for a timer.</li>
+        <li data-step="1">Interactive real-time applications like video conferencing cannot wait: a packet must arrive within about 30 ms or it is useless.</li>
+        <li data-step="2">Voice-over-IP apps like Skype and FaceTime can tolerate loss; the audio drops out briefly, and that's OK. They are built on the unreliable <strong>UDP</strong> (User Datagram Protocol) at layer 4 instead of TCP.</li>
+      </ul>
+    </div>
+    <div class="widget" id="tu-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Six packets over a lossy network</span><button class="w-reset" type="button" id="tu-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Protocol"><button type="button" data-p="tcp">TCP</button><button type="button" data-p="udp">UDP</button></span>
+        <span class="ctl-label">click to drop:</span>
+        <span class="pkts-row" id="tu-drop"></span>
+      </div>
+      <div class="widget-body">
+        <div class="canvas-wrap"><svg class="dia" id="tu-svg" viewBox="0 0 700 330" width="640" style="min-width:520px" role="img" aria-label="Sequence diagram of packets between sender and receiver"></svg></div>
+        <div class="deliv" id="tu-deliv" style="margin-top:12px"></div>
+      </div>
+      <div class="readout" id="tu-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Model: one packet sent per time unit, one-way delay 2, retransmission timer 5. Retransmissions are not lost.</p>
+  </div>
+
+  <div class="sec" id="s2-4">
+    <h3><span class="sec-no">2.4</span>Network layer (3): routing</h3>
+    <div class="prose">
+      <p>The Internet is many <strong>routers</strong> connected into a graph. The Internet Protocol (IP) must route each packet to its destination, and there are many routes. The network layer looks for the <strong>shortest path</strong>, for example with Dijkstra's algorithm; "shortest" may mean fewest hops, shortest distance, lowest delay, or lowest cost.</p>
+      <p data-step="1">Every router implements the network layer. IP routing can <strong>lose</strong> packets: any router or link may fail, and congested router buffers overflow. That's fine, as long as TCP retransmits them.</p>
+    </div>
+    <div class="widget" id="rt-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Route a packet; click a link to cut it</span><button class="w-reset" type="button" id="rt-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Metric"><button type="button" data-met="hops">fewest hops</button><button type="button" data-met="delay">lowest delay</button></span>
+      </div>
+      <div class="widget-body">
+        <div class="canvas-wrap"><svg class="dia" id="rt-svg" viewBox="0 0 720 300" width="680" style="min-width:540px" role="img" aria-label="A network of routers between a source and a destination, with the chosen path highlighted"></svg></div>
+      </div>
+      <div class="readout" id="rt-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-5">
+    <h3><span class="sec-no">2.5</span>Data link (2) and physical (1)</h3>
+    <div class="two-up" style="align-items:start">
+      <div class="prose">
+        <p><strong>Data link layer</strong>: every link between two neighboring nodes (routers or endpoints) must carry packets. This layer defines where a packet begins and ends (<strong>framing</strong>), and since packets can be lost on a link, it may also retransmit locally. Examples: Ethernet, WiFi, Bluetooth.</p>
+        <p data-step="1"><strong>Physical layer</strong>: along each link, how 1s and 0s actually travel. A 1 might be +5 volts and a 0 be 0 volts; or 1s and 0s might be different frequencies.</p>
+      </div>
+      <figure class="fig" data-step="1">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 400 150" width="360" role="img" aria-label="The bits 1 0 1 1 0 0 1 as a voltage waveform">
+            <g id="wave-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 2.1</span>The bits 1011001 as voltage levels.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-6">
+    <h3><span class="sec-no">2.6</span>An example network</h3>
+    <figure class="fig" style="max-width:900px">
+      <div class="fig-frame">
+        <svg class="dia" viewBox="0 0 860 300" width="840" role="img" aria-label="A laptop, a WiFi access point router, a second router and a web server, each running only the layers it needs">
+          <g id="ex-g"></g>
+        </svg>
+      </div>
+      <figcaption><span class="fno">Fig. 2.2</span>Routers run only layers 1–3, and each link can use a different data-link and physical layer: WiFi, then optical fiber, then Ethernet. Only the two endpoints run TCP and HTTP.</figcaption>
+    </figure>
+  </div>
+
+  <div class="sec" id="q2">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Which protocol?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A video call loses one packet of audio. Why do most video-call apps use UDP rather than TCP?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="UDP adds no reliability at all. The lost packet stays lost.">UDP retransmits faster than TCP.</button>
+          <button type="button" class="q-opt" data-ok>A retransmitted packet would arrive too late to be played, and TCP's in-order delivery would hold up every packet behind it.</button>
+          <button type="button" class="q-opt" data-why="Both run over IP; routing is the network layer's job, not the transport layer's.">UDP packets take shorter routes.</button>
+        </div>
+        <div class="q-fb ok">Right. A brief dropout beats a frozen call; try dropping p3 under both protocols in §2.3.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch1">Back<b>1 · Packetization</b></a>
+    <a href="#ch3">Next<b>3 · Recall: modes and rings</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch3">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 3</div>
+    <h2>Recall: what the OS provides, and how it protects itself</h2>
+    <p class="ch-lede">A virtual machine is built from exactly these pieces, so start by laying them out again.</p>
+  </div>
+
+  <div class="sec" id="s3-1">
+    <h3><span class="sec-no">3.1</span>What does an operating system provide?</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>An OS is a layer of software between <em>many</em> applications and <em>diverse</em> hardware that:</p>
+        <ol>
+          <li>provides a <strong>hardware abstraction</strong>, so an application saving a file need not know how the disk operates;</li>
+          <li data-step="1"><strong>arbitrates access</strong> to resources among applications, and lets them share (one printer, many apps);</li>
+          <li data-step="2">provides <strong>protection</strong>: isolates apps from each other, protects the OS from apps, and limits how much of a resource any one app consumes.</li>
+        </ol>
+        <p data-step="2">A <strong>task</strong> (application, job, process) is the unit of work: its code and data in memory, plus the OS's data about it, the task descriptors.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 440 250" width="400" role="img" aria-label="Applications above the operating system above hardware; with a hypervisor below the OS">
+            <rect x="80" y="30" width="60" height="44" class="pbox"/><text x="110" y="57" text-anchor="middle" class="lbl">App1</text>
+            <rect x="146" y="16" width="60" height="58" class="pbox"/><text x="176" y="50" text-anchor="middle" class="lbl">App2</text>
+            <rect x="212" y="30" width="140" height="44" class="pbox"/><text x="282" y="57" text-anchor="middle" class="lbl">App3</text>
+            <rect x="30" y="82" width="380" height="44" class="obox"/><text x="220" y="109" text-anchor="middle">operating system</text>
+            <g id="hw-row"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 3.1</span>Many applications, one OS, diverse hardware.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-2">
+    <h3><span class="sec-no">3.2</span>Privileged instructions and the mode bit</h3>
+    <div class="two-up" style="align-items:start">
+      <div class="prose">
+        <p>Protection means stopping apps from writing privileged memory (another app's, or the kernel's) and from running privileged operations:</p>
+        <ul class="small">
+          <li>memory address mapping; invalidating TLB entries; flushing caches;</li>
+          <li>loading system registers; changing the processor mode from kernel to user;</li>
+          <li>changing processor voltage and frequency; halting or resetting the CPU;</li>
+          <li>performing I/O.</li>
+        </ul>
+        <p data-step="1">But then how can a task reach OS functionality at all? The CPU needs to know whether an instruction is allowed right now, and how to switch from the task's code to the OS's. The hardware helper is the <strong>mode bit</strong>.</p>
+      </div>
+      <div class="table-wrap" data-step="1" style="margin:0">
+        <table class="glossary" style="font-size:14px">
+          <thead><tr><th></th><th>kernel (supervisor) mode</th><th>user mode</th></tr></thead>
+          <tbody>
+            <tr><td>mode bit</td><td class="mono">0</td><td class="mono">1</td></tr>
+            <tr><td>instructions</td><td>all, including privileged</td><td>a non-privileged subset</td></tr>
+            <tr><td>memory</td><td>every location</td><td>a subset</td></tr>
+            <tr><td>who runs here</td><td>the kernel</td><td>all applications</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-3">
+    <h3><span class="sec-no">3.3</span>Rings of privilege</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Intel x86 CPUs support <strong>four rings</strong> of privilege, 0 (most) to 3 (least). The common configuration: the OS kernel (Linux, Windows) runs in ring 0, applications in ring 3, and rings 1–2 are unused.</p>
+        <p data-step="1">One possible configuration for virtual machines: the <strong>hypervisor</strong> in ring 0, the guest OS in ring 1 or 2, and applications in ring 3.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 420 300" width="380" role="img" aria-label="Four concentric privilege rings with kernel in ring 0 and applications in ring 3">
+            <g id="rings-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 3.2</span>x86 privilege rings.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch2">Back<b>2 · Layer by layer</b></a>
+    <a href="#ch4">Next<b>4 · Virtual machines</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch4">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 4</div>
+    <h2>Virtual machines</h2>
+    <p class="ch-lede">Extend the process abstraction one step further: give an entire operating system the illusion of its own machine.</p>
+  </div>
+
+  <div class="sec" id="s4-1">
+    <h3><span class="sec-no">4.1</span>What is a virtual machine?</h3>
+    <div class="prose">
+      <ul>
+        <li>A simulated computer running inside a real one. The virtual computer can run a different operating system from the host.</li>
+        <li data-step="1">Every request for real hardware is routed to the appropriate host hardware, so the virtual OS and its applications do not know they are virtual. Like a person living in the Matrix.</li>
+        <li data-step="2"><strong>"Virtual X"</strong>: a process already has the illusion of its own memory (virtual memory) and its own CPU (time slicing). A virtual machine adds the illusion of its own hardware, and extends the idea from one process to an entire OS with its own memory, CPU, and I/O devices.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-2">
+    <h3><span class="sec-no">4.2</span>The hypervisor</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>A <strong>Type 1 hypervisor</strong> provides a virtualization layer for guest operating systems and sits just above the hardware. Each guest OS believes it is running on real hardware.</p>
+        <p data-step="1">Each guest keeps providing abstraction, arbitration and protection for its own applications; the hypervisor does the same for the guests.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 560 300" width="480" role="img" aria-label="Traditional OS stack beside a Type 1 hypervisor running two guest operating systems">
+            <g id="vmstack-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 4.1</span>Traditional OS vs. a Type 1 hypervisor with two VMs.</figcaption>
+      </figure>
+    </div>
+    <div class="note note-honest read-only">
+      <span class="note-tag">Type 2, too</span>
+      <p>A <strong>Type 2</strong> (hosted) hypervisor, such as VirtualBox or VMware Workstation, runs as an application on an ordinary host OS instead of directly on the hardware. Linux's KVM is somewhere in between: a kernel module that turns Linux itself into a hypervisor. The QEMU VM you use in the labs runs on top of one of these.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-3">
+    <h3><span class="sec-no">4.3</span>How it works: trap-and-emulate</h3>
+    <div class="prose">
+      <ul>
+        <li>Goal: run a VM at close to native speed. Emulating or interpreting every instruction in software is far too slow.</li>
+        <li data-step="1">Solution: let the guest OS run normally, <strong>directly on the CPU</strong>, but not in kernel mode. Any privileged instruction it executes then traps to the hypervisor, which is in kernel mode.</li>
+        <li data-step="2">The hypervisor emulates only those instructions, then passes control back to the guest: a <strong>VM entry</strong>. The trap into the hypervisor is a <strong>VM exit</strong>.</li>
+        <li data-step="3">Ordinary instructions run at full speed; only privileged ones pay for a trap. This is <strong>trap-and-emulate</strong>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-4">
+    <h3><span class="sec-no">4.4</span>Run a guest kernel</h3>
+    <div class="widget" id="te-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">A few instructions of guest-kernel code</span><button class="w-reset" type="button" id="te-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="CPU"><button type="button" data-cpu="vtx">CPU with hardware virtualization</button><button type="button" data-cpu="old">classic x86, guest in ring 1</button></span>
+        <span class="gap"></span>
+        <button type="button" class="btn" id="te-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="te-next">Next ›</button>
+        <button type="button" class="btn" id="te-all">Run all</button>
+      </div>
+      <div class="widget-body">
+        <div class="ins-list" id="te-list"></div>
+        <div class="stats" id="te-stats" style="margin-top:14px"></div>
+      </div>
+      <div class="readout" id="te-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <div class="note note-honest read-only">
+      <span class="note-tag">Why classic x86 needed help</span>
+      <p>Trap-and-emulate needs every sensitive instruction to trap when run outside kernel mode (Popek and Goldberg, 1974). Classic x86 broke that rule: <code>POPF</code> in ring 1 silently ignores changes to the interrupt flag instead of trapping. VMware worked around it with binary translation, Xen by modifying the guest kernel (paravirtualization). Since 2005–06, Intel VT-x and AMD-V add a "guest mode" in which the guest kernel runs in its own ring 0 and every sensitive instruction can be made to exit.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="q3">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">VM exits</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Under trap-and-emulate, which of these guest-kernel instructions causes a VM exit?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Arithmetic is not privileged; it runs directly on the CPU at full speed.">add rax, rbx</button>
+          <button type="button" class="q-opt" data-why="An ordinary load from the guest's own memory runs directly, translated by the page tables the hypervisor set up.">mov rax, [rbp-8]</button>
+          <button type="button" class="q-opt" data-ok>mov cr3, rax (load a new page-table base)</button>
+        </div>
+        <div class="q-fb ok">Right. Changing the page-table base is privileged; the hypervisor must intervene so the guest cannot map memory that isn't its own.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-5">
+    <h3><span class="sec-no">4.5</span>Why virtual machines?</h3>
+    <div class="opts3">
+      <div><span class="tag">Many OSes, one host</span>Run several operating systems simultaneously on the same machine.</div>
+      <div data-step="1"><span class="tag">Fault isolation</span>If one guest OS crashes, the others keep running. Also useful for debugging a new OS.</div>
+      <div data-step="2"><span class="tag">Easier deployment</span>Ship an app inside a VM image customized for it, instead of worrying about compatibility with the target OS. Useful for cloud servers.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-6">
+    <h3><span class="sec-no">4.6</span>Cloud computing</h3>
+    <div class="prose">
+      <ul>
+        <li>It is very easy to provision and deploy VM instances in the cloud. Amazon's Elastic Compute Cloud (EC2) was built on Xen virtualization.</li>
+        <li data-step="1">There are different types of instances (standard, high-memory, high-CPU), and users create and reboot their own VMs.</li>
+        <li data-step="2">To store data persistently, EC2 is supplemented with another cloud service, such as Amazon's Simple Storage Service (S3).</li>
+      </ul>
+      <p class="small muted" data-step="2">Since 2017, new EC2 instance types run on AWS Nitro, a KVM-based hypervisor with its virtualization work offloaded to dedicated cards.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-7">
+    <h3><span class="sec-no">4.7</span>Process VMs: the Java Virtual Machine</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p><strong>Process VMs</strong> differ from system VMs: the goal is not to run several OSes on one host, but <strong>portable execution</strong> of one application across different hosts.</p>
+        <p data-step="1">Java programs are compiled to <strong>byte code</strong> that runs on any Java VM. The JVM acts as an <strong>interpreter</strong>, turning each byte-code instruction into a local action on the host OS.</p>
+        <p data-step="2"><strong>Just-in-time (JIT) compilation</strong> speeds this up: byte code is compiled at run time into native machine code that runs directly on the hardware.</p>
+        <p data-step="3">A JVM virtualizes an <em>abstract</em> machine, a software specification, not real hardware as system VMs do.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 420 330" width="380" role="img" aria-label="Java source compiled by javac to byte code, loaded and verified by the JVM, run by the interpreter or JIT on the OS and hardware">
+            <g id="jvm-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 4.2</span>Compile time and run time.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="q4">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">System VM or process VM?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">What does the JVM virtualize that a system VM such as a Xen guest does not, and vice versa?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>The JVM virtualizes an abstract machine defined by a specification, for one application; a system VM virtualizes real hardware for a whole OS.</button>
+          <button type="button" class="q-opt" data-why="Both can use real CPUs directly; the JVM does so through its JIT.">The JVM always interprets; a system VM always runs natively.</button>
+          <button type="button" class="q-opt" data-why="A JVM runs inside an ordinary process on a normal OS; it neither needs nor has a hypervisor.">Both need a hypervisor below them.</button>
+        </div>
+        <div class="q-fb ok">Right. Same word, "virtual machine", two different targets.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch3">Back<b>3 · Recall: modes and rings</b></a>
+    <a href="#tail">Next<b>∎ · Summary and glossary</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="tail">
+  <div class="ch-head">
+    <div class="ch-no">Epilogue</div>
+    <h2>Summary and glossary</h2>
+  </div>
+
+  <div class="sec" id="s-sum">
+    <h3><span class="sec-no">∎</span>What to take away</h3>
+    <div class="prose">
+      <ul>
+        <li>Applications reach the network through sockets; the kernel's stack is five layers, each adding its header on the way down and stripping it on the way up.</li>
+        <li>TCP turns a lossy network into a reliable, ordered pipe with ACKs, timers and retransmission; UDP skips that for applications that value timeliness over completeness.</li>
+        <li>IP routes packets over a graph of routers along shortest paths, and may lose them; the data link and physical layers move frames and bits across single links.</li>
+        <li>The mode bit and privilege rings let the kernel keep privileged instructions for itself.</li>
+        <li>A hypervisor runs guest OSes directly on the CPU and traps their privileged instructions (trap-and-emulate), so most code runs at full speed. Hardware support made this work on x86.</li>
+        <li>Process VMs like the JVM virtualize an abstract machine for portability, and use JIT compilation to regain speed.</li>
+      </ul>
+    </div>
+    <div class="note note-lab" data-step="1">
+      <span class="note-tag">In the lab</span>
+      <p>Every Basecamp lab ran inside a QEMU virtual machine: a guest Linux kernel that believed the CPU, disk and serial port were its own. The <code>make check</code> harness talks to it over a virtual serial device, emulated exactly as in §4.4.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap read-only">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>socket</td><td>The API a process uses to send to and receive from a remote process.</td></tr>
+        <tr><td>NIC</td><td>Network interface card: the device that puts frames on a link.</td></tr>
+        <tr><td>header</td><td>What a layer prepends so that its peer at the receiver can process the packet.</td></tr>
+        <tr><td>TCP / UDP</td><td>Reliable, in-order byte stream / unreliable individual datagrams.</td></tr>
+        <tr><td>ACK</td><td>Acknowledgment from the receiver that a packet arrived.</td></tr>
+        <tr><td>IP, router</td><td>The network-layer protocol / a node that forwards IP packets toward their destination.</td></tr>
+        <tr><td>framing</td><td>Marking where a packet begins and ends on a link.</td></tr>
+        <tr><td>mode bit, ring</td><td>Hardware state that says whether privileged instructions are allowed.</td></tr>
+        <tr><td>hypervisor (VMM)</td><td>Software that runs virtual machines and controls their access to hardware.</td></tr>
+        <tr><td>VM exit / entry</td><td>A trap from the guest into the hypervisor / the return to the guest.</td></tr>
+        <tr><td>trap-and-emulate</td><td>Run guests natively; trap and emulate only privileged instructions.</td></tr>
+        <tr><td>process VM, JIT</td><td>A VM for one program on an abstract machine / compiling byte code to native code at run time.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Adapted from the Networking and Virtualization slides.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  const clear = (n) => { while (n.firstChild) n.removeChild(n.firstChild); };
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  /* ---------- hero: packets hopping across a mesh ---------- */
+  (function () {
+    const cv = $('#hero-canvas'); if (!cv) return;
+    let W = 0, H = 0, nodes = [], edges = [], dots = [];
+    function size() {
+      const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+      W = r.width; H = r.height;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+      nodes = []; for (let k = 0; k < 18; k++) nodes.push([Math.round(Math.random() * W / 26) * 26, Math.round(Math.random() * H / 26) * 26]);
+      edges = [];
+      nodes.forEach((a, i) => { const d = nodes.map((b, j) => [Math.hypot(a[0] - b[0], a[1] - b[1]), j]).sort((x, y) => x[0] - y[0]); edges.push([i, d[1][1]], [i, d[2][1]]); });
+      dots = edges.filter(() => Math.random() < 0.3).map((e) => ({ e, t: Math.random(), c: Math.random() < 0.3 ? 'cd' : 'cz' }));
+      draw();
+    }
+    function draw() {
+      const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H);
+      ctx.strokeStyle = tok('--cz'); ctx.lineWidth = 1; ctx.globalAlpha = 0.18;
+      edges.forEach(([i, j]) => { ctx.beginPath(); ctx.moveTo(...nodes[i]); ctx.lineTo(...nodes[j]); ctx.stroke(); });
+      ctx.globalAlpha = 0.35; ctx.fillStyle = tok('--co');
+      nodes.forEach(([x, y]) => ctx.fillRect(x - 4, y - 4, 8, 8));
+      dots.forEach((d) => {
+        const [a, b] = [nodes[d.e[0]], nodes[d.e[1]]];
+        ctx.globalAlpha = 0.6; ctx.fillStyle = tok('--' + d.c);
+        ctx.beginPath(); ctx.arc(a[0] + (b[0] - a[0]) * d.t, a[1] + (b[1] - a[1]) * d.t, 3, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+    }
+    size();
+    addEventListener('resize', size);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    if (!reduce) setInterval(() => {
+      if (document.hidden || document.documentElement.classList.contains('present')) return;
+      dots.forEach((d) => { d.t += 0.02; if (d.t > 1) { d.t = 0; d.e = edges[Math.floor(Math.random() * edges.length)]; } });
+      draw();
+    }, 50);
+  })();
+
+  /* ---------- Fig. 0.2 layers ---------- */
+  (function () {
+    const g = $('#layers-g');
+    g.appendChild(el('rect', { x: 20, y: 10, width: 200, height: 36, class: 'pbox' }));
+    g.appendChild(el('text', { x: 120, y: 33, 'text-anchor': 'middle' }, 'application'));
+    g.appendChild(el('path', { d: 'M10 58 H460', class: 'wire p dashed' }));
+    g.appendChild(el('text', { x: 460, y: 52, 'text-anchor': 'end', class: 'lbl t-p' }, 'socket API'));
+    const L = [['5 · application', 'HTTP (web), SMTP, IMAP (email)', 'pbox'], ['4 · transport', 'TCP, UDP', 'obox'], ['3 · network', 'IP (v4 and v6)', 'obox'], ['2 · data link / MAC', 'Ethernet, WiFi, Bluetooth', 'dbox'], ['1 · physical', 'CDMA, OFDM, voltage levels', 'fbox']];
+    L.forEach(([n, p, cls], i) => {
+      const y = 70 + i * 44;
+      g.appendChild(el('rect', { x: 20, y, width: 200, height: 36, class: cls }));
+      g.appendChild(el('text', { x: 120, y: y + 23, 'text-anchor': 'middle' }, n));
+      const t = el('g', { 'data-step': '1' });
+      t.appendChild(el('text', { x: 236, y: y + 23, class: 'lbl' }, p));
+      g.appendChild(t);
+    });
+    g.appendChild(el('rect', { x: 20, y: 292, width: 200, height: 28, class: 'box2' }));
+    g.appendChild(el('text', { x: 120, y: 311, 'text-anchor': 'middle', class: 'lbl' }, 'copper, fiber, air'));
+    g.appendChild(el('text', { x: 236, y: 311, class: 'lbl' }, 'the physical medium'));
+  })();
+
+  /* ---------- §1.2 encapsulation ---------- */
+  (function () {
+    const LAY = [['5 · application', 'HTTP'], ['4 · transport', 'TCP'], ['3 · network', 'IP'], ['2 · data link', 'Ethernet'], ['1 · physical', 'bits']];
+    const DATA = 'GET /index.html', D = 16;
+    const H = { 5: ['HTTP hdr', 60, 'h5'], 4: ['TCP hdr', 20, 'h4'], 3: ['IP hdr', 20, 'h3'], 2: ['Eth hdr', 14, 'h2'] };
+    // steps: 0..4 sender layers 5..1, 5 on the wire, 6..10 receiver layers 1..5
+    const STEPS = [
+      's5', 's4', 's3', 's2', 's1', 'wire', 'r1', 'r2', 'r3', 'r4', 'r5',
+    ];
+    const TXT = [
+      'The browser calls <code>send()</code>. Layer 5 prepends its header (HTTP request headers) to the data.',
+      'TCP prepends its header: source and destination <b>ports</b> (which process), a <b>sequence number</b> (for ordering and retransmission), and a checksum.',
+      'IP prepends its header: source and destination <b>IP addresses</b>, used by every router on the way.',
+      'Ethernet prepends source and destination <b>MAC addresses</b> of this one link, and appends a checksum trailer: this is the frame.',
+      'The physical layer sends the frame as bits.',
+      'On the wire: routers in between look only at layers 1–3 (§2.6).',
+      'The receiver\'s physical layer turns signals back into a frame.',
+      'Ethernet checks and strips its header and trailer: this frame was for our MAC address.',
+      'IP strips its header: the packet is for our IP address.',
+      'TCP strips its header, uses the port to find the server\'s socket, and puts the data in order in the socket buffer.',
+      'The server\'s <code>receive()</code> returns: layer 5 strips the HTTP headers and reads <code>GET /index.html</code>.',
+    ];
+    let i = 0;
+    function pkt(level, full) {
+      // headers present at a given layer: sender at layer L has headers 5..L
+      const hs = []; for (let l = 5; l >= Math.max(level, 2); l--) hs.push(l);
+      let size = D + hs.reduce((a, l) => a + H[l][1], 0) + (level <= 2 ? 4 : 0);
+      let h = hs.slice().reverse().map((l) => `<span class="${H[l][2]}">${H[l][0]}</span>`).join('') + `<span class="dat">${DATA}</span>` + (level <= 2 ? '<span class="h2">FCS</span>' : '');
+      if (level === 1) h = '<span class="bits">0100 0101 0000 0000 1011 …</span>';
+      return `<div class="pkt">${h}<span class="sz">${size} B</span></div>`;
+    }
+    function render() {
+      const st = STEPS[i];
+      const side = st[0], lvl = +st.slice(1);
+      function stack(which) {
+        return LAY.map(([n, p], k) => {
+          const L = 5 - k;
+          let content = '';
+          if (which === 's' && side === 's' && L >= lvl) content = L === lvl ? pkt(L) : '<div class="pkt"><span class="sz">passed down</span></div>';
+          if (which === 's' && (side === 'w' || side === 'r')) content = '<div class="pkt"><span class="sz">sent</span></div>';
+          if (which === 'r' && side === 'r' && L <= lvl) content = L === lvl ? pkt(L === 5 ? 6 : L) : '<div class="pkt"><span class="sz">passed up</span></div>';
+          const cur = (which === side && L === lvl) || (st === 'wire' && L === 1);
+          return `<div class="lay${cur ? ' cur' : ''}"><div class="nm"><b>${n}</b>${p}</div>${content}</div>`;
+        }).join('');
+      }
+      $('#enc-s').innerHTML = stack('s');
+      $('#enc-r').innerHTML = stack('r');
+      if (st === 'r5') $('#enc-r .lay').querySelector('.pkt').outerHTML = `<div class="pkt"><span class="dat">${DATA}</span><span class="sz">${D} B</span></div>`;
+      $('#enc-where').textContent = `${i}/${STEPS.length - 1}`;
+      $('#enc-out').innerHTML = TXT[i];
+      $('#enc-prev').disabled = i === 0; $('#enc-next').disabled = i === STEPS.length - 1;
+    }
+    const ctl = Academy.register('s1-2', { steps: STEPS.length - 1, readStep: 0, show: (k) => { i = k; render(); } });
+    $('#enc-prev').addEventListener('click', () => ctl.go(i - 1));
+    $('#enc-next').addEventListener('click', () => ctl.go(i + 1));
+    $('#enc-reset').addEventListener('click', () => ctl.go(0));
+    render();
+  })();
+
+  /* ---------- §2.3 TCP vs UDP ---------- */
+  (function () {
+    const svg = $('#tu-svg'), N = 6, DL = 2, TO = 5;
+    let proto = 'tcp', drop = [false, false, true, false, false, false];
+    $('#tu-drop').innerHTML = Array.from({ length: N }, (_, k) => `<button type="button" data-k="${k}">p${k + 1}</button>`).join('');
+    function sim() {
+      const P = [];
+      for (let k = 0; k < N; k++) {
+        const s = k, lost = drop[k];
+        const arr = lost ? (proto === 'tcp' ? s + TO + DL : null) : s + DL;
+        P.push({ s, lost, re: lost && proto === 'tcp' ? s + TO : null, arr });
+      }
+      let last = 0;
+      P.forEach((p) => {
+        if (proto === 'tcp') { p.del = Math.max(p.arr, last); last = p.del; }
+        else p.del = p.arr;
+      });
+      return P;
+    }
+    function render() {
+      $$('#tu-w [data-p]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.p === proto)));
+      $$('#tu-drop [data-k]').forEach((b) => b.setAttribute('aria-pressed', String(drop[+b.dataset.k])));
+      const P = sim();
+      clear(svg);
+      const XS = 110, XR = 590, Y = (t) => 34 + t * 24.5;
+      svg.appendChild(el('text', { x: XS, y: 18, 'text-anchor': 'middle', class: 'lbl' }, 'sender'));
+      svg.appendChild(el('text', { x: XR, y: 18, 'text-anchor': 'middle', class: 'lbl' }, 'receiver'));
+      svg.appendChild(el('path', { d: `M${XS} 26 V320 M${XR} 26 V320`, class: 'wire thin' }));
+      for (let t = 0; t <= 11; t += 1) svg.appendChild(el('text', { x: XS - 12, y: Y(t) + 4, 'text-anchor': 'end', class: 'lbl mono', style: 'font-size:10px' }, 't=' + t));
+      P.forEach((p, k) => {
+        const y0 = Y(p.s);
+        if (p.lost) {
+          const xm = (XS + XR) / 2, ym = Y(p.s + DL / 2);
+          svg.appendChild(el('path', { d: `M${XS} ${y0} L${xm} ${ym}`, class: 'wire m', style: 'stroke-width:1.8' }));
+          svg.appendChild(el('text', { x: xm + 4, y: ym + 4, class: 'lbl t-m', style: 'font-size:14px' }, '✕'));
+          if (p.re != null) {
+            svg.appendChild(el('path', { d: `M${XS} ${Y(p.re)} L${XR - 3} ${Y(p.re + DL)}`, class: 'wire o', style: 'stroke-width:1.8', 'marker-end': 'url(#ah-o)' }));
+            svg.appendChild(el('text', { x: XS + 8, y: Y(p.re) + 14, class: 'lbl t-o', style: 'font-size:10px' }, 'timer expires: resend p' + (k + 1)));
+            svg.appendChild(el('path', { d: `M${XR} ${Y(p.re + DL)} L${XS + 3} ${Y(p.re + 2 * DL)}`, class: 'wire thin dashed', 'marker-end': 'url(#ah)' }));
+          }
+        } else {
+          svg.appendChild(el('path', { d: `M${XS} ${y0} L${XR - 3} ${Y(p.s + DL)}`, class: 'wire p', style: 'stroke-width:1.8', 'marker-end': 'url(#ah-p)' }));
+          if (proto === 'tcp') svg.appendChild(el('path', { d: `M${XR} ${Y(p.s + DL)} L${XS + 3} ${Y(p.s + 2 * DL)}`, class: 'wire thin dashed', style: 'opacity:.5', 'marker-end': 'url(#ah)' }));
+        }
+        svg.appendChild(el('text', { x: XS + 8, y: y0 - 3, class: 'lbl mono', style: 'font-size:11px' }, 'p' + (k + 1)));
+      });
+      if (proto === 'tcp') svg.appendChild(el('text', { x: 350, y: 318, 'text-anchor': 'middle', class: 'lbl' }, 'dashed: ACKs'));
+      const order = P.map((p, k) => ({ k, t: p.del })).filter((x) => x.t != null).sort((a, b) => a.t - b.t || a.k - b.k);
+      const got = P.map((p, k) => p.del == null ? `<span class="gap">p${k + 1}: lost</span>` : `p${k + 1}: <b>t=${p.del}</b>`).join(' · ');
+      const lastT = Math.max(...P.map((p) => p.del ?? 0));
+      const held = proto === 'tcp' ? P.filter((p, k) => !p.lost && p.del > p.arr).map((p) => 'p' + (P.indexOf(p) + 1)) : [];
+      $('#tu-deliv').innerHTML = `delivered to the app → ${got}<br>app sees: ${order.map((x) => 'p' + (x.k + 1)).join(' ')}${proto === 'udp' && drop.some(Boolean) ? ' <span class="gap">(gap)</span>' : ''}`;
+      $('#tu-out').innerHTML = proto === 'tcp'
+        ? (drop.some(Boolean) ? `Every packet arrives, in order, but the last one only at t=${lastT}. ${held.length ? held.join(', ') + ' arrived on time but waited in the buffer for the retransmission: in-order delivery holds them back.' : ''}` : 'Nothing lost: TCP costs only the ACKs.')
+        : (drop.some(Boolean) ? 'Lost packets stay lost, but everything that arrives is delivered immediately. For a call, that is a brief dropout instead of a freeze.' : 'Nothing lost: UDP delivers everything on time.');
+    }
+    const ctl = Academy.register('s2-3', { steps: 1, readStep: 0, show: (k) => { proto = k ? 'udp' : 'tcp'; render(); } });
+    $$('#tu-w [data-p]').forEach((b) => b.addEventListener('click', () => ctl.go(b.dataset.p === 'udp' ? 1 : 0)));
+    $('#tu-drop').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (b) { drop[+b.dataset.k] = !drop[+b.dataset.k]; render(); } });
+    $('#tu-reset').addEventListener('click', () => { drop = [false, false, true, false, false, false]; ctl.go(0); });
+    render();
+  })();
+
+  /* ---------- §2.4 routing ---------- */
+  (function () {
+    const svg = $('#rt-svg');
+    const NODES = { S: [40, 150], R1: [140, 150], R0: [240, 60], R2: [240, 240], R3: [360, 150], R6: [360, 260], R5: [480, 150], R7: [480, 260], R9: [590, 150], D: [680, 150] };
+    const EDGES = [['S', 'R1', 1], ['R1', 'R0', 2], ['R1', 'R2', 1], ['R0', 'R3', 2], ['R2', 'R3', 6], ['R2', 'R6', 1], ['R3', 'R5', 7], ['R6', 'R7', 1], ['R6', 'R5', 2], ['R7', 'R9', 2], ['R5', 'R9', 1], ['R9', 'D', 1]];
+    let met = 'hops', cut = new Set();
+    function dijkstra() {
+      const dist = {}, prev = {}, Q = new Set(Object.keys(NODES));
+      Object.keys(NODES).forEach((n) => { dist[n] = Infinity; });
+      dist.S = 0;
+      while (Q.size) {
+        let u = null; Q.forEach((n) => { if (u === null || dist[n] < dist[u]) u = n; });
+        if (dist[u] === Infinity) break;
+        Q.delete(u);
+        EDGES.forEach(([a, b, w], i) => {
+          if (cut.has(i)) return;
+          const v = a === u ? b : b === u ? a : null; if (!v || !Q.has(v)) return;
+          const c = dist[u] + (met === 'hops' ? 1 : w);
+          if (c < dist[v]) { dist[v] = c; prev[v] = u; }
+        });
+      }
+      if (dist.D === Infinity) return null;
+      const path = ['D']; while (path[0] !== 'S') path.unshift(prev[path[0]]);
+      return { path, cost: dist.D };
+    }
+    function render() {
+      $$('#rt-w [data-met]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.met === met)));
+      const r = dijkstra();
+      const on = new Set();
+      if (r) for (let k = 0; k < r.path.length - 1; k++) on.add([r.path[k], r.path[k + 1]].sort().join('-'));
+      clear(svg);
+      EDGES.forEach(([a, b, w], i) => {
+        const [x1, y1] = NODES[a], [x2, y2] = NODES[b], k = [a, b].sort().join('-');
+        const isCut = cut.has(i), isOn = on.has(k);
+        const line = el('path', { d: `M${x1} ${y1} L${x2} ${y2}`, class: 'wire ' + (isCut ? 'm dashed' : isOn ? 'f' : 'thin'), style: `stroke-width:${isOn ? 4 : 2};cursor:pointer`, 'data-e': i, tabindex: 0 });
+        svg.appendChild(line);
+        const hit = el('path', { d: `M${x1} ${y1} L${x2} ${y2}`, style: 'stroke:transparent;stroke-width:16;fill:none;cursor:pointer', 'data-e': i });
+        svg.appendChild(hit);
+        const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+        if (isCut) svg.appendChild(el('text', { x: mx, y: my + 5, 'text-anchor': 'middle', class: 'lbl t-m', style: 'font-size:15px;pointer-events:none' }, '✕'));
+        else if (met === 'delay') svg.appendChild(el('text', { x: mx + 6, y: my - 6, class: 'lbl mono', style: 'font-size:11px;pointer-events:none' }, w + ' ms'));
+      });
+      Object.entries(NODES).forEach(([n, [x, y]]) => {
+        const end = n === 'S' || n === 'D', inPath = r && r.path.includes(n);
+        svg.appendChild(el(end ? 'rect' : 'circle', end ? { x: x - 26, y: y - 16, width: 52, height: 32, rx: 6, class: 'pbox' } : { cx: x, cy: y, r: 18, class: inPath ? 'fbox' : 'box' }));
+        svg.appendChild(el('text', { x, y: y + 5, 'text-anchor': 'middle', class: 'mono', style: 'font-size:12px;pointer-events:none' }, end ? (n === 'S' ? 'source' : 'dest') : n));
+      });
+      $('#rt-out').innerHTML = r
+        ? `Path: <b class="mono">${r.path.join(' → ')}</b>, ${met === 'hops' ? (r.path.length - 1) + ' hops' : r.cost + ' ms total delay'}. ${cut.size ? 'Routers route around the cut links.' : 'Click a link to cut it and watch the route change.'}`
+        : '<span class="bad">No route: the destination is unreachable.</span> Every packet sent now is lost; TCP will keep retransmitting until a link comes back or it gives up.';
+    }
+    $$('#rt-w [data-met]').forEach((b) => b.addEventListener('click', () => { met = b.dataset.met; render(); }));
+    svg.addEventListener('click', (e) => { const p = e.target.closest('[data-e]'); if (p) { const i = +p.dataset.e; cut.has(i) ? cut.delete(i) : cut.add(i); render(); } });
+    $('#rt-reset').addEventListener('click', () => { cut = new Set(); met = 'hops'; render(); });
+    render();
+  })();
+
+  /* ---------- Fig. 2.1 waveform ---------- */
+  (function () {
+    const g = $('#wave-g'), bits = [1, 0, 1, 1, 0, 0, 1];
+    let d = '', x = 50;
+    bits.forEach((b, i) => { const y = b ? 40 : 100; d += (i ? ` V${y}` : `M${x} ${y}`) + ` H${x + 46}`; x += 46; });
+    g.appendChild(el('path', { d: 'M40 40 H380', class: 'dash', style: 'opacity:.4' }));
+    g.appendChild(el('path', { d: 'M40 100 H380', class: 'dash', style: 'opacity:.4' }));
+    g.appendChild(el('path', { d, class: 'wire f', style: 'stroke-width:3' }));
+    bits.forEach((b, i) => g.appendChild(el('text', { x: 73 + i * 46, y: 128, 'text-anchor': 'middle', class: 'mono' }, b)));
+    g.appendChild(el('text', { x: 36, y: 44, 'text-anchor': 'end', class: 'lbl mono' }, '+5 V'));
+    g.appendChild(el('text', { x: 36, y: 104, 'text-anchor': 'end', class: 'lbl mono' }, '0 V'));
+  })();
+
+  /* ---------- Fig. 2.2 example network ---------- */
+  (function () {
+    const g = $('#ex-g');
+    const COLS = [
+      { x: 20, name: 'laptop', L: [['HTTP', 'pbox'], ['TCP', 'obox'], ['IP', 'obox'], ['WiFi', 'dbox'], ['WiFi PHY', 'fbox']] },
+      { x: 240, name: 'WiFi access point / router 1', L: [null, null, ['IP', 'obox'], ['WiFi | optical', 'dbox'], ['WiFi | optical', 'fbox']] },
+      { x: 460, name: 'router 2', L: [null, null, ['IP', 'obox'], ['optical | Ethernet', 'dbox'], ['optical | Ethernet', 'fbox']] },
+      { x: 680, name: 'web server', L: [['HTTP', 'pbox'], ['TCP', 'obox'], ['IP', 'obox'], ['Ethernet', 'dbox'], ['Ethernet PHY', 'fbox']] },
+    ];
+    COLS.forEach((c) => {
+      g.appendChild(el('text', { x: c.x + 80, y: 20, 'text-anchor': 'middle', class: 'lbl' }, c.name));
+      c.L.forEach((l, k) => {
+        if (!l) return;
+        const y = 32 + k * 44;
+        g.appendChild(el('rect', { x: c.x, y, width: 160, height: 36, class: l[1] }));
+        g.appendChild(el('text', { x: c.x + 80, y: y + 23, 'text-anchor': 'middle', class: 'lbl mono' }, l[0]));
+      });
+    });
+    const yP = 32 + 4 * 44 + 36;
+    [[180, 240, 'WiFi'], [400, 460, 'optical fiber'], [620, 680, 'Ethernet']].forEach(([a, b, n]) => {
+      g.appendChild(el('path', { d: `M${a - 80} ${yP} V${yP + 30} H${b + 80} V${yP}`, class: 'wire f', 'marker-end': 'url(#ah-f)' }));
+      g.appendChild(el('text', { x: (a + b) / 2, y: yP + 48, 'text-anchor': 'middle', class: 'lbl' }, n));
+    });
+  })();
+
+  /* ---------- Fig. 3.1 hardware row ---------- */
+  (function () {
+    const g = $('#hw-row');
+    const HW = [['disk', 40], ['memory', 60], ['CPU', 40], ['display', 56], ['mouse', 50], ['GPU', 40], ['more I/O', 60]];
+    let x = 30;
+    HW.forEach(([n, w]) => { g.appendChild(el('rect', { x, y: 134, width: w, height: 40, class: 'fbox' })); g.appendChild(el('text', { x: x + w / 2, y: 159, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:11px' }, n)); x += w + 4; });
+    const s = el('g', { 'data-step': '2' });
+    s.appendChild(el('text', { x: 220, y: 204, 'text-anchor': 'middle', class: 'lbl' }, 'protection: apps cannot touch each other, the OS, or the hardware directly'));
+    g.appendChild(s);
+  })();
+
+  /* ---------- Fig. 3.2 rings ---------- */
+  (function () {
+    const g = $('#rings-g'), cx = 150, cy = 150;
+    [[130, 'Ring 3', 'pbox'], [100, 'Ring 2', 'box2'], [70, 'Ring 1', 'box2'], [40, 'Ring 0', 'obox']].forEach(([r, n, cls]) => {
+      g.appendChild(el('circle', { cx, cy, r, class: cls }));
+      g.appendChild(el('text', { x: cx, y: cy - r + 16, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:11px' }, n));
+    });
+    g.appendChild(el('text', { x: cx, y: cy + 8, 'text-anchor': 'middle', style: 'font-size:13px' }, 'kernel'));
+    g.appendChild(el('text', { x: 300, y: 50, class: 'lbl' }, 'ring 0: OS kernel'));
+    g.appendChild(el('text', { x: 300, y: 70, class: 'lbl' }, 'rings 1–2: unused'));
+    g.appendChild(el('text', { x: 300, y: 90, class: 'lbl' }, 'ring 3: applications'));
+    const s = el('g', { 'data-step': '1' });
+    s.appendChild(el('text', { x: 300, y: 150, class: 'lbl t-o' }, 'one VM configuration:'));
+    s.appendChild(el('text', { x: 300, y: 170, class: 'lbl t-o' }, 'ring 0: hypervisor'));
+    s.appendChild(el('text', { x: 300, y: 190, class: 'lbl t-o' }, 'ring 1: guest OS'));
+    s.appendChild(el('text', { x: 300, y: 210, class: 'lbl t-o' }, 'ring 3: applications'));
+    g.appendChild(s);
+  })();
+
+  /* ---------- Fig. 4.1 VM stacks ---------- */
+  (function () {
+    const g = $('#vmstack-g');
+    const box = (x, y, w, h, cls, t, small) => { g.appendChild(el('rect', { x, y, width: w, height: h, class: cls })); g.appendChild(el('text', { x: x + w / 2, y: y + h / 2 + 5, 'text-anchor': 'middle', class: small ? 'lbl' : '' }, t)); };
+    g.appendChild(el('text', { x: 90, y: 20, 'text-anchor': 'middle', class: 'lbl' }, 'traditional'));
+    box(20, 30, 140, 50, 'pbox', 'apps'); box(20, 86, 140, 50, 'obox', 'OS'); box(20, 230, 140, 50, 'fbox', 'hardware');
+    g.appendChild(el('text', { x: 380, y: 20, 'text-anchor': 'middle', class: 'lbl' }, 'Type 1 hypervisor'));
+    [220, 390].forEach((x, k) => {
+      g.appendChild(el('rect', { x: x - 8, y: 26, width: 166, height: 118, class: 'dash' }));
+      box(x, 30, 150, 50, 'pbox', 'apps'); box(x, 86, 150, 50, 'obox', 'guest OS ' + (k + 1));
+      g.appendChild(el('text', { x: x + 75, y: 158, 'text-anchor': 'middle', class: 'lbl' }, 'VM ' + (k + 1)));
+    });
+    const s = el('g'); g.appendChild(s);
+    box(212, 170, 336, 50, 'mbox', 'hypervisor'); box(212, 230, 336, 50, 'fbox', 'hardware');
+  })();
+
+  /* ---------- §4.4 trap-and-emulate ---------- */
+  (function () {
+    const INS = [
+      { t: 'add rax, rbx', k: 'n', how: 'runs directly on the CPU' },
+      { t: 'mov rcx, [rbp-8]', k: 'n', how: 'runs directly; the guest\'s own memory' },
+      { t: 'mov cr3, rax', k: 'p', how: 'loads a page-table base', emu: 'the hypervisor checks the guest\'s page tables and installs the real mapping' },
+      { t: 'cmp rcx, 0 · jne loop', k: 'n', how: 'runs directly on the CPU' },
+      { t: 'out 0x3F8, al', k: 'p', how: 'writes the serial port', emu: 'the hypervisor emulates a virtual serial device and passes the byte on' },
+      { t: 'popf', k: 's', how: 'restores flags, including the interrupt flag', emu: 'the hypervisor updates the guest\'s virtual interrupt flag' },
+      { t: 'invlpg [rdi]', k: 'p', how: 'invalidates a TLB entry', emu: 'the hypervisor flushes the corresponding real TLB entry' },
+      { t: 'hlt', k: 'p', how: 'halts until the next interrupt', emu: 'the hypervisor runs another VM instead of stopping the real CPU' },
+    ];
+    let cpu = 'vtx', i = -1;
+    function kind(x) { return x.k === 'n' ? 'direct' : x.k === 's' && cpu === 'old' ? 'bad' : 'exit'; }
+    function render() {
+      $$('#te-w [data-cpu]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cpu === cpu)));
+      $('#te-list').innerHTML = INS.map((x, k) => {
+        const kd = kind(x), done = k <= i;
+        const how = !done ? x.how : kd === 'direct' ? 'direct · full speed' : kd === 'bad' ? '✕ no trap: the change is silently ignored' : 'VM exit → emulate → VM entry';
+        return `<div class="ins ${done ? kd : 'pend'}${k === i ? ' cur' : ''}"><span class="n">${k + 1}</span><span>${x.t}</span><span class="how">${how}</span></div>`;
+      }).join('');
+      const run = INS.slice(0, i + 1), ex = run.filter((x) => kind(x) === 'exit').length, bad = run.filter((x) => kind(x) === 'bad').length;
+      $('#te-stats').innerHTML =
+        `<div><div class="lab">executed</div><div class="big">${run.length} / ${INS.length}</div></div>` +
+        `<div><div class="lab">ran directly</div><div class="big">${run.filter((x) => kind(x) === 'direct').length}</div></div>` +
+        `<div><div class="lab">VM exits</div><div class="big" style="color:var(--co)">${ex}</div><div class="sub">each costs hundreds to thousands of cycles</div></div>` +
+        `<div class="${bad ? 'warn' : ''}"><div class="lab">silently wrong</div><div class="big">${bad}</div></div>`;
+      const x = INS[i];
+      $('#te-out').innerHTML = i < 0 ? 'The guest kernel runs directly on the CPU, outside real kernel mode. Step through its instructions.'
+        : kind(x) === 'direct' ? `<code>${x.t}</code> is not privileged: it runs on the real CPU at full speed, with no hypervisor involvement.`
+        : kind(x) === 'bad' ? `<code>popf</code> is <em>sensitive</em> (it controls interrupts) but not privileged. In ring 1, classic x86 simply ignores the interrupt-flag change and <b class="bad">does not trap</b>: the guest now wrongly believes interrupts are off, and the hypervisor never found out.`
+        : `<code>${x.t}</code> ${x.how}, which is privileged. <b class="os">VM exit</b>: ${x.emu}, then <b class="os">VM entry</b> returns to the guest's next instruction.`;
+      $('#te-prev').disabled = i < 0; $('#te-next').disabled = i === INS.length - 1; $('#te-all').disabled = i === INS.length - 1;
+    }
+    const ctl = Academy.register('s4-4', { steps: INS.length, readStep: 0, show: (k) => { i = k - 1; render(); } });
+    $$('#te-w [data-cpu]').forEach((b) => b.addEventListener('click', () => { cpu = b.dataset.cpu; render(); }));
+    $('#te-prev').addEventListener('click', () => ctl.go(i));
+    $('#te-next').addEventListener('click', () => ctl.go(i + 2));
+    $('#te-all').addEventListener('click', () => ctl.go(INS.length));
+    $('#te-reset').addEventListener('click', () => { cpu = 'vtx'; ctl.go(0); });
+    render();
+  })();
+
+  /* ---------- Fig. 4.2 JVM ---------- */
+  (function () {
+    const g = $('#jvm-g');
+    const B = (x, y, w, h, cls, t, sub) => { g.appendChild(el('rect', { x, y, width: w, height: h, class: cls })); g.appendChild(el('text', { x: x + w / 2, y: y + (sub ? h / 2 - 2 : h / 2 + 5), 'text-anchor': 'middle', class: 'mono', style: 'font-size:12px' }, t)); if (sub) g.appendChild(el('text', { x: x + w / 2, y: y + h / 2 + 14, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:11px' }, sub)); };
+    g.appendChild(el('text', { x: 70, y: 18, 'text-anchor': 'middle', class: 'lbl' }, 'compile time'));
+    B(10, 28, 120, 44, 'pbox', 'abc.java', 'Java code');
+    g.appendChild(el('path', { d: 'M70 72 V96', class: 'wire p thin', 'marker-end': 'url(#ah-p)' })); g.appendChild(el('text', { x: 78, y: 88, class: 'lbl mono', style: 'font-size:11px' }, 'javac'));
+    B(10, 100, 120, 44, 'dbox', 'abc.class', 'byte code');
+    const r = el('g', { 'data-step': '1' }); g.appendChild(r);
+    g.appendChild(el('text', { x: 290, y: 18, 'text-anchor': 'middle', class: 'lbl' }, 'run time'));
+    g.appendChild(el('rect', { x: 170, y: 28, width: 240, height: 196, class: 'dash' })); g.appendChild(el('text', { x: 400, y: 46, 'text-anchor': 'end', class: 'big' }, 'JVM'));
+    B(190, 56, 150, 34, 'box', 'class loader'); B(190, 104, 150, 34, 'box', 'bytecode verifier');
+    B(190, 158, 100, 44, 'obox', 'interpreter'); B(310, 158, 80, 44, 'fbox', 'JIT');
+    g.appendChild(el('path', { d: 'M130 122 H150 V73 H186', class: 'wire thin', 'marker-end': 'url(#ah)' }));
+    g.appendChild(el('path', { d: 'M265 90 V100 M265 138 V154', class: 'wire thin', 'marker-end': 'url(#ah)' }));
+    g.appendChild(el('path', { d: 'M290 180 H306', class: 'wire f thin', 'marker-end': 'url(#ah-f)' }));
+    B(170, 240, 240, 34, 'box2', 'OS'); B(170, 282, 240, 34, 'fbox', 'hardware');
+    g.appendChild(el('path', { d: 'M240 202 V236 M350 202 V236', class: 'wire thin', 'marker-end': 'url(#ah)' }));
+  })();
+})();
+</script>
+</body>
+</html>
