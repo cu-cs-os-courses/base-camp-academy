@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Synchronization · L08</title>
+<meta name="description" content="CSCI 3753 Lecture 08, interactive edition: race conditions, the critical-section problem and its three requirements, producer-consumer, disabling interrupts, Peterson's solution, test-and-set, compare-and-swap, spinlocks, and busy waiting.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+/* ---- lecture-local ---- */
+.sub-lab { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); margin-bottom: 4px; }
+.code { font-family: var(--f-mono); font-size: 13px; line-height: 1.7; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 0; overflow-x: auto; }
+.code .ln { display: block; padding: 0 14px; white-space: pre; border-left: 3px solid transparent; }
+.code .ln.cur { background: var(--cx-soft); border-left-color: var(--cx); }
+.code .ln.cur2 { background: var(--cz-soft); border-left-color: var(--cz); }
+.code .ln.ent { background: var(--cz-soft); }
+.code .ln.cs { background: var(--cd-soft, var(--cx-soft)); }
+.code .ln.ext { background: var(--cf-soft); }
+.code .ln.dim { opacity: .45; }
+.code .c { color: var(--ink3); }
+.code .kw { color: var(--co); }
+.code .tagr { float: right; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); margin-left: 2em; }
+.pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.pair.three { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.8fr); }
+.statebox { border: 1.5px solid var(--line2); border-radius: 10px; padding: 8px 12px; background: var(--bg); font-family: var(--f-mono); font-size: 12.5px; line-height: 1.75; }
+.statebox .hd { font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
+.statebox .hot { background: var(--cx-soft2); border-radius: 3px; padding: 0 3px; }
+.chipt { display: inline-block; border: 1.5px solid var(--line2); border-radius: 6px; padding: 0 7px; background: var(--bg2); font-family: var(--f-mono); font-size: 12px; }
+.chipt.run { border-color: var(--good); color: var(--good); }
+.chipt.sleep { border-color: var(--cd); color: var(--cd); }
+.verdict { display: grid; gap: 6px; margin-bottom: 12px; }
+.verdict .v { display: grid; grid-template-columns: 1.6em 11em minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 14px; }
+.verdict .v .mk { font-family: var(--f-mono); font-weight: 700; }
+.verdict .v.ok .mk { color: var(--good); }
+.verdict .v.no .mk { color: var(--cd); }
+.verdict .v b { font-weight: 600; }
+.hist { display: flex; gap: 10px; align-items: flex-end; min-height: 96px; padding-top: 6px; }
+.hist .col { display: grid; justify-items: center; gap: 3px; font-family: var(--f-mono); font-size: 11.5px; }
+.hist .bar { width: 38px; background: var(--cz-soft2); border: 1.5px solid var(--cz); border-radius: 4px 4px 0 0; }
+.hist .bar.bad { background: var(--cx-soft2); border-color: var(--cd); }
+.trace { font-family: var(--f-mono); font-size: 12px; line-height: 1.6; max-height: 190px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: var(--bg); }
+.trace div { cursor: pointer; padding: 0 4px; border-radius: 4px; }
+.trace div.at { background: var(--cx-soft2); }
+.trace .p0 { color: var(--cz-ink); } .trace .p1 { color: var(--cx-ink); }
+.ring { display: flex; flex-wrap: wrap; gap: 6px; }
+.ring .slot { width: 46px; height: 46px; border: 1.5px solid var(--line2); border-radius: 8px; display: grid; place-items: center; font-family: var(--f-mono); font-size: 12px; position: relative; background: var(--bg); }
+.ring .slot.full { background: var(--cf-soft); border-color: var(--cf); }
+.ring .slot .ptr { position: absolute; top: -17px; font-size: 10px; font-weight: 600; letter-spacing: .06em; }
+.ring .slot .ptr.i { color: var(--cz-ink); } .ring .slot .ptr.o { color: var(--cx-ink); top: auto; bottom: -17px; }
+@media (max-width: 760px) {
+  .pair, .pair.three { grid-template-columns: minmax(0, 1fr); }
+  .verdict .v { grid-template-columns: 1.6em minmax(0, 1fr); }
+  .verdict .v span:last-child { grid-column: 2; }
+}
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><rect x="7" y="10" width="8" height="8" rx="1.5"/><path d="M8.5 10V7.5a2.5 2.5 0 0 1 5 0V10"/></g><path d="M2 14h4M16 14h4" stroke="var(--cz)" stroke-width="2"/></svg>
+    <span>Lecture 08 · Synchronization</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Lecture 08 · Interactive notes</div>
+    <h1>One at a <span class="accent">time</span>, please</h1>
+    <p class="lede">Lecture 05 showed that interleaved threads can corrupt shared data. This lecture states the problem precisely as the critical-section problem, with three requirements any solution must meet. Then it tries solutions: turning interrupts off, clever software, and atomic hardware instructions. The last ones work, but they spin, and that sets up Lecture 09.</p>
+    <div class="promise">
+      <span>Before you start:</span><span class="mono">threads, interleavings, races</span><span>from Lecture 05; preemption from Lecture 06.</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#ch0">Begin ↓</a>
+      <span class="muted small">About 60 minutes · 5 hands-on experiments · 7 checkpoints · Textbook: Silberschatz, Ch. 6 · Lab: Basecamp 3, The Trouble with Threads</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="chapters">
+    <p class="rail-title">Contents</p>
+    <a href="#ch0"><span class="n">0</span>Why synchronize</a>
+    <a href="#ch1"><span class="n">1</span>The critical section</a>
+    <a href="#ch2"><span class="n">2</span>Producer–consumer</a>
+    <a href="#ch3"><span class="n">3</span>Solutions</a>
+    <a href="#ch4"><span class="n">4</span>Busy waiting</a>
+    <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#ch0"><span class="n">0</span>Why synchronize</a>
+        <a href="#ch1"><span class="n">1</span>The critical section</a>
+        <a href="#ch2"><span class="n">2</span>Producer–consumer</a>
+        <a href="#ch3"><span class="n">3</span>Solutions</a>
+        <a href="#ch4"><span class="n">4</span>Busy waiting</a>
+        <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+      </nav>
+    </details>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch0">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 0</div>
+    <h2>Why synchronize</h2>
+    <p class="ch-lede">Concurrency and parallelism both let two pieces of code touch the same data at the same time.</p>
+  </div>
+
+  <div class="sec" id="s0-1">
+    <h3><span class="sec-no">0.1</span>Recall Lecture 05</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>Concurrency</strong> on one core: the scheduler interleaves threads to give the appearance of simultaneous execution. It can preempt one anywhere (Lecture 06).</li>
+        <li><strong>Parallelism</strong> on several cores: genuinely simultaneous execution, with the same problem and more ways to hit it.</li>
+        <li>Processes, threads and the OS kernel itself all run concurrently. <strong>Concurrent access to shared data can leave it inconsistent.</strong> Sometimes the inconsistency is tolerable; sometimes it is fatal.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-2">
+    <h3><span class="sec-no">0.2</span>A race inside the kernel</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Processes P0 and P1 both call <code>fork()</code>. The kernel hands out child PIDs from a variable, <code>next_available_pid</code>: read it, use it, increment it.</p>
+        <p>If both forks read it before either increments it, the same PID is given to two different processes. Unless something stops P0 and P1 from racing on <code>next_available_pid</code>, the result depends on timing: a <strong>race condition</strong>.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 400 230" width="380" role="img" aria-label="P0 and P1 each call fork; both read next_available_pid = 2615; both children get pid 2615">
+            <g id="pid-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 0.1</span>Two forks, one PID (after Silberschatz Fig. 6.2).</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#top">Back to<b>the top</b></a>
+    <a href="#ch1">Next<b>1 · The critical section</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch1">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 1</div>
+    <h2>The critical-section problem</h2>
+    <p class="ch-lede">Name the dangerous code, then require that only one process runs it at a time.</p>
+  </div>
+
+  <div class="sec" id="s1-1">
+    <h3><span class="sec-no">1.1</span>Entry, critical, exit, remainder</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ul>
+          <li>Keeping data consistent requires mechanisms that <strong>order</strong> cooperating processes or threads, so that no two use a shared resource at the same time. The resource can be a variable, a table, a file, and so on.</li>
+          <li>The part of a program that accesses the shared resource is its <strong>critical section</strong>.</li>
+          <li>A process asks permission in an <strong>entry section</strong>, runs the critical section, may follow it with an <strong>exit section</strong>, and then runs the <strong>remainder section</strong>.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="code"><span class="ln"><span class="kw">while</span> (true) {</span><span class="ln ent">    <i>entry section</i><span class="tagr">ask</span></span><span class="ln cs">        <i>critical section</i><span class="tagr">shared data</span></span><span class="ln ext">    <i>exit section</i><span class="tagr">release</span></span><span class="ln">        <i>remainder section</i></span><span class="ln">}</span></div>
+        <p class="small muted">Fig. 1.1: The general structure of a process P<sub>i</sub>.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-2">
+    <h3><span class="sec-no">1.2</span>An example</h3>
+    <div class="prose">
+      <p>Two processes each read values and keep a running average in shared <code>data</code>, <code>count</code> and <code>avg</code>. All of <code>add_new_value</code> is a critical section. If P2 runs <code>count++</code> between P1's <code>data[count] = v</code> and P1's <code>count++</code>, a slot is skipped and the average is computed from the wrong count.</p>
+    </div>
+    <div class="code" style="max-width:520px"><span class="ln"><span class="kw">while</span> (true) {                 <span class="c">// each of Process 1 and Process 2</span></span><span class="ln">    v = get_value();</span><span class="ln">    add_new_value(v);</span><span class="ln">}</span><span class="ln">add_new_value(v) {</span><span class="ln cs">    <span class="kw">int</span> sum = avg*count + v;</span><span class="ln cs">    data[count] = v;</span><span class="ln cs">    count++;</span><span class="ln cs">    avg = sum/count;</span><span class="ln">}</span></div>
+  </div>
+
+  <div class="sec" id="s1-3">
+    <h3><span class="sec-no">1.3</span>Three requirements</h3>
+    <div class="opts3">
+      <div><span class="tag">Mutual exclusion</span>If P<sub>i</sub> is in its critical section, no other process is in its critical section.</div>
+      <div><span class="tag">Progress</span>If no one is in the critical section and some processes want in, the choice of who enters next cannot be postponed forever, and only processes that want in take part in it. <em>No deadlock: either Alice or Bob gets in.</em></div>
+      <div><span class="tag">Bounded waiting</span>After P<sub>i</sub> asks to enter, the others may enter only a bounded number of times before P<sub>i</sub> does. <em>No starvation: not always Alice.</em></div>
+    </div>
+    <p class="prose">Assume every process runs at a nonzero speed, and assume nothing about their relative speeds. A solution has to work under every interleaving.</p>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch0">Back<b>0 · Why synchronize</b></a>
+    <a href="#ch2">Next<b>2 · Producer–consumer</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 2</div>
+    <h2>The producer–consumer problem</h2>
+    <p class="ch-lede">The running example for this lecture and the next three.</p>
+  </div>
+
+  <div class="sec" id="s2-1">
+    <h3><span class="sec-no">2.1</span>A shared buffer</h3>
+    <div class="prose">
+      <p>A producer puts new items into a buffer and a consumer takes them out. There are two variations:</p>
+      <ul>
+        <li><strong>Unbounded buffer</strong>: no practical limit on size. The producer never waits; the consumer waits when the buffer is empty.</li>
+        <li><strong>Bounded buffer</strong>: a fixed size. The producer waits when the buffer is full; the consumer waits when it is empty.</li>
+      </ul>
+    </div>
+    <div class="pair">
+      <div class="code"><span class="ln"><span class="c">// Producer</span></span><span class="ln"><span class="kw">while</span> (true) {</span><span class="ln">    produce(next_produced);</span><span class="ln">    <span class="kw">while</span> (counter == MAX); <span class="c">// do nothing</span></span><span class="ln">    buffer[in] = next_produced;</span><span class="ln">    in = (in + 1) % MAX;</span><span class="ln cs">    counter++;</span><span class="ln">}</span></div>
+      <div class="code"><span class="ln"><span class="c">// Consumer</span></span><span class="ln"><span class="kw">while</span> (true) {</span><span class="ln">    <span class="kw">while</span> (counter == 0);   <span class="c">// do nothing</span></span><span class="ln">    next_consumed = buffer[out];</span><span class="ln">    out = (out + 1) % MAX;</span><span class="ln cs">    counter--;</span><span class="ln">    consume(next_consumed);</span><span class="ln">}</span></div>
+    </div>
+    <div class="widget" id="bb-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">A bounded buffer, MAX = 8</span><button class="w-reset" type="button" id="bb-reset">Reset</button></div>
+      <div class="controls">
+        <button type="button" class="btn primary" id="bb-p">Produce</button>
+        <button type="button" class="btn" id="bb-c">Consume</button>
+        <button type="button" class="btn" id="bb-p3">Produce ×3</button>
+      </div>
+      <div class="widget-body" style="padding-top:26px;padding-bottom:26px"><div class="ring" id="bb-ring"></div></div>
+      <div class="readout" id="bb-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only"><code>in</code> and <code>out</code> wrap around modulo MAX. <code>counter</code> says how many slots are full, and it is the variable both processes update.</p>
+  </div>
+
+  <div class="sec" id="s2-2">
+    <h3><span class="sec-no">2.2</span>The race on <code>counter</code></h3>
+    <div class="prose">
+      <p><code>counter++</code> and <code>counter--</code> are each three machine instructions: load into a register, add or subtract, store back. Start at <code>counter = 5</code> with one produce and one consume; the correct result is 5. Pick the order the instructions run in.</p>
+    </div>
+    <div class="widget" id="rc-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Interleave <code>counter++</code> and <code>counter--</code></span><button class="w-reset" type="button" id="rc-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Version" id="rc-m"><button type="button" data-m="plain">plain</button><button type="button" data-m="lock">with a lock</button><button type="button" data-m="cas">CAS loop</button></span>
+        <button type="button" class="btn" id="rc-pp">Producer step</button>
+        <button type="button" class="btn" id="rc-cc">Consumer step</button>
+        <button type="button" class="btn" id="rc-slide">Replay the slide's S0–S5</button>
+      </div>
+      <div class="widget-body">
+        <div class="pair three">
+          <div class="code" id="rc-pcode"></div>
+          <div class="code" id="rc-ccode"></div>
+          <div class="statebox" id="rc-state"></div>
+        </div>
+        <div style="margin-top:14px"><div class="sub-lab">final counter over every possible interleaving</div><div class="hist" id="rc-hist"></div></div>
+      </div>
+      <div class="readout" id="rc-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">"With a lock" and "CAS loop" are previews of §3.3. In the lock version, a blocked <code>acquire</code> cannot be picked.</p>
+  </div>
+
+  <div class="sec" id="q0">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">The race</span></div>
+      <div class="quiz-body">
+        <div class="q-text">counter starts at 5; one <code>counter++</code> and one <code>counter--</code> run concurrently with no protection. Which final values are possible?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="5 is the correct answer, but not the only one possible.">Only 5</button>
+          <button type="button" class="q-opt" data-why="5 happens too, whenever one finishes before the other loads.">4 or 6</button>
+          <button type="button" class="q-opt" data-ok>4, 5 or 6</button>
+        </div>
+        <div class="q-fb ok">Right. The last store wins: 4 if the consumer stores last after overlapping, 6 if the producer does.</div>
+        <div class="q-fb no">Not quite. Look at the histogram in §2.2.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch1">Back<b>1 · The critical section</b></a>
+    <a href="#ch3">Next<b>3 · Solutions</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch3">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 3</div>
+    <h2>Solutions</h2>
+    <p class="ch-lede">Three attempts: stop the clock, outsmart it in software, or get help from the hardware.</p>
+  </div>
+
+  <div class="sec" id="s3-1">
+    <h3><span class="sec-no">3.1</span>Solution 1: disable interrupts</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>If nothing can interrupt the process while it is in its critical section, the scheduler cannot preempt it there. So disable all interrupts before entering and enable them on exit.</p>
+        <p>Will it work?</p>
+        <ul>
+          <li>What if the critical section runs for an hour? With interrupts off, no timer and no I/O completions, so every other process is blocked.</li>
+          <li>Can a process starve? Nothing bounds how often the others get in first.</li>
+          <li>What if there are two CPUs? Disabling interrupts on one core does not stop the other core, so <strong>it gives no mutual exclusion on a multiprocessor</strong>.</li>
+          <li>And a user program cannot do it anyway: disabling interrupts is a privileged instruction (Lecture 02). Kernels use it only for short sections on one core.</li>
+        </ul>
+      </div>
+      <div class="code"><span class="ln"><span class="c">// Producer</span></span><span class="ln">...</span><span class="ln">in = (in + 1) % MAX;</span><span class="ln ent">disableInterrupts();</span><span class="ln cs">counter++;</span><span class="ln ext">enableInterrupts();</span><span class="ln"> </span><span class="ln"><span class="c">// Consumer</span></span><span class="ln">...</span><span class="ln">out = (out + 1) % MAX;</span><span class="ln ent">disableInterrupts();</span><span class="ln cs">counter--;</span><span class="ln ext">enableInterrupts();</span><span class="ln">consume(next_consumed);</span></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-2">
+    <h3><span class="sec-no">3.2</span>Solution 2: software only</h3>
+    <div class="prose">
+      <p>First try: a shared <code>boolean lock = FALSE</code>. Wait while it is set, then set it: <code>while (lock); lock = TRUE;</code>. The problem: both processes can see <code>lock == FALSE</code> if a context switch lands just before <code>lock = TRUE</code>. Then both enter.</p>
+      <p><strong>Peterson's solution</strong> uses two shared variables: <code>boolean flag[2]</code> says who is ready to enter, and <code>int turn</code> says whose turn it is. Process i (with j the other one) does this:</p>
+    </div>
+    <div class="code" style="max-width:520px"><span class="ln ent">flag[i] = TRUE;                <span class="c">// I want in</span></span><span class="ln ent">turn = j;                      <span class="c">// but you go first</span></span><span class="ln ent"><span class="kw">while</span> (flag[j] &amp;&amp; turn == j);  <span class="c">// wait: you want in, your turn</span></span><span class="ln cs">    <i>critical section</i></span><span class="ln ext">flag[i] = FALSE;</span></div>
+    <div class="prose" style="margin-top:1em">
+      <ul>
+        <li><strong>Mutual exclusion</strong>: P<sub>i</sub> enters only if <code>flag[j] == FALSE</code> or <code>turn == i</code>. If both are ready, <code>turn</code> is a single variable and holds whichever value was written <em>last</em>, so only one process can pass.</li>
+        <li><strong>Progress</strong> and <strong>bounded waiting</strong> hold too: a waiting process gets in after the other enters at most once.</li>
+        <li>It works for <strong>two processes only</strong>.</li>
+      </ul>
+    </div>
+    <p class="prose">Rather than argue each case by hand, let the page check them. The checker explores <em>every</em> reachable state of two processes running a protocol, then tests the three requirements.</p>
+    <div class="widget" id="mc-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">A model checker for two-process protocols</span><button class="w-reset" type="button" id="mc-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Protocol" id="mc-p"></span>
+      </div>
+      <div class="widget-body">
+        <div class="verdict" id="mc-v"></div>
+        <div class="pair three">
+          <div><div class="sub-lab">P0</div><div class="code" id="mc-c0"></div></div>
+          <div><div class="sub-lab">P1</div><div class="code" id="mc-c1"></div></div>
+          <div><div class="sub-lab">shared variables</div><div class="statebox" id="mc-s"></div></div>
+        </div>
+        <div class="controls" style="padding:10px 0 6px;border:0">
+          <button type="button" class="btn" id="mc-prev">‹ Back</button>
+          <button type="button" class="btn primary" id="mc-next">Next ›</button>
+          <button type="button" class="btn" id="mc-s0">Run P0 here</button>
+          <button type="button" class="btn" id="mc-s1">Run P1 here</button>
+          <span class="mono muted" id="mc-n" style="font-size:13px"></span>
+        </div>
+        <div class="trace" id="mc-t"></div>
+      </div>
+      <div class="readout" id="mc-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Each line of code is one atomic step. A process in its remainder section may stay there forever, so a process that waits on one sitting in its remainder is a progress violation. "Run P0/P1 here" cuts the trace at the current step and adds your own move.</p>
+    <div class="note note-honest">
+      <span class="note-tag">On real hardware</span>
+      <p>Peterson's proof assumes each load and store happens in program order. Modern CPUs and compilers reorder independent memory operations, and the solution breaks unless you add memory barriers. That is one more reason to rely on the hardware instructions below.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="q1">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Peterson</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Both processes set their flags. Then P0 runs <code>turn = 1</code>, and after that P1 runs <code>turn = 0</code>. Who enters the critical section?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>P0: turn is now 0, so P1 waits on <code>flag[0] &amp;&amp; turn == 0</code> and P0 passes</button>
+          <button type="button" class="q-opt" data-why="P1 wrote turn last, giving the turn away to P0.">P1</button>
+          <button type="button" class="q-opt" data-why="Exactly one of the two while conditions is false, because turn has only one value.">Neither: deadlock</button>
+        </div>
+        <div class="q-fb ok">Right. The process that wrote <code>turn</code> last is the polite one that waits.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-3">
+    <h3><span class="sec-no">3.3</span>Solution 3: hardware support</h3>
+    <div class="prose">
+      <p>Hardware offers instructions that <strong>test and modify</strong> a word, or <strong>swap</strong> the contents of two words, <strong>atomically</strong>: as one uninterruptible step, even with other cores.</p>
+    </div>
+    <div class="pair">
+      <div>
+        <div class="sub-lab">test_and_set</div>
+        <div class="code"><span class="ln"><span class="kw">boolean</span> test_and_set(<span class="kw">boolean</span> *target) {</span><span class="ln">    <span class="kw">boolean</span> rv = *target;</span><span class="ln">    *target = true;</span><span class="ln">    <span class="kw">return</span> rv;          <span class="c">// the old value</span></span><span class="ln">}</span></div>
+        <p class="small">Atomically sets <code>*target</code> to true and returns what it was. Lock: <code>while (test_and_set(&amp;lock));</code> … <code>lock = false;</code></p>
+      </div>
+      <div>
+        <div class="sub-lab">compare_and_swap</div>
+        <div class="code"><span class="ln"><span class="kw">int</span> compare_and_swap(<span class="kw">int</span> *value,</span><span class="ln">        <span class="kw">int</span> expected, <span class="kw">int</span> new_value) {</span><span class="ln">    <span class="kw">int</span> temp = *value;</span><span class="ln">    <span class="kw">if</span> (*value == expected)</span><span class="ln">        *value = new_value;</span><span class="ln">    <span class="kw">return</span> temp;         <span class="c">// the old value</span></span><span class="ln">}</span></div>
+        <p class="small">Atomically writes <code>new_value</code>, but only if <code>*value == expected</code>. Lock: <code>while (compare_and_swap(&amp;lock, 0, 1) != 0);</code> … <code>lock = 0;</code></p>
+      </div>
+    </div>
+    <div class="note note-warn">
+      <span class="note-tag">Mind the semicolon</span>
+      <p>In <code>while (compare_and_swap(&amp;lock, 0, 1) != 0)</code> the <code>;</code> is the loop's empty body. Leave it out and the next statement, <code>counter++</code>, becomes the body. It then runs only when the lock is <em>not</em> acquired, and never by the process that holds it.</p>
+    </div>
+    <div class="prose">
+      <ul>
+        <li>Try "test_and_set" in the model checker: mutual exclusion and progress hold. <strong>Bounded waiting does not</strong>: nothing orders the waiters, so an unlucky process can lose the race every time. The textbook gives a longer TAS algorithm that adds bounded waiting.</li>
+        <li>These instructions are building blocks. <strong>Atomic variables</strong> provide atomic updates on integers and booleans. For example, <code>increment()</code> is a CAS loop: read the value, then try to swap in value + 1, and retry if someone changed it in between. Try "CAS loop" in §2.2: every interleaving ends at 5.</li>
+      </ul>
+    </div>
+    <div class="code" style="max-width:520px"><span class="ln"><span class="kw">void</span> increment(atomic_int *v) {</span><span class="ln">    <span class="kw">int</span> temp;</span><span class="ln">    <span class="kw">do</span> {</span><span class="ln">        temp = *v;</span><span class="ln">    } <span class="kw">while</span> (temp != compare_and_swap(v, temp, temp + 1));</span><span class="ln">}</span></div>
+  </div>
+
+  <div class="sec" id="s3-4">
+    <h3><span class="sec-no">3.4</span>Mutex locks and spinlocks</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Wrap the instruction in two functions. <code>acquire(&amp;lock)</code> gets the lock without interruption, and <code>release(&amp;lock)</code> gives it back. The producer and consumer become simply <code>acquire(&amp;lock); counter++; release(&amp;lock);</code>.</p>
+        <p>This lock still <strong>busy-waits</strong>: a process that cannot get it keeps looping, burning CPU. It is called a <strong>spinlock</strong>. On a multiprocessor, spinning is fine for very short waits, because it avoids a context switch. On one core it wastes the rest of the spinner's quantum, since the lock holder cannot run to release it until then.</p>
+      </div>
+      <div class="code"><span class="ln"><span class="kw">void</span> acquire(<span class="kw">boolean</span> *lock) {</span><span class="ln">    <span class="kw">while</span> (test_and_set(lock));</span><span class="ln">}</span><span class="ln"><span class="kw">void</span> release(<span class="kw">boolean</span> *lock) {</span><span class="ln">    *lock = false;</span><span class="ln">}</span></div>
+    </div>
+    <div class="note note-lab">
+      <span class="note-tag">In the lab</span>
+      <p>Basecamp 3, Part 1: <code>race.c</code> runs four threads of 200,000 increments on one counter, first bare and then under a mutex. You will measure how many increments vanish and what the lock costs in time.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="q2">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Two CPUs</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Why does disabling interrupts fail to protect <code>counter</code> on a dual-core machine?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="The instruction works; it just affects only one core.">Interrupts cannot be disabled on multicore CPUs.</button>
+          <button type="button" class="q-opt" data-ok>It only stops preemption on the local core; a thread on the other core can run <code>counter--</code> at the same time.</button>
+          <button type="button" class="q-opt" data-why="The timer matters for preemption, but the real problem is true parallelism.">The timer interrupt still fires.</button>
+        </div>
+        <div class="q-fb ok">Right. With true parallelism, there is no interleaving to prevent; both run at once.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q3">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Which requirement?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">"Take turns" (<code>while (turn != i);</code> … <code>turn = j;</code>) guarantees mutual exclusion. Which requirement does it violate?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Only one process can have turn == its own id at a time.">Mutual exclusion</button>
+          <button type="button" class="q-opt" data-ok>Progress: if P1 stays in its remainder section, P0 can never enter twice in a row</button>
+          <button type="button" class="q-opt" data-why="Strict alternation actually bounds waiting at one entry by the other.">Only bounded waiting</button>
+        </div>
+        <div class="q-fb ok">Right. Load "take turns" in the model checker to see the trace.</div>
+        <div class="q-fb no">Not quite. Check it in the model checker.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch2">Back<b>2 · Producer–consumer</b></a>
+    <a href="#ch4">Next<b>4 · Busy waiting</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch4">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 4</div>
+    <h2>Busy waiting</h2>
+    <p class="ch-lede">Instead of spinning, go to sleep and be woken up. It is harder than it sounds.</p>
+  </div>
+
+  <div class="sec" id="s4-1">
+    <h3><span class="sec-no">4.1</span>sleep and wakeup</h3>
+    <div class="prose">
+      <p>Two things spin in the bounded buffer: the lock, and the <code>while (counter == MAX);</code> and <code>while (counter == 0);</code> loops. For the loops, we need a way to pause a process until there is something to do:</p>
+      <ul>
+        <li><code>sleep()</code>: block the calling process.</li>
+        <li><code>wakeup(pid)</code>: wake process pid. It has <strong>no effect</strong> if pid is not sleeping.</li>
+      </ul>
+    </div>
+    <div class="pair">
+      <div class="code"><span class="ln"><span class="c">// Producer</span></span><span class="ln"><span class="kw">while</span> (true) {</span><span class="ln">    produce(next_produced);</span><span class="ln ent">    <span class="kw">if</span> (counter == MAX) sleep();</span><span class="ln">    buffer[in] = next_produced;</span><span class="ln">    in = (in + 1) % MAX;</span><span class="ln">    acquire(&amp;lock); counter++; release(&amp;lock);</span><span class="ln ext">    <span class="kw">if</span> (counter == 1) wakeup(consumer);</span><span class="ln">}</span></div>
+      <div class="code"><span class="ln"><span class="c">// Consumer</span></span><span class="ln"><span class="kw">while</span> (true) {</span><span class="ln ent">    <span class="kw">if</span> (counter == 0) sleep();</span><span class="ln">    next_consumed = buffer[out];</span><span class="ln">    out = (out + 1) % MAX;</span><span class="ln">    acquire(&amp;lock); counter--; release(&amp;lock);</span><span class="ln">    consume(next_consumed);</span><span class="ln ext">    <span class="kw">if</span> (counter == MAX-1) wakeup(producer);</span><span class="ln">}</span></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-2">
+    <h3><span class="sec-no">4.2</span>The lost wakeup</h3>
+    <div class="prose">
+      <p>The waiting loops are gone, but two problems remain. The mutex still spins. Worse, the check <code>if (counter == 0)</code> and the <code>sleep()</code> are two separate steps, so a wakeup can arrive between them and be lost. Step through it with MAX = 4.</p>
+    </div>
+    <div class="widget" id="lw-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">Both processes asleep, forever</span><button class="w-reset" type="button" id="lw-reset">Reset</button></div>
+      <div class="controls">
+        <button type="button" class="btn" id="lw-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="lw-next">Next ›</button>
+        <span class="mono muted" id="lw-n" style="font-size:13px"></span>
+      </div>
+      <div class="widget-body">
+        <div class="pair three">
+          <div class="code" id="lw-p"></div>
+          <div class="code" id="lw-c"></div>
+          <div class="statebox" id="lw-s"></div>
+        </div>
+      </div>
+      <div class="readout" id="lw-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <div class="note note-key">
+      <span class="note-tag">The fix, next lecture</span>
+      <p>We need a mechanism that <strong>counts</strong> the <code>sleep()</code> and <code>wakeup()</code> calls, so that a wakeup sent too early is saved rather than lost, and that makes checking and sleeping one atomic step. That mechanism is the <strong>semaphore</strong> (Lecture 09).</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-3">
+    <h3><span class="sec-no">4.3</span>Signals race too</h3>
+    <div class="prose">
+      <ul>
+        <li>A handler processing signal S1 can be interrupted by another signal S2 (see the reentrancy example in Lecture 05, §4.2).</li>
+        <li>The fix is to <strong>block</strong> other signals while handling one, with <code>sigprocmask()</code>. A blocked signal becomes <strong>pending</strong> and is delivered when unblocked.</li>
+        <li>At most one signal of each type can be pending. Signals are <strong>not queued</strong>, so two identical signals may arrive as one.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-4">
+    <h3><span class="sec-no">4.4</span>Blocking vs. non-blocking</h3>
+    <div class="prose">
+      <p>"Block" means two different things in this lecture, so separate them first:</p>
+      <ul>
+        <li>A <strong>process blocks</strong> when it gives up the CPU and sleeps until an event occurs: <code>sleep()</code> in §4.1, a <code>read()</code> on an empty pipe, a mutex that puts waiters to sleep. The scheduler moves it to the waiting state (Lecture 03) and runs someone else.</li>
+        <li>A <strong>signal is blocked</strong> when delivery is postponed with <code>sigprocmask()</code> (§4.3). The process keeps running; only the signal waits.</li>
+      </ul>
+      <p>With the first meaning, an operation that might have to wait comes in two styles:</p>
+    </div>
+    <div class="pc">
+      <div class="pro"><span class="tag">Blocking call</span>Returns only when it can complete. <code>read()</code> on an empty pipe sleeps until data arrives; <code>pthread_mutex_lock()</code> waits until it owns the lock. It is simple to use, and the CPU is free for others while the caller sleeps. But the caller can do nothing else meanwhile.</div>
+      <div class="con"><span class="tag">Non-blocking call</span>Returns immediately, even if it cannot complete, and says so. <code>read()</code> on a pipe opened with <code>O_NONBLOCK</code> returns −1 with <code>errno = EAGAIN</code>; <code>pthread_mutex_trylock()</code> returns <code>EBUSY</code>. The caller stays in control, but it has to retry later.</div>
+    </div>
+    <div class="prose">
+      <p>A non-blocking call retried in a tight loop is busy waiting again: <code>while (trylock(&amp;m) == EBUSY);</code> is a spinlock in disguise. Non-blocking calls pay off when the caller has other useful work to do between attempts, like a server polling many connections.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-5">
+    <h3><span class="sec-no">4.5</span>Synchronous vs. asynchronous</h3>
+    <div class="prose">
+      <p>This pair is about <em>when</em> something happens relative to the program's own flow of control.</p>
+      <ul>
+        <li><strong>Synchronous signals</strong> are caused by the thread's own instruction: <code>SIGSEGV</code> from a bad pointer, <code>SIGFPE</code> from dividing by zero. They arrive at a predictable point, right at the faulting instruction, and are delivered to the thread that caused them.</li>
+        <li><strong>Asynchronous signals</strong> come from outside the thread: <code>SIGINT</code> when the user presses Ctrl-C, <code>SIGALRM</code> from a timer, <code>kill()</code> from another process. They can arrive <em>between any two instructions</em>, which is why they cause the races in §4.3 and why handlers must be reentrant.</li>
+        <li><strong>Operations</strong> use the same words. A <strong>synchronous</strong> operation finishes before the call returns, so the result is there when the next line runs. An <strong>asynchronous</strong> operation is only <em>started</em> by the call; its completion is reported later, by a signal, a callback, or a status the caller checks (for example POSIX <code>aio_read()</code>).</li>
+      </ul>
+    </div>
+    <figure class="fig">
+      <div class="fig-frame">
+        <svg class="dia" viewBox="0 0 640 200" width="620" role="img" aria-label="Three ways to wait for data that arrives at time 6: blocking read sleeps; non-blocking read polls with EAGAIN; asynchronous read keeps working and is notified">
+          <g id="ba-g"></g>
+        </svg>
+      </div>
+      <figcaption><span class="fno">Fig. 4.1</span>Waiting for data that arrives at t = 6, three ways.</figcaption>
+    </figure>
+    <div class="note note-key">
+      <span class="note-tag">Don't mix them up</span>
+      <p>Non-blocking is not the same as asynchronous. A non-blocking call gives up <em>now</em> ("not ready, try again"), and the caller must come back. An asynchronous call accepts the work <em>now</em> and finishes it later, telling the caller when it is done. The terms overlap in some places: the textbook's message passing (Ch. 3) calls blocking send and receive <em>synchronous</em>, and non-blocking ones <em>asynchronous</em>.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="q6">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Which kind?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A program dereferences a NULL pointer and receives <code>SIGSEGV</code>. Meanwhile the user presses Ctrl-C and it receives <code>SIGINT</code>. Which is which?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>SIGSEGV is synchronous (caused by its own instruction); SIGINT is asynchronous (arrives from outside at any point)</button>
+          <button type="button" class="q-opt" data-why="SIGSEGV is triggered by the program's own faulting instruction, so its timing is not arbitrary.">Both are asynchronous: signals always are</button>
+          <button type="button" class="q-opt" data-why="Blocking is about whether delivery is postponed with sigprocmask, a separate question.">SIGSEGV is blocking; SIGINT is non-blocking</button>
+        </div>
+        <div class="q-fb ok">Right. Synchronous signals arrive at a predictable instruction; asynchronous ones can land anywhere.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q4">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Lost wakeup</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Why is the producer's <code>wakeup(consumer)</code> lost in §4.2?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>The consumer had checked <code>counter == 0</code> but not yet called <code>sleep()</code>. A wakeup to a process that is not asleep does nothing, and nothing remembers it.</button>
+          <button type="button" class="q-opt" data-why="The lock protects counter itself, and counter is correct here; the problem is between the check and the sleep.">The producer forgot to acquire the lock.</button>
+          <button type="button" class="q-opt" data-why="wakeup is delivered immediately; it simply has no effect on a running process.">The wakeup was delivered to the wrong process.</button>
+        </div>
+        <div class="q-fb ok">Right. The check and the sleep must be one atomic step, and wakeups must be counted.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q5">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Spinlocks</span></div>
+      <div class="quiz-body">
+        <div class="q-text">On a single-core machine, a thread spins on a spinlock held by a preempted thread. What happens?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="The holder is not running, so it cannot release the lock while the spinner spins.">The lock is released a few cycles later.</button>
+          <button type="button" class="q-opt" data-ok>The spinner burns the rest of its quantum; the holder can release only after it is scheduled again.</button>
+          <button type="button" class="q-opt" data-why="Spinning never blocks; that is what makes it busy waiting.">The spinner blocks until the lock is free.</button>
+        </div>
+        <div class="q-fb ok">Right. That is why spinlocks suit short critical sections on multiprocessors.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch3">Back<b>3 · Solutions</b></a>
+    <a href="#tail">Next<b>∎ · Summary and glossary</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="tail">
+  <div class="ch-head">
+    <div class="ch-no">Epilogue</div>
+    <h2>Summary and glossary</h2>
+  </div>
+
+  <div class="sec" id="s-sum">
+    <h3><span class="sec-no">∎</span>What to take away</h3>
+    <div class="prose">
+      <ul>
+        <li>Concurrent access to shared data can leave it inconsistent; the code that accesses it is a critical section.</li>
+        <li>A solution needs mutual exclusion, progress and bounded waiting, under every interleaving and at any relative speed.</li>
+        <li><code>counter++</code> is three instructions; interleaved with <code>counter--</code>, it can yield 4, 5 or 6.</li>
+        <li>Disabling interrupts fails on multiprocessors and is privileged. A plain lock variable fails mutual exclusion. Peterson's solution works for two processes, but only in program order.</li>
+        <li>Atomic test-and-set and compare-and-swap build spinlocks and atomic variables. They busy-wait, and simple spinlocks do not bound waiting.</li>
+        <li>sleep/wakeup removes the spinning but loses wakeups; the fix is the semaphore, in Lecture 09.</li>
+        <li>Blocking calls sleep until they can finish; non-blocking calls return at once and must be retried. Synchronous events happen at a predictable point in the program; asynchronous ones can happen between any two instructions.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="table-wrap read-only">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>race condition</td><td>The outcome depends on the timing of concurrent accesses.</td></tr>
+        <tr><td>critical section</td><td>Code that accesses a shared resource.</td></tr>
+        <tr><td>entry / exit / remainder section</td><td>Asking to enter / leaving / everything else.</td></tr>
+        <tr><td>mutual exclusion</td><td>At most one process in its critical section.</td></tr>
+        <tr><td>progress</td><td>If the section is free and someone wants in, someone gets in.</td></tr>
+        <tr><td>bounded waiting</td><td>A bound on how many times others enter first.</td></tr>
+        <tr><td>Peterson's solution</td><td><code>flag[2]</code> plus <code>turn</code>; two processes.</td></tr>
+        <tr><td>test-and-set / compare-and-swap</td><td>Atomic read-modify-write instructions that return the old value.</td></tr>
+        <tr><td>atomic variable</td><td>An integer or boolean with atomic updates.</td></tr>
+        <tr><td>spinlock</td><td>A lock whose waiters busy-wait.</td></tr>
+        <tr><td>busy waiting</td><td>Looping on a condition, using CPU while waiting.</td></tr>
+        <tr><td>lost wakeup</td><td>A wakeup sent before the target sleeps, and so forgotten.</td></tr>
+        <tr><td>blocking / non-blocking call</td><td>Sleeps until it can complete / returns at once, possibly with EAGAIN or EBUSY.</td></tr>
+        <tr><td>synchronous / asynchronous</td><td>Happens at a predictable point, or completes before the call returns / can happen at any time, or completes later.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Adapted from the Lecture 08 slides.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; }
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const lines = (arr, cur, cls) => arr.map((t, k) => `<span class="ln${k === cur ? ' ' + (cls || 'cur') : ''}">${t}</span>`).join('');
+
+  /* ---------- hero: two threads converging on one gate ---------- */
+  (function () {
+    const cv = $('#hero-canvas'); if (!cv) return;
+    let W = 0, H = 0, t = 0;
+    function size() { const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2); W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0); draw(); }
+    function draw() {
+      const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H);
+      const y = H - 70, gx = W * 0.62;
+      ctx.globalAlpha = 0.2; ctx.fillStyle = tok('--cd'); ctx.fillRect(gx - 30, y - 34, 60, 68);
+      [['--cz', -18], ['--cx', 18]].forEach(([c, dy], k) => {
+        ctx.fillStyle = tok(c); ctx.globalAlpha = 0.25;
+        for (let n = 0; n < 14; n++) { const x = ((n * 90 + t * (k ? 1.3 : 1)) % (W + 200)) - 100; const yy = x > gx - 30 && x < gx + 30 ? y - 8 + k * 16 : y + dy; ctx.fillRect(x, yy - 6, 36, 12); }
+      });
+      ctx.globalAlpha = 1;
+    }
+    size(); addEventListener('resize', size);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    if (!reduce) setInterval(() => { if (document.hidden) return; t += 1.4; draw(); }, 40);
+  })();
+
+  /* ---------- Fig 0.1 pid race ---------- */
+  (function () {
+    const g = $('#pid-g');
+    const lane = (x, n) => { g.appendChild(el('rect', { x: x - 45, y: 10, width: 90, height: 28, rx: 6, class: 'pbox' })); g.appendChild(el('text', { x, y: 29, 'text-anchor': 'middle', class: 'mono' }, n)); g.appendChild(el('path', { d: `M${x} 38 V210`, class: 'wire thin', style: 'stroke-dasharray:3 3' })); };
+    lane(70, 'P0'); lane(330, 'P1');
+    g.appendChild(el('rect', { x: 140, y: 90, width: 120, height: 50, rx: 8, class: 'obox' }));
+    g.appendChild(el('text', { x: 200, y: 110, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10.5px' }, 'next_available_pid'));
+    g.appendChild(el('text', { x: 200, y: 130, 'text-anchor': 'middle', class: 'mono' }, '2615'));
+    [['pid = fork()', 60], ['read 2615', 104], ['child = 2615', 176]].forEach(([t, y], k) => { [70, 330].forEach((x) => { g.appendChild(el('text', { x, y, 'text-anchor': 'middle', class: k === 2 ? 'lbl mono t-m' : 'lbl mono', style: 'font-size:11px' }, t)); }); });
+    g.appendChild(el('path', { d: 'M140 110 L108 104', class: 'wire thin', 'marker-end': 'url(#ah)' }));
+    g.appendChild(el('path', { d: 'M260 110 L292 104', class: 'wire thin', 'marker-end': 'url(#ah)' }));
+    g.appendChild(el('text', { x: 200, y: 200, 'text-anchor': 'middle', class: 'lbl t-m', style: 'font-size:11.5px' }, 'two processes, one pid'));
+  })();
+
+  /* ---------- §2.1 bounded buffer ---------- */
+  (function () {
+    const MAX = 8; let buf, inn, out, counter, next, msg;
+    const init = () => { buf = Array(MAX).fill(null); inn = 0; out = 0; counter = 0; next = 1; msg = 'Empty buffer: the consumer would spin on <code>while (counter == 0);</code>.'; };
+    function produce() { if (counter === MAX) { msg = '<b class="bad">Full.</b> The producer spins on <code>while (counter == MAX);</code> until the consumer takes something.'; return; } buf[inn] = 'i' + next++; inn = (inn + 1) % MAX; counter++; msg = `Produced into slot ${(inn + MAX - 1) % MAX}; in → ${inn}, counter → ${counter}.`; }
+    function consume() { if (counter === 0) { msg = '<b class="bad">Empty.</b> The consumer spins on <code>while (counter == 0);</code> until the producer adds something.'; return; } const it = buf[out]; buf[out] = null; out = (out + 1) % MAX; counter--; msg = `Consumed ${it}; out → ${out}, counter → ${counter}.`; }
+    function render() {
+      $('#bb-ring').innerHTML = buf.map((v, k) => `<div class="slot${v ? ' full' : ''}">${k === inn ? '<span class="ptr i">in</span>' : ''}${v || ''}${k === out ? '<span class="ptr o">out</span>' : ''}</div>`).join('');
+      $('#bb-out').innerHTML = `counter = <b class="mono">${counter}</b>. ${msg}`;
+    }
+    $('#bb-p').addEventListener('click', () => { produce(); render(); });
+    $('#bb-p3').addEventListener('click', () => { for (let k = 0; k < 3; k++) produce(); render(); });
+    $('#bb-c').addEventListener('click', () => { consume(); render(); });
+    $('#bb-reset').addEventListener('click', () => { init(); render(); });
+    init(); render();
+  })();
+
+  /* ---------- §2.2 counter race ---------- */
+  (function () {
+    // op: {t: text, go(v, me) -> next pc | null (blocked)}
+    const MODES = {
+      plain: (d) => [
+        { t: `register = counter`, go: (v, m) => { v.r[m] = v.counter; return 1; } },
+        { t: `register = register ${d > 0 ? '+' : '−'} 1`, go: (v, m) => { v.r[m] += d; return 2; } },
+        { t: `counter = register`, go: (v, m) => { v.counter = v.r[m]; return 3; } },
+      ],
+      lock: (d) => [
+        { t: `acquire(&amp;lock)`, go: (v, m) => { if (v.lock) return null; v.lock = 1; return 1; } },
+        { t: `register = counter`, go: (v, m) => { v.r[m] = v.counter; return 2; } },
+        { t: `register = register ${d > 0 ? '+' : '−'} 1`, go: (v, m) => { v.r[m] += d; return 3; } },
+        { t: `counter = register`, go: (v, m) => { v.counter = v.r[m]; return 4; } },
+        { t: `release(&amp;lock)`, go: (v, m) => { v.lock = 0; return 5; } },
+      ],
+      cas: (d) => [
+        { t: `temp = counter`, go: (v, m) => { v.r[m] = v.counter; return 1; } },
+        { t: `CAS(&amp;counter, temp, temp ${d > 0 ? '+' : '−'} 1)`, go: (v, m) => { if (v.counter === v.r[m]) { v.counter = v.r[m] + d; return 2; } v.fail[m]++; return 0; } },
+      ],
+    };
+    let mode = 'plain', P, st, log;
+    const fresh = () => ({ counter: 5, r: [null, null], lock: 0, pc: [0, 0], fail: [0, 0] });
+    const clone = (s) => JSON.parse(JSON.stringify(s));
+    const progs = () => [MODES[mode](1), MODES[mode](-1)];
+    function stepS(s, m) { if (s.pc[m] >= P[m].length) return null; const n = clone(s); const np = P[m][s.pc[m]].go(n, m); if (np == null) return null; n.pc[m] = np; return n; }
+    function enumerate() { const hist = {}; let n = 0; const dfs = (s, depth) => { if (depth > 40) return; const a = stepS(s, 0), b = stepS(s, 1); if (!a && !b) { hist[s.counter] = (hist[s.counter] || 0) + 1; n++; return; } if (a) dfs(a, depth + 1); if (b) dfs(b, depth + 1); }; dfs(fresh(), 0); return { hist, n }; }
+    function render() {
+      $$('#rc-m [data-m]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === mode)));
+      const code = (m) => [`<span class="c">// ${m ? 'Consumer: counter--' : 'Producer: counter++'}</span>`, ...P[m].map((o) => o.t), '<span class="c">// done</span>'];
+      $('#rc-pcode').innerHTML = lines(code(0), st.pc[0] + 1, 'cur2');
+      $('#rc-ccode').innerHTML = lines(code(1), st.pc[1] + 1, 'cur');
+      $('#rc-state').innerHTML = `<div class="hd">state</div>counter = <b>${st.counter}</b><br>producer ${mode === 'cas' ? 'temp' : 'reg'} = ${st.r[0] ?? '—'}<br>consumer ${mode === 'cas' ? 'temp' : 'reg'} = ${st.r[1] ?? '—'}${mode === 'lock' ? `<br>lock = ${st.lock}` : ''}${mode === 'cas' ? `<br>failed CAS: ${st.fail[0]} / ${st.fail[1]}` : ''}`;
+      $('#rc-pp').disabled = !stepS(st, 0); $('#rc-cc').disabled = !stepS(st, 1);
+      $('#rc-slide').disabled = mode !== 'plain';
+      const { hist, n } = enumerate(), mx = Math.max(...Object.values(hist));
+      $('#rc-hist').innerHTML = [4, 5, 6].map((k) => `<div class="col"><span>${hist[k] || 0}</span><div class="bar${k !== 5 ? ' bad' : ''}" style="height:${Math.max(2, ((hist[k] || 0) / mx) * 60)}px"></div><span>${k}</span></div>`).join('') + `<div class="col muted" style="align-self:center;margin-left:10px">${n} interleavings${mode === 'cas' ? ' (including retries)' : ''}</div>`;
+      const done = !stepS(st, 0) && !stepS(st, 1);
+      $('#rc-out').innerHTML = done ? (st.counter === 5 ? `Final counter = <b>5</b>. Correct.` : `Final counter = <b class="bad">${st.counter}</b>: one update was lost. The ${st.counter === 4 ? 'consumer' : 'producer'} stored last and overwrote the other's result.`) + ` <span class="muted">Log: ${log.join(' ')}</span>` : `${log.length ? 'Log: <span class="mono">' + log.join(' ') + '</span>. ' : ''}Pick who runs next.${mode === 'cas' && (st.fail[0] || st.fail[1]) ? ' A CAS failed because counter changed after the read; that process goes back and re-reads.' : ''}`;
+    }
+    function go(m) { const n = stepS(st, m); if (n) { st = n; log.push(m ? 'C' : 'P'); } render(); }
+    $('#rc-pp').addEventListener('click', () => go(0));
+    $('#rc-cc').addEventListener('click', () => go(1));
+    $('#rc-slide').addEventListener('click', () => { st = fresh(); log = []; [0, 0, 1, 1, 0, 1].forEach((m) => { st = stepS(st, m); log.push(m ? 'C' : 'P'); }); render(); });
+    $('#rc-m').addEventListener('click', (e) => { const b = e.target.closest('[data-m]'); if (b) { mode = b.dataset.m; P = progs(); st = fresh(); log = []; render(); } });
+    $('#rc-reset').addEventListener('click', () => { mode = 'plain'; P = progs(); st = fresh(); log = []; render(); });
+    P = progs(); st = fresh(); log = []; render();
+  })();
+
+  /* ---------- §3.2 model checker ---------- */
+  (function () {
+    // op: {r: region R|E|C|X, t(i,j): text, go(v,i,j,pc) -> next pc}
+    const R = { r: 'R', t: () => '<i>remainder</i>', go: () => 1 };
+    const C = (pc) => ({ r: 'C', t: () => '<i>critical section</i>', go: () => pc + 1 });
+    const PROTO = {
+      naive: { name: 'naive lock', vars: { lock: 0 }, ops: [R,
+        { r: 'E', t: () => 'while (lock);', go: (v, i, j, pc) => v.lock ? pc : pc + 1 },
+        { r: 'E', t: () => 'lock = TRUE;', go: (v, i, j, pc) => { v.lock = 1; return pc + 1; } },
+        C(3),
+        { r: 'X', t: () => 'lock = FALSE;', go: (v) => { v.lock = 0; return 0; } }] },
+      flags: { name: 'flags only', vars: { flag: [0, 0] }, ops: [R,
+        { r: 'E', t: (i) => `flag[${i}] = TRUE;`, go: (v, i, j, pc) => { v.flag[i] = 1; return pc + 1; } },
+        { r: 'E', t: (i, j) => `while (flag[${j}]);`, go: (v, i, j, pc) => v.flag[j] ? pc : pc + 1 },
+        C(3),
+        { r: 'X', t: (i) => `flag[${i}] = FALSE;`, go: (v, i) => { v.flag[i] = 0; return 0; } }] },
+      turns: { name: 'take turns', vars: { turn: 0 }, ops: [R,
+        { r: 'E', t: (i) => `while (turn != ${i});`, go: (v, i, j, pc) => v.turn !== i ? pc : pc + 1 },
+        C(2),
+        { r: 'X', t: (i, j) => `turn = ${j};`, go: (v, i, j) => { v.turn = j; return 0; } }] },
+      peterson: { name: 'Peterson', vars: { flag: [0, 0], turn: 0 }, ops: [R,
+        { r: 'E', t: (i) => `flag[${i}] = TRUE;`, go: (v, i, j, pc) => { v.flag[i] = 1; return pc + 1; } },
+        { r: 'E', t: (i, j) => `turn = ${j};`, go: (v, i, j, pc) => { v.turn = j; return pc + 1; } },
+        { r: 'E', t: (i, j) => `while (flag[${j}] &amp;&amp; turn == ${j});`, go: (v, i, j, pc) => (v.flag[j] && v.turn === j) ? pc : pc + 1 },
+        C(4),
+        { r: 'X', t: (i) => `flag[${i}] = FALSE;`, go: (v, i) => { v.flag[i] = 0; return 0; } }] },
+      tas: { name: 'test_and_set', vars: { lock: 0 }, ops: [R,
+        { r: 'E', t: () => 'while (test_and_set(&amp;lock));', go: (v, i, j, pc) => { const old = v.lock; v.lock = 1; return old ? pc : pc + 1; } },
+        C(2),
+        { r: 'X', t: () => 'lock = FALSE;', go: (v) => { v.lock = 0; return 0; } }] },
+    };
+    const ORDER = ['naive', 'flags', 'turns', 'peterson', 'tas'];
+    let cur = 'naive', M, trace, at;
+    $('#mc-p').innerHTML = ORDER.map((k) => `<button type="button" data-p="${k}">${PROTO[k].name}</button>`).join('');
+
+    function analyze(P) {
+      const key = (s) => s.pc.join(',') + '|' + JSON.stringify(s.v);
+      const succ = (s, k) => { const v = JSON.parse(JSON.stringify(s.v)); const pc = s.pc.slice(); pc[k] = P.ops[s.pc[k]].go(v, k, 1 - k, s.pc[k]); return { pc, v }; };
+      const init = { pc: [0, 0], v: JSON.parse(JSON.stringify(P.vars)) };
+      const S = new Map([[key(init), init]]), par = new Map([[key(init), null]]), Q = [init], E = [];
+      while (Q.length) { const s = Q.shift(), ks = key(s); [0, 1].forEach((k) => { const n = succ(s, k), kn = key(n); E.push({ a: ks, b: kn, k, enter: P.ops[n.pc[k]].r === 'C' && P.ops[s.pc[k]].r !== 'C' }); if (!S.has(kn)) { S.set(kn, n); par.set(kn, { p: ks, k }); Q.push(n); } }); }
+      const reg = (s, k) => P.ops[s.pc[k]].r;
+      const stuck = (s, k) => key(succ(s, k)) === key(s);
+      const path = (kk) => { const out = []; while (par.get(kk)) { const { p, k } = par.get(kk); out.unshift({ k, to: kk }); kk = p; } return out; };
+      const res = { n: S.size, key, succ, init, S };
+      for (const [k, s] of S) { if (reg(s, 0) === 'C' && reg(s, 1) === 'C') { res.me = path(k); break; } }
+      for (const [k, s] of S) { if (stuck(s, 0) && stuck(s, 1)) { res.dead = path(k); break; } }
+      if (!res.dead) for (const [k, s] of S) { for (const i of [0, 1]) if (stuck(s, i) && reg(s, 1 - i) === 'R') { res.prog = path(k); res.progI = i; break; } if (res.prog) break; }
+      // bounded waiting: SCC within states where i is in its entry section
+      for (const i of [0, 1]) {
+        const nodes = [...S.keys()].filter((k) => reg(S.get(k), i) === 'E'), inN = new Set(nodes);
+        const adj = new Map(nodes.map((k) => [k, []])); E.forEach((e) => { if (inN.has(e.a) && inN.has(e.b)) adj.get(e.a).push(e); });
+        let idx = 0; const ix = new Map(), low = new Map(), on = new Set(), stk = [], comp = new Map();
+        const strong = (v) => { ix.set(v, idx); low.set(v, idx); idx++; stk.push(v); on.add(v); for (const e of adj.get(v)) { if (!ix.has(e.b)) { strong(e.b); low.set(v, Math.min(low.get(v), low.get(e.b))); } else if (on.has(e.b)) low.set(v, Math.min(low.get(v), ix.get(e.b))); } if (low.get(v) === ix.get(v)) { let w; do { w = stk.pop(); on.delete(w); comp.set(w, v); } while (w !== v); } };
+        nodes.forEach((v) => { if (!ix.has(v)) strong(v); });
+        const inC = E.filter((e) => inN.has(e.a) && inN.has(e.b) && comp.get(e.a) === comp.get(e.b));
+        const jEnter = inC.find((e) => e.k === 1 - i && e.enter);
+        if (jEnter && inC.some((e) => e.k === i && comp.get(e.a) === comp.get(jEnter.a))) {
+          const c = comp.get(jEnter.a), iStep = inC.find((e) => e.k === i && comp.get(e.a) === c);
+          const within = (from, to) => { if (from === to) return []; const pr = new Map([[from, null]]), q = [from]; while (q.length) { const x = q.shift(); for (const e of adj.get(x)) { if (comp.get(e.b) !== c || pr.has(e.b)) continue; pr.set(e.b, e); if (e.b === to) { const o = []; let y = to; while (pr.get(y)) { const ee = pr.get(y); o.unshift({ k: ee.k, to: ee.b }); y = ee.a; } return o; } q.push(e.b); } } return []; };
+          const loop = [{ k: jEnter.k, to: jEnter.b }, ...within(jEnter.b, iStep.a), { k: iStep.k, to: iStep.b }, ...within(iStep.b, jEnter.a)];
+          res.bw = { i, pre: path(jEnter.a), loop };
+          break;
+        }
+      }
+      return res;
+    }
+
+    function load(k) {
+      cur = k; const P = PROTO[k]; M = analyze(P);
+      const mk = (ok, name, txt) => `<div class="v ${ok ? 'ok' : 'no'}"><span class="mk">${ok ? '✓' : '✗'}</span><b>${name}</b><span>${txt}</span></div>`;
+      const pg = !(M.dead || M.prog);
+      $('#mc-v').innerHTML = mk(!M.me, 'Mutual exclusion', M.me ? `Both processes reach the critical section after ${M.me.length} steps.` : 'No reachable state has both in the critical section.')
+        + mk(pg, 'Progress', M.dead ? 'Deadlock: both wait on each other forever.' : M.prog ? `P${M.progI} can wait forever while P${1 - M.progI} sits in its remainder section.` : 'Nobody waits forever for a free critical section.')
+        + mk(!M.bw, 'Bounded waiting', M.bw ? `P${1 - M.bw.i} can enter again and again while P${M.bw.i} keeps trying: a loop in the state graph.` : 'No process can be overtaken indefinitely.')
+        + `<div class="small muted">${M.n} reachable states explored.</div>`;
+      if (M.me) setTrace(M.me, 'The trace ends with both processes in the critical section.');
+      else if (M.dead) setTrace(M.dead, 'The trace ends in deadlock: each process spins, waiting for the other.');
+      else if (M.prog) setTrace(M.prog, `P${M.progI} spins at its while loop, and it will spin forever if P${1 - M.progI} never leaves its remainder section.`);
+      else if (M.bw) setTrace([...M.bw.pre, ...M.bw.loop], `After step ${M.bw.pre.length}, the last ${M.bw.loop.length} steps form a loop that can repeat forever: P${1 - M.bw.i} re-enters each time while P${M.bw.i} keeps losing.`);
+      else { let best = null; for (const [kk, s] of M.S) { if (P.ops[s.pc[0]].r === 'C' && P.ops[s.pc[1]].r === 'E' && M.key(M.succ(s, 1)) === kk) { best = kk; break; } } const pr = []; let kk = best; const par = bfsPar(); while (par.get(kk)) { const { p, k: kk2 } = par.get(kk); pr.unshift({ k: kk2, to: kk }); kk = p; } setTrace(pr, 'No violation exists. This sample trace ends with P0 in the critical section and P1 correctly waiting.'); }
+      $$('#mc-p [data-p]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.p === k)));
+    }
+    function bfsPar() { const P = PROTO[cur], init = M.init, par = new Map([[M.key(init), null]]), Q = [init]; while (Q.length) { const s = Q.shift(), ks = M.key(s); [0, 1].forEach((k) => { const n = M.succ(s, k), kn = M.key(n); if (!par.has(kn)) { par.set(kn, { p: ks, k }); Q.push(n); } }); } return par; }
+    let why = '';
+    function setTrace(steps, w) { trace = [{ s: M.init, k: null }]; steps.forEach((st) => trace.push({ s: M.S.get(st.to), k: st.k })); at = trace.length - 1; why = w; show(); }
+    function show() {
+      const P = PROTO[cur], s = trace[at].s;
+      [0, 1].forEach((i) => { $('#mc-c' + i).innerHTML = P.ops.map((o, k) => `<span class="ln${k === s.pc[i] ? (i ? ' cur' : ' cur2') : ''}${o.r === 'C' ? ' cs' : ''}">${o.t(i, 1 - i)}</span>`).join(''); });
+      $('#mc-s').innerHTML = '<div class="hd">values</div>' + Object.entries(s.v).map(([k, v]) => Array.isArray(v) ? v.map((x, n) => `${k}[${n}] = ${x ? 'TRUE' : 'FALSE'}`).join('<br>') : `${k} = ${k === 'lock' ? (v ? 'TRUE' : 'FALSE') : v}`).join('<br>');
+      $('#mc-t').innerHTML = trace.map((t, n) => { if (!n) return `<div data-at="0" class="${at === 0 ? 'at' : ''}">0. start: both in remainder</div>`; const prev = trace[n - 1].s, op = P.ops[prev.pc[t.k]]; const stay = prev.pc[t.k] === t.s.pc[t.k] && JSON.stringify(prev.v) === JSON.stringify(t.s.v); const txt = op.r === 'R' ? '<i>leaves remainder, wants in</i>' : op.r === 'C' ? '<i>runs critical section</i>' : op.t(t.k, 1 - t.k); return `<div data-at="${n}" class="${n === at ? 'at' : ''}"><span class="p${t.k}">${n}. P${t.k}</span>: ${txt}${stay ? ' <span class="muted">(waits)</span>' : ''}</div>`; }).join('');
+      const a = $('#mc-t .at'); if (a) a.scrollIntoView({ block: 'nearest' });
+      $('#mc-n').textContent = `step ${at} / ${trace.length - 1}`;
+      $('#mc-prev').disabled = at === 0; $('#mc-next').disabled = at === trace.length - 1;
+      const both = P.ops[s.pc[0]].r === 'C' && P.ops[s.pc[1]].r === 'C';
+      $('#mc-out').innerHTML = both ? '<b class="bad">Both processes are in the critical section.</b> ' + why : why;
+    }
+    function manual(k) { const s = trace[at].s, n = M.succ(s, k); trace = trace.slice(0, at + 1); trace.push({ s: n, k }); at++; why = 'Your own trace. Pick protocols and moves to break them.'; show(); }
+    $('#mc-p').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) load(b.dataset.p); });
+    $('#mc-t').addEventListener('click', (e) => { const d = e.target.closest('[data-at]'); if (d) { at = +d.dataset.at; show(); } });
+    $('#mc-prev').addEventListener('click', () => { if (at > 0) { at--; show(); } });
+    $('#mc-next').addEventListener('click', () => { if (at < trace.length - 1) { at++; show(); } });
+    $('#mc-s0').addEventListener('click', () => manual(0));
+    $('#mc-s1').addEventListener('click', () => manual(1));
+    $('#mc-reset').addEventListener('click', () => load('naive'));
+    load('naive');
+  })();
+
+  /* ---------- Fig 4.1 blocking / non-blocking / async ---------- */
+  (function () {
+    const g = $('#ba-g'), X = (t) => 150 + t * 50, rows = [['blocking read()', 30], ['non-blocking read()', 90], ['asynchronous read', 150]];
+    rows.forEach(([n, y]) => { g.appendChild(el('text', { x: 8, y: y + 18, class: 'lbl mono', style: 'font-size:11.5px' }, n)); g.appendChild(el('path', { d: `M${X(0)} ${y + 34} H${X(9.4)}`, class: 'wire thin', style: 'opacity:.2' })); });
+    const bar = (a, b, y, cls, t) => { g.appendChild(el('rect', { x: X(a), y, width: X(b) - X(a), height: 26, rx: 3, class: cls })); if (t) g.appendChild(el('text', { x: (X(a) + X(b)) / 2, y: y + 17, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:10.5px' }, t)); };
+    bar(0, 0.4, 30, 'pbox'); bar(0.4, 6, 30, 'box2', 'asleep: CPU runs others'); bar(6, 9, 30, 'pbox', 'uses data');
+    for (let t = 0; t < 6; t += 1) { bar(t, t + 0.4, 90, 'pbox'); g.appendChild(el('text', { x: X(t + 0.2), y: 128, 'text-anchor': 'middle', class: 'lbl mono t-m', style: 'font-size:9px' }, 'EAGAIN')); bar(t + 0.4, t + 1, 90, 'dbox'); }
+    g.appendChild(el('text', { x: X(3), y: 86, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:10.5px' }, 'retry, or other work between tries'));
+    bar(6, 9, 90, 'pbox', 'uses data');
+    bar(0, 0.4, 150, 'pbox'); bar(0.4, 6, 150, 'dbox', 'keeps doing other work'); bar(6, 9, 150, 'pbox', 'uses data');
+    g.appendChild(el('path', { d: `M${X(6)} 146 V142`, class: 'wire m' }));
+    g.appendChild(el('text', { x: X(6), y: 196, 'text-anchor': 'middle', class: 'lbl t-m', style: 'font-size:10.5px' }, 'notified at t = 6'));
+    g.appendChild(el('path', { d: `M${X(6)} 20 V184`, class: 'wire m', style: 'stroke-dasharray:4 3' }));
+    g.appendChild(el('text', { x: X(6) + 4, y: 14, class: 'lbl t-m', style: 'font-size:10.5px' }, 'data arrives'));
+  })();
+
+  /* ---------- §4.2 lost wakeup ---------- */
+  (function () {
+    const PC = ['<span class="c">// Producer</span>', 'produce(item);', 'if (counter == MAX) sleep();', 'buffer[in] = item; in = …;', 'acquire; counter++; release;', 'if (counter == 1) wakeup(consumer);'];
+    const CC = ['<span class="c">// Consumer</span>', 'if (counter == 0)', '    sleep();', 'item = buffer[out]; out = …;', 'acquire; counter--; release;', 'consume(item);'];
+    const S = [
+      [-1, -1, 0, 'run', 'run', 'Start: the buffer is empty, counter = 0. Both processes are running.'],
+      [-1, 1, 0, 'run', 'run', 'The consumer tests <code>counter == 0</code>: true. It is about to call <code>sleep()</code>, but a context switch lands first.', 'c'],
+      [3, 1, 0, 'run', 'run', 'The producer produces an item and puts it in the buffer.', 'p'],
+      [4, 1, 1, 'run', 'run', 'counter → 1, under the lock.', 'p'],
+      [5, 1, 1, 'run', 'run', '<code>counter == 1</code>, so the producer calls <code>wakeup(consumer)</code>. But the consumer is not asleep yet, <b class="bad">so the wakeup has no effect</b> and nothing remembers it.', 'p'],
+      [5, 2, 1, 'run', 'sleep', 'The consumer resumes where it left off and calls <code>sleep()</code>. It blocks, with an item waiting in the buffer.', 'c'],
+      [4, 2, 4, 'run', 'sleep', 'The producer keeps producing: counter 2, 3, 4. counter is never 1 again, so it sends no more wakeups.', 'p'],
+      [2, 2, 4, 'sleep', 'sleep', '<code>counter == MAX</code>, so the producer sleeps too. <b class="bad">Both processes sleep forever.</b> The consumer waits for a wakeup that already came and went.', 'p'],
+    ];
+    let i = 0;
+    function show(k) {
+      i = Math.max(0, Math.min(S.length - 1, k)); const [pp, cp, cnt, ps, cs, t, who] = S[i];
+      $('#lw-p').innerHTML = lines(PC, pp, 'cur2'); $('#lw-c').innerHTML = lines(CC, cp, 'cur');
+      const buf = Array.from({ length: 4 }, (_, n) => n < cnt ? '■' : '□').join(' ');
+      $('#lw-s').innerHTML = `<div class="hd">state</div>counter = <b>${cnt}</b><br>buffer ${buf}<br>producer <span class="chipt ${ps === 'run' ? 'run' : 'sleep'}">${ps === 'run' ? 'running' : 'asleep'}</span><br>consumer <span class="chipt ${cs === 'run' ? 'run' : 'sleep'}">${cs === 'run' ? 'running' : 'asleep'}</span>`;
+      $('#lw-out').innerHTML = t; $('#lw-n').textContent = (i + 1) + '/' + S.length;
+      $('#lw-prev').disabled = i === 0; $('#lw-next').disabled = i === S.length - 1;
+    }
+    $('#lw-prev').addEventListener('click', () => show(i - 1));
+    $('#lw-next').addEventListener('click', () => show(i + 1));
+    $('#lw-reset').addEventListener('click', () => show(0));
+    show(0);
+  })();
+})();
+</script>
+</body>
+</html>

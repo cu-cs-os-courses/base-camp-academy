@@ -1,0 +1,1127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>More Scheduling · L07</title>
+<meta name="description" content="CSCI 3753 Lecture 07, interactive edition: priority scheduling and aging, multilevel feedback queues, Linux's O(1) scheduler and CFS, earliest-deadline-first, and multiprocessor scheduling.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+/* ---- lecture-local ---- */
+.sub-lab { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); }
+table.pr { border-collapse: collapse; font-family: var(--f-mono); font-size: 13px; }
+table.pr th { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line2); }
+table.pr td { padding: 3px 8px; border-bottom: 1px solid var(--line); }
+table.pr input, table.pr select { width: 4.2em; font: inherit; border: 1px solid var(--line2); border-radius: 5px; background: var(--bg2); color: var(--ink); padding: 1px 4px; }
+table.res { border-collapse: collapse; width: 100%; font-family: var(--f-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+table.res th { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line2); }
+table.res th:first-child, table.res td:first-child { text-align: left; }
+table.res td { padding: 3px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+table.res tr.avg td { font-weight: 600; border-top: 1.5px solid var(--line2); }
+table.res td.miss { color: var(--cd); font-weight: 600; }
+table.res td.met { color: var(--good); font-weight: 600; }
+.sch-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px 22px; align-items: start; }
+.arrays { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.arr { border: 1.5px solid var(--line2); border-radius: 10px; padding: 8px 10px; background: var(--bg); min-height: 120px; }
+.arr .hd { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); margin-bottom: 6px; }
+.arr.act { border-color: var(--cz); }
+.arr .row { display: flex; align-items: center; gap: 6px; font-family: var(--f-mono); font-size: 12.5px; padding: 2px 0; }
+.arr .row .pn { width: 3.2em; color: var(--ink3); }
+.chipt { display: inline-block; border: 1.5px solid var(--line2); border-radius: 6px; padding: 0 6px; background: var(--bg2); font-family: var(--f-mono); font-size: 12px; }
+.chipt.run { border-color: var(--cx); background: var(--cx-soft2); }
+.bars { display: grid; gap: 7px; }
+.bars .b { display: grid; grid-template-columns: 9.5em minmax(0, 1fr) 4.2em; gap: 10px; align-items: center; font-family: var(--f-mono); font-size: 12.5px; }
+.bars .track { position: relative; height: 16px; border-radius: 4px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.bars .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--cz-soft2); border-right: 2px solid var(--cz); }
+.bars .fill.x { background: var(--cx-soft2); border-right-color: var(--cx); }
+.bars .tick { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink); opacity: .55; }
+.bars .v { text-align: right; font-variant-numeric: tabular-nums; }
+.owe { border-collapse: collapse; font-family: var(--f-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.owe th, .owe td { padding: 4px 12px; border-bottom: 1px solid var(--line); text-align: center; }
+.owe th { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); border-bottom-color: var(--line2); }
+.owe td:first-child { text-align: left; color: var(--ink2); }
+.owe td.neg { color: var(--cd); }
+.owe td.pos { color: var(--cz-ink); }
+.owe tr.new td { background: var(--cx-soft); }
+@media (max-width: 760px) {
+  .sch-grid, .arrays { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><rect x="2.5" y="3" width="17" height="4.5" rx="1"/><rect x="2.5" y="9" width="17" height="4.5" rx="1"/><rect x="2.5" y="15" width="17" height="4.5" rx="1"/></g><rect x="3.3" y="3.8" width="5" height="3" fill="var(--cz)"/><rect x="3.3" y="9.8" width="9" height="3" fill="var(--cx)"/><rect x="3.3" y="15.8" width="13" height="3" fill="var(--cf)"/></svg>
+    <span>Lecture 07 · More Scheduling</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Lecture 07 · Interactive notes</div>
+    <h1>Fair is <span class="accent">harder</span> than it looks</h1>
+    <p class="lede">Lecture 06 compared FCFS, SJF and round robin on toy workloads. Real systems mix interactive shells, batch jobs, real-time controllers and dozens of cores. This lecture follows the ideas that handle that mix: priorities and aging, queues that learn a process's behavior, the two Linux schedulers before today's, deadlines, and scheduling across many CPUs.</p>
+    <div class="promise">
+      <span>Before you start:</span><span class="mono">FCFS, SJF, RR, the quantum</span><span>from Lecture 06.</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#ch0">Begin ↓</a>
+      <span class="muted small">About 60 minutes · 8 hands-on experiments · 7 checkpoints · Textbook: Silberschatz, Ch. 5 · Lab: Basecamp 2, Sharing the CPU</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="chapters">
+    <p class="rail-title">Contents</p>
+    <a href="#ch0"><span class="n">0</span>Priority scheduling</a>
+    <a href="#ch1"><span class="n">1</span>Multilevel queues</a>
+    <a href="#ch2"><span class="n">2</span>Linux: O(N) to O(1)</a>
+    <a href="#ch3"><span class="n">3</span>Completely Fair Scheduler</a>
+    <a href="#ch4"><span class="n">4</span>Real-time scheduling</a>
+    <a href="#ch5"><span class="n">5</span>Multiprocessors</a>
+    <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#ch0"><span class="n">0</span>Priority scheduling</a>
+        <a href="#ch1"><span class="n">1</span>Multilevel queues</a>
+        <a href="#ch2"><span class="n">2</span>Linux: O(N) to O(1)</a>
+        <a href="#ch3"><span class="n">3</span>Completely Fair Scheduler</a>
+        <a href="#ch4"><span class="n">4</span>Real-time scheduling</a>
+        <a href="#ch5"><span class="n">5</span>Multiprocessors</a>
+        <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+      </nav>
+    </details>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch0">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 0</div>
+    <h2>Priority scheduling</h2>
+    <p class="ch-lede">Not all processes are equal: give the CPU to the most important one.</p>
+  </div>
+
+  <div class="sec" id="s0-1">
+    <h3><span class="sec-no">0.1</span>Priorities</h3>
+    <div class="prose">
+      <ul>
+        <li>Each process has an integer <strong>priority</strong>; the CPU goes to the highest-priority process. Here, as in Linux, a <strong>smaller number means higher priority</strong>.</li>
+        <li>It can be <strong>preemptive</strong> (a newly ready higher-priority process takes the CPU) or <strong>nonpreemptive</strong> (it waits for the current burst to end).</li>
+        <li>SJF is a priority scheduler whose priority is the predicted next CPU burst: the shorter the burst, the higher the priority.</li>
+        <li><strong>Problem: starvation.</strong> A low-priority process may never run if higher-priority work keeps arriving.</li>
+        <li><strong>Solution: aging.</strong> The longer a process waits, the higher its priority becomes.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-2">
+    <h3><span class="sec-no">0.2</span>Two examples</h3>
+    <div class="prose">
+      <p>All processes arrive at time 0. In the first example, each priority level holds one process, so the schedule is just the priority order: average wait 8.2. The second example has ties. Processes with the same priority take turns round robin (q = 2), and a lower level runs only after every higher level is empty.</p>
+    </div>
+    <div class="widget" id="pr-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Priority scheduling, with round robin among equals</span><button class="w-reset" type="button" id="pr-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Example" id="pr-ex"><span class="seg-label">example</span><button type="button" data-e="0">priority only</button><button type="button" data-e="1">priority + RR</button></span>
+        <label class="ctl-label" for="pr-q">q <input id="pr-q" type="number" min="1" max="20" value="2" style="width:4em"></label>
+      </div>
+      <div class="widget-body">
+        <div class="sch-grid">
+          <div><div class="sub-lab">processes (editable)</div><table class="pr" id="pr-in"></table></div>
+          <div>
+            <div class="canvas-wrap"><svg class="dia" id="pr-g" viewBox="0 0 640 80" width="640" style="min-width:420px" role="img" aria-label="Gantt chart"></svg></div>
+            <div class="table-wrap" style="margin:10px 0 0"><table class="res" id="pr-r"></table></div>
+          </div>
+        </div>
+      </div>
+      <div class="readout" id="pr-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-3">
+    <h3><span class="sec-no">0.3</span>Starvation, and aging as the cure</h3>
+    <div class="prose">
+      <p>A job <b class="d">L</b> with priority 10 arrives at time 0. A stream of priority-1 jobs arrives too, one every 2 time units, each needing 2 units, so there is always one ready. The scheduler is nonpreemptive priority. Ties go to whichever job arrived first.</p>
+    </div>
+    <div class="widget" id="ag-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Does L ever run?</span><button class="w-reset" type="button" id="ag-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label"><input type="checkbox" id="ag-on"> aging</label>
+        <label class="ctl-label" for="ag-k">raise L's priority by 1 every <input id="ag-k" type="range" min="2" max="10" value="5"> <b class="mono" id="ag-kv"></b> units waited</label>
+      </div>
+      <div class="widget-body"><div class="canvas-wrap"><svg class="dia" id="ag-svg" viewBox="0 0 660 190" width="660" style="min-width:460px" role="img" aria-label="Timeline of the job stream and L, with L's priority below"></svg></div></div>
+      <div class="readout" id="ag-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="q0">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Aging</span></div>
+      <div class="quiz-body">
+        <div class="q-text">What does aging change?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="The quantum is a round-robin parameter; aging changes who is picked.">It shrinks the time quantum of old processes.</button>
+          <button type="button" class="q-opt" data-ok>It raises the priority of a process the longer it waits, so it is eventually picked.</button>
+          <button type="button" class="q-opt" data-why="Lowering the priority of long-running jobs is a different idea (the demotion in §1.2). Aging rescues waiting jobs.">It lowers the priority of processes that have run for a long time.</button>
+        </div>
+        <div class="q-fb ok">Right. A waiting process eventually outranks the stream that starves it.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#top">Back to<b>the top</b></a>
+    <a href="#ch1">Next<b>1 · Multilevel queues</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch1">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 1</div>
+    <h2>Multilevel queues</h2>
+    <p class="ch-lede">Split the ready queue, give each part its own policy, and let processes move between parts.</p>
+  </div>
+
+  <div class="sec" id="s1-1">
+    <h3><span class="sec-no">1.1</span>One queue per class</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>The ready queue becomes several queues. A multilevel queue scheduler is defined by:</p>
+        <ul>
+          <li>the number of queues;</li>
+          <li>the scheduling algorithm within each queue;</li>
+          <li>how to pick which queue a process enters;</li>
+          <li>scheduling among the queues, usually strict priority: run a lower queue only when all higher queues are empty.</li>
+        </ul>
+        <p>With priority scheduling, keep one queue per priority. Or prioritize by process type, as in Fig. 1.1.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 400 250" width="380" role="img" aria-label="Four queues from highest to lowest priority: real-time, system, interactive, batch">
+            <g id="mlq-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1.1</span>Prioritization by process type (after Silberschatz Fig. 5.8).</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-2">
+    <h3><span class="sec-no">1.2</span>Multilevel feedback queue</h3>
+    <div class="prose">
+      <p>In a <strong>multilevel feedback queue</strong> (MLFQ), a process can <em>move</em> between queues. Beyond the four parameters above, it needs rules for when to promote a process and when to demote it. Aging fits naturally: promote a process that has waited too long.</p>
+      <p>The classic three-queue example:</p>
+      <ul>
+        <li><b class="p">Q0</b>: RR with q = 8 ms. Every new process enters here. If it does not finish within 8 ms, it moves to Q1.</li>
+        <li><b class="d">Q1</b>: RR with q = 16 ms. If it still does not finish, it moves to Q2.</li>
+        <li><b class="f">Q2</b>: FCFS, run only when Q0 and Q1 are empty.</li>
+        <li>A process arriving in a higher queue preempts one running from a lower queue.</li>
+      </ul>
+    </div>
+    <div class="widget" id="mf-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">The three-queue MLFQ, 1 ms at a time</span><button class="w-reset" type="button" id="mf-reset">Reset</button></div>
+      <div class="widget-body">
+        <div class="sch-grid">
+          <div><div class="sub-lab">jobs, in ms (editable)</div><table class="pr" id="mf-in"></table></div>
+          <div>
+            <div class="canvas-wrap"><svg class="dia" id="mf-g" viewBox="0 0 640 150" width="640" style="min-width:460px" role="img" aria-label="Timeline with one lane per queue"></svg></div>
+            <div class="table-wrap" style="margin:10px 0 0"><table class="res" id="mf-r"></table></div>
+          </div>
+        </div>
+      </div>
+      <div class="readout" id="mf-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">A process preempted by a new arrival keeps its place at the head of its queue and the part of its quantum it has already used.</p>
+  </div>
+
+  <div class="sec" id="s1-3">
+    <h3><span class="sec-no">1.3</span>What MLFQ learns</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>By age</strong>: with promotion for old processes, a low-priority process eventually reaches the CPU. No starvation.</li>
+        <li><strong>By behavior</strong>: CPU-bound processes use up their quanta and sink. Interactive and I/O-bound processes block before the quantum ends and stay near the top, so they get fast response.</li>
+        <li>Over time, a process settles in the queue whose quantum matches its typical CPU burst. MLFQ gets most of SJF's benefit without being told burst lengths.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="q1">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Where does it live?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">In the three-queue MLFQ, a text editor runs about 2 ms of CPU after each keystroke, then blocks waiting for the next key. Where does it spend its life?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>In Q0: it never uses a full 8 ms quantum, so it is never demoted.</button>
+          <button type="button" class="q-opt" data-why="It is demoted only when it uses up a whole quantum without finishing its burst.">It moves down to Q2 after a few seconds of editing.</button>
+          <button type="button" class="q-opt" data-why="Q1 is for bursts between 8 and 24 ms.">In Q1.</button>
+        </div>
+        <div class="q-fb ok">Right. That is how MLFQ favors interactive work with no hints from the user.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch0">Back<b>0 · Priority scheduling</b></a>
+    <a href="#ch2">Next<b>2 · Linux: O(N) to O(1)</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 2</div>
+    <h2>Linux, before CFS</h2>
+    <p class="ch-lede">140 priority levels, a nice value, and a scheduler whose cost did not grow with the number of tasks.</p>
+  </div>
+
+  <div class="sec" id="s2-1">
+    <h3><span class="sec-no">2.1</span>Priorities and nice</h3>
+    <figure class="fig">
+      <div class="fig-frame">
+        <svg class="dia" viewBox="0 0 640 130" width="620" role="img" aria-label="Linux priority line from 0 to 139: 0 to 99 real-time, 100 to 139 normal tasks mapped from nice minus 20 to plus 19">
+          <g id="lp-g"></g>
+        </svg>
+      </div>
+      <figcaption><span class="fno">Fig. 2.1</span>Linux's 140 priorities. Lower numbers mean higher priority. Normal tasks sit at 120 + nice.</figcaption>
+    </figure>
+    <div class="prose">
+      <ul>
+        <li>Linux has <strong>140 priorities, 0–139</strong>. 0–99 are for real-time tasks and 100–139 for normal (non-RT) tasks. In the O(1) scheduler, higher priority also meant a <strong>longer quantum</strong>: the textbook's figure runs from 200 ms at the top to 10 ms at the bottom.</li>
+        <li>A normal task's priority comes from its <strong>nice value</strong>, <strong>−20 to +19</strong>, where lower is higher priority. A process at nice +15 is "nicer" to the others.</li>
+        <li>To run a heavy computation politely, type <code>nice -n 19 ./compute</code>. Lowering niceness to raise priority usually requires root.</li>
+        <li>Each Linux scheduler uses the nice value in its own way. §2.3 shows how O(1) used it, and §3.4 how CFS does.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-2">
+    <h3><span class="sec-no">2.2</span>O(N), then O(1)</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>Linux 2.4: O(N).</strong> Each task had a "goodness"; an interactive task that gave up the CPU early was rewarded with a higher value next time. The list was unordered, so picking the next task meant scanning all N tasks. That does not scale.</li>
+        <li><strong>Linux 2.6 to 2.6.22: O(1).</strong> Keep one queue per priority. Picking the next task means finding the first nonempty queue among a fixed 140, so the cost is bounded by the number of priorities, not the number of tasks. It is priority-based and preemptive.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-3">
+    <h3><span class="sec-no">2.3</span>Active and expired arrays</h3>
+    <div class="prose">
+      <ul>
+        <li>There are two arrays, each indexed by the 140 priorities: <b class="p">active</b> holds tasks with quantum left, and <strong>expired</strong> holds tasks that have used up theirs.</li>
+        <li>The scheduler runs the first task of the highest-priority nonempty queue in <em>active</em>. At worst it searches 140 levels. The real kernel keeps a 140-bit bitmap of nonempty queues, and one find-first-set-bit instruction per word locates the first one.</li>
+        <li>A task that exhausts its quantum moves to <em>expired</em> and cannot run again until every other task has used up its quantum. When <em>active</em> is empty, the two arrays are <strong>swapped</strong>, which is just a pointer swap.</li>
+        <li>On the move, the priority is recalculated: <strong>nice priority ± f(interactivity)</strong>, at most ±5. Tasks that sleep a lot waiting for I/O get closer to −5, a boost. Compute-bound tasks get closer to +5. Only normal priorities, 100–139, are adjusted.</li>
+      </ul>
+    </div>
+    <div class="widget" id="o1-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">Four tasks through the O(1) scheduler</span><button class="w-reset" type="button" id="o1-reset">Reset</button></div>
+      <div class="controls">
+        <button type="button" class="btn" id="o1-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="o1-next">Next ›</button>
+        <span class="mono muted" id="o1-n" style="font-size:13px"></span>
+      </div>
+      <div class="widget-body">
+        <div class="canvas-wrap" style="margin-bottom:10px"><svg class="dia" id="o1-bm" viewBox="0 0 640 58" width="640" style="min-width:460px" role="img" aria-label="Bitmap of nonempty priority queues in the active array"></svg></div>
+        <div class="arrays" id="o1-arr"></div>
+      </div>
+      <div class="readout" id="o1-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Tasks: <b>A</b> (nice 0, interactive), <b>B</b> (nice 0, CPU-bound), <b>C</b> (nice −10, CPU-bound), <b>D</b> (nice +10, interactive). The ±5 is shown as its extreme value.</p>
+    <div class="note note-honest">
+      <span class="note-tag">Why it was replaced</span>
+      <p>"The O(1) scheduler is a collection of heuristics," its author Ingo Molnar said. Deciding who counts as interactive, and by how much, made it hard to maintain and hard to predict.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="q2">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Constant time</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Why is the O(1) scheduler's pick constant time?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="There were still many tasks; the pick just does not look at all of them.">It limits the system to 140 tasks.</button>
+          <button type="button" class="q-opt" data-ok>It searches at most 140 priority queues, however many tasks there are.</button>
+          <button type="button" class="q-opt" data-why="The expired array is used only after the swap, and it has the same 140 levels.">It only ever looks at the expired array.</button>
+        </div>
+        <div class="q-fb ok">Right. The bound is the number of priorities, a constant.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch1">Back<b>1 · Multilevel queues</b></a>
+    <a href="#ch3">Next<b>3 · Completely Fair Scheduler</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch3">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 3</div>
+    <h2>The Completely Fair Scheduler</h2>
+    <p class="ch-lede">Linux 2.6.23 replaced quanta and heuristics with one number per task.</p>
+  </div>
+
+  <div class="sec" id="s3-1">
+    <h3><span class="sec-no">3.1</span>The ideal CPU</h3>
+    <div class="prose">
+      <ul>
+        <li>Picture an ideal CPU that runs N tasks <em>truly in parallel</em>, each at 1/N speed. With a 4 GHz processor and four tasks, each gets a 1 GHz processor at every instant. Everyone progresses all the time: perfectly fair.</li>
+        <li>A real core runs one task at a time. It gives concurrency, not parallelism.</li>
+        <li>CFS's goal is to approximate the ideal CPU. When a task runs for T, CFS keeps a running balance of how much time is owed to each of the others, as if they had all run on the ideal CPU.</li>
+        <li>CFS is based on a <em>proportion</em> of CPU time rather than fixed time allotments. It has two scheduling classes, default and real-time.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-2">
+    <h3><span class="sec-no">3.2</span>Keeping the books</h3>
+    <div class="prose">
+      <p>There are four tasks. In any interval T, the ideal CPU gives each one T/4. When the real CPU gives all of T to T1, T1 is over-allocated by 3T/4 and each of the others is owed T/4. Run them round robin and watch the balance W<sub>i</sub>, the time owed to task i.</p>
+    </div>
+    <div class="widget" id="ow-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">Time owed to each task</span><button class="w-reset" type="button" id="ow-reset">Reset</button></div>
+      <div class="controls">
+        <button type="button" class="btn" id="ow-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="ow-next">Next ›</button>
+        <span class="mono muted" id="ow-n" style="font-size:13px"></span>
+      </div>
+      <div class="widget-body">
+        <div class="canvas-wrap"><svg class="dia" id="ow-svg" viewBox="0 0 560 60" width="560" style="min-width:400px" role="img" aria-label="Timeline of T1 to T4"></svg></div>
+        <div class="table-wrap" style="margin:10px 0 0"><table class="owe" id="ow-t"></table></div>
+      </div>
+      <div class="readout" id="ow-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-3">
+    <h3><span class="sec-no">3.3</span>Virtual run time</h3>
+    <div class="prose">
+      <ul>
+        <li>The bookkeeping simplifies. Sum the run time each task has received, and run the task with the <strong>minimum sum</strong>. That is the same task as the one owed the most on the ideal CPU.</li>
+        <li><strong>The caveat:</strong> a task that was blocked for a long time, or is brand new, has a tiny sum. It would then hog the CPU until its sum caught up, blocking everyone else.</li>
+        <li>So CFS keeps a <strong>virtual run time</strong>, <code>vruntime</code>. When a task joins the run queue, whether new or waking from I/O, its vruntime is raised to at least the <strong>minimum vruntime</strong> in the queue. It becomes the next to run, but only a little ahead of the others.</li>
+        <li>CFS picks the minimum vruntime at every decision. That also makes it responsive: an interactive task gets the CPU almost immediately after its I/O completes.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-4">
+    <h3><span class="sec-no">3.4</span>Priorities are weights</h3>
+    <div class="prose">
+      <p>Each nice value maps to a <strong>weight</strong>. Nice 0 is 1024, and each step multiplies it by about 1.25. vruntime then advances more slowly for heavier tasks:</p>
+      <div class="formula center">Δvruntime = Δ(actual run time) × 1024 / weight</div>
+      <p>At nice 0, vruntime equals real run time. A higher-priority task has a larger weight, so its vruntime grows more slowly. It stays leftmost longer and runs more often. Over time, each task gets CPU in proportion to <strong>weight<sub>i</sub> / Σ weight</strong>, the weighted round robin share from Lecture 06, but without quanta.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="pt">
+        <thead><tr><th>nice</th><th>−20</th><th>−10</th><th>−5</th><th>−1</th><th>0</th><th>1</th><th>5</th><th>10</th><th>19</th></tr></thead>
+        <tbody><tr><td>weight</td><td>88761</td><td>9548</td><td>3121</td><td>1277</td><td>1024</td><td>820</td><td>335</td><td>110</td><td>15</td></tr></tbody>
+      </table>
+    </div>
+    <p class="small muted prose">From the kernel's <code>sched_prio_to_weight[]</code> table.</p>
+
+    <div class="widget" id="cf-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">CFS, one 4 ms slice at a time</span><button class="w-reset" type="button" id="cf-reset">Reset</button></div>
+      <div class="controls">
+        <button type="button" class="btn primary" id="cf-step">Run 1 slice</button>
+        <button type="button" class="btn" id="cf-run">Run 100</button>
+        <button type="button" class="btn" id="cf-add">Wake a new task</button>
+        <label class="ctl-label" for="cf-place">new task starts at <select id="cf-place"><option value="min" selected>min vruntime (CFS)</option><option value="zero">0 (naive)</option></select></label>
+      </div>
+      <div class="widget-body">
+        <div class="sch-grid">
+          <div><div class="sub-lab">tasks</div><table class="pr" id="cf-in"></table></div>
+          <div>
+            <div class="sub-lab">vruntime, sorted left to right as in the red-black tree</div>
+            <div class="canvas-wrap"><svg class="dia" id="cf-svg" viewBox="0 0 600 70" width="600" style="min-width:420px" role="img" aria-label="Tasks placed on a vruntime axis"></svg></div>
+            <div class="sub-lab" style="margin-top:10px">CPU share so far (bar) vs. weight share (tick)</div>
+            <div class="bars" id="cf-bars"></div>
+          </div>
+        </div>
+      </div>
+      <div class="readout" id="cf-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-5">
+    <h3><span class="sec-no">3.5</span>Implementation: one red-black tree</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ul>
+          <li>Runnable tasks sit in a <strong>red-black tree</strong> keyed by vruntime. The leftmost node is the next to run; the kernel caches a pointer to it, so picking is O(1). Inserting a task or reinserting it after it runs is O(log N).</li>
+          <li>All normal tasks share <strong>one tree</strong>, whatever their priority. Priority only changes how fast vruntime grows, so there is no need for 40 run queues, one per nice level.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 380 210" width="360" role="img" aria-label="A red-black tree of tasks keyed by vruntime; the leftmost node is marked next">
+            <g id="rb-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 3.1</span>Smaller vruntime to the left. The leftmost task runs next.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-6">
+    <h3><span class="sec-no">3.6</span>Fair to whom?</h3>
+    <div class="prose">
+      <p>CFS is fair to <em>tasks</em>, not necessarily to <em>applications</em>. If application A1 has 100 threads and the interactive A2 has one, A1 gets 100/101 of the CPU. With <strong>group scheduling</strong>, A1 and A2 are separate groups that split the CPU fairly first. A1's 100 threads then share A1's 50%.</p>
+    </div>
+    <div class="widget" id="gr-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Task fairness vs. group fairness</span><button class="w-reset" type="button" id="gr-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="gr-n">A1 threads <input id="gr-n" type="range" min="1" max="200" value="100"> <b class="mono" id="gr-nv"></b></label>
+        <label class="ctl-label"><input type="checkbox" id="gr-on"> group scheduling</label>
+      </div>
+      <div class="widget-body"><div class="bars" id="gr-bars"></div></div>
+      <div class="readout" id="gr-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <div class="note note-lab">
+      <span class="note-tag">In the lab</span>
+      <p>Basecamp 2, <em>Sharing the CPU</em>: <code>fairshare.sh</code> pins two spinners at different nice values to one CPU and measures their shares against the weight table. Since Linux 6.6 the fair class is scheduled by CFS's successor, EEVDF. The lab's report asks you to work out, from your own data, what changed and what did not.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="q3">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Shares</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Two CPU-bound tasks share one core under CFS, one at nice 0 and one at nice 5. About what share does the nice-0 task get?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Nice changes the weights, and CFS divides the CPU by weight.">50%</button>
+          <button type="button" class="q-opt" data-ok>About 75%: 1024 / (1024 + 335)</button>
+          <button type="button" class="q-opt" data-why="Nice 5 still has weight 335, not 0; the nice-5 task keeps about a quarter.">100%</button>
+        </div>
+        <div class="q-fb ok">Right: 1024 / 1359 ≈ 0.753. Try it in the §3.4 widget.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q4">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Waking up</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A task slept for 10 seconds waiting for the network. When it wakes, why doesn't CFS let it keep its old, tiny vruntime?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>It would have the smallest vruntime by far and hog the CPU until it caught up. So CFS raises it to about the queue's minimum.</button>
+          <button type="button" class="q-opt" data-why="CFS wants woken tasks to run soon, and they do: at the minimum vruntime they are next.">To punish tasks that sleep.</button>
+          <button type="button" class="q-opt" data-why="vruntime is not reset to 0; that is exactly the naive choice in the widget.">It resets vruntime to 0 so the task runs first.</button>
+        </div>
+        <div class="q-fb ok">Right. Set "0 (naive)" in the §3.4 widget and wake a task to see the hogging.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch2">Back<b>2 · Linux: O(N) to O(1)</b></a>
+    <a href="#ch4">Next<b>4 · Real-time scheduling</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch4">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 4</div>
+    <h2>Real-time scheduling</h2>
+    <p class="ch-lede">In real-time systems, finishing late is the same as being wrong.</p>
+  </div>
+
+  <div class="sec" id="s4-1">
+    <h3><span class="sec-no">4.1</span>Hard and soft deadlines</h3>
+    <div class="pc">
+      <div class="con"><span class="tag">Hard real time</span>Certain tasks must finish by a certain time or the system fails. Robots and self-driving cars need a real-time OS (RTOS) that actuates the arm or turns the steering wheel by the deadline.</div>
+      <div class="pro"><span class="tag">Soft real time</span>Meet most deadlines, allow some misses, perhaps with probabilistic guarantees. For some systems, meeting 60% of deadlines is enough. Linux's priority-based real-time classes are soft real time.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-2">
+    <h3><span class="sec-no">4.2</span>Earliest deadline first</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>EDF</strong> runs the task with the earliest deadline. In the first example, all tasks arrive at 0 and the order is P3, P1, P2, P4. Every deadline is met.</li>
+        <li>It is preemptive: a newly arrived task with an earlier deadline preempts a running task with a later one. In the second example, the scheduler decides again after every time unit.</li>
+        <li>On one CPU, if any schedule can meet all the deadlines, EDF does. Compare it with FCFS and SJF below.</li>
+      </ul>
+    </div>
+    <div class="widget" id="ed-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Who makes their deadline?</span><button class="w-reset" type="button" id="ed-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Algorithm" id="ed-a"><button type="button" data-a="edf">EDF</button><button type="button" data-a="fcfs">FCFS</button><button type="button" data-a="sjf">SJF</button></span>
+        <span class="seg" aria-label="Example" id="ed-ex"><span class="seg-label">example</span><button type="button" data-e="0">all at 0</button><button type="button" data-e="1">with arrivals</button></span>
+      </div>
+      <div class="widget-body">
+        <div class="sch-grid">
+          <div><div class="sub-lab">tasks (editable)</div><table class="pr" id="ed-in"></table></div>
+          <div>
+            <div class="canvas-wrap"><svg class="dia" id="ed-g" viewBox="0 0 600 190" width="600" style="min-width:420px" role="img" aria-label="One lane per task with its deadline marked"></svg></div>
+            <div class="table-wrap" style="margin:10px 0 0"><table class="res" id="ed-r"></table></div>
+          </div>
+        </div>
+      </div>
+      <div class="readout" id="ed-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Deadlines are absolute times. Circles mark arrivals; red ticks mark deadlines. Ties go to the lower task number.</p>
+  </div>
+
+  <div class="sec" id="s4-3">
+    <h3><span class="sec-no">4.3</span>Real-time classes in Linux</h3>
+    <div class="prose">
+      <ul>
+        <li><code>SCHED_FIFO</code>: real-time first-come first-served, soft real time.</li>
+        <li><code>SCHED_RR</code>: real-time round robin, soft real time.</li>
+        <li><code>SCHED_DEADLINE</code>: EDF-based. Each task declares its runtime, period and deadline, and the kernel admits it only if the declared demands fit on the CPUs. It is the closest Linux comes to hard real time, but mainline Linux is not a hard RTOS.</li>
+        <li>FIFO and RR tasks use the real-time priorities, 0–99 in Fig. 2.1. Every real-time task outranks every normal task: a weight only shares the CPU, but a policy ranks tasks (Basecamp 2, Part 3).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="q5">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">EDF</span></div>
+      <div class="quiz-body">
+        <div class="q-text">In the "all at 0" example, which task misses its deadline under FCFS?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="P1 runs first, 0–3, well before its deadline of 7.">P1</button>
+          <button type="button" class="q-opt" data-ok>P3: it waits behind P1 and P2, finishing at 8 against a deadline of 4</button>
+          <button type="button" class="q-opt" data-why="P4 finishes at 10, exactly on its deadline.">P4</button>
+        </div>
+        <div class="q-fb ok">Right. EDF runs P3 first and meets every deadline.</div>
+        <div class="q-fb no">Not quite. Switch the widget to FCFS.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch3">Back<b>3 · Completely Fair Scheduler</b></a>
+    <a href="#ch5">Next<b>5 · Multiprocessors</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch5">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 5</div>
+    <h2>Multiprocessor scheduling</h2>
+    <p class="ch-lede">With more than one CPU, the scheduler also has to decide where each task runs.</p>
+  </div>
+
+  <div class="sec" id="s5-1">
+    <h3><span class="sec-no">5.1</span>SMP: one queue or many?</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Multiprocessors come in several forms: multicore CPUs, multithreaded cores, NUMA systems, and heterogeneous multiprocessing (fast and slow cores). In <strong>symmetric multiprocessing</strong> (SMP), each processor schedules itself. Either:</p>
+        <ul>
+          <li>(a) all threads wait in one <strong>common ready queue</strong>. It is simple, but the cores contend for the queue's lock; or</li>
+          <li>(b) each processor has its <strong>own private queue</strong>. There is no contention and caches stay warm, but the queues must be balanced. Linux does this.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 420 220" width="400" role="img" aria-label="(a) one common run queue feeding four cores; (b) a private run queue per core">
+            <g id="smp-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 5.1</span>Ready queues in SMP (after Silberschatz Fig. 5.11).</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-2">
+    <h3><span class="sec-no">5.2</span>Affinity and load balancing</h3>
+    <div class="prose">
+      <ul>
+        <li>A thread that has been running on a processor has filled that processor's cache with its data. It has <strong>affinity</strong> for that processor.</li>
+        <li><strong>Soft affinity</strong>: the OS tries to keep a thread on the same processor but makes no promise. <strong>Hard affinity</strong>: the process names the set of processors it may run on. Linux supports both; <code>taskset</code> and <code>sched_setaffinity()</code> set hard affinity, and Basecamp 2 uses <code>taskset -c 0</code> to pin its spinners.</li>
+        <li><strong>Load balancing</strong> keeps work evenly spread. In <strong>push migration</strong>, a periodic task checks each CPU's load and pushes tasks off overloaded ones. In <strong>pull migration</strong>, an idle CPU pulls a waiting task from a busy one.</li>
+        <li>These goals conflict. Migrating a thread balances load but throws away its warm cache, which breaks affinity. Spreading work over every core fights power management, which wants to power unused cores down, especially on phones.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-3">
+    <h3><span class="sec-no">5.3</span>NUMA-aware scheduling</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>On a NUMA machine, each CPU reaches its own memory quickly and the other node's memory slowly, over an interconnect. A <strong>NUMA-aware</strong> OS allocates a thread's memory on the node where the thread runs, and it prefers to keep the thread there. Affinity then covers memory as well as cache.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 420 170" width="400" role="img" aria-label="Two NUMA nodes, each a CPU with local memory, joined by an interconnect">
+            <g id="numa-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 5.2</span>Local access is fast; remote access crosses the interconnect.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="q6">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Trade-offs</span></div>
+      <div class="quiz-body">
+        <div class="q-text">CPU 1 is idle and pulls a thread from busy CPU 0. What does the thread lose?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="The thread's registers are saved and restored like any context switch.">Its registers.</button>
+          <button type="button" class="q-opt" data-ok>The warm cache on CPU 0; it starts cold on CPU 1 (and, on NUMA, may now reach its memory remotely).</button>
+          <button type="button" class="q-opt" data-why="Migration does not change priority or vruntime.">Its priority.</button>
+        </div>
+        <div class="q-fb ok">Right. Load balancing and affinity pull in opposite directions.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch4">Back<b>4 · Real-time scheduling</b></a>
+    <a href="#tail">Next<b>∎ · Summary and glossary</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="tail">
+  <div class="ch-head">
+    <div class="ch-no">Epilogue</div>
+    <h2>Summary and glossary</h2>
+  </div>
+
+  <div class="sec" id="s-sum">
+    <h3><span class="sec-no">∎</span>What to take away</h3>
+    <div class="prose">
+      <ul>
+        <li>Priority scheduling runs the most important process first. It can starve others; aging fixes that.</li>
+        <li>Multilevel queues give each class its own queue and policy. Feedback queues move processes by behavior and age, approximating SJF without being told burst lengths.</li>
+        <li>Linux has 140 priorities: 0–99 real-time, 100–139 for nice −20 to +19. The O(1) scheduler used active and expired arrays and interactivity heuristics.</li>
+        <li>CFS runs the task with the minimum vruntime, which advances at 1024/weight per unit of run time. Shares follow the weights; one red-black tree holds every normal task; waking tasks start at the minimum vruntime; groups make it fair across applications.</li>
+        <li>Real time: EDF meets every deadline that can be met on one CPU. Linux offers <code>SCHED_FIFO</code>, <code>SCHED_RR</code> and <code>SCHED_DEADLINE</code>.</li>
+        <li>Multiprocessors: per-CPU queues, affinity, push and pull migration, NUMA awareness, and trade-offs between them.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="table-wrap read-only">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>starvation / aging</td><td>A process never runs / raising priority with waiting time.</td></tr>
+        <tr><td>multilevel (feedback) queue</td><td>Several ready queues with their own policies (and movement between them).</td></tr>
+        <tr><td>nice</td><td>A user-set priority, −20 (highest) to +19.</td></tr>
+        <tr><td>active / expired array</td><td>O(1): tasks with quantum left / tasks that used theirs.</td></tr>
+        <tr><td>vruntime</td><td>CFS's weighted run time; the minimum runs next.</td></tr>
+        <tr><td>weight</td><td>Per-nice-value multiplier; 1024 at nice 0, ×1.25 per step.</td></tr>
+        <tr><td>group scheduling</td><td>Fair shares between groups first, then within each.</td></tr>
+        <tr><td>hard / soft real time</td><td>Every deadline must be met / most should be.</td></tr>
+        <tr><td>EDF</td><td>Run the task with the earliest deadline.</td></tr>
+        <tr><td>SMP</td><td>Each processor schedules itself.</td></tr>
+        <tr><td>soft / hard affinity</td><td>Try to stay on a CPU / may run only on named CPUs.</td></tr>
+        <tr><td>push / pull migration</td><td>Busy CPUs push work off / idle CPUs pull it in.</td></tr>
+        <tr><td>NUMA-aware</td><td>Places a thread's memory on the node where it runs.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Adapted from the Lecture 07 slides.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; }
+  const clear = (n) => { while (n.firstChild) n.removeChild(n.firstChild); };
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const COL = ['pbox', 'dbox', 'fbox', 'obox', 'mbox', 'box2'];
+  const f2 = (x) => Number.isInteger(x) ? String(x) : x.toFixed(2);
+  const pushSeg = (segs, s) => { const l = segs[segs.length - 1]; if (l && l[2] === s[2] && l[3] === s[3] && l[1] === s[0]) l[1] = s[1]; else segs.push(s); };
+
+  /* generic Gantt: segs [a,b,who,lane]; one lane unless opts.lanes */
+  function gantt(svg, segs, o) {
+    clear(svg);
+    const lanes = o.lanes || [''], LW = o.lanes ? 70 : 10, W = +svg.getAttribute('viewBox').split(' ')[2];
+    const end = o.end || Math.max(1, ...segs.map((s) => s[1])), X = (t) => LW + t * ((W - LW - 12) / end);
+    const H = 34, top = 8;
+    svg.setAttribute('viewBox', `0 0 ${W} ${top + lanes.length * H + 30}`);
+    lanes.forEach((n, i) => { if (o.lanes) { svg.appendChild(el('text', { x: 4, y: top + i * H + 21, class: 'lbl mono', style: 'font-size:11px' }, n)); svg.appendChild(el('path', { d: `M${LW} ${top + i * H + H - 2} H${W - 12}`, class: 'wire thin', style: 'opacity:.15' })); } });
+    segs.forEach(([a, b, w, l]) => { const y = top + (l || 0) * H + 3; svg.appendChild(el('rect', { x: X(a), y, width: Math.max(1, X(b) - X(a)), height: H - 8, class: o.cls ? o.cls(w) : COL[w % COL.length] })); if (X(b) - X(a) > 16 && o.name) svg.appendChild(el('text', { x: (X(a) + X(b)) / 2, y: y + 17, 'text-anchor': 'middle', class: 'mono', style: 'font-size:11.5px' }, o.name(w))); });
+    (o.marks || []).forEach((m) => { const y = top + m.lane * H; if (m.kind === 'dl') svg.appendChild(el('path', { d: `M${X(m.t)} ${y} V${y + H - 4}`, class: 'wire m', style: 'stroke-width:2.5' })); else svg.appendChild(el('circle', { cx: X(m.t), cy: y + H / 2 - 1, r: 4, class: 'box' })); });
+    const ticks = new Set(o.ticks || [0, ...segs.map((s) => s[1])]);
+    [...ticks].forEach((t) => svg.appendChild(el('text', { x: X(t), y: top + lanes.length * H + 16, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, t)));
+    return X;
+  }
+
+  /* ---------- hero: three queues drifting ---------- */
+  (function () {
+    const cv = $('#hero-canvas'); if (!cv) return;
+    let W = 0, H = 0, off = 0, rows = [];
+    function size() { const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2); W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0); rows = [0, 1, 2].map((k) => { const a = []; let x = 0; while (x < W * 2) { const w = 18 + k * 22 + Math.random() * 20; a.push([x, w]); x += w + 10 + Math.random() * 40; } return a; }); draw(); }
+    function draw() { const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H); ['--cz', '--cx', '--cf'].forEach((c, k) => { ctx.fillStyle = tok(c); ctx.globalAlpha = 0.18; const y = H - 110 + k * 30, sp = [1.6, 1, 0.5][k]; rows[k].forEach(([x, w]) => { const X = ((x - off * sp) % (W * 2) + W * 2) % (W * 2); if (X < W) ctx.fillRect(X, y, w, 20); }); }); ctx.globalAlpha = 1; }
+    size(); addEventListener('resize', size);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    if (!reduce) setInterval(() => { if (document.hidden) return; off += 1.2; draw(); }, 40);
+  })();
+
+  /* ---------- §0.2 priority ---------- */
+  (function () {
+    const EX = [
+      [[10, 3], [1, 1], [2, 4], [1, 5], [5, 2]],
+      [[4, 3], [5, 2], [8, 2], [7, 1], [3, 3]],
+    ];
+    let P = [], ex = 0;
+    const load = (k) => { ex = k; P = EX[k].map(([b, p], i) => ({ n: 'P' + (i + 1), burst: b, pr: p })); };
+    function render() {
+      $$('#pr-ex [data-e]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.e === ex)));
+      $('#pr-in').innerHTML = '<thead><tr><th>proc</th><th>burst</th><th>priority</th></tr></thead><tbody>' + P.map((p, i) => `<tr><td>${p.n}</td><td><input type="number" min="1" max="30" value="${p.burst}" data-i="${i}" data-f="burst" aria-label="${p.n} burst"></td><td><input type="number" min="0" max="20" value="${p.pr}" data-i="${i}" data-f="pr" aria-label="${p.n} priority"></td></tr>`).join('') + '</tbody>';
+      const q = Math.max(1, +$('#pr-q').value || 1);
+      const R = P.map((p, i) => ({ ...p, i, rem: p.burst, fin: 0 })), segs = []; let t = 0;
+      [...new Set(R.map((p) => p.pr))].sort((a, b) => a - b).forEach((lv) => {
+        const Q = R.filter((p) => p.pr === lv);
+        while (Q.length) { const p = Q.shift(), r = Math.min(q, p.rem); pushSeg(segs, [t, t + r, p.i, 0]); t += r; p.rem -= r; if (p.rem) Q.push(p); else p.fin = t; }
+      });
+      gantt($('#pr-g'), segs, { name: (i) => P[i].n });
+      let sw = 0;
+      $('#pr-r').innerHTML = '<thead><tr><th>proc</th><th>priority</th><th>burst</th><th>finish</th><th>wait</th></tr></thead><tbody>' + R.map((p) => { const w = p.fin - p.burst; sw += w; return `<tr><td>${p.n}</td><td>${p.pr}</td><td>${p.burst}</td><td>${p.fin}</td><td>${w}</td></tr>`; }).join('') + `<tr class="avg"><td>average</td><td></td><td></td><td></td><td>${f2(sw / R.length)}</td></tr></tbody>`;
+      const ties = R.length !== new Set(R.map((p) => p.pr)).size;
+      $('#pr-out').innerHTML = ties ? `Equal priorities take turns with q = ${q}; a lower level starts only when every higher one is done.` : 'Every priority is distinct, so q does not matter: each process runs to completion in priority order.';
+    }
+    $('#pr-ex').addEventListener('click', (e) => { const b = e.target.closest('[data-e]'); if (b) { load(+b.dataset.e); render(); } });
+    $('#pr-in').addEventListener('change', (e) => { const x = e.target.closest('[data-f]'); if (x) { P[+x.dataset.i][x.dataset.f] = Math.max(x.dataset.f === 'pr' ? 0 : 1, Math.floor(+x.value || 0)); render(); } });
+    $('#pr-q').addEventListener('input', render);
+    $('#pr-reset').addEventListener('click', () => { $('#pr-q').value = 2; load(0); render(); });
+    load(0); render();
+  })();
+
+  /* ---------- §0.3 aging ---------- */
+  (function () {
+    const H = 80;
+    function render() {
+      const on = $('#ag-on').checked, k = +$('#ag-k').value;
+      $('#ag-kv').textContent = k; $('#ag-k').disabled = !on;
+      const jobs = [{ n: 'L', arr: 0, burst: 4, pr: 10, L: true }];
+      for (let a = 0; a < H + 10; a += 2) jobs.push({ n: 'S', arr: a, burst: 2, pr: 1 });
+      const eff = (j, t) => (j.L && on) ? Math.max(0, j.pr - Math.floor((t - j.arr) / k)) : j.pr;
+      let t = 0; const segs = []; let Lstart = null;
+      jobs.forEach((j) => { j.done = false; });
+      while (t < H) {
+        const c = jobs.filter((j) => !j.done && j.arr <= t);
+        c.sort((a, b) => eff(a, t) - eff(b, t) || a.arr - b.arr || (a.L ? -1 : 1));
+        const j = c[0]; if (!j) { t++; continue; }
+        const e = Math.min(H, t + j.burst);
+        if (j.L) Lstart = t;
+        segs.push([t, e, j.L ? 1 : 0, 0]); j.done = true; t = e;
+      }
+      const svg = $('#ag-svg'); clear(svg);
+      const X = (u) => 40 + u * (600 / H), Yp = (p) => 175 - p * 9;
+      segs.forEach(([a, b, w]) => { svg.appendChild(el('rect', { x: X(a) + 0.5, y: 10, width: X(b) - X(a) - 1, height: 30, class: w ? 'dbox' : 'box2' })); if (w) svg.appendChild(el('text', { x: (X(a) + X(b)) / 2, y: 30, 'text-anchor': 'middle', class: 'mono', style: 'font-size:12px' }, 'L')); });
+      for (let u = 0; u <= H; u += 10) svg.appendChild(el('text', { x: X(u), y: 56, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, u));
+      svg.appendChild(el('text', { x: 4, y: 30, class: 'lbl mono', style: 'font-size:10px' }, 'CPU'));
+      [0, 5, 10].forEach((p) => { svg.appendChild(el('path', { d: `M40 ${Yp(p)} H640`, class: 'wire thin', style: 'opacity:.12' })); svg.appendChild(el('text', { x: 34, y: Yp(p) + 4, 'text-anchor': 'end', class: 'lbl mono', style: 'font-size:10px' }, p)); });
+      svg.appendChild(el('path', { d: `M40 ${Yp(1)} H640`, class: 'wire thin', style: 'stroke-dasharray:4 3;opacity:.5' }));
+      svg.appendChild(el('text', { x: 640, y: Yp(1) - 4, 'text-anchor': 'end', class: 'lbl', style: 'font-size:10.5px' }, 'stream priority 1'));
+      const end = Lstart == null ? H : Lstart;
+      let d = ''; for (let u = 0; u <= end; u++) d += `${u ? 'L' : 'M'}${X(u)} ${Yp(eff(jobs[0], Math.min(u, end)))}`;
+      svg.appendChild(el('path', { d, class: 'wire d', style: 'stroke-width:2.2' }));
+      svg.appendChild(el('text', { x: 44, y: Yp(10) - 5, class: 'lbl', style: 'font-size:10.5px;fill:var(--cx-ink)' }, "L's priority"));
+      $('#ag-out').innerHTML = Lstart == null
+        ? (on ? `With a raise every ${k} units, L reaches priority 1 only at t = ${9 * k}, after this ${H}-unit window. Faster aging helps.` : `<span class="bad">L starves.</span> There is always a priority-1 job ready, so L's priority 10 never wins.`)
+        : `L's priority climbs to ${eff(jobs[0], Lstart)} and it runs at t = ${Lstart}, winning its tie with the stream because it arrived first. Aging bounds L's wait at about ${9 * k} units instead of forever.`;
+    }
+    $('#ag-on').addEventListener('change', render); $('#ag-k').addEventListener('input', render);
+    $('#ag-reset').addEventListener('click', () => { $('#ag-on').checked = false; $('#ag-k').value = 5; render(); });
+    render();
+  })();
+
+  /* ---------- Fig 1.1 ---------- */
+  (function () {
+    const g = $('#mlq-g');
+    [['real-time processes', 'mbox'], ['system processes', 'obox'], ['interactive processes', 'pbox'], ['batch processes', 'fbox']].forEach(([n, c], i) => {
+      const y = 20 + i * 54;
+      g.appendChild(el('rect', { x: 20, y, width: 250, height: 34, rx: 6, class: 'box' }));
+      for (let k = 0; k < 4; k++) g.appendChild(el('rect', { x: 196 + k * 17, y: y + 7, width: 13, height: 20, rx: 2, class: c }));
+      g.appendChild(el('text', { x: 32, y: y + 22, class: 'lbl' }, n));
+      g.appendChild(el('path', { d: `M270 ${y + 17} H320`, class: 'wire thin', 'marker-end': 'url(#ah)' }));
+    });
+    g.appendChild(el('rect', { x: 322, y: 100, width: 58, height: 50, rx: 8, class: 'box' }));
+    g.appendChild(el('text', { x: 351, y: 130, 'text-anchor': 'middle', class: 'mono' }, 'CPU'));
+    g.appendChild(el('text', { x: 20, y: 12, class: 'lbl', style: 'font-size:11px' }, 'highest priority'));
+    g.appendChild(el('text', { x: 20, y: 246, class: 'lbl', style: 'font-size:11px' }, 'lowest priority'));
+  })();
+
+  /* ---------- §1.2 MLFQ ---------- */
+  (function () {
+    const DEF = [[0, 30], [0, 6], [4, 14], [20, 3]];
+    let J = [];
+    const load = () => { J = DEF.map(([a, b], i) => ({ n: 'ABCDEF'[i], arr: a, burst: b })); };
+    function sim() {
+      const R = J.map((j, i) => ({ ...j, i, rem: j.burst, lvl: 0, used: 0, fin: null, inq: false })), Q = [[], [], []], QT = [8, 16, Infinity], segs = [];
+      let t = 0, cur = null, demotions = [];
+      while (R.some((p) => p.fin == null) && t < 2000) {
+        R.filter((p) => !p.inq && p.arr <= t).sort((a, b) => a.arr - b.arr || a.i - b.i).forEach((p) => { p.inq = true; Q[0].push(p); });
+        if (cur && Q.slice(0, cur.lvl).some((q) => q.length)) { Q[cur.lvl].unshift(cur); cur = null; }
+        if (!cur) { const l = Q.findIndex((q) => q.length); if (l < 0) { t++; continue; } cur = Q[l].shift(); }
+        pushSeg(segs, [t, t + 1, cur.i, cur.lvl]); t++; cur.rem--; cur.used++;
+        if (!cur.rem) { cur.fin = t; cur = null; }
+        else if (cur.used >= QT[cur.lvl]) { demotions.push([cur.n, t, cur.lvl + 1]); cur.lvl++; cur.used = 0; Q[cur.lvl].push(cur); cur = null; }
+      }
+      return { R, segs, demotions };
+    }
+    function render() {
+      $('#mf-in').innerHTML = '<thead><tr><th>job</th><th>arrival</th><th>CPU</th><th></th></tr></thead><tbody>' + J.map((p, i) => `<tr><td>${p.n}</td><td><input type="number" min="0" max="100" value="${p.arr}" data-i="${i}" data-f="arr" aria-label="${p.n} arrival"></td><td><input type="number" min="1" max="80" value="${p.burst}" data-i="${i}" data-f="burst" aria-label="${p.n} CPU time"></td><td>${J.length > 1 ? `<button type="button" class="btn small" data-del="${i}" aria-label="remove">×</button>` : ''}</td></tr>`).join('') + `</tbody><tfoot><tr><td colspan="4"><button type="button" class="btn small" id="mf-add" style="margin-top:6px">+ job</button></td></tr></tfoot>`;
+      const { R, segs, demotions } = sim();
+      const end = Math.max(...segs.map((s) => s[1]));
+      const ticks = [0]; for (let u = 8; u < end; u += 8) ticks.push(u); ticks.push(end);
+      gantt($('#mf-g'), segs, { lanes: ['Q0 q=8', 'Q1 q=16', 'Q2 FCFS'], name: (i) => J[i].n, ticks, marks: R.map((p) => ({ lane: 0, t: p.arr, kind: 'arr' })) });
+      $('#mf-r').innerHTML = '<thead><tr><th>job</th><th>arrival</th><th>CPU</th><th>finish</th><th>turnaround</th><th>last queue</th></tr></thead><tbody>' + R.map((p) => `<tr><td>${p.n}</td><td>${p.arr}</td><td>${p.burst}</td><td>${p.fin}</td><td>${p.fin - p.arr}</td><td>Q${p.lvl}</td></tr>`).join('') + '</tbody>';
+      $('#mf-out').innerHTML = (demotions.length ? 'Demotions: ' + demotions.map(([n, t, l]) => `${n} → Q${l} at ${t}`).join(', ') + '. ' : 'No job needed more than 8 ms, so all stayed in Q0. ') + 'Short jobs finish from Q0 almost as if SJF had picked them; long jobs sink and fill the gaps.';
+    }
+    $('#mf-in').addEventListener('change', (e) => { const x = e.target.closest('[data-f]'); if (x) { J[+x.dataset.i][x.dataset.f] = Math.max(x.dataset.f === 'arr' ? 0 : 1, Math.floor(+x.value || 0)); render(); } });
+    $('#mf-in').addEventListener('click', (e) => { const b = e.target.closest('[data-del]'); if (b) { J.splice(+b.dataset.del, 1); J.forEach((p, i) => { p.n = 'ABCDEF'[i]; }); render(); } if (e.target.id === 'mf-add' && J.length < 6) { J.push({ n: 'ABCDEF'[J.length], arr: 0, burst: 10 }); render(); } });
+    $('#mf-reset').addEventListener('click', () => { load(); render(); });
+    load(); render();
+  })();
+
+  /* ---------- Fig 2.1 Linux priorities ---------- */
+  (function () {
+    const g = $('#lp-g'), X = (p) => 30 + p * (580 / 140);
+    g.appendChild(el('rect', { x: X(0), y: 40, width: X(100) - X(0), height: 30, class: 'mbox' }));
+    g.appendChild(el('rect', { x: X(100), y: 40, width: X(140) - X(100), height: 30, class: 'pbox' }));
+    g.appendChild(el('text', { x: (X(0) + X(100)) / 2, y: 60, 'text-anchor': 'middle', class: 'lbl' }, 'real-time tasks'));
+    g.appendChild(el('text', { x: (X(100) + X(140)) / 2, y: 60, 'text-anchor': 'middle', class: 'lbl' }, 'normal tasks'));
+    [[0, '0'], [99, '99'], [100, '100'], [120, '120'], [139, '139']].forEach(([p, t]) => { const x = p === 139 ? X(140) : p === 99 ? X(100) - 12 : X(p) + (p === 100 ? 14 : 0); g.appendChild(el('text', { x, y: 88, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:11px' }, t)); });
+    [[100, '−20'], [120, '0'], [139, '+19']].forEach(([p, t]) => g.appendChild(el('text', { x: p === 139 ? X(140) : p === 100 ? X(100) + 14 : X(p), y: 106, 'text-anchor': 'middle', class: 'lbl mono t-p', style: 'font-size:11px' }, t)));
+    g.appendChild(el('text', { x: X(100) - 8, y: 106, 'text-anchor': 'end', class: 'lbl t-p', style: 'font-size:11px' }, 'nice →'));
+    g.appendChild(el('path', { d: `M${X(0)} 24 H${X(140)}`, class: 'wire thin', 'marker-end': 'url(#ah)' }));
+    g.appendChild(el('text', { x: X(0), y: 16, class: 'lbl', style: 'font-size:11px' }, 'higher priority'));
+    g.appendChild(el('text', { x: X(140), y: 16, 'text-anchor': 'end', class: 'lbl', style: 'font-size:11px' }, 'lower priority'));
+  })();
+
+  /* ---------- §2.3 O(1) ---------- */
+  (function () {
+    const T = [{ n: 'A', st: 120, bonus: -5, kind: 'interactive' }, { n: 'B', st: 120, bonus: 5, kind: 'CPU-bound' }, { n: 'C', st: 110, bonus: 5, kind: 'CPU-bound' }, { n: 'D', st: 130, bonus: -5, kind: 'interactive' }];
+    const S = [];
+    let act = {}, exp = {};
+    const add = (arr, p, n) => { (arr[p] = arr[p] || []).push(n); };
+    const snap = (txt, run, scanned) => S.push({ act: JSON.parse(JSON.stringify(act)), exp: JSON.parse(JSON.stringify(exp)), txt, run, scanned });
+    const prio = {}; T.forEach((t) => { prio[t.n] = t.st; add(act, t.st, t.n); });
+    snap('Start: every task in <b>active</b> at its nice priority (120 + nice). <b>Expired</b> is empty.', null);
+    for (let round = 0; round < 2; round++) {
+      while (Object.keys(act).length) {
+        const p = Math.min(...Object.keys(act).map(Number)), n = act[p].shift(); if (!act[p].length) delete act[p];
+        const t = T.find((x) => x.n === n), np = Math.max(100, Math.min(139, t.st + t.bonus));
+        add(exp, np, n); prio[n] = np;
+        snap(`First set bit is <b>${p}</b>: run <b>${n}</b> for its quantum. ${n} is ${t.kind}, so on the move to expired its priority becomes ${t.st} ${t.bonus < 0 ? '−' : '+'} 5 = <b>${np}</b>.`, n, p);
+      }
+      [act, exp] = [exp, act];
+      snap(`Active is empty: <b>swap the arrays</b> (a pointer swap). ${round ? 'Priorities are now stable: interactive A and D sit 5 above their nice level, CPU-bound B and C 5 below.' : 'Round 2 starts with the recomputed priorities. A (interactive) now outranks B, although both are nice 0.'}`, null);
+    }
+    let i = 0;
+    function show(k) {
+      i = Math.max(0, Math.min(S.length - 1, k)); const s = S[i];
+      const bm = $('#o1-bm'); clear(bm);
+      const X = (p) => 20 + p * 4.3;
+      for (let p = 0; p < 140; p++) bm.appendChild(el('rect', { x: X(p), y: 6, width: 3.6, height: 18, class: s.act[p] ? (p === s.scanned ? 'dbox' : 'pbox') : (p < 100 ? 'box' : 'box2'), style: s.act[p] ? '' : 'opacity:.5' }));
+      [0, 100, 120, 139].forEach((p) => bm.appendChild(el('text', { x: X(p) + 2, y: 40, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, p)));
+      bm.appendChild(el('text', { x: X(50), y: 40, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:10.5px' }, 'real-time (none here)'));
+      bm.appendChild(el('text', { x: 620, y: 54, 'text-anchor': 'end', class: 'lbl', style: 'font-size:10.5px' }, 'bitmap of nonempty queues in the active array'));
+      const col = (arr, title, cls) => `<div class="arr ${cls}"><div class="hd">${title}</div>${Object.keys(arr).map(Number).sort((a, b) => a - b).map((p) => `<div class="row"><span class="pn">[${p}]</span>${arr[p].map((n) => `<span class="chipt">${n}</span>`).join(' ')}</div>`).join('') || '<div class="row muted">(empty)</div>'}</div>`;
+      $('#o1-arr').innerHTML = col(s.act, 'active array', 'act') + col(s.exp, 'expired array', '');
+      if (s.run) $$('#o1-arr .arr:not(.act) .chipt').forEach((c) => { if (c.textContent === s.run) c.classList.add('run'); });
+      $('#o1-out').innerHTML = s.txt; $('#o1-n').textContent = (i + 1) + '/' + S.length;
+      $('#o1-prev').disabled = i === 0; $('#o1-next').disabled = i === S.length - 1;
+    }
+    $('#o1-prev').addEventListener('click', () => show(i - 1));
+    $('#o1-next').addEventListener('click', () => show(i + 1));
+    $('#o1-reset').addEventListener('click', () => show(0));
+    show(0);
+  })();
+
+  /* ---------- §3.2 owed time ---------- */
+  (function () {
+    const ROWS = [['T1', [-3, 1, 1, 1]], ['T2', [-2, -2, 2, 2]], ['T3', [-1, -1, -1, 3]], ['T4', [0, 0, 0, 0]]];
+    const fr = (v) => v === 0 ? '0' : (v < 0 ? '−' : '') + (Math.abs(v) === 2 ? 'T/2' : Math.abs(v) === 1 ? 'T/4' : Math.abs(v) + 'T/4');
+    let i = 0;
+    const TXT = ['Four tasks, nobody has run yet: all balances are 0.', 'T1 runs for T. On the ideal CPU each task would have had T/4, so T1 is over-allocated by 3T/4 and the others are each owed T/4.', 'T2 runs next: it is among those owed the most. Now T3 and T4 are owed T/2 each.', 'T3 runs. T4 is owed 3T/4, the largest balance.', 'T4 runs. After one round, every balance is 0 again: each task has had T of 4T, its fair share. CFS always runs the task with the largest W<sub>i</sub>, the one owed the most.'];
+    function show(k) {
+      i = Math.max(0, Math.min(4, k));
+      $('#ow-t').innerHTML = '<thead><tr><th>after running</th><th>W₁</th><th>W₂</th><th>W₃</th><th>W₄</th></tr></thead><tbody>' + ROWS.slice(0, i).map(([n, v], r) => `<tr class="${r === i - 1 ? 'new' : ''}"><td>${n} for T</td>${v.map((x) => `<td class="${x < 0 ? 'neg' : x > 0 ? 'pos' : ''}">${fr(x)}</td>`).join('')}</tr>`).join('') + (i ? '' : '<tr><td class="muted">(nothing yet)</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>') + '</tbody>';
+      const svg = $('#ow-svg'); clear(svg);
+      const X = (t) => 20 + t * 130;
+      for (let k2 = 0; k2 < i; k2++) { svg.appendChild(el('rect', { x: X(k2), y: 6, width: 130, height: 26, class: COL[k2] })); svg.appendChild(el('text', { x: X(k2) + 65, y: 24, 'text-anchor': 'middle', class: 'mono', style: 'font-size:12px' }, 'T' + (k2 + 1))); }
+      ['0', 'T', '2T', '3T', '4T'].forEach((t, k2) => svg.appendChild(el('text', { x: X(k2), y: 50, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10.5px' }, t)));
+      $('#ow-out').innerHTML = TXT[i]; $('#ow-n').textContent = (i + 1) + '/5';
+      $('#ow-prev').disabled = i === 0; $('#ow-next').disabled = i === 4;
+    }
+    $('#ow-prev').addEventListener('click', () => show(i - 1));
+    $('#ow-next').addEventListener('click', () => show(i + 1));
+    $('#ow-reset').addEventListener('click', () => show(0));
+    show(0);
+  })();
+
+  /* ---------- §3.4 CFS ---------- */
+  (function () {
+    const WT = [88761, 71755, 56483, 46273, 36291, 29154, 23254, 18705, 14949, 11916, 9548, 7620, 6100, 4904, 3906, 3121, 2501, 1991, 1586, 1277, 1024, 820, 655, 526, 423, 335, 272, 215, 172, 137, 110, 87, 70, 56, 45, 36, 29, 23, 18, 15];
+    const w = (nice) => WT[nice + 20], SL = 4;
+    let T = [], total = 0, hist = [], note = '';
+    const init = () => { T = [{ n: 'T1', nice: 0 }, { n: 'T2', nice: 0 }, { n: 'T3', nice: 5 }].map((t) => ({ ...t, vr: 0, cpu: 0 })); total = 0; hist = []; note = ''; };
+    const minvr = () => Math.min(...T.map((t) => t.vr));
+    function step() { const t = T.slice().sort((a, b) => a.vr - b.vr || T.indexOf(a) - T.indexOf(b))[0]; t.vr += SL * 1024 / w(t.nice); t.cpu += SL; total += SL; hist.push(t.n); if (hist.length > 24) hist.shift(); return t; }
+    const OPTS = [-20, -10, -5, -1, 0, 1, 5, 10, 19];
+    function render() {
+      $('#cf-in').innerHTML = '<thead><tr><th>task</th><th>nice</th><th>weight</th></tr></thead><tbody>' + T.map((t, i) => `<tr><td>${t.n}</td><td><select data-i="${i}" aria-label="${t.n} nice">${[...new Set([...OPTS, t.nice])].sort((a, b) => a - b).map((v) => `<option value="${v}"${v === t.nice ? ' selected' : ''}>${v}</option>`).join('')}</select></td><td class="mono">${w(t.nice)}</td></tr>`).join('') + '</tbody>';
+      const svg = $('#cf-svg'); clear(svg);
+      const lo = minvr(), hi = Math.max(...T.map((t) => t.vr)), span = Math.max(hi - lo, 8), X = (v) => 30 + (v - lo) * (540 / span);
+      svg.appendChild(el('path', { d: 'M30 40 H580', class: 'wire thin', 'marker-end': 'url(#ah)' }));
+      const sorted = T.slice().sort((a, b) => a.vr - b.vr || T.indexOf(a) - T.indexOf(b));
+      const used = [];
+      sorted.forEach((t, k) => { const i = T.indexOf(t), x = X(t.vr); let lvl = 0; while (used.some(([ux, ul]) => ul === lvl && Math.abs(ux - x) < 34)) lvl++; used.push([x, lvl]); const y = 40 - lvl * 0; svg.appendChild(el('circle', { cx: x, cy: 40, r: 7, class: k === 0 ? 'dbox' : COL[i % COL.length] })); svg.appendChild(el('text', { x, y: 24 - lvl * 12, 'text-anchor': 'middle', class: 'mono', style: 'font-size:11px' }, t.n)); svg.appendChild(el('text', { x, y: 62 + lvl * 0, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:9.5px' + (lvl ? ';opacity:0' : '') }, t.vr.toFixed(0))); });
+      const sumw = T.reduce((s, t) => s + w(t.nice), 0);
+      $('#cf-bars').innerHTML = T.map((t, i) => { const act = total ? t.cpu / total : 0, exp = w(t.nice) / sumw; return `<div class="b"><span>${t.n} (nice ${t.nice})</span><span class="track"><span class="fill${i % 2 ? ' x' : ''}" style="width:${(act * 100).toFixed(1)}%"></span><span class="tick" style="left:${(exp * 100).toFixed(1)}%"></span></span><span class="v">${(act * 100).toFixed(1)}%</span></div>`; }).join('');
+      const next = sorted[0];
+      $('#cf-out').innerHTML = `${total} ms run. Next: <b>${next.n}</b> (minimum vruntime ${next.vr.toFixed(1)}). Recent picks: <span class="mono">${hist.join(' ') || '—'}</span>. ${note}`;
+    }
+    $('#cf-step').addEventListener('click', () => { step(); note = ''; render(); });
+    $('#cf-run').addEventListener('click', () => { for (let k = 0; k < 100; k++) step(); note = 'Run longer and the bars converge on the ticks: weight / Σweight.'; render(); });
+    $('#cf-add').addEventListener('click', () => {
+      if (T.length >= 5) { note = 'That is enough tasks for this demo.'; render(); return; }
+      const naive = $('#cf-place').value === 'zero', t = { n: 'T' + (T.length + 1), nice: 0, vr: naive ? 0 : minvr(), cpu: 0 };
+      T.push(t); let wait = 0, run = 0;
+      for (let k = 0; k < 400; k++) { const s = step(); if (s === t) run++; else if (run) break; else wait++; }
+      note = naive ? `<span class="bad">${t.n} started at vruntime 0 and ran ${run} slices (${run * SL} ms) in a row</span> while the others waited. That is the caveat in §3.3.` : `${t.n} started at the minimum vruntime, level with the leftmost task: it waited ${wait} slice${wait === 1 ? '' : 's'}, ran ${run}, and then took turns with the rest.`;
+      render();
+    });
+    $('#cf-in').addEventListener('change', (e) => { const s = e.target.closest('select'); if (s) { T[+s.dataset.i].nice = +s.value; render(); } });
+    $('#cf-reset').addEventListener('click', () => { $('#cf-place').value = 'min'; init(); render(); });
+    init(); render();
+  })();
+
+  /* ---------- Fig 3.1 RB tree ---------- */
+  (function () {
+    const g = $('#rb-g');
+    const N = [[190, 30, 'T4', 52, 1], [100, 90, 'T2', 31, 0], [280, 90, 'T6', 70, 0], [55, 150, 'T1', 18, 1], [145, 150, 'T3', 40, 1], [325, 150, 'T7', 84, 1]];
+    [[0, 1], [0, 2], [1, 3], [1, 4], [2, 5]].forEach(([a, b]) => g.appendChild(el('path', { d: `M${N[a][0]} ${N[a][1]} L${N[b][0]} ${N[b][1]}`, class: 'wire thin' })));
+    N.forEach(([x, y, n, v, red], k) => { g.appendChild(el('circle', { cx: x, cy: y, r: 20, class: k === 3 ? 'dbox' : red ? 'mbox' : 'box', style: k === 3 ? 'stroke-width:2.5' : '' })); g.appendChild(el('text', { x, y: y - 1, 'text-anchor': 'middle', class: 'mono', style: 'font-size:11px' }, n)); g.appendChild(el('text', { x, y: y + 11, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:9px' }, v)); });
+    g.appendChild(el('text', { x: 55, y: 192, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:11px;fill:var(--cx-ink)' }, 'leftmost: next'));
+    g.appendChild(el('path', { d: 'M40 205 H350', class: 'wire thin', 'marker-end': 'url(#ah)' }));
+    g.appendChild(el('text', { x: 350, y: 199, 'text-anchor': 'end', class: 'lbl', style: 'font-size:10.5px' }, 'larger vruntime'));
+  })();
+
+  /* ---------- §3.6 groups ---------- */
+  (function () {
+    function render() {
+      const n = +$('#gr-n').value, on = $('#gr-on').checked; $('#gr-nv').textContent = n;
+      const a1 = on ? 0.5 : n / (n + 1), a2 = on ? 0.5 : 1 / (n + 1), per = a1 / n;
+      const bar = (lab, v, x) => `<div class="b"><span>${lab}</span><span class="track"><span class="fill${x ? ' x' : ''}" style="width:${(v * 100).toFixed(2)}%"></span></span><span class="v">${(v * 100).toFixed(v < 0.01 ? 2 : 1)}%</span></div>`;
+      $('#gr-bars').innerHTML = bar('A1 total', a1, 0) + bar('each A1 thread', per, 0) + bar('A2 (1 thread)', a2, 1);
+      $('#gr-out').innerHTML = on ? `Groups split 50/50 first; A1's ${n} threads share their half, ${(per * 100).toFixed(2)}% each. A2 is not overwhelmed however many threads A1 spawns.` : `Per-task fairness: all ${n + 1} tasks get 1/${n + 1} each, so A2, the interactive app, gets only ${(a2 * 100).toFixed(2)}%.`;
+    }
+    $('#gr-n').addEventListener('input', render); $('#gr-on').addEventListener('change', render);
+    $('#gr-reset').addEventListener('click', () => { $('#gr-n').value = 100; $('#gr-on').checked = false; render(); });
+    render();
+  })();
+
+  /* ---------- §4.2 EDF ---------- */
+  (function () {
+    const EX = [[[3, 7, 0], [1, 9, 0], [4, 4, 0], [2, 10, 0]], [[1, 2, 0], [2, 5, 0], [2, 4, 2], [2, 10, 3]]];
+    let P = [], ex = 0, alg = 'edf';
+    const load = (k) => { ex = k; P = EX[k].map(([e, d, a], i) => ({ n: 'P' + (i + 1), exec: e, dl: d, arr: a })); };
+    function sim() {
+      const R = P.map((p, i) => ({ ...p, i, rem: p.exec, fin: null })), segs = []; let t = 0, cur = null;
+      while (R.some((p) => p.fin == null) && t < 500) {
+        const ready = R.filter((p) => p.arr <= t && p.rem > 0);
+        if (!ready.length) { t++; continue; }
+        if (alg === 'edf' || !cur) {
+          const key = alg === 'edf' ? (p) => p.dl : alg === 'fcfs' ? (p) => p.arr : (p) => p.rem;
+          cur = ready.slice().sort((a, b) => key(a) - key(b) || a.i - b.i)[0];
+        }
+        pushSeg(segs, [t, t + 1, cur.i, cur.i]); t++; cur.rem--;
+        if (!cur.rem) { cur.fin = t; cur = null; }
+      }
+      return { R, segs };
+    }
+    function render() {
+      $$('#ed-a [data-a]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.a === alg)));
+      $$('#ed-ex [data-e]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.e === ex)));
+      $('#ed-in').innerHTML = '<thead><tr><th>task</th><th>exec</th><th>deadline</th><th>arrival</th></tr></thead><tbody>' + P.map((p, i) => `<tr><td>${p.n}</td>${['exec', 'dl', 'arr'].map((f) => `<td><input type="number" min="${f === 'exec' ? 1 : 0}" max="30" value="${p[f]}" data-i="${i}" data-f="${f}" aria-label="${p.n} ${f}"></td>`).join('')}</tr>`).join('') + '</tbody>';
+      const { R, segs } = sim();
+      const end = Math.max(...segs.map((s) => s[1]), ...P.map((p) => p.dl));
+      const ticks = []; for (let u = 0; u <= end; u++) ticks.push(u);
+      gantt($('#ed-g'), segs, { lanes: P.map((p) => p.n), end, ticks, name: (i) => P[i].n, marks: [...P.map((p, i) => ({ lane: i, t: p.dl, kind: 'dl' })), ...P.map((p, i) => ({ lane: i, t: p.arr, kind: 'arr' }))] });
+      let miss = 0;
+      $('#ed-r').innerHTML = '<thead><tr><th>task</th><th>deadline</th><th>finish</th><th>result</th></tr></thead><tbody>' + R.map((p) => { const ok = p.fin <= p.dl; if (!ok) miss++; return `<tr><td>${p.n}</td><td>${p.dl}</td><td>${p.fin}</td><td class="${ok ? 'met' : 'miss'}">${ok ? 'met' : 'missed by ' + (p.fin - p.dl)}</td></tr>`; }).join('') + '</tbody>';
+      const order = segs.map((s) => P[s[2]].n).join(' → ');
+      $('#ed-out').innerHTML = `${{ edf: 'EDF (preemptive, decides every unit)', fcfs: 'FCFS (nonpreemptive)', sjf: 'SJF (nonpreemptive)' }[alg]}: ${order}. ${miss ? `<span class="bad">${miss} deadline${miss > 1 ? 's' : ''} missed.</span>` : 'Every deadline met.'}`;
+    }
+    $('#ed-a').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) { alg = b.dataset.a; render(); } });
+    $('#ed-ex').addEventListener('click', (e) => { const b = e.target.closest('[data-e]'); if (b) { load(+b.dataset.e); render(); } });
+    $('#ed-in').addEventListener('change', (e) => { const x = e.target.closest('[data-f]'); if (x) { P[+x.dataset.i][x.dataset.f] = Math.max(x.dataset.f === 'exec' ? 1 : 0, Math.floor(+x.value || 0)); render(); } });
+    $('#ed-reset').addEventListener('click', () => { alg = 'edf'; load(0); render(); });
+    load(0); render();
+  })();
+
+  /* ---------- Fig 5.1 SMP ---------- */
+  (function () {
+    const g = $('#smp-g');
+    const q = (x, y, n, c) => { g.appendChild(el('rect', { x, y, width: n * 14 + 8, height: 20, rx: 4, class: 'box' })); for (let k = 0; k < n; k++) g.appendChild(el('rect', { x: x + 4 + k * 14, y: y + 4, width: 10, height: 12, rx: 2, class: c })); };
+    const core = (x, y, t) => { g.appendChild(el('rect', { x, y, width: 50, height: 28, rx: 5, class: 'box2' })); g.appendChild(el('text', { x: x + 25, y: y + 18, 'text-anchor': 'middle', class: 'mono', style: 'font-size:11px' }, t)); };
+    g.appendChild(el('text', { x: 10, y: 16, class: 'lbl' }, '(a) common ready queue'));
+    q(40, 36, 8, 'pbox');
+    [0, 1, 2, 3].forEach((k) => { core(10 + k * 48, 110, 'core' + k); g.appendChild(el('path', { d: `M${84} 58 L${35 + k * 48} 108`, class: 'wire thin', 'marker-end': 'url(#ah)' })); });
+    g.appendChild(el('text', { x: 230, y: 16, class: 'lbl' }, '(b) per-core queues'));
+    [0, 1, 2, 3].forEach((k) => { const y = 32 + k * 44; q(230, y, 2 + (k % 3), COL[k]); g.appendChild(el('path', { d: `M${238 + (2 + (k % 3)) * 14 + 4} ${y + 10} H342`, class: 'wire thin', 'marker-end': 'url(#ah)' })); core(345, y - 4, 'core' + k); });
+    g.appendChild(el('text', { x: 10, y: 170, class: 'lbl', style: 'font-size:11px' }, 'one lock, shared by all cores'));
+    g.appendChild(el('text', { x: 230, y: 214, class: 'lbl', style: 'font-size:11px' }, 'must be load-balanced'));
+  })();
+
+  /* ---------- Fig 5.2 NUMA ---------- */
+  (function () {
+    const g = $('#numa-g');
+    [[20, 'CPU 0', 'memory 0'], [250, 'CPU 1', 'memory 1']].forEach(([x, c, m], k) => {
+      g.appendChild(el('rect', { x, y: 20, width: 150, height: 130, rx: 10, class: 'box', style: 'opacity:.9' }));
+      g.appendChild(el('rect', { x: x + 15, y: 35, width: 120, height: 36, rx: 6, class: 'pbox' }));
+      g.appendChild(el('text', { x: x + 75, y: 58, 'text-anchor': 'middle', class: 'mono', style: 'font-size:12px' }, c));
+      g.appendChild(el('rect', { x: x + 15, y: 100, width: 120, height: 36, rx: 6, class: 'fbox' }));
+      g.appendChild(el('text', { x: x + 75, y: 123, 'text-anchor': 'middle', class: 'mono', style: 'font-size:12px' }, m));
+      g.appendChild(el('path', { d: `M${x + 75} 72 V99`, class: 'wire f', 'marker-end': 'url(#ah)', 'marker-start': 'url(#ah)' }));
+      g.appendChild(el('text', { x: x + 82, y: 90, class: 'lbl', style: 'font-size:10px' }, 'fast'));
+    });
+    g.appendChild(el('path', { d: 'M170 85 H250', class: 'wire dashed', 'marker-end': 'url(#ah)', 'marker-start': 'url(#ah)' }));
+    g.appendChild(el('text', { x: 210, y: 78, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:10.5px' }, 'interconnect'));
+    g.appendChild(el('text', { x: 210, y: 102, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:10.5px' }, 'slow'));
+  })();
+})();
+</script>
+</body>
+</html>
