@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Memory Management · L13</title>
+<meta name="description" content="CSCI 3753 Lecture 13, interactive edition: the memory hierarchy, address binding, base and limit registers, the MMU and relocation, dynamic loading and linking, contiguous allocation with first/best/worst/next fit, fragmentation, swapping, and segmentation.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+/* ---- lecture-local ---- */
+.sub-lab { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); margin-bottom: 4px; }
+.code { font-family: var(--f-mono); font-size: 13px; line-height: 1.7; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 0; overflow-x: auto; }
+.code .ln { display: block; padding: 0 14px; white-space: pre; }
+.code .c { color: var(--ink3); }
+.pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.lat { display: grid; gap: 6px; }
+.lat .row { display: grid; grid-template-columns: 7em minmax(0, 1fr) 11em; gap: 10px; align-items: center; font-family: var(--f-mono); font-size: 12.5px; }
+.lat .track { height: 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; position: relative; overflow: hidden; }
+.lat .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--cz-soft2); border-right: 2px solid var(--cz); }
+.lat .v { text-align: right; font-variant-numeric: tabular-nums; }
+.xlate { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-family: var(--f-mono); font-size: 13px; }
+.xlate .box { border: 1.5px solid var(--line2); border-radius: 8px; padding: 6px 10px; background: var(--bg); text-align: center; min-width: 6em; }
+.xlate .box .nm { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); display: block; }
+.xlate .box.ok { border-color: var(--good); }
+.xlate .box.bad { border-color: var(--cd); color: var(--cd); }
+.xlate .op { color: var(--ink3); }
+.xlate input { width: 6.5em; font: inherit; border: 1px solid var(--line2); border-radius: 5px; background: var(--bg2); color: var(--ink); padding: 1px 4px; }
+.memrow { display: flex; height: 54px; border: 1.5px solid var(--line2); border-radius: 8px; overflow: hidden; background: var(--bg); }
+.memrow .blk { height: 100%; display: grid; place-items: center; font-family: var(--f-mono); font-size: 11px; border-right: 1px solid var(--line2); overflow: hidden; white-space: nowrap; cursor: default; }
+.memrow .blk.hole { background: repeating-linear-gradient(135deg, var(--bg) 0 6px, var(--bg2) 6px 12px); color: var(--ink3); }
+.memrow .blk.os { background: var(--co-soft); }
+.memrow .blk.used { background: var(--cf-soft); cursor: pointer; }
+.memrow .blk.used:hover { background: var(--cf-soft2); }
+.memrow .blk.new { background: var(--cx-soft2); }
+.memrow .blk.next { box-shadow: inset 0 -3px var(--cz); }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--f-mono); font-size: 12.5px; margin: 10px 0; }
+.queue { font-family: var(--f-mono); font-size: 12.5px; }
+.queue span { display: inline-block; border: 1.5px solid var(--line2); border-radius: 6px; padding: 0 6px; margin: 0 4px 4px 0; background: var(--bg); }
+.queue span.cur { border-color: var(--cx); background: var(--cx-soft); }
+.queue span.fail { border-color: var(--cd); color: var(--cd); text-decoration: line-through; }
+.queue span.ok { opacity: .5; }
+table.st { border-collapse: collapse; font-family: var(--f-mono); font-size: 13px; }
+table.st th, table.st td { padding: 3px 12px; border-bottom: 1px solid var(--line); text-align: right; }
+table.st th { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); border-bottom-color: var(--line2); }
+table.st tr.hot td { background: var(--cx-soft); }
+@media (max-width: 760px) { .pair { grid-template-columns: minmax(0, 1fr); } .lat .row { grid-template-columns: 5.5em minmax(0, 1fr) 8em; } }
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="3" y="2.5" width="16" height="17" rx="1.5" stroke="currentColor" stroke-width="1.4" fill="none"/><rect x="4" y="3.5" width="14" height="4" fill="var(--co)" opacity=".5"/><rect x="4" y="9" width="14" height="3.5" fill="var(--cf)" opacity=".6"/><rect x="4" y="14" width="14" height="4.5" fill="var(--cx)" opacity=".6"/></svg>
+    <span>Lecture 13 · Memory Management</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Lecture 13 · Interactive notes</div>
+    <h1>Where does a program <span class="accent">live</span>?</h1>
+    <p class="lede">A process uses addresses, and memory has addresses, but they need not be the same numbers. This lecture follows an address from source code to a memory chip: when it is bound, how hardware checks and relocates it, how the OS carves physical memory among processes, and what goes wrong when it does so in contiguous pieces. That failure motivates paging in Lecture 14.</p>
+    <div class="promise">
+      <span>Before you start:</span><span class="mono">processes, context switches, kernel mode</span><span>from Lectures 02–03.</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#ch0">Begin ↓</a>
+      <span class="muted small">About 55 minutes · 5 hands-on experiments · 6 checkpoints · Textbook: Silberschatz, Ch. 9</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="chapters">
+    <p class="rail-title">Contents</p>
+    <a href="#ch0"><span class="n">0</span>Background</a>
+    <a href="#ch1"><span class="n">1</span>Address binding</a>
+    <a href="#ch2"><span class="n">2</span>Protection and the MMU</a>
+    <a href="#ch3"><span class="n">3</span>Contiguous allocation</a>
+    <a href="#ch4"><span class="n">4</span>Swapping</a>
+    <a href="#ch5"><span class="n">5</span>Segmentation</a>
+    <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#ch0"><span class="n">0</span>Background</a>
+        <a href="#ch1"><span class="n">1</span>Address binding</a>
+        <a href="#ch2"><span class="n">2</span>Protection and the MMU</a>
+        <a href="#ch3"><span class="n">3</span>Contiguous allocation</a>
+        <a href="#ch4"><span class="n">4</span>Swapping</a>
+        <a href="#ch5"><span class="n">5</span>Segmentation</a>
+        <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+      </nav>
+    </details>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch0">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 0</div>
+    <h2>Background</h2>
+    <p class="ch-lede">The CPU can only touch registers and main memory, and memory is slow.</p>
+  </div>
+
+  <div class="sec" id="s0-1">
+    <h3><span class="sec-no">0.1</span>What the CPU sees</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ul>
+          <li>A program must be brought from disk into memory, and placed within a process, before it can run.</li>
+          <li>Main memory and registers are the only storage the CPU accesses directly. The memory unit just sees a stream of <em>address + read</em> requests and <em>address + data + write</em> requests. It does not know which is code, data or stack.</li>
+          <li>A register access takes one CPU clock or less; main memory can take many cycles and stall the CPU. <strong>Caches</strong> sit in between.</li>
+          <li>Memory must be <strong>protected</strong>, so that a process touches only its own addresses (§2).</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 420 230" width="400" role="img" aria-label="CPU with registers, ALU, caches and bus interface; memory bus to RAM holding OS and processes; I/O bridge to disk and devices">
+            <g id="bus-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 0.1</span>The CPU, memory and I/O on their buses.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-2">
+    <h3><span class="sec-no">0.2</span>The memory hierarchy</h3>
+    <div class="prose">
+      <p>Keep frequently used instructions and data in local memory that is faster but smaller and more expensive per byte. Going down the hierarchy, each level is slower, bigger, and cheaper. Typical rough figures, in CPU cycles:</p>
+    </div>
+    <div class="widget" id="lt-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">How far away is each level?</span><button class="w-reset" type="button" id="lt-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Scale" id="lt-s"><button type="button" data-s="cyc">cycles, log scale</button><button type="button" data-s="human">if 1 cycle were 1 second</button></span>
+      </div>
+      <div class="widget-body"><div class="lat" id="lt-rows"></div></div>
+      <div class="readout" id="lt-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">The register-to-RAM figures are the slide's. Disk figures assume a 3 GHz clock: an SSD read of about 100 µs, a hard-disk access of about 10 ms. Real numbers vary by an order of magnitude between machines.</p>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#top">Back to<b>the top</b></a>
+    <a href="#ch1">Next<b>1 · Address binding</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch1">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 1</div>
+    <h2>Address binding</h2>
+    <p class="ch-lede">A name in source code becomes a number in memory. The question is when.</p>
+  </div>
+
+  <div class="sec" id="s1-1">
+    <h3><span class="sec-no">1.1</span>From symbol to address</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ul>
+          <li>Programs on disk waiting to be brought into memory form an <strong>input queue</strong>. Without hardware support, a program would have to be loaded at physical address 0000, which is inconvenient: only one program could live there.</li>
+          <li>Addresses take different forms at different stages of a program's life:
+            <ul>
+              <li>source code: <strong>symbolic</strong>, like <code>count</code>;</li>
+              <li>the compiler binds them to <strong>relocatable</strong> addresses: "14 bytes from the beginning of this module";</li>
+              <li>the linker or loader binds those to <strong>absolute</strong> addresses: 74014.</li>
+            </ul></li>
+          <li>Each binding maps one address space to another.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 330 330" width="310" role="img" aria-label="Source program, compiler, object module, linker with other modules, load module, loader with system library, in-memory binary with dynamically linked library">
+            <g id="mp-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1.1</span>Multistep processing of a user program (after Silberschatz Fig. 9.3).</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-2">
+    <h3><span class="sec-no">1.2</span>Three binding times</h3>
+    <div class="opts3">
+      <div><span class="tag">Compile time</span>If the memory location is known in advance, the compiler generates <strong>absolute code</strong>. If the starting location changes, you must recompile.</div>
+      <div><span class="tag">Load time</span>If the location is not known at compile time, the compiler generates <strong>relocatable code</strong>, and the loader fixes the addresses. To move the program, reload it.</div>
+      <div><span class="tag">Execution time</span>Binding is delayed until run time, so the process can be <strong>moved during execution</strong> from one memory region to another. This needs hardware support: base and limit registers, or an MMU (§2). Nearly every modern OS works this way.</div>
+    </div>
+    <div class="widget" id="bd-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Move a running program</span><button class="w-reset" type="button" id="bd-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Binding time" id="bd-k"><button type="button" data-k="compile">compile time</button><button type="button" data-k="load">load time</button><button type="button" data-k="exec">execution time</button></span>
+        <button type="button" class="btn primary" id="bd-move">Move it to 90000</button>
+      </div>
+      <div class="widget-body"><div class="pair"><div class="code" id="bd-code"></div><div class="code" id="bd-mem"></div></div></div>
+      <div class="readout" id="bd-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-3">
+    <h3><span class="sec-no">1.3</span>Logical vs. physical addresses</h3>
+    <div class="prose">
+      <ul>
+        <li>A <strong>logical address</strong>, also called a <em>virtual address</em>, is generated by the CPU. A <strong>physical address</strong> is what the memory unit sees.</li>
+        <li>With compile-time and load-time binding they are the same. With execution-time binding they <strong>differ</strong>.</li>
+        <li>The <em>logical address space</em> is the set of all logical addresses a program generates. The <em>physical address space</em> is the set of physical addresses those correspond to.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-4">
+    <h3><span class="sec-no">1.4</span>Dynamic loading and dynamic linking</h3>
+    <div class="pair">
+      <div class="note note-key" style="margin:0"><span class="note-tag">Dynamic loading</span><p>The whole program does <strong>not</strong> need to be in memory to run. A routine is loaded only when it is first called; unused routines, such as rare error handlers, are never loaded. Routines wait on disk in relocatable form. No special OS support is required: it is done by program design, perhaps with OS-provided library help (e.g. <code>dlopen()</code>).</p></div>
+      <div class="note note-key" style="margin:0"><span class="note-tag">Dynamic linking</span><p><em>Static</em> linking copies library code into the binary image. <em>Dynamic</em> linking postpones linking until run time. A small <strong>stub</strong> locates the memory-resident library routine, replaces itself with the routine's address, and calls it; the OS maps the library into the process if it is not already there. These are <strong>shared libraries</strong> (<code>.so</code>, <code>.dll</code>). One copy serves every process, and patching the library fixes every program, which is why versioning is needed.</p></div>
+    </div>
+  </div>
+
+  <div class="sec" id="q0">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Binding time</span></div>
+      <div class="quiz-body">
+        <div class="q-text">The OS wants to compact memory by sliding a running process to a new location without restarting it. Which binding time makes that possible?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Addresses are fixed in the binary; it must be recompiled.">Compile time</button>
+          <button type="button" class="q-opt" data-why="The loader fixed the addresses once; moving requires reloading.">Load time</button>
+          <button type="button" class="q-opt" data-ok>Execution time</button>
+        </div>
+        <div class="q-fb ok">Right. Only the relocation register changes; the program's logical addresses stay the same.</div>
+        <div class="q-fb no">Not quite. Try "Move it" in §1.2.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch0">Back<b>0 · Background</b></a>
+    <a href="#ch2">Next<b>2 · Protection and the MMU</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 2</div>
+    <h2>Protection and the MMU</h2>
+    <p class="ch-lede">Two registers, checked on every memory access.</p>
+  </div>
+
+  <div class="sec" id="s2-1">
+    <h3><span class="sec-no">2.1</span>Base and limit</h3>
+    <div class="prose">
+      <ul>
+        <li>A process must access only addresses in its own address space. A pair of registers defines that space: <strong>base</strong>, the smallest legal physical address, and <strong>limit</strong>, the size of the range.</li>
+        <li>The CPU checks <em>every</em> memory access made in user mode: base ≤ address &lt; base + limit. Anything else traps to the OS as an addressing error.</li>
+        <li>The instructions that load base and limit are <strong>privileged</strong>. Only the kernel sets them, as part of each context switch.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-2">
+    <h3><span class="sec-no">2.2</span>The memory-management unit</h3>
+    <div class="prose">
+      <ul>
+        <li>The <strong>MMU</strong> is the hardware that maps virtual addresses to physical ones at run time. It must do two things: <strong>translate</strong> addresses and <strong>check bounds</strong>.</li>
+        <li>The simplest scheme generalizes the base register into a <strong>relocation register</strong>: its value is added to every address a user process generates, at the moment the address is sent to memory. With a limit register as well, each logical address must be less than the limit, and physical = logical + relocation.</li>
+        <li>The user program deals only with logical addresses and never sees the physical ones. Binding happens at the moment of each memory reference: execution-time binding.</li>
+      </ul>
+    </div>
+    <div class="widget" id="mu-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Check, then translate</span><button class="w-reset" type="button" id="mu-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Scheme" id="mu-k"><button type="button" data-k="bl">base + limit (check physical)</button><button type="button" data-k="rl">relocation + limit (MMU)</button></span>
+      </div>
+      <div class="widget-body">
+        <div class="xlate" id="mu-x"></div>
+        <div class="canvas-wrap" style="margin-top:12px"><svg class="dia" id="mu-svg" viewBox="0 0 640 80" width="640" style="min-width:460px" role="img" aria-label="Physical memory with the process's legal range"></svg></div>
+      </div>
+      <div class="readout" id="mu-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Defaults are the textbook's: base 300040 and limit 120900 in the first scheme; relocation 14000 and logical address 346 in the second.</p>
+  </div>
+
+  <div class="sec" id="q1">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Relocation</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Relocation register 14000, limit 5000. The process issues logical address 5200. What happens?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="The limit check comes first: 5200 is not less than 5000.">It accesses physical 19200.</button>
+          <button type="button" class="q-opt" data-ok>A trap: 5200 ≥ limit, an addressing error.</button>
+          <button type="button" class="q-opt" data-why="The MMU never passes an unchecked logical address straight to memory.">It accesses physical 5200.</button>
+        </div>
+        <div class="q-fb ok">Right. The check is done on the logical address, before relocation.</div>
+        <div class="q-fb no">Not quite. Try it in the second scheme.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch1">Back<b>1 · Address binding</b></a>
+    <a href="#ch3">Next<b>3 · Contiguous allocation</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch3">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 3</div>
+    <h2>Contiguous allocation</h2>
+    <p class="ch-lede">Give each process one piece of memory, then watch memory crumble.</p>
+  </div>
+
+  <div class="sec" id="s3-1">
+    <h3><span class="sec-no">3.1</span>Partitions and holes</h3>
+    <div class="prose">
+      <ul>
+        <li>Main memory holds both the OS and user processes, and it is limited, so it must be allocated efficiently. <strong>Contiguous allocation</strong> is an early method. The resident OS is usually in low memory, with the interrupt vector; user processes are in high memory, each in a <strong>single contiguous section</strong>.</li>
+        <li>Relocation and limit registers protect processes from each other and from the OS. They are loaded only in kernel mode, during context switches. Because the MMU maps addresses dynamically, even the kernel can change size.</li>
+        <li><strong>Variable partitions</strong> are sized to each process's needs. A <strong>hole</strong> is a block of available memory, and holes of various sizes are scattered through memory. A new process gets part of a hole large enough for it. When a process exits, its partition becomes a hole, merged with any adjacent holes. The OS tracks allocated partitions and free holes.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-2">
+    <h3><span class="sec-no">3.2</span>Which hole?</h3>
+    <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div><span class="tag">First fit</span>Take the first hole that is big enough. It is fast.</div>
+      <div><span class="tag">Best fit</span>Take the smallest hole that is big enough. It must search the whole list unless the list is sorted, and it leaves the smallest leftover.</div>
+      <div><span class="tag">Worst fit</span>Take the largest hole. It also searches everything, and it leaves the largest leftover, hoping that piece is still useful.</div>
+      <div><span class="tag">Next fit</span>Treat the holes as a circular list, and start the first-fit search just after the hole chosen last time.</div>
+    </div>
+    <div class="widget" id="fa-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Allocate from holes (sizes in KB)</span><button class="w-reset" type="button" id="fa-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Algorithm" id="fa-a"><button type="button" data-a="first">first fit</button><button type="button" data-a="best">best fit</button><button type="button" data-a="worst">worst fit</button><button type="button" data-a="next">next fit</button></span>
+        <button type="button" class="btn primary" id="fa-go">Next request</button>
+        <button type="button" class="btn" id="fa-all">All requests</button>
+        <button type="button" class="btn" id="fa-compact">Compact</button>
+      </div>
+      <div class="widget-body">
+        <div class="queue" id="fa-q"></div>
+        <div class="memrow" id="fa-mem" style="margin-top:8px"></div>
+        <div class="stats" id="fa-stats"></div>
+        <div class="reqrow" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label class="ctl-label" for="fa-n">your own request <input id="fa-n" type="number" min="1" max="999" value="150" style="width:5em"></label><button type="button" class="btn small" id="fa-add">Add to queue</button><span class="small muted">Click a green block to free it.</span></div>
+      </div>
+      <div class="readout" id="fa-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">The preset is the textbook exercise: holes of 100, 500, 200, 300 and 600 KB, in that order, and requests for 212, 417, 112 and 426 KB. Grey partitions between the holes belong to other processes. The blue underline marks where next fit will start searching.</p>
+  </div>
+
+  <div class="sec" id="s3-3">
+    <h3><span class="sec-no">3.3</span>Fragmentation</h3>
+    <div class="prose">
+      <ul>
+        <li>As processes come and go, free memory breaks into pieces.</li>
+        <li><strong>External fragmentation</strong>: there is enough total free memory for a request, but it is not contiguous. You saw it above when 426 KB failed.</li>
+        <li><strong>Internal fragmentation</strong>: memory is handed out in fixed-size units, so an allocation can be slightly larger than the request. The unused difference is inside a partition and wasted. Example: a request for 18,462 bytes against a 18,464-byte hole. Keeping track of the 2-byte leftover would cost more than it saves, so the OS gives the whole hole.</li>
+        <li>Both first fit and best fit suffer external fragmentation. Best fit leaves many slivers too small to use. First fit tends to fragment the low end of memory, where it always starts. Statistically, with first fit, about half as much memory again as is allocated is lost to fragments: the <strong>50-percent rule</strong>, which means up to a third of memory may be unusable.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-4">
+    <h3><span class="sec-no">3.4</span>Compaction</h3>
+    <div class="prose">
+      <ul>
+        <li>Reduce external fragmentation by <strong>compaction</strong>: shuffle memory contents so that all free memory forms one large block. It is expensive, since every moved byte is copied.</li>
+        <li>It is possible only if relocation is dynamic, done at execution time: moving a process just updates its relocation register.</li>
+        <li>I/O complicates it. A device doing DMA into a process's buffer uses physical addresses, so that job must be <strong>latched</strong> in memory while the I/O is in progress. The alternative is to do I/O only into OS buffers.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="q2">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Which fit?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">For the textbook holes (100, 500, 200, 300, 600) and requests 212, 417, 112, 426, which algorithm satisfies all four?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="First fit puts 417 into 600 and leaves no hole of 426.">First fit</button>
+          <button type="button" class="q-opt" data-ok>Best fit</button>
+          <button type="button" class="q-opt" data-why="Worst fit breaks up the 600 for 212, and 426 no longer fits anywhere.">Worst fit</button>
+        </div>
+        <div class="q-fb ok">Right. This time best fit keeps the 600 whole for 426, though no algorithm wins on every workload.</div>
+        <div class="q-fb no">Not quite. Run each algorithm in §3.2.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q3">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Internal or external?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Memory is allocated in 4 KB units, and a process asks for 9 KB. What is wasted, and what kind of fragmentation is it?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>3 KB of the 12 KB allocation: internal fragmentation.</button>
+          <button type="button" class="q-opt" data-why="The waste is inside the allocated block, not between blocks.">3 KB: external fragmentation.</button>
+          <button type="button" class="q-opt" data-why="9 KB is not a multiple of 4 KB, so it rounds up to 12 KB.">Nothing.</button>
+        </div>
+        <div class="q-fb ok">Right. Fixed-size units trade internal waste for simpler bookkeeping, and paging (Lecture 14) makes exactly that trade.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch2">Back<b>2 · Protection and the MMU</b></a>
+    <a href="#ch4">Next<b>4 · Swapping</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch4">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 4</div>
+    <h2>Swapping</h2>
+    <p class="ch-lede">When memory runs out, move a whole process to disk.</p>
+  </div>
+
+  <div class="sec" id="s4-1">
+    <h3><span class="sec-no">4.1</span>Swap out, swap in</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>When the scheduler selects P2, the dispatcher checks whether P2 is in memory. If it is not and there is not enough free memory, it <strong>swaps out</strong> some process, say P3, to the backing store and <strong>swaps in</strong> P2.</p>
+        <ul>
+          <li>It is slow. Disk access takes about 10–100 ms, and transferring a whole process adds size ÷ bandwidth. A 100 MB process at 50 MB/s takes 2 s each way, so 4 s to swap one out and another in.</li>
+          <li>Try to hide the latency. In round robin, swap out the process that just ran, and keep enough other processes in memory to run while the swap-in completes. It cannot be hidden if the in-memory processes are all blocked on I/O.</li>
+          <li>A process with <strong>pending I/O</strong> is a problem: the device may still write into its memory. One simple rule is to never swap such a process.</li>
+          <li>Swapping fragments main memory, and the backing store too.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 360 240" width="340" role="img" aria-label="Memory holding OS, P0, P1, P3; disk holding P2, P7, P9; step 1 swap out P3, step 2 swap in P2">
+            <g id="sw-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 4.1</span>Ready queue P0, P1, P2, P3; P2 is on disk.</figcaption>
+      </figure>
+    </div>
+    <div class="note note-key">
+      <span class="note-tag">Today</span>
+      <p>Modern systems avoid swapping whole processes unless memory use crosses a threshold. Instead they swap <em>portions</em> of processes, pages, together with virtual memory and demand paging (Lectures 14–16). Mobile systems such as iOS and Android usually do not swap at all; they ask apps to free memory, or terminate them.</p>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch3">Back<b>3 · Contiguous allocation</b></a>
+    <a href="#ch5">Next<b>5 · Segmentation</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch5">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 5</div>
+    <h2>Segmentation</h2>
+    <p class="ch-lede">Instead of one big contiguous piece, several smaller ones, each with its own base and limit.</p>
+  </div>
+
+  <div class="sec" id="s5-1">
+    <h3><span class="sec-no">5.1</span>A program is a collection of segments</h3>
+    <div class="prose">
+      <ul>
+        <li>A programmer thinks of a program as a main function, other functions, a library, a stack, a heap and data, not as one flat array. <strong>Segmentation</strong> gives each of these its own <strong>segment</strong>, placed anywhere in physical memory.</li>
+        <li>A logical address is a pair <strong>(s, d)</strong>: segment number and offset. A <strong>segment table</strong> gives each segment's <em>base</em> and <em>limit</em>.</li>
+        <li>Check d &lt; limit[s], or trap; otherwise physical = base[s] + d. It is the relocation-and-limit MMU of §2, once per segment.</li>
+        <li>Segments are smaller than whole processes, so they fit into holes more easily. But segments still vary in size, so external fragmentation remains. Fixed-size pieces, pages, fix that in Lecture 14.</li>
+      </ul>
+    </div>
+    <div class="widget" id="sg-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Translate (s, d)</span><button class="w-reset" type="button" id="sg-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="sg-s">segment s <select id="sg-s"><option>0</option><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+        <label class="ctl-label" for="sg-d">offset d <input id="sg-d" type="number" min="0" max="5000" value="53" style="width:5.5em"></label>
+        <span class="muted small">textbook:</span>
+        <button type="button" class="btn small" data-sd="2,53">(2, 53)</button>
+        <button type="button" class="btn small" data-sd="3,852">(3, 852)</button>
+        <button type="button" class="btn small" data-sd="0,1222">(0, 1222)</button>
+      </div>
+      <div class="widget-body">
+        <div class="two-up" style="max-width:none;align-items:start">
+          <div><div class="sub-lab">segment table</div><table class="st" id="sg-t"></table><div class="xlate" id="sg-x" style="margin-top:12px"></div></div>
+          <div class="canvas-wrap"><svg class="dia" id="sg-svg" viewBox="0 0 300 330" width="300" role="img" aria-label="Physical memory map of the five segments"></svg></div>
+        </div>
+      </div>
+      <div class="readout" id="sg-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="q4">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Segment arithmetic</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Segment 3 has base 3200 and limit 1100. Where is (3, 852)?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="852 is less than 1100, so it is legal.">Trap</button>
+          <button type="button" class="q-opt" data-ok>4052</button>
+          <button type="button" class="q-opt" data-why="Add the base, not the limit.">1952</button>
+        </div>
+        <div class="q-fb ok">Right: 3200 + 852.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q5">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">What's left</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Which problem of contiguous allocation does segmentation <em>not</em> solve?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Segments can be placed separately, so a process need not be one block.">A process must be one contiguous block.</button>
+          <button type="button" class="q-opt" data-ok>External fragmentation: variable-size segments still leave holes of awkward sizes.</button>
+          <button type="button" class="q-opt" data-why="Each segment has its own limit, which gives protection.">Protection between processes.</button>
+        </div>
+        <div class="q-fb ok">Right. That is what paging's fixed-size frames eliminate.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch4">Back<b>4 · Swapping</b></a>
+    <a href="#tail">Next<b>∎ · Summary and glossary</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="tail">
+  <div class="ch-head">
+    <div class="ch-no">Epilogue</div>
+    <h2>Summary and glossary</h2>
+  </div>
+
+  <div class="sec" id="s-sum">
+    <h3><span class="sec-no">∎</span>What to take away</h3>
+    <div class="prose">
+      <ul>
+        <li>The CPU accesses only registers and memory; caches bridge the speed gap in a hierarchy that gets slower, bigger and cheaper as it goes down.</li>
+        <li>Addresses go from symbolic to relocatable to absolute. Binding can happen at compile time, at load time, or at execution time, which needs an MMU.</li>
+        <li>Base and limit registers, loaded only by the kernel, check every user access. A relocation register adds a base to every logical address.</li>
+        <li>Dynamic loading loads routines when first called; dynamic linking shares libraries through stubs.</li>
+        <li>Contiguous allocation takes holes by first, best, worst or next fit, and suffers external fragmentation, which compaction can reduce. Allocating in fixed units causes internal fragmentation.</li>
+        <li>Swapping moves whole processes to disk; it is slow. Segmentation splits a process into variable-size segments, each with its own base and limit, which leads to paging.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="table-wrap read-only">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>address binding</td><td>Mapping addresses from one space to another: symbolic → relocatable → absolute.</td></tr>
+        <tr><td>logical / physical address</td><td>Generated by the CPU / seen by the memory unit.</td></tr>
+        <tr><td>MMU</td><td>Hardware that translates and bounds-checks addresses at run time.</td></tr>
+        <tr><td>base / limit / relocation register</td><td>Start of the legal range / its size / value added to each logical address.</td></tr>
+        <tr><td>dynamic loading / linking</td><td>Load a routine on first call / link a shared library at run time via a stub.</td></tr>
+        <tr><td>hole</td><td>A block of free memory.</td></tr>
+        <tr><td>first / best / worst / next fit</td><td>Hole-selection strategies.</td></tr>
+        <tr><td>external / internal fragmentation</td><td>Free memory in pieces between allocations / unused space inside one.</td></tr>
+        <tr><td>compaction</td><td>Moving allocations together to merge holes.</td></tr>
+        <tr><td>swapping, backing store</td><td>Moving whole processes to and from disk.</td></tr>
+        <tr><td>segment, segment table</td><td>A variable-size logical unit / its base and limit per segment.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Adapted from the Lecture 13 slides.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; }
+  const clear = (n) => { while (n.firstChild) n.removeChild(n.firstChild); };
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const box = (g, x, y, w, h, cls, t, sz) => { g.appendChild(el('rect', { x, y, width: w, height: h, rx: 6, class: cls })); if (t) g.appendChild(el('text', { x: x + w / 2, y: y + h / 2 + 4, 'text-anchor': 'middle', class: 'lbl', style: `font-size:${sz || 11}px` }, t)); };
+  const arr = (g, d, dashed) => g.appendChild(el('path', { d, class: 'wire thin', 'marker-end': 'url(#ah)', style: dashed ? 'stroke-dasharray:4 3' : '' }));
+
+  /* ---------- hero: memory strip filling ---------- */
+  (function () {
+    const cv = $('#hero-canvas'); if (!cv) return;
+    let W = 0, H = 0, t = 0, blocks = [];
+    function size() { const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2); W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0); blocks = []; let x = 0; while (x < W) { const w = 20 + Math.random() * 90; blocks.push([x, w, Math.random() < 0.6]); x += w + 3; } draw(); }
+    function draw() { const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H); blocks.forEach(([x, w, used], k) => { const on = used !== (Math.floor(t / 80 + k * 0.37) % 7 === 0); ctx.globalAlpha = on ? 0.2 : 0.06; ctx.fillStyle = tok(on ? (k % 3 ? '--cf' : '--cx') : '--ink'); ctx.fillRect(x, H - 50, w, 22); }); ctx.globalAlpha = 1; }
+    size(); addEventListener('resize', size);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    if (!reduce) setInterval(() => { if (document.hidden) return; t += 1; draw(); }, 60);
+  })();
+
+  /* ---------- Fig 0.1 bus ---------- */
+  (function () {
+    const g = $('#bus-g');
+    g.appendChild(el('rect', { x: 10, y: 10, width: 170, height: 150, rx: 10, class: 'box', style: 'fill:none' }));
+    g.appendChild(el('text', { x: 20, y: 28, class: 'lbl', style: 'font-size:11px' }, 'CPU'));
+    box(g, 20, 36, 70, 26, 'pbox', 'registers, PC'); box(g, 100, 36, 70, 26, 'pbox', 'ALU');
+    box(g, 20, 70, 150, 22, 'dbox', 'L1 cache'); box(g, 20, 98, 150, 22, 'dbox', 'L2 / L3 cache');
+    box(g, 20, 128, 150, 24, 'box2', 'bus interface');
+    g.appendChild(el('path', { d: 'M180 140 H250', class: 'wire', 'marker-end': 'url(#ah)', 'marker-start': 'url(#ah)' }));
+    g.appendChild(el('text', { x: 215, y: 134, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:10px' }, 'memory bus'));
+    g.appendChild(el('rect', { x: 252, y: 10, width: 150, height: 150, rx: 10, class: 'box', style: 'fill:none' }));
+    g.appendChild(el('text', { x: 262, y: 28, class: 'lbl', style: 'font-size:11px' }, 'main memory'));
+    [['OS', 'obox'], ['P1: code data heap stack', 'fbox'], ['P2', 'fbox'], ['free', 'box2']].forEach(([t, c], k) => box(g, 262, 36 + k * 30, 130, 24, c, t, 10));
+    g.appendChild(el('path', { d: 'M95 160 V190', class: 'wire', 'marker-end': 'url(#ah)', 'marker-start': 'url(#ah)' }));
+    box(g, 50, 192, 90, 26, 'box2', 'I/O bridge');
+    g.appendChild(el('path', { d: 'M140 205 H200', class: 'wire thin' }));
+    ['disk', 'USB', 'graphics'].forEach((t, k) => box(g, 205 + k * 68, 192, 60, 26, 'mbox', t, 10));
+  })();
+
+  /* ---------- §0.2 latency ---------- */
+  (function () {
+    const L = [['register', 0.5, '16 B'], ['L1 cache', 1, '32 KB'], ['L2 cache', 3, '512 KB'], ['L3 cache', 10, '2 MB'], ['RAM', 200, 'GBs'], ['SSD', 3e5, 'TBs'], ['hard disk', 3e7, 'TBs']];
+    let mode = 'cyc';
+    const human = (s) => s < 60 ? `${+s.toFixed(1)} s` : s < 3600 ? `${+(s / 60).toFixed(1)} min` : s < 86400 ? `${+(s / 3600).toFixed(1)} h` : `${+(s / 86400).toFixed(1)} days`;
+    const fmt = (c) => c < 1 ? '< 1' : c >= 1e6 ? (c / 1e6) + ' M' : c >= 1e3 ? (c / 1e3) + ' K' : String(c);
+    function render() {
+      $$('#lt-s [data-s]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.s === mode)));
+      const mx = Math.log10(3e7) + 0.5;
+      $('#lt-rows').innerHTML = L.map(([n, c, sz]) => `<div class="row"><span>${n}</span><span class="track"><span class="fill" style="width:${Math.max(2, (Math.log10(c) + 0.5) / mx * 100).toFixed(1)}%"></span></span><span class="v">${mode === 'cyc' ? fmt(c) + ' cycles' : human(c)} · ${sz}</span></div>`).join('');
+      $('#lt-out').innerHTML = mode === 'cyc' ? 'Each bar is on a <b>log scale</b>: every tenth of the width is 10× slower. RAM is 200× slower than L1; a hard disk is 150,000× slower than RAM.' : 'If an L1 hit took one second, a RAM access would take over <b>3 minutes</b>, an SSD read <b>3.5 days</b>, and a hard-disk access almost <b>a year</b>. That is why the OS works so hard to keep what you need close.';
+    }
+    $('#lt-s').addEventListener('click', (e) => { const b = e.target.closest('[data-s]'); if (b) { mode = b.dataset.s; render(); } });
+    $('#lt-reset').addEventListener('click', () => { mode = 'cyc'; render(); });
+    render();
+  })();
+
+  /* ---------- Fig 1.1 multistep ---------- */
+  (function () {
+    const g = $('#mp-g');
+    const steps = [['source program', 'pbox', 12], ['compiler', 'box2', 60], ['object file', 'pbox', 108], ['linker', 'box2', 156], ['executable file', 'pbox', 204], ['loader', 'box2', 252], ['program in memory', 'fbox', 300]];
+    steps.forEach(([t, c, y], k) => { box(g, 90, y - 12, 130, 26, c, t); if (k) arr(g, `M155 ${y - 34} V${y - 14}`); });
+    box(g, 240, 144, 82, 26, 'pbox', 'other objects', 10); arr(g, 'M240 157 H222');
+    box(g, 240, 240, 82, 26, 'dbox', 'dynamic lib', 10); arr(g, 'M281 266 V298 H222');
+    [['compile time', 60], ['load time', 252], ['execution time', 300]].forEach(([t, y]) => g.appendChild(el('text', { x: 8, y: y + 5, class: 'lbl', style: 'font-size:10px' }, t)));
+  })();
+
+  /* ---------- §1.2 binding ---------- */
+  (function () {
+    let k = 'exec', moved = false;
+    function render() {
+      $$('#bd-k [data-k]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === k)));
+      const base = moved ? 90000 : 74000;
+      const addr = { compile: '74014', load: moved ? '74014 (stale)' : '74014', exec: '14' }[k];
+      $('#bd-code').innerHTML = [`<span class="c">// in the binary, after ${k === 'compile' ? 'compiling' : k === 'load' ? 'loading' : 'compiling'}</span>`, `load R1, ${addr}`, `add  R1, 1`, `store R1, ${addr}`, k === 'exec' ? `<span class="c">// relocation register = ${base}</span>` : `<span class="c">// absolute addresses baked in</span>`].map((t) => `<span class="ln">${t}</span>`).join('');
+      $('#bd-mem').innerHTML = [`<span class="c">// physical memory</span>`, `${base}  start of program`, `${base + 14}  count`, moved && k !== 'exec' ? `<span class="c">74014  (someone else's memory now!)</span>` : `<span class="c">   </span>`].map((t) => `<span class="ln">${t}</span>`).join('');
+      const MSG = { compile: moved ? '<b class="bad">Broken.</b> The code still says 74014, but <code>count</code> is now at 90014. To move it, you must recompile.' : 'The compiler knew the program would start at 74000 and wrote absolute addresses.', load: moved ? '<b class="bad">Broken until reloaded.</b> The loader patched 74014 in once; moving the image in memory leaves stale addresses. Reload from disk to fix them.' : 'The compiler left "count is 14 bytes in"; the loader added the load address 74000 when loading.', exec: moved ? '<b>Still correct.</b> The code says 14; the MMU adds the relocation register, now 90000, on every access. Moving the process only changed one register.' : 'The code keeps the logical address 14. At every access, the MMU adds the relocation register.' };
+      $('#bd-out').innerHTML = MSG[k];
+      $('#bd-move').textContent = moved ? 'Move it back to 74000' : 'Move it to 90000';
+    }
+    $('#bd-k').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (b) { k = b.dataset.k; moved = false; render(); } });
+    $('#bd-move').addEventListener('click', () => { moved = !moved; render(); });
+    $('#bd-reset').addEventListener('click', () => { k = 'exec'; moved = false; render(); });
+    render();
+  })();
+
+  /* ---------- §2.2 MMU ---------- */
+  (function () {
+    let k = 'bl';
+    const V = { bl: { a: 300040, b: 300040, c: 120900 }, rl: { a: 346, b: 14000, c: 5000 } };
+    function build() {
+      const v = V[k];
+      $('#mu-x').innerHTML = k === 'bl'
+        ? `<span class="box"><span class="nm">CPU address</span><input id="mu-a" type="number" value="${v.a}"></span><span class="op">≥</span><span class="box"><span class="nm">base</span><input id="mu-b" type="number" value="${v.b}"></span><span class="op">and &lt; base +</span><span class="box"><span class="nm">limit</span><input id="mu-c" type="number" value="${v.c}"></span><span class="op">→</span><span class="box" id="mu-r"></span>`
+        : `<span class="box"><span class="nm">logical</span><input id="mu-a" type="number" value="${v.a}"></span><span class="op">&lt;</span><span class="box"><span class="nm">limit</span><input id="mu-c" type="number" value="${v.c}"></span><span class="op">? then +</span><span class="box"><span class="nm">relocation</span><input id="mu-b" type="number" value="${v.b}"></span><span class="op">→</span><span class="box" id="mu-r"></span>`;
+      ['#mu-a', '#mu-b', '#mu-c'].forEach((s) => $(s).addEventListener('input', () => { V[k] = { a: +$('#mu-a').value || 0, b: +$('#mu-b').value || 0, c: +$('#mu-c').value || 0 }; render(); }));
+      render();
+    }
+    function render() {
+      $$('#mu-k [data-k]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === k)));
+      const { a, b, c } = V[k];
+      const ok = k === 'bl' ? a >= b && a < b + c : a >= 0 && a < c, phys = k === 'bl' ? a : a + b;
+      const r = $('#mu-r'); r.className = 'box ' + (ok ? 'ok' : 'bad'); r.innerHTML = `<span class="nm">${ok ? 'memory' : 'trap'}</span>${ok ? phys : 'addressing error'}`;
+      const svg = $('#mu-svg'); clear(svg);
+      const lo = b, hi = k === 'bl' ? b + c : b + c, span = Math.max(hi, phys, 1) * 1.15, X = (v) => 20 + (v / span) * 600;
+      svg.appendChild(el('rect', { x: 20, y: 22, width: 600, height: 28, class: 'box2' }));
+      svg.appendChild(el('rect', { x: X(lo), y: 22, width: Math.max(2, X(hi) - X(lo)), height: 28, class: 'fbox' }));
+      svg.appendChild(el('text', { x: X(lo), y: 64, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, lo));
+      svg.appendChild(el('text', { x: X(hi), y: 64, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, hi));
+      svg.appendChild(el('text', { x: 24, y: 16, class: 'lbl', style: 'font-size:10.5px' }, 'physical memory; green = this process'));
+      const px = X(Math.max(0, phys)); svg.appendChild(el('path', { d: `M${px} 12 V58`, class: 'wire' + (ok ? '' : ' m'), style: 'stroke-width:2.5' }));
+      $('#mu-out').innerHTML = k === 'bl' ? (ok ? `${a} lies in [${b}, ${b + c}): the access goes ahead unchanged. This scheme only <em>checks</em>; the program must already use physical addresses.` : `<b class="bad">Trap.</b> ${a} is outside [${b}, ${b + c}). The OS gets control, and usually kills the process ("segmentation fault").`) : (ok ? `${a} &lt; ${c}, so it is legal; ${a} + ${b} = <b>${phys}</b>. The process believes it starts at 0.` : `<b class="bad">Trap.</b> ${a} ≥ limit ${c}: the check happens before relocation, so the process cannot reach anyone else's memory.`);
+    }
+    $('#mu-k').addEventListener('click', (e) => { const bt = e.target.closest('[data-k]'); if (bt) { k = bt.dataset.k; build(); } });
+    $('#mu-reset').addEventListener('click', () => { V.bl = { a: 300040, b: 300040, c: 120900 }; V.rl = { a: 346, b: 14000, c: 5000 }; k = 'bl'; build(); });
+    build();
+  })();
+
+  /* ---------- §3.2 fits ---------- */
+  (function () {
+    const HOLES = [100, 500, 200, 300, 600], USED = 60, REQ0 = [212, 417, 112, 426];
+    let alg = 'first', mem, queue, qi, nextPtr, msg, fresh, pid;
+    function init() {
+      mem = [{ t: 'os', size: 120, n: 'OS' }]; pid = 0;
+      HOLES.forEach((h, k) => { mem.push({ t: 'hole', size: h }); if (k < HOLES.length - 1) mem.push({ t: 'other', size: USED, n: 'other' }); });
+      queue = REQ0.map((s) => ({ s, st: 'wait' })); qi = 0; nextPtr = 0; msg = ''; fresh = null;
+    }
+    const holes = () => mem.map((b, i) => (b.t === 'hole' ? i : -1)).filter((i) => i >= 0);
+    function place(req) {
+      const H = holes().filter((i) => mem[i].size >= req);
+      if (!H.length) return -1;
+      if (alg === 'first') return H[0];
+      if (alg === 'best') return H.reduce((a, b) => (mem[b].size < mem[a].size ? b : a));
+      if (alg === 'worst') return H.reduce((a, b) => (mem[b].size > mem[a].size ? b : a));
+      const all = holes(); // next fit: scan circularly from the hole at/after nextPtr
+      const order = all.filter((i) => i >= nextPtr).concat(all.filter((i) => i < nextPtr));
+      return order.find((i) => mem[i].size >= req);
+    }
+    function alloc(req) {
+      const i = place(req);
+      if (i === -1 || i == null) return false;
+      const h = mem[i], name = 'P' + (++pid) + ' ' + req;
+      const blk = { t: 'used', size: req, n: name };
+      if (h.size === req) mem.splice(i, 1, blk); else { h.size -= req; mem.splice(i, 0, blk); }
+      fresh = blk; nextPtr = i + 1; return true;
+    }
+    function coalesce() { for (let i = 0; i < mem.length - 1; i++) if (mem[i].t === 'hole' && mem[i + 1].t === 'hole') { mem[i].size += mem[i + 1].size; mem.splice(i + 1, 1); if (nextPtr > i) nextPtr--; i--; } }
+    function step() {
+      if (qi >= queue.length) return false;
+      const q = queue[qi], before = holes().map((i) => mem[i].size);
+      if (alloc(q.s)) { q.st = 'ok'; const left = mem[mem.indexOf(fresh) + 1]; msg = `${q.s} KB placed by ${alg} fit${left && left.t === 'hole' ? `, leaving a ${left.size} KB hole` : ''}. Holes were ${before.join(', ')}.`; }
+      else { q.st = 'fail'; const tot = before.reduce((a, b) => a + b, 0); msg = `<b class="bad">${q.s} KB cannot be placed.</b> Total free memory is ${tot} KB${tot >= q.s ? ` (enough!), but the largest hole is ${Math.max(...before)} KB: <b>external fragmentation</b>. Try Compact` : ''}.`; }
+      qi++; return true;
+    }
+    function render() {
+      $$('#fa-a [data-a]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.a === alg)));
+      $('#fa-q').innerHTML = 'requests: ' + queue.map((q, k) => `<span class="${q.st === 'fail' ? 'fail' : q.st === 'ok' ? 'ok' : k === qi ? 'cur' : ''}">${q.s}</span>`).join('');
+      const total = mem.reduce((a, b) => a + b.size, 0), nx = alg === 'next' ? (holes().find((i) => i >= nextPtr) ?? holes()[0]) : -1;
+      $('#fa-mem').innerHTML = mem.map((b, i) => `<div class="blk ${b.t === 'other' ? 'used' : b.t}${b === fresh ? ' new' : ''}${i === nx ? ' next' : ''}" data-i="${i}" style="width:${(b.size / total * 100).toFixed(2)}%;${b.t === 'other' ? 'background:var(--bg2);cursor:pointer' : ''}" title="${b.t === 'hole' ? 'hole ' + b.size + ' KB' : (b.n || '') + ' (' + b.size + ' KB)'}">${b.t === 'hole' ? b.size : b.t === 'os' ? 'OS' : b.t === 'other' ? '' : b.n}</div>`).join('');
+      const H = holes().map((i) => mem[i].size), free = H.reduce((a, b) => a + b, 0), big = H.length ? Math.max(...H) : 0;
+      $('#fa-stats').innerHTML = `<span>holes: <b>${H.length}</b></span><span>free: <b>${free}</b> KB</span><span>largest hole: <b>${big}</b> KB</span><span>fragmentation: <b>${free ? Math.round((1 - big / free) * 100) : 0}%</b> of free memory is outside the largest hole</span>`;
+      $('#fa-out').innerHTML = msg || 'Pick an algorithm and place the requests one at a time.';
+      $('#fa-go').disabled = $('#fa-all').disabled = qi >= queue.length;
+    }
+    $('#fa-a').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) { alg = b.dataset.a; const extra = queue.slice(REQ0.length).map((q) => q.s); init(); extra.forEach((s) => queue.push({ s, st: 'wait' })); render(); } });
+    $('#fa-go').addEventListener('click', () => { step(); render(); });
+    $('#fa-all').addEventListener('click', () => { while (step()); const f = queue.filter((q) => q.st === 'fail').length; msg += ` <br><b>${alg} fit</b>: ${queue.length - f} of ${queue.length} requests placed.`; render(); });
+    $('#fa-compact').addEventListener('click', () => { const used = mem.filter((b) => b.t !== 'hole'), free = mem.filter((b) => b.t === 'hole').reduce((a, b) => a + b.size, 0); mem = used.concat(free ? [{ t: 'hole', size: free }] : []); nextPtr = 0; fresh = null; msg = `Compacted: every allocation slid down, and the free memory became one ${free} KB hole. That meant copying every moved byte and updating each moved process's relocation register.`; const failed = queue.filter((q) => q.st === 'fail'); failed.forEach((q) => { q.st = 'wait'; }); if (failed.length) { queue = queue.filter((q) => q.st !== 'wait').concat(failed); qi = queue.length - failed.length; } render(); });
+    $('#fa-mem').addEventListener('click', (e) => { const d = e.target.closest('[data-i]'); if (!d) return; const b = mem[+d.dataset.i]; if (b.t === 'used' || b.t === 'other') { const sz = b.size; b.t = 'hole'; b.n = null; if (b === fresh) fresh = null; coalesce(); msg = `Freed ${sz} KB; adjacent holes merged.`; render(); } });
+    $('#fa-add').addEventListener('click', () => { const s = Math.max(1, Math.min(999, +$('#fa-n').value || 1)); queue.push({ s, st: 'wait' }); render(); });
+    $('#fa-reset').addEventListener('click', () => { alg = 'first'; init(); render(); });
+    init(); render();
+  })();
+
+  /* ---------- Fig 4.1 swap ---------- */
+  (function () {
+    const g = $('#sw-g');
+    g.appendChild(el('text', { x: 20, y: 18, class: 'lbl', style: 'font-size:11px' }, 'main memory'));
+    [['OS', 'obox'], ['P1', 'fbox'], ['P0', 'fbox'], ['P3', 'mbox']].forEach(([t, c], k) => box(g, 20, 26 + k * 44, 110, 38, c, t));
+    g.appendChild(el('ellipse', { cx: 285, cy: 60, rx: 60, ry: 14, class: 'box2' }));
+    g.appendChild(el('path', { d: 'M225 60 V190 A60 14 0 0 0 345 190 V60', class: 'box2' }));
+    g.appendChild(el('text', { x: 285, y: 40, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:11px' }, 'backing store'));
+    [['P2', 'pbox'], ['P7', 'box'], ['P9', 'box']].forEach(([t, c], k) => box(g, 250, 82 + k * 36, 70, 28, c, t));
+    arr(g, 'M132 159 C180 159 190 200 232 200');
+    g.appendChild(el('text', { x: 150, y: 215, class: 'lbl', style: 'font-size:10.5px' }, '1. swap out P3'));
+    arr(g, 'M248 96 C200 96 180 140 134 150', true);
+    g.appendChild(el('text', { x: 150, y: 86, class: 'lbl', style: 'font-size:10.5px' }, '2. swap in P2'));
+  })();
+
+  /* ---------- §5.1 segmentation ---------- */
+  (function () {
+    const SEG = [['func1', 1000, 1400], ['library', 400, 6300], ['main', 400, 4300], ['stack', 1100, 3200], ['func2', 1000, 4700]];
+    function render() {
+      const s = +$('#sg-s').value, d = Math.max(0, +$('#sg-d').value || 0), [nm, lim, base] = SEG[s], ok = d < lim, phys = base + d;
+      $('#sg-t').innerHTML = '<thead><tr><th>s</th><th>name</th><th>limit</th><th>base</th></tr></thead><tbody>' + SEG.map(([n, l, b], i) => `<tr class="${i === s ? 'hot' : ''}"><td>${i}</td><td style="text-align:left">${n}</td><td>${l}</td><td>${b}</td></tr>`).join('') + '</tbody>';
+      $('#sg-x').innerHTML = `<span class="box"><span class="nm">(s, d)</span>(${s}, ${d})</span><span class="op">${d} &lt; ${lim}?</span><span class="box ${ok ? 'ok' : 'bad'}"><span class="nm">${ok ? 'physical' : 'trap'}</span>${ok ? `${base} + ${d} = ${phys}` : 'addressing error'}</span>`;
+      const svg = $('#sg-svg'); clear(svg);
+      const Y = (a) => 10 + a * (300 / 7000);
+      svg.appendChild(el('rect', { x: 120, y: Y(0), width: 110, height: Y(7000) - Y(0), class: 'box2' }));
+      SEG.forEach(([n, l, b], i) => { svg.appendChild(el('rect', { x: 120, y: Y(b), width: 110, height: Y(b + l) - Y(b), class: i === s ? 'dbox' : 'fbox' })); svg.appendChild(el('text', { x: 175, y: (Y(b) + Y(b + l)) / 2 + 4, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:10.5px' }, `${i}: ${n}`)); });
+      [0, 1400, 2400, 3200, 4300, 4700, 5700, 6300, 6700].forEach((a) => svg.appendChild(el('text', { x: 114, y: Y(a) + 4, 'text-anchor': 'end', class: 'lbl mono', style: 'font-size:9.5px' }, a)));
+      if (ok) { svg.appendChild(el('path', { d: `M236 ${Y(phys)} H290`, class: 'wire', 'marker-start': 'url(#ah)', style: 'stroke-width:2' })); svg.appendChild(el('text', { x: 292, y: Y(phys) - 4, 'text-anchor': 'end', class: 'lbl mono', style: 'font-size:10.5px' }, phys)); }
+      $('#sg-out').innerHTML = ok ? `Segment ${s} (${nm}) starts at ${base} and is ${lim} bytes long; offset ${d} is inside, so the address is <b>${phys}</b>.` : `<b class="bad">Trap.</b> Segment ${s} is only ${lim} bytes long, and offset ${d} would run ${d - lim + 1} byte${d - lim ? 's' : ''} past its end.`;
+    }
+    $('#sg-s').addEventListener('change', render); $('#sg-d').addEventListener('input', render);
+    $$('[data-sd]').forEach((b) => b.addEventListener('click', () => { const [s, d] = b.dataset.sd.split(','); $('#sg-s').value = s; $('#sg-d').value = d; render(); }));
+    $('#sg-reset').addEventListener('click', () => { $('#sg-s').value = '2'; $('#sg-d').value = 53; render(); });
+    render();
+  })();
+})();
+</script>
+</body>
+</html>
