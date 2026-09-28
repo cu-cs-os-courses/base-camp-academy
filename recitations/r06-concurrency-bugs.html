@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Concurrency Bugs · R06</title>
+<meta name="description" content="CSCI 3753 Recitation 06: one program, two bugs. A data race found by ThreadSanitizer, a lost wakeup from a condition variable without a predicate, the while-loop fix, and Lab02/Lab03 help.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+.agenda { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 1em 0 1.4em; }
+.agenda div { border-top: 3px solid var(--line2); padding-top: 6px; font-size: 14px; }
+.agenda div b { display: block; font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
+.agenda div:nth-child(2) { border-color: var(--cz); } .agenda div:nth-child(3) { border-color: var(--cx); } .agenda div:nth-child(4) { border-color: var(--cf); }
+.code { font-family: var(--f-mono); font-size: 13px; line-height: 1.7; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 0; overflow-x: auto; margin: 0.8em 0 1.2em; }
+.code .ln { display: block; padding: 0 14px; white-space: pre; }
+.code .ln.hl { background: var(--cx-soft); }
+.code .ln.bad { box-shadow: inset 3px 0 var(--cd); }
+.code .c { color: var(--ink3); }
+.code .kw { color: var(--co); }
+table.cs { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.cs td { border-bottom: 1px solid var(--line); padding: 5px 10px; vertical-align: top; }
+table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-space: nowrap; }
+.verdict { display: inline-block; font-family: var(--f-mono); font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; border: 1.5px solid; border-radius: 999px; padding: 1px 9px; margin-left: 8px; vertical-align: middle; }
+.verdict.no { color: var(--cd); border-color: var(--cd); } .verdict.ok { color: var(--good); border-color: var(--good); }
+@media (max-width: 760px) { .agenda { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="9.5" cy="9.5" r="5.5" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M13.6 13.6L19 19" stroke="currentColor" stroke-width="1.8"/><circle cx="9.5" cy="9.5" r="2" fill="var(--cd)"/></svg>
+    <span>Recitation 06 · Finding concurrency bugs</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Recitation 06 · Week 6</div>
+    <h1>It worked on <span class="accent">my</span> machine</h1>
+    <p class="lede">Concurrency bugs hide: a program can pass a hundred runs and fail the next one. Today one tiny program, main handing one value to a thread, goes wrong in two different ways. You see the tool that finds the first bug, ThreadSanitizer, and the pattern that prevents the second, a predicate checked in a <code>while</code> loop. Then Lab02 and Lab03 help.</p>
+    <div class="agenda">
+      <div><b>0–5</b>Recap: semaphores, condition variables</div>
+      <div><b>5–25</b>Worked example: three versions of one handoff</div>
+      <div><b>25–45</b>Lab02 (due Sun Feb 14) and Lab03 help</div>
+      <div><b>45–50</b>Exit ticket</div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="sections">
+    <p class="rail-title">Contents</p>
+    <a href="#v1"><span class="n">1</span>v1: a flag and a spin</a>
+    <a href="#v2"><span class="n">2</span>v2: no predicate</a>
+    <a href="#v3"><span class="n">3</span>v3: the fix</a>
+    <a href="#help"><span class="n">4</span>Lab help</a>
+    <a href="#ticket"><span class="n">5</span>Exit ticket</a>
+    <a href="#sheet"><span class="n">∎</span>Cheat sheet</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#v1"><span class="n">1</span>v1: a flag and a spin</a>
+        <a href="#v2"><span class="n">2</span>v2: no predicate</a>
+        <a href="#v3"><span class="n">3</span>v3: the fix</a>
+        <a href="#help"><span class="n">4</span>Lab help</a>
+        <a href="#ticket"><span class="n">5</span>Exit ticket</a>
+        <a href="#sheet"><span class="n">∎</span>Cheat sheet</a>
+      </nav>
+    </details>
+
+<section class="chapter" id="v1">
+  <div class="ch-head">
+    <div class="ch-no">Part 1 · follow along</div>
+    <h2>v1: a flag and a spin <span class="verdict no">data race</span></h2>
+  </div>
+  <div class="sec">
+    <div class="code"><span class="ln"><span class="c">/* hand1.c */</span></span><span class="ln"><span class="kw">#include</span> &lt;pthread.h&gt;</span><span class="ln"><span class="kw">#include</span> &lt;stdio.h&gt;</span><span class="ln"><span class="kw">#include</span> &lt;unistd.h&gt;</span><span class="ln"> </span><span class="ln"><span class="kw">int</span> data, ready;</span><span class="ln"> </span><span class="ln"><span class="kw">void</span> *consumer(<span class="kw">void</span> *arg) {</span><span class="ln">    (<span class="kw">void</span>)arg;</span><span class="ln bad">    <span class="kw">while</span> (!ready)</span><span class="ln bad">        ;                                  <span class="c">/* spin until main says go */</span></span><span class="ln">    printf("got %d\n", data);</span><span class="ln">    <span class="kw">return</span> NULL;</span><span class="ln">}</span><span class="ln"> </span><span class="ln"><span class="kw">int</span> main(<span class="kw">void</span>) {</span><span class="ln">    pthread_t t;</span><span class="ln">    pthread_create(&amp;t, NULL, consumer, NULL);</span><span class="ln">    sleep(1);                              <span class="c">/* let the consumer start spinning */</span></span><span class="ln">    data = 42;</span><span class="ln bad">    ready = 1;</span><span class="ln">    pthread_join(t, NULL);</span><span class="ln">    <span class="kw">return</span> 0;</span><span class="ln">}</span></div>
+    <div class="code"><span class="ln">gcc -Wall -Werror -O0 -pthread -o hand1 hand1.c &amp;&amp; ./hand1       <span class="c"># got 42 ... by luck</span></span><span class="ln">gcc -Wall -Werror -O2 -pthread -o hand1 hand1.c &amp;&amp; ./hand1       <span class="c"># hangs: Ctrl-C</span></span><span class="ln hl">gcc -g -O1 -fsanitize=thread -pthread -o hand1 hand1.c &amp;&amp; ./hand1</span></div>
+    <div class="prose">
+      <ul>
+        <li>At <code>-O2</code> it hangs: the compiler read <code>ready</code> once and loops forever. It is allowed to, because a data race is <strong>undefined behavior</strong>: the compiler may assume no other thread changes <code>ready</code> behind its back.</li>
+        <li><strong>ThreadSanitizer</strong> (<code>-fsanitize=thread</code>) watches the program as it runs and prints <code>WARNING: ThreadSanitizer: data race</code>. The report shows the two conflicting accesses, a write in <code>main</code> and a read in <code>consumer</code>, with the file and line of each.</li>
+      </ul>
+    </div>
+    <div class="note note-key">
+      <span class="note-tag">If TSan refuses to start</span>
+      <p>It works in the course VM. On some other Linux machines you may see <code>FATAL: ThreadSanitizer: unexpected memory mapping</code>; then run the program as <code>setarch -R ./hand1</code>. That turns off address randomization for that one run, which TSan needs on some kernels.</p>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="v2">
+  <div class="ch-head">
+    <div class="ch-no">Part 2 · follow along</div>
+    <h2>v2: a condition variable, no predicate <span class="verdict no">hangs</span></h2>
+  </div>
+  <div class="sec">
+    <div class="code"><span class="ln"><span class="c">/* hand2.c */</span></span><span class="ln"><span class="kw">#include</span> &lt;pthread.h&gt;</span><span class="ln"><span class="kw">#include</span> &lt;stdio.h&gt;</span><span class="ln"><span class="kw">#include</span> &lt;unistd.h&gt;</span><span class="ln"> </span><span class="ln">pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;</span><span class="ln">pthread_cond_t  c = PTHREAD_COND_INITIALIZER;</span><span class="ln"><span class="kw">int</span> data;</span><span class="ln"> </span><span class="ln"><span class="kw">void</span> *consumer(<span class="kw">void</span> *arg) {</span><span class="ln">    (<span class="kw">void</span>)arg;</span><span class="ln">    sleep(1);                          <span class="c">/* make the bad timing certain */</span></span><span class="ln">    pthread_mutex_lock(&amp;m);</span><span class="ln bad">    pthread_cond_wait(&amp;c, &amp;m);         <span class="c">/* wait for main's signal */</span></span><span class="ln">    printf("got %d\n", data);</span><span class="ln">    pthread_mutex_unlock(&amp;m);</span><span class="ln">    <span class="kw">return</span> NULL;</span><span class="ln">}</span><span class="ln"> </span><span class="ln"><span class="kw">int</span> main(<span class="kw">void</span>) {</span><span class="ln">    pthread_t t;</span><span class="ln">    pthread_create(&amp;t, NULL, consumer, NULL);</span><span class="ln">    pthread_mutex_lock(&amp;m);</span><span class="ln">    data = 42;</span><span class="ln bad">    pthread_cond_signal(&amp;c);</span><span class="ln">    pthread_mutex_unlock(&amp;m);</span><span class="ln">    pthread_join(t, NULL);</span><span class="ln">    <span class="kw">return</span> 0;</span><span class="ln">}</span></div>
+    <details class="fold"><summary>Why does it hang? Think first.</summary><div class="prose">
+      <p>main signals while the consumer is still sleeping. Nobody is waiting, so the signal <strong>does nothing</strong>. A condition variable has no memory. The consumer then waits for a signal that already came and went. The <code>sleep</code> only makes this interleaving certain; without it, the program would hang only <em>some</em> of the time, which is worse.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="chapter" id="v3">
+  <div class="ch-head">
+    <div class="ch-no">Part 3 · follow along</div>
+    <h2>v3: the predicate, in a while loop <span class="verdict ok">correct</span></h2>
+  </div>
+  <div class="sec">
+    <div class="prose"><p>Keep the <code>sleep(1)</code>, and change v2 in three places:</p></div>
+    <div class="code"><span class="ln hl"><span class="kw">int</span> data, ready = 0;                   <span class="c">/* the state lives in shared memory */</span></span><span class="ln"> </span><span class="ln"><span class="c">/* consumer */</span></span><span class="ln">    pthread_mutex_lock(&amp;m);</span><span class="ln hl">    <span class="kw">while</span> (!ready)                     <span class="c">/* check before sleeping, re-check after */</span></span><span class="ln hl">        pthread_cond_wait(&amp;c, &amp;m);</span><span class="ln">    printf("got %d\n", data);</span><span class="ln">    pthread_mutex_unlock(&amp;m);</span><span class="ln"> </span><span class="ln"><span class="c">/* main */</span></span><span class="ln">    pthread_mutex_lock(&amp;m);</span><span class="ln">    data = 42;</span><span class="ln hl">    ready = 1;</span><span class="ln">    pthread_cond_signal(&amp;c);</span><span class="ln">    pthread_mutex_unlock(&amp;m);</span></div>
+    <div class="prose">
+      <ul>
+        <li>The state records that the event happened, so an early signal no longer matters: the consumer finds <code>ready == 1</code> and never sleeps. ThreadSanitizer reports nothing.</li>
+        <li><code>pthread_cond_wait</code> releases the mutex and sleeps in <strong>one atomic step</strong>, then re-acquires the mutex before returning. That closes the gap between checking and sleeping (Lecture 10, §3.1).</li>
+        <li>It is <code>while</code>, not <code>if</code>. POSIX allows spurious wakeups, and with several waiters another thread can change the state between the signal and the moment you run (Lecture 10, §1.3).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="help">
+  <div class="ch-head">
+    <div class="ch-no">Part 4</div>
+    <h2>Lab help</h2>
+    <p class="ch-lede">Lab02 is due Sunday, Feb 14. Lab03 is open until Feb 28.</p>
+  </div>
+  <div class="sec">
+    <div class="prose"><p>Use ThreadSanitizer on Lab03 Part 2 with the lab's own test harness (the README says <code>check/array-test.c</code> is not secret). Share the whole lab directory so <code>check/</code> is visible:</p></div>
+    <div class="code"><span class="ln">SHARE=$PWD/labs/03-concurrency env/run.sh</span><span class="ln"><span class="c"># in the VM</span></span><span class="ln">cd /share/submit</span><span class="ln">gcc -g -O1 -fsanitize=thread -pthread -I. -o /tmp/at ../check/array-test.c array.c</span><span class="ln">/tmp/at stress          <span class="c"># prefix with setarch -R if TSan aborts</span></span></div>
+    <div class="prose">
+      <ul>
+        <li>Do <strong>not</strong> run TSan on <code>race racy</code>: that one is supposed to race.</li>
+        <li>For each wait in your code, you should be able to say what the thread is waiting <em>for</em>, and who makes it true.</li>
+        <li>PS2: TAs explain rules and definitions; they do not work its problems.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="ticket">
+  <div class="ch-head">
+    <div class="ch-no">Part 5</div>
+    <h2>Exit ticket</h2>
+    <p class="ch-lede">Not graded. Answer, then check.</p>
+  </div>
+  <div class="sec">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Exit ticket</span><span class="q-title">1 of 2</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Why does <code>hand2.c</code> hang?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="main unlocks right after signaling; the consumer can take the mutex.">main never releases the mutex.</button>
+          <button type="button" class="q-opt" data-ok>main signals before the consumer waits, and a condition variable has no memory, so the signal is lost.</button>
+          <button type="button" class="q-opt" data-why="pthread_cond_wait needs the mutex held, and the consumer does hold it.">The consumer calls pthread_cond_wait without the mutex.</button>
+        </div>
+        <div class="q-fb ok">Right. v3's state variable is what remembers.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Exit ticket</span><span class="q-title">2 of 2</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Which is the correct way to wait for <code>ready</code>?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="if does not re-check after waking; a spurious wakeup or another waiter breaks it.">With <code>m</code> held: <code>if (!ready) pthread_cond_wait(&amp;c, &amp;m);</code></button>
+          <button type="button" class="q-opt" data-ok>With <code>m</code> held: <code>while (!ready) pthread_cond_wait(&amp;c, &amp;m);</code></button>
+          <button type="button" class="q-opt" data-why="Checking without the mutex, then waiting, reopens the lost-wakeup window.">Without the mutex: <code>while (!ready) pthread_cond_wait(&amp;c, &amp;m);</code></button>
+        </div>
+        <div class="q-fb ok">Right. The mutex protects the check; the while re-checks after every wakeup.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="sheet">
+  <div class="ch-head">
+    <div class="ch-no">Keep</div>
+    <h2>Cheat sheet</h2>
+  </div>
+  <div class="sec">
+    <div class="table-wrap">
+      <table class="cs">
+        <tbody>
+          <tr><td>-fsanitize=thread -g -O1</td><td>Build with ThreadSanitizer: reports data races with both stack traces.</td></tr>
+          <tr><td>setarch -R ./prog</td><td>Run with address randomization off, if TSan says "unexpected memory mapping".</td></tr>
+          <tr><td>-fsanitize=address -g</td><td>AddressSanitizer (R01): overflows and use-after-free. Use one sanitizer at a time.</td></tr>
+          <tr><td>data race</td><td>Two threads access the same memory, at least one writes, nothing orders them. Undefined behavior in C.</td></tr>
+          <tr><td>lost wakeup</td><td>A signal sent when nobody waits does nothing; the later wait sleeps forever.</td></tr>
+          <tr><td>the wait pattern</td><td><code>lock; while (!cond) pthread_cond_wait(&amp;c, &amp;m); … unlock</code></td></tr>
+          <tr><td>the signal pattern</td><td><code>lock; change the state; pthread_cond_signal(&amp;c); unlock</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Recitation 06.
+</footer>
+
+<script src="../assets/academy.js"></script>
+</body>
+</html>

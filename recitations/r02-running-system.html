@@ -124,8 +124,8 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="two-up">
       <div>
         <div class="code"><span class="ln"><span class="c">/* hello.c */</span></span><span class="ln"><span class="kw">#include</span> &lt;stdio.h&gt;</span><span class="ln"><span class="kw">int</span> main(<span class="kw">void</span>) { printf("hello\n"); <span class="kw">return</span> 0; }</span></div>
-        <div class="code"><span class="ln">gcc -Wall -Werror -o hello hello.c</span><span class="ln">strace ./hello</span></div>
-        <div class="prose"><p>The last lines are what <code>main</code> did:</p></div>
+        <div class="code"><span class="ln">gcc -Wall -Werror -o hello hello.c</span><span class="ln">strace -o /tmp/t.txt ./hello     <span class="c"># trace into a file</span></span><span class="ln">tail -3 /tmp/t.txt</span></div>
+        <div class="prose"><p>The last three lines of the trace are what <code>main</code> did:</p></div>
         <div class="code"><span class="ln hl">write(1, "hello\n", 6)                  = 6</span><span class="ln hl">exit_group(0)                           = ?</span><span class="ln">+++ exited with 0 +++</span></div>
       </div>
       <figure class="fig">
@@ -144,8 +144,8 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       </ul>
       <p>Now a program you did not write:</p>
     </div>
-    <div class="code"><span class="ln">strace -e trace=openat,read,write,close cat /proc/uptime</span></div>
-    <div class="code"><span class="ln"><span class="c">… openat of ld.so.cache and libc.so.6: the loader, ignore …</span></span><span class="ln hl">openat(AT_FDCWD, "/proc/uptime", O_RDONLY) = 3</span><span class="ln hl">read(3, "1234.56 1180.02\n", 131072)      = 16</span><span class="ln hl">write(1, "1234.56 1180.02\n", 16)         = 16</span><span class="ln hl">read(3, "", 131072)                       = 0</span><span class="ln hl">close(3)                                  = 0</span></div>
+    <div class="code"><span class="ln">strace -o /tmp/u.txt -e trace=openat,read,write,close cat /proc/uptime</span><span class="ln">less /tmp/u.txt                  <span class="c"># q to quit</span></span></div>
+    <div class="code"><span class="ln"><span class="c">… ld.so.cache and libc.so.6 (the loader), then ~30 locale files (LC_*): ignore …</span></span><span class="ln hl">openat(AT_FDCWD, "/proc/uptime", O_RDONLY) = 3</span><span class="ln hl">read(3, "1234.56 1180.02\n", 131072)      = 16</span><span class="ln hl">write(1, "1234.56 1180.02\n", 16)         = 16</span><span class="ln hl">read(3, "", 131072)                       = 0</span><span class="ln hl">close(3)                                  = 0</span><span class="ln">close(1)                                  = 0</span><span class="ln">close(2)                                  = 0</span></div>
     <div class="prose">
       <p>That is the whole of <code>cat</code>: open, read, write, and read again until <code>read</code> returns 0 (end of file). <code>3</code> is the next free descriptor after 0, 1 and 2. One more:</p>
     </div>
@@ -224,6 +224,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       <table class="cs">
         <tbody>
           <tr><td>strace ./prog</td><td>Print every system call <code>prog</code> makes, with arguments and return values.</td></tr>
+          <tr><td>strace -o file …</td><td>Write the trace to a file instead of mixing it with the program's output.</td></tr>
           <tr><td>strace -e trace=openat,read …</td><td>Only the listed system calls.</td></tr>
           <tr><td>strace -c …</td><td>A summary table instead: count and time per system call.</td></tr>
           <tr><td>strace -f …</td><td>Follow child processes too (useful from Lab01 on).</td></tr>

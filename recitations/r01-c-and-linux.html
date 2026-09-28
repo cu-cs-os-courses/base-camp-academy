@@ -123,7 +123,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     </div>
     <div class="note note-key">
       <span class="note-tag">The bug everybody writes once</span>
-      <p><code>char name[5]; strcpy(name, "hello");</code> writes six bytes, five letters plus <code>'\0'</code>, into five. It may even print correctly: undefined behavior often looks fine. When a C program acts strangely, rebuild with <code>-fsanitize=address -g</code> and run it again. AddressSanitizer names the line that overflowed.</p>
+      <p><code>char name[5]; strcpy(name, "hello");</code> writes six bytes, five letters plus <code>'\0'</code>, into five. With <code>-Wall -Werror</code>, GCC refuses to compile it. Without the flags it compiles and even prints <code>hello</code>: undefined behavior often looks fine. Build it with <code>-fsanitize=address -g</code> and run it again, and AddressSanitizer names the line that overflowed. When a C program acts strangely, try that first.</p>
     </div>
   </div>
 </section>
