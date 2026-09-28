@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Deadlocks · L12</title>
+<meta name="description" content="CSCI 3753 Lecture 12, interactive edition: the four deadlock conditions, resource-allocation graphs, prevention by lock ordering, avoidance with safe states and the Banker's algorithm, detection and recovery, and priority inversion.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+/* ---- lecture-local ---- */
+.sub-lab { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); margin-bottom: 4px; }
+.code { font-family: var(--f-mono); font-size: 13px; line-height: 1.7; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 0; overflow-x: auto; }
+.code .ln { display: block; padding: 0 14px; white-space: pre; }
+.code .c { color: var(--ink3); }
+.code .kw { color: var(--co); }
+.pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+table.mx { border-collapse: collapse; font-family: var(--f-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+table.mx th, table.mx td { padding: 4px 10px; text-align: center; border-bottom: 1px solid var(--line); }
+table.mx th { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); border-bottom-color: var(--line2); }
+table.mx th.grp { border-bottom: 0; padding-bottom: 0; }
+table.mx td.sep, table.mx th.sep { border-left: 1.5px solid var(--line2); }
+table.mx tr.elig td { background: var(--cz-soft); cursor: pointer; }
+table.mx tr.done td { opacity: .45; text-decoration: line-through; }
+table.mx tr.pick td { background: var(--cx-soft2); }
+table.mx tr.dead td { background: var(--cd-soft); }
+table.mx td.nm { font-weight: 600; text-align: left; }
+.vec { font-family: var(--f-mono); font-size: 13px; display: inline-flex; gap: 4px; }
+.vec b { display: inline-block; min-width: 1.6em; text-align: center; border: 1.5px solid var(--line2); border-radius: 5px; padding: 0 3px; background: var(--bg); }
+.steps { font-family: var(--f-mono); font-size: 12.5px; line-height: 1.75; margin: 0; padding-left: 1.4em; }
+.steps li.ok::marker { color: var(--good); } .steps li.no::marker { color: var(--cd); }
+.steps li.no { color: var(--cd); }
+.reqrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.reqrow input { width: 3.2em; font: inherit; font-family: var(--f-mono); border: 1px solid var(--line2); border-radius: 5px; background: var(--bg2); color: var(--ink); padding: 1px 4px; }
+.reqrow select { font: inherit; }
+.cyc { font-family: var(--f-mono); font-size: 12.5px; line-height: 1.7; }
+@media (max-width: 760px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+    <marker id="ah-m" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-m"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><circle cx="6" cy="6" r="3"/><circle cx="16" cy="16" r="3"/><path d="M9 6h4.5a2.5 2.5 0 0 1 2.5 2.5V13M13 16H8.5A2.5 2.5 0 0 1 6 13.5V9"/></g><path d="M16 13l-1.6-2h3.2zM6 9l1.6 2H4.4z" fill="var(--cd)"/></svg>
+    <span>Lecture 12 · Deadlocks</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Lecture 12 · Interactive notes</div>
+    <h1>Everyone waits, <span class="accent">forever</span></h1>
+    <p class="lede">Lectures 09 and 11 kept running into the same failure: each thread holds something the next one needs, around a circle. This lecture treats deadlock systematically. It states the four conditions that together make it possible, then covers four responses: prevent it by breaking a condition, avoid it by checking each request (the Banker's algorithm), detect it and recover, or ignore it. It ends with a cousin of deadlock that nearly cost a Mars mission.</p>
+    <div class="promise">
+      <span>Before you start:</span><span class="mono">semaphores, dining philosophers</span><span>from Lectures 09–11.</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#ch0">Begin ↓</a>
+      <span class="muted small">About 60 minutes · 4 hands-on experiments · 6 checkpoints · Textbook: Silberschatz, Ch. 8</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="chapters">
+    <p class="rail-title">Contents</p>
+    <a href="#ch0"><span class="n">0</span>Characterization</a>
+    <a href="#ch1"><span class="n">1</span>Resource-allocation graphs</a>
+    <a href="#ch2"><span class="n">2</span>Prevention</a>
+    <a href="#ch3"><span class="n">3</span>Avoidance: Banker's</a>
+    <a href="#ch4"><span class="n">4</span>Detection and recovery</a>
+    <a href="#ch5"><span class="n">5</span>Priority inversion</a>
+    <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#ch0"><span class="n">0</span>Characterization</a>
+        <a href="#ch1"><span class="n">1</span>Resource-allocation graphs</a>
+        <a href="#ch2"><span class="n">2</span>Prevention</a>
+        <a href="#ch3"><span class="n">3</span>Avoidance: Banker's</a>
+        <a href="#ch4"><span class="n">4</span>Detection and recovery</a>
+        <a href="#ch5"><span class="n">5</span>Priority inversion</a>
+        <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+      </nav>
+    </details>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch0">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 0</div>
+    <h2>Deadlock characterization</h2>
+    <p class="ch-lede">Four conditions, all at once.</p>
+  </div>
+
+  <div class="sec" id="s0-1">
+    <h3><span class="sec-no">0.1</span>System model</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ul>
+          <li>A system has resource types R<sub>1</sub>, …, R<sub>m</sub>: CPU cycles, memory space, I/O devices, locks. Type R<sub>i</sub> has W<sub>i</sub> identical <strong>instances</strong>.</li>
+          <li>Each thread uses a resource in three steps: <strong>request</strong> (wait if it is unavailable), <strong>use</strong>, <strong>release</strong>.</li>
+          <li>The simplest deadlock takes two binary semaphores and two threads that lock them in opposite orders (Lecture 09, §2.1).</li>
+        </ul>
+      </div>
+      <div class="pair">
+        <div class="code"><span class="ln"><span class="c">// T1</span></span><span class="ln">wait(S1);</span><span class="ln">wait(S2);</span></div>
+        <div class="code"><span class="ln"><span class="c">// T2</span></span><span class="ln">wait(S2);</span><span class="ln">wait(S1);</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-2">
+    <h3><span class="sec-no">0.2</span>The four necessary conditions</h3>
+    <div class="prose"><p>Deadlock can arise only if all four hold <strong>simultaneously</strong>:</p></div>
+    <div class="pair">
+      <div class="note note-key" style="margin:0"><span class="note-tag">1 · Mutual exclusion</span><p>Only one thread at a time can use a resource.</p></div>
+      <div class="note note-key" style="margin:0"><span class="note-tag">2 · Hold and wait</span><p>A thread holding at least one resource waits to acquire more resources held by others.</p></div>
+      <div class="note note-key" style="margin:0"><span class="note-tag">3 · No preemption</span><p>A resource is released only voluntarily, by the thread holding it, when it is done.</p></div>
+      <div class="note note-key" style="margin:0"><span class="note-tag">4 · Circular wait</span><p>There is a set {T<sub>0</sub>, …, T<sub>n</sub>} of waiting threads where T<sub>0</sub> waits for T<sub>1</sub>, T<sub>1</sub> for T<sub>2</sub>, …, and T<sub>n</sub> waits for T<sub>0</sub>.</p></div>
+    </div>
+    <p class="prose" style="margin-top:1em">They are <em>necessary</em>: break any one and deadlock is impossible. That is the whole idea of prevention (§2).</p>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#top">Back to<b>the top</b></a>
+    <a href="#ch1">Next<b>1 · Resource-allocation graphs</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch1">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 1</div>
+    <h2>Resource-allocation graphs</h2>
+    <p class="ch-lede">Draw who holds what and who wants what; deadlock shows up as a cycle.</p>
+  </div>
+
+  <div class="sec" id="s1-1">
+    <h3><span class="sec-no">1.1</span>Vertices and edges</h3>
+    <div class="prose">
+      <ul>
+        <li>The vertices are threads T = {T<sub>1</sub>, …, T<sub>n</sub>}, drawn as circles, and resource types R = {R<sub>1</sub>, …, R<sub>m</sub>}, drawn as boxes with one dot per instance.</li>
+        <li>A <strong>request edge</strong> T<sub>i</sub> → R<sub>j</sub> means T<sub>i</sub> is waiting for an instance of R<sub>j</sub>.</li>
+        <li>An <strong>assignment edge</strong> R<sub>j</sub> → T<sub>i</sub>, drawn from a dot, means an instance of R<sub>j</sub> is held by T<sub>i</sub>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-2">
+    <h3><span class="sec-no">1.2</span>Three graphs</h3>
+    <div class="widget" id="rg-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Cycles, and whether they deadlock</span><button class="w-reset" type="button" id="rg-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Graph" id="rg-p"><button type="button" data-p="a">no cycle</button><button type="button" data-p="b">T3 also requests R2</button><button type="button" data-p="c">cycle, no deadlock</button></span>
+        <button type="button" class="btn primary" id="rg-step">Reduce one step</button>
+        <button type="button" class="btn" id="rg-all">Reduce fully</button>
+      </div>
+      <div class="widget-body">
+        <div class="two-up" style="max-width:none;align-items:start">
+          <div class="canvas-wrap"><svg class="dia" id="rg-svg" viewBox="0 0 440 280" width="440" style="min-width:320px" role="img" aria-label="Resource-allocation graph"></svg></div>
+          <div class="cyc" id="rg-info"></div>
+        </div>
+      </div>
+      <div class="readout" id="rg-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only"><b>Reduction</b> is the question "could everyone finish?". Repeatedly find a thread whose requests can all be met from the free instances, let it finish, and return what it holds. Threads left at the end are deadlocked. This is the detection algorithm of §4, run on the picture.</p>
+  </div>
+
+  <div class="sec" id="s1-3">
+    <h3><span class="sec-no">1.3</span>Basic facts</h3>
+    <div class="prose">
+      <ul>
+        <li>No cycle → no deadlock.</li>
+        <li>A cycle, and only <strong>one instance</strong> per resource type → deadlock.</li>
+        <li>A cycle, with <strong>several instances</strong> per type → deadlock is <em>possible</em>, but not certain. In the third graph, T2 and T4 are not in the cycle; when either finishes, it frees an instance that breaks the cycle.</li>
+      </ul>
+      <p>A cycle is a <strong>necessary but not sufficient</strong> condition for deadlock.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="q0">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Cycles</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A resource-allocation graph has a cycle, and every resource type in it has exactly one instance. Is the system deadlocked?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>Yes: each thread in the cycle waits for the single instance held by the next.</button>
+          <button type="button" class="q-opt" data-why="With multiple instances that would be the right answer; with single instances there is no one else to release.">Only possibly; it depends on other threads.</button>
+          <button type="button" class="q-opt" data-why="A cycle is exactly circular wait.">No: cycles are normal.</button>
+        </div>
+        <div class="q-fb ok">Right. With single instances, cycle ⇔ deadlock.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch0">Back<b>0 · Characterization</b></a>
+    <a href="#ch2">Next<b>2 · Prevention</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 2</div>
+    <h2>Handling deadlocks: prevention</h2>
+    <p class="ch-lede">Four strategies; the first breaks one of the four conditions.</p>
+  </div>
+
+  <div class="sec" id="s2-1">
+    <h3><span class="sec-no">2.1</span>Four ways to handle deadlock</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>Prevention</strong>: make sure at least one of the four necessary conditions can never hold.</li>
+        <li><strong>Avoidance</strong>: using advance information, decide at each request whether granting it could lead to deadlock (§3).</li>
+        <li><strong>Detection and recovery</strong>: let deadlocks happen, find them, and break them (§4).</li>
+        <li><strong>Ignore the problem</strong> and pretend deadlocks never occur, the "ostrich algorithm". This is what most general-purpose operating systems, Linux and Windows included, do for application-level deadlocks: preventing them is left to the programmer. (Inside its own code, the Linux kernel checks its lock ordering with a debugging validator called <em>lockdep</em>.)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-2">
+    <h3><span class="sec-no">2.2</span>Breaking each condition</h3>
+    <div class="table-wrap">
+      <table class="pt">
+        <thead><tr><th>condition</th><th>how to break it</th><th>cost</th></tr></thead>
+        <tbody>
+          <tr><td>mutual exclusion</td><td>Not needed for sharable resources, such as read-only files.</td><td>Non-sharable resources, such as a mutex or a printer, must keep it.</td></tr>
+          <tr><td>hold and wait</td><td>A thread may request resources only when it holds none. Either it gets everything before it starts, or it acquires all or nothing, like the monitor philosophers of Lecture 11.</td><td>Low resource utilization; starvation is possible.</td></tr>
+          <tr><td>no preemption</td><td>If a thread holding resources requests one it cannot get now, it releases everything it holds. The released resources join its wait list, and it restarts only when it can regain all of them plus the new one.</td><td>Only for resources whose state can be saved and restored, such as CPU registers and memory. A printer cannot be taken away halfway through a job.</td></tr>
+          <tr><td>circular wait</td><td>Number every resource type and require each thread to request resources in <strong>increasing order</strong>.</td><td>Needs discipline: every lock gets a unique number, and every code path must acquire in order.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-3">
+    <h3><span class="sec-no">2.3</span>Lock ordering in practice</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Breaking circular wait is by far the most common technique: give each lock a number and always acquire locks in increasing order. A cycle would need some thread to hold a higher-numbered lock while waiting for a lower one, and the rule forbids that.</p>
+        <p>For the dining philosophers, number the chopsticks 1 &lt; 2 &lt; 3 &lt; 4 &lt; 5. Philosopher P<sub>i</sub> uses chopsticks i and i+1, so P1–P4 pick up chopstick i first. P5 uses chopsticks 5 and 1, and the ordering makes it pick up <strong>1 before 5</strong>, the opposite side from everyone else. P5 then blocks on 1, not on 5, and the circle cannot close. This is the asymmetric solution of Lecture 11, derived from a general rule.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 300 260" width="280" role="img" aria-label="Five philosophers; each picks the lower-numbered chopstick first; P5 picks 1 before 5">
+            <g id="lo-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 2.1</span>Arrows point from each philosopher to its <em>first</em> chopstick.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="q1">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Which condition?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">"Acquire all the locks you will need before starting, or none." Which condition does this break?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="The locks are still exclusive.">Mutual exclusion</button>
+          <button type="button" class="q-opt" data-ok>Hold and wait</button>
+          <button type="button" class="q-opt" data-why="Nothing is taken away from a holder.">No preemption</button>
+        </div>
+        <div class="q-fb ok">Right. No thread ever waits while holding something.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch1">Back<b>1 · Resource-allocation graphs</b></a>
+    <a href="#ch3">Next<b>3 · Avoidance: Banker's</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch3">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 3</div>
+    <h2>Deadlock avoidance</h2>
+    <p class="ch-lede">Grant a request only if the system stays in a state from which everyone can still finish.</p>
+  </div>
+
+  <div class="sec" id="s3-1">
+    <h3><span class="sec-no">3.1</span>Safe states</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ul>
+          <li>Avoidance needs information in advance. The simplest and most useful model has each thread declare the <strong>maximum</strong> number of instances of each type it may need.</li>
+          <li>The resource-allocation <em>state</em> is the available resources, the allocated resources, and the declared maxima.</li>
+          <li>A state is <strong>safe</strong> if there is a sequence ⟨T<sub>1</sub>, T<sub>2</sub>, …, T<sub>n</sub>⟩ of <em>all</em> threads such that each T<sub>i</sub>'s remaining needs can be met by the available resources plus those held by every T<sub>j</sub> with j &lt; i. If T<sub>i</sub> cannot proceed now, it waits for the earlier ones to finish and return their resources, then runs, returns its own, and T<sub>i+1</sub> goes next.</li>
+          <li>Safe → no deadlock. Unsafe → deadlock is <em>possible</em>. Avoidance keeps the system from ever entering an unsafe state.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 300 200" width="280" role="img" aria-label="Nested regions: deadlock inside unsafe, unsafe beside safe">
+            <g id="su-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 3.1</span>Deadlocked states are a subset of unsafe states.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-2">
+    <h3><span class="sec-no">3.2</span>Single instances: claim edges</h3>
+    <div class="prose">
+      <ul>
+        <li>When every resource type has one instance, use the resource-allocation graph with <strong>claim edges</strong>. A dashed T<sub>i</sub> ⇢ R<sub>j</sub> means T<sub>i</sub> <em>may</em> request R<sub>j</sub> someday. All claims must be declared in advance.</li>
+        <li>A claim edge becomes a request edge when T<sub>i</sub> requests R<sub>j</sub>, and an assignment edge when R<sub>j</sub> is granted. On release, it reverts to a claim edge.</li>
+        <li>Grant a request only if converting the request edge to an assignment edge does <strong>not create a cycle</strong>, counting claim edges.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-3">
+    <h3><span class="sec-no">3.3</span>Multiple instances: the Banker's algorithm</h3>
+    <div class="prose">
+      <p>Like a banker who never lends out cash in a way that could leave some customers unable to finish, the OS grants a request only if the resulting state is safe. Each thread declares its maximum; when it has everything, it returns the resources in finite time. With n threads and m resource types:</p>
+      <ul>
+        <li><b>Available</b>[m]: free instances of each type.</li>
+        <li><b>Max</b>[n][m]: the most T<sub>i</sub> may ever request.</li>
+        <li><b>Allocation</b>[n][m]: what T<sub>i</sub> holds now.</li>
+        <li><b>Need</b>[n][m] = Max − Allocation: what T<sub>i</sub> may still ask for.</li>
+      </ul>
+    </div>
+    <div class="pair">
+      <div class="code"><span class="ln"><span class="c">// safety algorithm</span></span><span class="ln">Work = Available;  Finish[i] = false for all i;</span><span class="ln"><span class="kw">repeat</span>:</span><span class="ln">  find i with Finish[i] == false</span><span class="ln">              and Need[i] ≤ Work;</span><span class="ln">  <span class="kw">if</span> none: <span class="kw">break</span>;</span><span class="ln">  Work += Allocation[i];  Finish[i] = true;</span><span class="ln">safe ⇔ Finish[i] == true for all i</span></div>
+      <div class="code"><span class="ln"><span class="c">// resource-request algorithm for Ti</span></span><span class="ln">1. Request ≤ Need[i]?  else error: over max</span><span class="ln">2. Request ≤ Available? else Ti waits</span><span class="ln">3. pretend:  Available −= Request;</span><span class="ln">            Allocation[i] += Request;</span><span class="ln">            Need[i] −= Request;</span><span class="ln">   safe?   → grant</span><span class="ln">   unsafe? → Ti waits; restore old state</span></div>
+    </div>
+    <p class="prose small muted">Vectors compare element by element: X ≤ Y means X[j] ≤ Y[j] for every j.</p>
+    <div class="widget" id="bk-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Five threads; A = 10, B = 5, C = 7 instances</span><button class="w-reset" type="button" id="bk-reset">Reset</button></div>
+      <div class="controls">
+        <button type="button" class="btn primary" id="bk-auto">Safety: next step</button>
+        <button type="button" class="btn" id="bk-full">Run to the end</button>
+        <button type="button" class="btn" id="bk-clear">Restart safety check</button>
+      </div>
+      <div class="widget-body">
+        <div class="table-wrap"><table class="mx" id="bk-t"></table></div>
+        <div style="margin:10px 0" id="bk-work"></div>
+        <div class="sub-lab" style="margin-top:14px">make a request</div>
+        <div class="reqrow">
+          <select id="bk-who" aria-label="thread"></select>
+          <span class="mono">requests</span> A <input id="bk-a" type="number" min="0" value="1" aria-label="A"> B <input id="bk-b" type="number" min="0" value="0" aria-label="B"> C <input id="bk-c" type="number" min="0" value="2" aria-label="C">
+          <button type="button" class="btn" id="bk-req">Request</button>
+          <span class="muted small">presets:</span>
+          <button type="button" class="btn small" data-pre="1,1,0,2">T1 (1,0,2)</button>
+          <button type="button" class="btn small" data-pre="4,3,3,0">T4 (3,3,0)</button>
+          <button type="button" class="btn small" data-pre="0,0,2,0">T0 (0,2,0)</button>
+        </div>
+        <ol class="steps" id="bk-steps" style="margin-top:10px"></ol>
+      </div>
+      <div class="readout" id="bk-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Rows shaded blue are <em>eligible</em>: Need ≤ Work. Click one to choose it yourself, or let "next step" pick. A safe sequence is not unique. The slides' ⟨T1, T3, T4, T2, T0⟩ and the widget's ⟨T1, T3, T4, T0, T2⟩ are both valid. A granted request changes the state; Reset restores the snapshot.</p>
+  </div>
+
+  <div class="sec" id="q2">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Available, but unsafe</span></div>
+      <div class="quiz-body">
+        <div class="q-text">After T1's request (1,0,2) is granted, Available is (2,3,0). T0 requests (0,2,0), which is available. Why must it wait?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="(0,2,0) ≤ T0's Need (7,4,3), so it is within its maximum.">It exceeds T0's declared maximum.</button>
+          <button type="button" class="q-opt" data-ok>Granting it leaves Available = (2,1,0), and no thread's Need fits in that: the state would be unsafe.</button>
+          <button type="button" class="q-opt" data-why="Available (2,3,0) covers (0,2,0).">The resources are not available.</button>
+        </div>
+        <div class="q-fb ok">Right. Unsafe is not yet deadlock, but avoidance refuses to take the risk.</div>
+        <div class="q-fb no">Not quite. Try the T0 preset after granting T1's.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch2">Back<b>2 · Prevention</b></a>
+    <a href="#ch4">Next<b>4 · Detection and recovery</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch4">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 4</div>
+    <h2>Detection and recovery</h2>
+    <p class="ch-lede">Let it happen, notice, and clean up.</p>
+  </div>
+
+  <div class="sec" id="s4-1">
+    <h3><span class="sec-no">4.1</span>Single instances: the wait-for graph</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>Collapse the resource-allocation graph. The nodes are threads only, and T<sub>i</sub> → T<sub>j</sub> means T<sub>i</sub> waits for a resource that T<sub>j</sub> holds. Periodically search it for a cycle; a cycle means deadlock. Cycle detection takes on the order of n² operations for n vertices.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 320 170" width="300" role="img" aria-label="Wait-for graph derived from the deadlocked resource-allocation graph">
+            <g id="wf-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 4.1</span>Wait-for graph of the second graph in §1.2.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-2">
+    <h3><span class="sec-no">4.2</span>Several instances: the detection algorithm</h3>
+    <div class="prose">
+      <p>This is the safety algorithm with <b>Request</b> (what each thread is waiting for <em>now</em>) in place of Need, the reduction of §1.2 in matrix form. A thread holding nothing cannot be part of a deadlock, so its Finish starts true. Threads with Finish still false at the end are deadlocked. The cost is O(m × n²). (The widget's order may differ from the slides' ⟨T0, T2, T3, T1, T4⟩; any complete order proves there is no deadlock.)</p>
+    </div>
+    <div class="widget" id="dt-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Five threads; A = 7, B = 2, C = 6 instances</span><button class="w-reset" type="button" id="dt-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label"><input type="checkbox" id="dt-more"> T2 requests one more C</label>
+        <button type="button" class="btn primary" id="dt-auto">Next step</button>
+        <button type="button" class="btn" id="dt-full">Run to the end</button>
+      </div>
+      <div class="widget-body">
+        <div class="table-wrap"><table class="mx" id="dt-t"></table></div>
+        <div style="margin-top:10px" id="dt-work"></div>
+      </div>
+      <div class="readout" id="dt-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-3">
+    <h3><span class="sec-no">4.3</span>When to run it, and how to recover</h3>
+    <div class="prose">
+      <ul>
+        <li>How often to invoke detection depends on how often deadlocks occur and how many threads must be rolled back, at least one per disjoint cycle. Running it at every blocked request finds the culprit immediately but costs the most. Running it rarely, or when CPU utilization drops, means many cycles may have formed, and it can no longer tell which thread "caused" the deadlock.</li>
+        <li><strong>Recovery by termination</strong>: abort all deadlocked threads, or abort one at a time until the cycle breaks. To choose the victim, weigh its priority, how long it has computed and how much remains, the resources it holds and still needs, how many threads must go, and whether it is interactive or batch.</li>
+        <li><strong>Recovery by preemption</strong>: pick a victim to minimize cost, <strong>roll it back</strong> to a safe state and restart it from there, and guard against <strong>starvation</strong> by counting rollbacks in the cost, so the same thread is not always chosen.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="q3">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Detection vs. avoidance</span></div>
+      <div class="quiz-body">
+        <div class="q-text">The detection algorithm looks like the safety algorithm. What is the essential difference?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>Detection uses each thread's current Request; safety uses Need, the worst case it might still ask for.</button>
+          <button type="button" class="q-opt" data-why="Both use the same Work/Finish loop.">Detection does not use Work.</button>
+          <button type="button" class="q-opt" data-why="Both handle many instances; the difference is which demand they test.">Detection only works for single instances.</button>
+        </div>
+        <div class="q-fb ok">Right. Detection asks "is anyone stuck now?"; avoidance asks "could anyone get stuck later?".</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch3">Back<b>3 · Avoidance: Banker's</b></a>
+    <a href="#ch5">Next<b>5 · Priority inversion</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch5">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 5</div>
+    <h2>Priority inversion</h2>
+    <p class="ch-lede">Not a deadlock, but a lock and a scheduler combining to stall the most important task.</p>
+  </div>
+
+  <div class="sec" id="s5-1">
+    <h3><span class="sec-no">5.1</span>A hazard with mutexes</h3>
+    <div class="prose">
+      <p>There are three tasks under preemptive priority scheduling. Task 1 has the highest priority and task 3 the lowest. Task 3 locks a shared object and enters its critical section. Task 1 arrives, preempts it, tries the same lock, and blocks. So far that is expected: task 1 waits for a short critical section. Then task 2, of medium priority and not needing the lock, arrives and preempts task 3. Now task 1 waits for task 2, which can keep it waiting <strong>arbitrarily long</strong>. In effect, the priorities of tasks 1 and 2 are inverted.</p>
+    </div>
+    <div class="widget" id="pi-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Three tasks, one lock</span><button class="w-reset" type="button" id="pi-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="pi-len">task 2 runs for <input id="pi-len" type="range" min="1" max="10" value="2"> <b class="mono" id="pi-lv"></b></label>
+        <label class="ctl-label"><input type="checkbox" id="pi-inh"> priority inheritance</label>
+      </div>
+      <div class="widget-body"><div class="canvas-wrap"><svg class="dia" id="pi-svg" viewBox="0 0 640 170" width="640" style="min-width:460px" role="img" aria-label="Timeline of three tasks"></svg></div></div>
+      <div class="readout" id="pi-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">The shaded parts of a bar are critical-section time, holding the lock. Arrows mark arrivals. The default timeline matches the slide: task 1 arrives at 2 and blocks at 3, and task 2 arrives at 4.</p>
+  </div>
+
+  <div class="sec" id="s5-2">
+    <h3><span class="sec-no">5.2</span>Mars Pathfinder, 1997</h3>
+    <div class="prose">
+      <p>Pathfinder landed on Mars on July 4, 1997. A few days into the mission it began missing deadlines and resetting itself, losing data each time. Engineers on the ground diagnosed priority inversion. A low-priority meteorological task held a lock that a high-priority bus-management task needed, while medium-priority tasks kept running. A watchdog saw the high-priority task miss its deadline and reset the system.</p>
+      <p>The fix was the one the widget offers. The real-time OS (VxWorks) supported <strong>priority inheritance</strong> on that mutex, but it was switched off. Engineers enabled it by uploading a small patch to the spacecraft.</p>
+    </div>
+    <div class="pc">
+      <div class="pro"><span class="tag">Priority inheritance</span>A task holding a lock temporarily runs at the highest priority of any task waiting for that lock, and drops back when it releases. Medium tasks can no longer cut in.</div>
+      <div class="pro"><span class="tag">Priority ceiling</span>Each lock has a ceiling: the highest priority of any task that ever uses it. A task holding the lock runs at the ceiling from the moment it locks, so the inversion cannot start.</div>
+    </div>
+    <p class="prose small muted">POSIX exposes both through mutex attributes: <code>pthread_mutexattr_setprotocol()</code> with <code>PTHREAD_PRIO_INHERIT</code> or <code>PTHREAD_PRIO_PROTECT</code>.</p>
+  </div>
+
+  <div class="sec" id="q4">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Why it's not deadlock</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Why is priority inversion not a deadlock?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>There is no cycle of waiting: task 1 will get the lock once the tasks ahead of it finish, but that delay is unbounded.</button>
+          <button type="button" class="q-opt" data-why="The lock is exclusive in both cases.">Because the lock is not exclusive.</button>
+          <button type="button" class="q-opt" data-why="Task 1 really does block on the lock.">Because task 1 never blocks.</button>
+        </div>
+        <div class="q-fb ok">Right. The danger is unbounded delay, fatal for a system with deadlines.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q5">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Inheritance</span></div>
+      <div class="quiz-body">
+        <div class="q-text">With priority inheritance on, what happens when task 1 blocks on the lock held by task 3?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="Preemption does not release a lock.">Task 3 is forced to release the lock.</button>
+          <button type="button" class="q-opt" data-ok>Task 3 runs at task 1's priority until it releases the lock, so task 2 cannot preempt it.</button>
+          <button type="button" class="q-opt" data-why="Task 1's priority is not lowered; task 3's is raised.">Task 1 drops to task 3's priority.</button>
+        </div>
+        <div class="q-fb ok">Right. Try the checkbox with task 2 running for 10.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch4">Back<b>4 · Detection and recovery</b></a>
+    <a href="#tail">Next<b>∎ · Summary and glossary</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="tail">
+  <div class="ch-head">
+    <div class="ch-no">Epilogue</div>
+    <h2>Summary and glossary</h2>
+  </div>
+
+  <div class="sec" id="s-sum">
+    <h3><span class="sec-no">∎</span>What to take away</h3>
+    <div class="prose">
+      <ul>
+        <li>Deadlock needs mutual exclusion, hold and wait, no preemption, and circular wait, all at once.</li>
+        <li>In a resource-allocation graph, no cycle means no deadlock; a cycle with single-instance resources means deadlock; with multiple instances it means a possible deadlock.</li>
+        <li>Prevention breaks a condition; in practice, lock ordering breaks circular wait.</li>
+        <li>Avoidance grants only requests that keep the state safe: claim edges for single instances, the Banker's algorithm for many.</li>
+        <li>Detection runs the reduction on current requests (or looks for wait-for cycles), then recovers by termination or by preemption with rollback.</li>
+        <li>Priority inversion is unbounded blocking of a high-priority task through a medium one. It is fixed by priority inheritance or priority ceilings.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="table-wrap read-only">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>deadlock</td><td>A set of threads each waiting for an event only another in the set can cause.</td></tr>
+        <tr><td>request / assignment / claim edge</td><td>T waits for R / R is held by T / T may request R.</td></tr>
+        <tr><td>wait-for graph</td><td>Threads only; T<sub>i</sub> → T<sub>j</sub> if T<sub>i</sub> waits for T<sub>j</sub>.</td></tr>
+        <tr><td>prevention / avoidance</td><td>Break a necessary condition / refuse requests that lead to unsafe states.</td></tr>
+        <tr><td>safe state, safe sequence</td><td>An order in which every thread can obtain its maximum and finish.</td></tr>
+        <tr><td>Available / Max / Allocation / Need</td><td>The Banker's data; Need = Max − Allocation.</td></tr>
+        <tr><td>ostrich algorithm</td><td>Ignore deadlocks.</td></tr>
+        <tr><td>rollback</td><td>Return a preempted thread to an earlier safe state.</td></tr>
+        <tr><td>priority inversion</td><td>A high-priority task waits on a low one that is preempted by a medium one.</td></tr>
+        <tr><td>priority inheritance / ceiling</td><td>Lock holder borrows its highest waiter's priority / runs at the lock's ceiling.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Adapted from the Lecture 12 slides.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; }
+  const clear = (n) => { while (n.firstChild) n.removeChild(n.firstChild); };
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const le = (x, y) => x.every((v, j) => v <= y[j]);
+  const add = (x, y) => x.map((v, j) => v + y[j]);
+  const sub = (x, y) => x.map((v, j) => v - y[j]);
+  const vec = (v) => `<span class="vec">${v.map((x) => `<b>${x}</b>`).join('')}</span>`;
+
+  /* ---------- hero: a cycle of arrows ---------- */
+  (function () {
+    const cv = $('#hero-canvas'); if (!cv) return;
+    let W = 0, H = 0, t = 0;
+    function size() { const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2); W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0); draw(); }
+    function draw() {
+      const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H);
+      const cx = W * 0.8, cy = H * 0.5, R = Math.min(80, H * 0.28);
+      ctx.globalAlpha = 0.2; ctx.strokeStyle = tok('--cd'); ctx.lineWidth = 2;
+      ctx.setLineDash([8, 8]); ctx.lineDashOffset = -t; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+      for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.3; ctx.fillStyle = tok(k % 2 ? '--cx' : '--cz'); ctx.beginPath(); if (k % 2) ctx.rect(cx + Math.cos(a) * R - 11, cy + Math.sin(a) * R - 11, 22, 22); else ctx.arc(cx + Math.cos(a) * R, cy + Math.sin(a) * R, 12, 0, 7); ctx.fill(); }
+      ctx.globalAlpha = 1;
+    }
+    size(); addEventListener('resize', size);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    if (!reduce) setInterval(() => { if (document.hidden) return; t += 0.6; draw(); }, 40);
+  })();
+
+  /* ---------- §1.2 resource-allocation graphs ---------- */
+  (function () {
+    const P = {
+      a: { vb: '0 0 440 280', T: { T1: [80, 140], T2: [220, 140], T3: [360, 140] }, R: { R1: [150, 45, 1], R3: [290, 45, 1], R2: [150, 235, 2], R4: [290, 235, 3] },
+        asg: [['R1', 'T2'], ['R2', 'T1'], ['R2', 'T2'], ['R3', 'T3']], req: [['T1', 'R1'], ['T2', 'R3']] },
+      c: { vb: '0 0 420 300', T: { T1: [60, 150], T2: [340, 40], T3: [340, 150], T4: [340, 260] }, R: { R1: [190, 70, 2], R2: [190, 230, 2] },
+        asg: [['R1', 'T2'], ['R1', 'T3'], ['R2', 'T1'], ['R2', 'T4']], req: [['T1', 'R1'], ['T3', 'R2']] },
+    };
+    P.b = { ...P.a, req: [...P.a.req, ['T3', 'R2']] };
+    let key = 'a', done = new Set(), last = null;
+    const G = () => P[key];
+    function cycles() { // simple directed cycles, as node lists
+      const g = G(), adj = {}; const addE = (u, v) => (adj[u] = adj[u] || []).push(v);
+      g.asg.forEach(([r, t]) => addE(r, t)); g.req.forEach(([t, r]) => addE(t, r));
+      const nodes = Object.keys(adj).sort(), out = [], seen = new Set();
+      nodes.forEach((s) => { const dfs = (u, path) => { (adj[u] || []).forEach((v) => { if (v === s) { const c = [...path]; const k = [...c].sort().join(); if (!seen.has(k)) { seen.add(k); out.push(c); } } else if (!path.includes(v) && v > s) dfs(v, [...path, v]); }); }; dfs(s, [s]); });
+      return out;
+    }
+    function state() { // detection on the graph
+      const g = G(), avail = {}; Object.entries(g.R).forEach(([r, v]) => { avail[r] = v[2]; });
+      g.asg.forEach(([r]) => { avail[r]--; });
+      done.forEach((t) => g.asg.filter(([, tt]) => tt === t).forEach(([r]) => { avail[r]++; }));
+      const can = Object.keys(g.T).filter((t) => !done.has(t) && g.req.filter(([tt]) => tt === t).every(([, r]) => avail[r] > 0));
+      return { avail, can };
+    }
+    function draw() {
+      const g = G(), svg = $('#rg-svg'); clear(svg); svg.setAttribute('viewBox', g.vb);
+      const cyc = cycles(), onCyc = new Set();
+      if (!done.size) cyc.forEach((c) => c.forEach((n, i) => onCyc.add(n + '>' + c[(i + 1) % c.length])));
+      const RW = 58, RH = 38;
+      const edge = (from, to, x1, y1, x2, y2, dashed) => { const hot = onCyc.has(from + '>' + to), dim = done.has(from) || done.has(to); svg.appendChild(el('path', { d: `M${x1} ${y1} L${x2} ${y2}`, class: 'wire' + (hot ? ' m' : ''), 'marker-end': `url(#${hot ? 'ah-m' : 'ah'})`, style: (hot ? 'stroke-width:2.2;' : '') + (dim ? 'opacity:.18;' : '') + (dashed ? 'stroke-dasharray:5 4;' : '') })); };
+      const trim = (x1, y1, x2, y2, r) => { const d = Math.hypot(x2 - x1, y2 - y1); return [x2 - (x2 - x1) * r / d, y2 - (y2 - y1) * r / d]; };
+      const rectHit = (cx, cy, x1, y1) => { const dx = x1 - cx, dy = y1 - cy, s = Math.min((RW / 2) / Math.abs(dx || 1e-9), (RH / 2) / Math.abs(dy || 1e-9)); return [cx + dx * s, cy + dy * s]; };
+      const dotPos = {}; Object.entries(g.R).forEach(([r, [x, y, n]]) => { dotPos[r] = Array.from({ length: n }, (_, k) => [x - (n - 1) * 8 + k * 16, y]); });
+      const used = {};
+      g.asg.forEach(([r, t]) => { const k = used[r] = (used[r] || 0); used[r]++; const [dx, dy] = dotPos[r][k], [tx, ty] = g.T[t]; const [ex, ey] = trim(dx, dy, tx, ty, 22); edge(r, t, dx, dy, ex, ey); });
+      g.req.forEach(([t, r]) => { const [tx, ty] = g.T[t], [rx, ry] = g.R[r]; const [sx, sy] = trim(rx, ry, tx, ty, 20); const [hx, hy] = rectHit(rx, ry, tx, ty); edge(t, r, sx, sy, hx, hy, false); });
+      Object.entries(g.R).forEach(([r, [x, y, n]]) => { svg.appendChild(el('rect', { x: x - RW / 2, y: y - RH / 2, width: RW, height: RH, rx: 4, class: 'box2' })); svg.appendChild(el('text', { x, y: y - RH / 2 - 5, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:11px' }, r)); dotPos[r].forEach(([dx, dy]) => svg.appendChild(el('circle', { cx: dx, cy: dy, r: 4, style: 'fill:var(--ink)' }))); });
+      Object.entries(g.T).forEach(([t, [x, y]]) => { const d = done.has(t), dead = last && last.dead.includes(t); svg.appendChild(el('circle', { cx: x, cy: y, r: 20, class: dead ? 'mbox' : d ? 'box2' : 'pbox', style: d ? 'opacity:.45' : '' })); svg.appendChild(el('text', { x, y: y + 4, 'text-anchor': 'middle', class: 'mono', style: 'font-size:12px' + (d ? ';opacity:.5' : '') }, d ? t + ' ✓' : t)); });
+    }
+    function render(msg) {
+      $$('#rg-p [data-p]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.p === key)));
+      draw();
+      const cyc = cycles(), { avail, can } = state();
+      $('#rg-info').innerHTML = `<div class="sub-lab">cycles</div>${cyc.length ? cyc.map((c) => [...c, c[0]].join(' → ')).join('<br>') : 'none'}<div class="sub-lab" style="margin-top:10px">free instances</div>${Object.entries(avail).map(([r, v]) => `${r}: ${v}`).join(' · ')}<div class="sub-lab" style="margin-top:10px">finished</div>${[...done].join(', ') || '—'}`;
+      $('#rg-step').disabled = $('#rg-all').disabled = !can.length && !!last;
+      const EXPL = { a: 'No cycle, so no deadlock. Reduce it: T3 can finish first, then T2, then T1.', b: 'Two cycles, and R1 and R3 have one instance each. Reduction gets nowhere: T1, T2 and T3 are deadlocked.', c: 'There is a cycle, T1 → R1 → T3 → R2 → T1, yet no deadlock. T2 and T4 are outside the cycle and can finish, returning instances of R1 and R2.' };
+      $('#rg-out').innerHTML = msg || EXPL[key];
+    }
+    function step() {
+      const { can } = state();
+      if (!can.length) { const left = Object.keys(G().T).filter((t) => !done.has(t)); last = { dead: left }; render(left.length ? `<b class="bad">No thread can proceed.</b> ${left.join(', ')} ${left.length > 1 ? 'are' : 'is'} deadlocked.` : '<b>All threads finished: no deadlock.</b>'); return false; }
+      done.add(can[0]); const s2 = state(); if (!s2.can.length) { const left = Object.keys(G().T).filter((t) => !done.has(t)); last = { dead: left }; render(left.length ? `${can[0]} finished and returned its resources, but <b class="bad">${left.join(', ')} still cannot proceed: deadlocked.</b>` : `${can[0]} finished. <b>All threads finished: no deadlock.</b>`); return false; }
+      render(`${can[0]}'s requests can be met, so it finishes and returns what it holds.`); return true;
+    }
+    $('#rg-p').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) { key = b.dataset.p; done = new Set(); last = null; render(); } });
+    $('#rg-step').addEventListener('click', step);
+    $('#rg-all').addEventListener('click', () => { while (step()); });
+    $('#rg-reset').addEventListener('click', () => { key = 'a'; done = new Set(); last = null; render(); });
+    render();
+  })();
+
+  /* ---------- Fig 2.1 lock ordering ---------- */
+  (function () {
+    const g = $('#lo-g'), cx = 150, cy = 130, Rp = 95, Rc = 52, N = 5;
+    const ang = (k) => -Math.PI / 2 + k * 2 * Math.PI / N;
+    g.appendChild(el('circle', { cx, cy, r: 38, class: 'box' }));
+    // philosopher i (1..5) at ang(i-1); chopstick c lies between P(c-1) and P(c); Pi uses chopsticks i and i%5+1
+    const cp = {}; for (let c = 1; c <= N; c++) { const a = ang(c - 1) - Math.PI / N; cp[c] = [cx + Math.cos(a) * Rc, cy + Math.sin(a) * Rc]; }
+    for (let c = 1; c <= N; c++) { const [x, y] = cp[c]; g.appendChild(el('rect', { x: x - 9, y: y - 9, width: 18, height: 18, rx: 3, class: 'dbox' })); g.appendChild(el('text', { x, y: y + 4, 'text-anchor': 'middle', class: 'mono', style: 'font-size:10.5px' }, c)); }
+    for (let i = 1; i <= N; i++) {
+      const a = ang(i - 1), x = cx + Math.cos(a) * Rp, y = cy + Math.sin(a) * Rp, first = Math.min(i, (i % N) + 1), [fx, fy] = cp[first], hot = i === N;
+      const d = Math.hypot(fx - x, fy - y), ex = fx - (fx - x) * 12 / d, ey = fy - (fy - y) * 12 / d, sx = x + (fx - x) * 18 / d, sy = y + (fy - y) * 18 / d;
+      g.appendChild(el('path', { d: `M${sx} ${sy} L${ex} ${ey}`, class: 'wire' + (hot ? ' m' : ''), 'marker-end': `url(#${hot ? 'ah-m' : 'ah'})` }));
+      g.appendChild(el('circle', { cx: x, cy: y, r: 16, class: hot ? 'mbox' : 'pbox' }));
+      g.appendChild(el('text', { x, y: y + 4, 'text-anchor': 'middle', class: 'mono', style: 'font-size:11px' }, 'P' + i));
+    }
+  })();
+
+  /* ---------- Fig 3.1 safe/unsafe ---------- */
+  (function () {
+    const g = $('#su-g');
+    g.appendChild(el('ellipse', { cx: 150, cy: 100, rx: 140, ry: 88, class: 'fbox' }));
+    g.appendChild(el('ellipse', { cx: 190, cy: 110, rx: 90, ry: 58, class: 'dbox' }));
+    g.appendChild(el('ellipse', { cx: 215, cy: 118, rx: 45, ry: 28, class: 'mbox' }));
+    g.appendChild(el('text', { x: 55, y: 70, class: 'lbl' }, 'safe'));
+    g.appendChild(el('text', { x: 125, y: 95, class: 'lbl' }, 'unsafe'));
+    g.appendChild(el('text', { x: 215, y: 122, 'text-anchor': 'middle', class: 'lbl' }, 'deadlock'));
+  })();
+
+  /* ---------- §3.3 Banker's ---------- */
+  (function () {
+    const N = ['T0', 'T1', 'T2', 'T3', 'T4'];
+    const A0 = [[0, 1, 0], [2, 0, 0], [3, 0, 2], [2, 1, 1], [0, 0, 2]], M0 = [[7, 5, 3], [3, 2, 2], [9, 0, 2], [2, 2, 2], [4, 3, 3]], AV0 = [3, 3, 2];
+    let alloc, max, avail, work, finish, seq, lastPick;
+    const need = (i) => sub(max[i], alloc[i]);
+    function init() { alloc = A0.map((r) => r.slice()); max = M0.map((r) => r.slice()); avail = AV0.slice(); startSafety(); $('#bk-steps').innerHTML = ''; }
+    function startSafety() { work = avail.slice(); finish = N.map(() => false); seq = []; lastPick = -1; }
+    const eligible = () => N.map((_, i) => !finish[i] && le(need(i), work));
+    function pick(i) { work = add(work, alloc[i]); finish[i] = true; seq.push(i); lastPick = i; }
+    function autoNext() { const el2 = eligible(); for (let d = 1; d <= N.length; d++) { const i = (lastPick + d + N.length) % N.length; if (el2[i]) { pick(i); return true; } } return false; }
+    function render(msg) {
+      const el2 = eligible();
+      $('#bk-t').innerHTML = `<thead><tr><th></th><th class="grp sep" colspan="3">Allocation</th><th class="grp sep" colspan="3">Max</th><th class="grp sep" colspan="3">Need</th></tr><tr><th></th>${['A', 'B', 'C'].map((c, j) => `<th class="${j ? '' : 'sep'}">${c}</th>`).join('').repeat(3)}</tr></thead><tbody>` + N.map((n, i) => `<tr data-i="${i}" class="${finish[i] ? 'done' : el2[i] ? 'elig' : ''}${i === lastPick ? ' pick' : ''}"><td class="nm">${n}</td>${[alloc[i], max[i], need(i)].map((v) => v.map((x, j) => `<td class="${j ? '' : 'sep'}">${x}</td>`).join('')).join('')}</tr>`).join('') + '</tbody>';
+      const all = finish.every(Boolean), stuck = !all && !el2.some(Boolean);
+      $('#bk-work').innerHTML = `Available ${vec(avail)} &nbsp; Work ${vec(work)} &nbsp; sequence so far: <span class="mono">⟨${seq.map((i) => N[i]).join(', ')}⟩</span>`;
+      $('#bk-out').innerHTML = msg || (all ? `<b>Safe.</b> ⟨${seq.map((i) => N[i]).join(', ')}⟩ lets every thread finish.` : stuck ? `<b class="bad">Unsafe.</b> No unfinished thread's Need fits in Work ${vec(work)}.` : seq.length ? `${N[lastPick]} can finish; Work grows by its Allocation.` : 'Blue rows can finish with the current Work. Pick one, or press "next step".');
+      $('#bk-auto').disabled = $('#bk-full').disabled = all || stuck;
+    }
+    function safe(av, al, mx) { let w = av.slice(); const f = al.map(() => false), s = []; let moved = true; while (moved) { moved = false; for (let i = 0; i < al.length; i++) { if (!f[i] && le(sub(mx[i], al[i]), w)) { w = add(w, al[i]); f[i] = true; s.push(i); moved = true; } } } return { ok: f.every(Boolean), s }; }
+    function request(i, r) {
+      const L = [], nd = need(i);
+      if (!le(r, nd)) { L.push(['no', `Request ${vec(r)} ≤ Need ${vec(nd)}? No: ${N[i]} would exceed its declared maximum. Error.`]); return show(L); }
+      L.push(['ok', `Request ${vec(r)} ≤ Need ${vec(nd)}`]);
+      if (!le(r, avail)) { L.push(['no', `Request ≤ Available ${vec(avail)}? No: ${N[i]} must wait until the resources are free.`]); return show(L); }
+      L.push(['ok', `Request ≤ Available ${vec(avail)}`]);
+      const av2 = sub(avail, r), al2 = alloc.map((row, k) => (k === i ? add(row, r) : row.slice()));
+      L.push(['ok', `Pretend: Available → ${vec(av2)}, Allocation[${N[i]}] → ${vec(al2[i])}, Need[${N[i]}] → ${vec(sub(max[i], al2[i]))}`]);
+      const s = safe(av2, al2, max);
+      if (s.ok) { L.push(['ok', `Safety: safe (e.g. ⟨${s.s.map((k) => N[k]).join(', ')}⟩). <b>Granted.</b>`]); avail = av2; alloc = al2; startSafety(); }
+      else L.push(['no', `Safety: <b>unsafe</b>; ${s.s.length ? 'only ⟨' + s.s.map((k) => N[k]).join(', ') + '⟩ could finish' : 'no thread\'s Need fits in the new Available'}. ${N[i]} must wait; the old state is restored.`]);
+      show(L);
+    }
+    function show(L) { $('#bk-steps').innerHTML = L.map(([k, t]) => `<li class="${k}">${t}</li>`).join(''); render(); }
+    $('#bk-who').innerHTML = N.map((n, i) => `<option value="${i}"${i === 1 ? ' selected' : ''}>${n}</option>`).join('');
+    $('#bk-t').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-i]'); if (tr) { const i = +tr.dataset.i; if (eligible()[i]) { pick(i); render(); } } });
+    $('#bk-auto').addEventListener('click', () => { autoNext(); render(); });
+    $('#bk-full').addEventListener('click', () => { while (autoNext()); render(); });
+    $('#bk-clear').addEventListener('click', () => { startSafety(); render(); });
+    $('#bk-req').addEventListener('click', () => request(+$('#bk-who').value, ['#bk-a', '#bk-b', '#bk-c'].map((s) => Math.max(0, +$(s).value || 0))));
+    $$('[data-pre]').forEach((b) => b.addEventListener('click', () => { const [i, a, bb, c] = b.dataset.pre.split(',').map(Number); $('#bk-who').value = i; $('#bk-a').value = a; $('#bk-b').value = bb; $('#bk-c').value = c; request(i, [a, bb, c]); }));
+    $('#bk-reset').addEventListener('click', () => { init(); render(); });
+    init(); render();
+  })();
+
+  /* ---------- Fig 4.1 wait-for ---------- */
+  (function () {
+    const g = $('#wf-g'), P = { T1: [60, 85], T2: [160, 40], T3: [260, 85] };
+    const arrow = (a, b, bend) => { const [x1, y1] = P[a], [x2, y2] = P[b], mx = (x1 + x2) / 2, my = (y1 + y2) / 2 + bend, d = Math.hypot(x2 - mx, y2 - my); g.appendChild(el('path', { d: `M${x1} ${y1} Q${mx} ${my} ${x2 - (x2 - mx) * 21 / d} ${y2 - (y2 - my) * 21 / d}`, class: 'wire m', fill: 'none', 'marker-end': 'url(#ah-m)' })); };
+    arrow('T1', 'T2', -18); arrow('T2', 'T3', -18); arrow('T3', 'T2', 30); arrow('T3', 'T1', 70);
+    Object.entries(P).forEach(([n, [x, y]]) => { g.appendChild(el('circle', { cx: x, cy: y, r: 20, class: 'pbox' })); g.appendChild(el('text', { x, y: y + 4, 'text-anchor': 'middle', class: 'mono' }, n)); });
+    g.appendChild(el('text', { x: 160, y: 162, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:10.5px' }, 'T3 waits for R2, held by T1 and T2'));
+  })();
+
+  /* ---------- §4.2 detection ---------- */
+  (function () {
+    const N = ['T0', 'T1', 'T2', 'T3', 'T4'];
+    const AL = [[0, 1, 0], [2, 0, 0], [3, 0, 3], [2, 1, 1], [0, 0, 2]], RQ0 = [[0, 0, 0], [2, 0, 2], [0, 0, 0], [1, 0, 0], [0, 0, 2]];
+    let rq, work, finish, seq, lastPick, ended;
+    function init() { rq = RQ0.map((r) => r.slice()); if ($('#dt-more').checked) rq[2] = [0, 0, 1]; work = [0, 0, 0]; finish = AL.map((r) => r.every((x) => x === 0)); seq = []; lastPick = -1; ended = false; }
+    const elig = () => N.map((_, i) => !finish[i] && le(rq[i], work));
+    function next() { const e = elig(); for (let d = 1; d <= 5; d++) { const i = (lastPick + d + 5) % 5; if (e[i]) { work = add(work, AL[i]); finish[i] = true; seq.push(i); lastPick = i; return true; } } ended = true; return false; }
+    function render() {
+      const e = elig(), stuck = !finish.every(Boolean) && !e.some(Boolean);
+      $('#dt-t').innerHTML = `<thead><tr><th></th><th class="grp sep" colspan="3">Allocation</th><th class="grp sep" colspan="3">Request</th></tr><tr><th></th>${['A', 'B', 'C'].map((c, j) => `<th class="${j ? '' : 'sep'}">${c}</th>`).join('').repeat(2)}</tr></thead><tbody>` + N.map((n, i) => `<tr class="${finish[i] ? 'done' : stuck ? 'dead' : e[i] ? 'elig' : ''}${i === lastPick ? ' pick' : ''}"><td class="nm">${n}</td>${[AL[i], rq[i]].map((v, m) => v.map((x, j) => `<td class="${j ? '' : 'sep'}${m === 1 && i === 2 && j === 2 && $('#dt-more').checked ? ' ' : ''}">${x}</td>`).join('')).join('')}</tr>`).join('') + '</tbody>';
+      $('#dt-work').innerHTML = `Available ${vec([0, 0, 0])} &nbsp; Work ${vec(work)} &nbsp; order: <span class="mono">⟨${seq.map((i) => N[i]).join(', ')}⟩</span>`;
+      const dead = N.filter((_, i) => !finish[i]);
+      $('#dt-out').innerHTML = finish.every(Boolean) ? `<b>No deadlock.</b> ⟨${seq.map((i) => N[i]).join(', ')}⟩ reduces every thread.` : stuck ? `<b class="bad">Deadlock:</b> ${dead.join(', ')} can never proceed. ${seq.length ? `Only ${seq.map((i) => N[i]).join(', ')} could finish` : ''}${$('#dt-more').checked ? '; reclaiming T0\'s resources is not enough for anyone else.' : '.'}` : 'Available is (0,0,0), yet some requests are zero. Step through.';
+      $('#dt-auto').disabled = $('#dt-full').disabled = finish.every(Boolean) || stuck;
+    }
+    $('#dt-more').addEventListener('change', () => { init(); render(); });
+    $('#dt-auto').addEventListener('click', () => { next(); render(); });
+    $('#dt-full').addEventListener('click', () => { while (next()); render(); });
+    $('#dt-reset').addEventListener('click', () => { $('#dt-more').checked = false; init(); render(); });
+    init(); render();
+  })();
+
+  /* ---------- §5.1 priority inversion ---------- */
+  (function () {
+    function sim(len2, inh) {
+      const T = [
+        { n: 'task 1', pr: 1, arr: 2, prog: [{ c: 1 }, { lock: 1 }, { c: 1, cs: 1 }, { unlock: 1 }, { c: 1 }] },
+        { n: 'task 2', pr: 2, arr: 4, prog: [{ c: len2 }] },
+        { n: 'task 3', pr: 3, arr: 0, prog: [{ c: 1 }, { lock: 1 }, { c: 3, cs: 1 }, { unlock: 1 }, { c: 1 }] },
+      ].map((t) => ({ ...t, pc: 0, rem: t.prog[0].c, blk: false, fin: null }));
+      let owner = null; const segs = [], ev = [];
+      const eff = (t) => (inh && owner === t ? Math.min(t.pr, ...T.filter((w) => w.blk).map((w) => w.pr)) : t.pr);
+      for (let time = 0; time < 80 && T.some((t) => t.fin == null); time++) {
+        let guard = 0;
+        while (guard++ < 10) {
+          const ready = T.filter((t) => t.arr <= time && t.fin == null && !t.blk);
+          if (!ready.length) break;
+          const t = ready.sort((a, b) => eff(a) - eff(b))[0], op = t.prog[t.pc];
+          if (op.lock) { if (!owner) { owner = t; t.pc++; t.rem = t.prog[t.pc].c; ev.push([time, t.n + ' locks']); continue; } t.blk = true; ev.push([time, t.n + ' blocks on the lock']); continue; }
+          if (op.unlock) { owner = null; ev.push([time, t.n + ' unlocks']); const w = T.find((x) => x.blk); if (w) { w.blk = false; owner = w; w.pc++; w.rem = w.prog[w.pc].c; ev.push([time, w.n + ' gets the lock']); } t.pc++; t.rem = t.prog[t.pc] ? t.prog[t.pc].c : 0; if (!t.prog[t.pc]) t.fin = time; continue; }
+          segs.push([time, time + 1, T.indexOf(t), !!op.cs, inh && owner === t && eff(t) < t.pr]);
+          t.rem--; if (t.rem === 0) { t.pc++; if (t.pc >= t.prog.length) t.fin = time + 1; else t.rem = t.prog[t.pc].c || 0; }
+          break;
+        }
+      }
+      return { T, segs, ev };
+    }
+    function render() {
+      const len = +$('#pi-len').value, inh = $('#pi-inh').checked; $('#pi-lv').textContent = len;
+      const { T, segs } = sim(len, inh), end = Math.max(...T.map((t) => t.fin || 0)), svg = $('#pi-svg'); clear(svg);
+      const X = (t) => 100 + t * (520 / Math.max(end, 10)), Y = (i) => 14 + i * 44, COL = ['mbox', 'dbox', 'pbox'];
+      T.forEach((t, i) => { svg.appendChild(el('text', { x: 4, y: Y(i) + 20, class: 'lbl mono', style: 'font-size:10.5px' }, t.n + (i === 0 ? ' (high)' : i === 2 ? ' (low)' : ' (mid)'))); svg.appendChild(el('path', { d: `M100 ${Y(i) + 32} H626`, class: 'wire thin', style: 'opacity:.15' })); svg.appendChild(el('path', { d: `M${X(t.arr)} ${Y(i) - 4} V${Y(i) + 6}`, class: 'wire thin', 'marker-end': 'url(#ah)' })); });
+      const mg = []; segs.forEach((sg) => { const l = mg[mg.length - 1]; if (l && l[2] === sg[2] && l[3] === sg[3] && l[4] === sg[4] && l[1] === sg[0]) l[1] = sg[1]; else mg.push(sg.slice()); });
+      mg.forEach(([a, b, i, cs, boosted]) => { svg.appendChild(el('rect', { x: X(a), y: Y(i) + 6, width: X(b) - X(a), height: 24, class: COL[i] })); if (cs) svg.appendChild(el('rect', { x: X(a), y: Y(i) + 6, width: X(b) - X(a), height: 24, style: 'fill:var(--ink);opacity:.22' })); if (boosted) svg.appendChild(el('text', { x: (X(a) + X(b)) / 2, y: Y(i) + 22, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:9.5px' }, 'at task 1\'s priority')); });
+      const t1 = T[0], blockedFrom = 3, got = segs.find(([a, b, i, cs]) => i === 0 && cs);
+      if (got) { svg.appendChild(el('path', { d: `M${X(blockedFrom)} ${Y(0) + 18} H${X(got[0])}`, class: 'wire m', style: 'stroke-dasharray:4 3' })); svg.appendChild(el('text', { x: (X(blockedFrom) + X(got[0])) / 2, y: Y(0) + 14, 'text-anchor': 'middle', class: 'lbl t-m', style: 'font-size:10px' }, 'blocked ' + (got[0] - blockedFrom))); }
+      for (let u = 0; u <= Math.max(end, 10); u += 2) svg.appendChild(el('text', { x: X(u), y: 160, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, u));
+      const wait = got ? got[0] - blockedFrom : 0;
+      $('#pi-out').innerHTML = inh ? `With inheritance, task 3 runs at task 1's priority from t = 3 until it unlocks, so task 2 cannot cut in. Task 1 is blocked for <b>${wait}</b> units and finishes at <b>${t1.fin}</b>, whatever task 2's length.` : `Task 1 is blocked for <b class="bad">${wait}</b> units and finishes at <b>${t1.fin}</b>. Task 2 does not even use the lock, yet every unit it runs delays task 1. Drag the slider: the delay grows without bound.`;
+    }
+    $('#pi-len').addEventListener('input', render); $('#pi-inh').addEventListener('change', render);
+    $('#pi-reset').addEventListener('click', () => { $('#pi-len').value = 2; $('#pi-inh').checked = false; render(); });
+    render();
+  })();
+})();
+</script>
+</body>
+</html>
