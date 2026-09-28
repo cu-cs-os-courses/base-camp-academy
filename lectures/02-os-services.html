@@ -1,0 +1,868 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OS Services · L02</title>
+<meta name="description" content="CSCI 3753 Lecture 02, interactive edition: operating-system services, the boot chain, system calls and their implementation on Linux x86-64, and loadable kernel modules.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+/* ---- lecture-local ---- */
+.sub-lab { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); }
+.chain { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.chain .st { border: 1.5px solid var(--line2); border-radius: 9px; padding: 8px 9px; background: var(--bg); font-size: 12.5px; line-height: 1.4; min-height: 6.2em; }
+.chain .st .k { display: block; font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; color: var(--ink3); margin-bottom: 3px; }
+.chain .st .w { display: block; font-family: var(--f-mono); font-size: 11px; color: var(--ink3); margin-top: 4px; }
+.chain .st.done { border-color: var(--cf); background: var(--cf-soft); }
+.chain .st.cur { border-color: var(--cx); background: var(--cx-soft2); }
+.chain .st.pend { opacity: 0.4; }
+.grub { font-family: var(--f-mono); font-size: 13px; background: #1e2429; color: #e8eaed; border-radius: 10px; padding: 10px 14px; margin-top: 12px; line-height: 1.7; }
+.grub .sel { background: #e8eaed; color: #1e2429; }
+.grub button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0 6px; }
+.shell { font-family: var(--f-mono); font-size: 13px; line-height: 1.65; background: #1e2429; color: #e8eaed; border-radius: 10px; padding: 10px 14px; min-height: 12em; max-height: 20em; overflow: auto; white-space: pre-wrap; }
+.shell .pr { color: #7fd1b9; font-weight: 600; }
+.shell .er { color: #ff9aa8; }
+.shell .dim { opacity: 0.6; }
+.trace { display: grid; gap: 3px; font-family: var(--f-mono); font-size: 12.5px; }
+.trace .ln { display: grid; grid-template-columns: 2.4em minmax(0, 1fr) 11em; gap: 8px; padding: 3px 8px; border-radius: 6px; border: 1px solid transparent; }
+.trace .ln .n { color: var(--ink3); }
+.trace .ln .rv { color: var(--ink2); text-align: right; }
+.trace .ln.cur { border-color: var(--cx); background: var(--cx-soft); }
+.trace .ln.err .rv { color: var(--cd); font-weight: 600; }
+.trace .ln.pend { opacity: 0.3; }
+.trace .ln.io { }
+.regs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.regs > div { border: 1px solid var(--line2); border-radius: 8px; padding: 6px 9px; background: var(--bg); }
+.regs .r { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; color: var(--ink3); text-transform: uppercase; }
+.regs .v { font-family: var(--f-mono); font-size: 14px; font-weight: 600; margin-top: 2px; word-break: break-all; }
+.regs .v small { display: block; font-size: 11px; font-weight: 400; color: var(--ink3); }
+.regs > div.hot { border-color: var(--cz); background: var(--cz-soft); }
+.regs > div.ret { border-color: var(--cf); background: var(--cf-soft); }
+.flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; margin-top: 12px; }
+.flow .hop { flex: 1 1 140px; border: 1px solid var(--line2); border-radius: 9px; padding: 7px 10px; background: var(--bg); font-size: 13px; line-height: 1.5; }
+.flow .hop .k { display: block; font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
+.flow .hop.u { border-color: var(--cz); background: var(--cz-soft); }
+.flow .hop.kk { border-color: var(--co); background: var(--co-soft); }
+.flow .hop.bad { border-color: var(--cd); background: var(--cd-soft); }
+.flow .hop.ok { border-color: var(--good); background: var(--good-soft); }
+.flow .arr { align-self: center; font-family: var(--f-mono); color: var(--ink3); }
+.code { font-family: var(--f-mono); font-size: 13px; line-height: 1.7; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; overflow-x: auto; white-space: pre; }
+.code .c { color: var(--ink3); }
+.code .kw { color: var(--co); }
+.code .s { color: var(--cf-ink); }
+@media (max-width: 760px) {
+  .chain { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .regs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .trace .ln { grid-template-columns: 2em minmax(0, 1fr); }
+  .trace .ln .rv { grid-column: 2; text-align: left; }
+}
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="7" height="7" class="hatch-bg"/><line x1="0" y1="0" x2="0" y2="7" class="hatch-line"/>
+    </pattern>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+    <marker id="ah-p" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-p"/></marker>
+    <marker id="ah-o" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-o"/></marker>
+    <marker id="ah-f" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-f"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><rect x="3" y="3" width="16" height="7" rx="1.5"/><rect x="3" y="13" width="16" height="6" rx="1.5"/><path d="M11 10v3"/></g><path d="M9 11.5l2 2 2-2" stroke="var(--co)" stroke-width="1.6" fill="none"/></svg>
+    <span>Lecture 02 · OS Services</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Lecture 02 · Interactive notes</div>
+    <h1>How a program<br><span class="accent">asks</span> the kernel</h1>
+    <p class="lede">Lecture 01 said the kernel protects itself with a mode bit, so user programs cannot simply call into it. This lecture shows the three ways in: the boot chain that puts the kernel in charge in the first place, the system calls through which every program asks for a service, and loadable kernel modules that add new code to a running kernel.</p>
+    <div class="promise">
+      <span>Before you start:</span><span class="mono">dual mode, traps, the interrupt vector</span><span>from Lecture 01.</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#ch0">Begin ↓</a>
+      <span class="muted small">About 50 minutes · 5 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 2 · Continues in Lecture 03, Process</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="chapters">
+    <p class="rail-title">Contents</p>
+    <a href="#ch0"><span class="n">0</span>OS services</a>
+    <a href="#ch1"><span class="n">1</span>Booting</a>
+    <a href="#ch2"><span class="n">2</span>System calls</a>
+    <a href="#ch3"><span class="n">3</span>Inside a system call</a>
+    <a href="#ch4"><span class="n">4</span>Kernel modules</a>
+    <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#ch0"><span class="n">0</span>OS services</a>
+        <a href="#ch1"><span class="n">1</span>Booting</a>
+        <a href="#ch2"><span class="n">2</span>System calls</a>
+        <a href="#ch3"><span class="n">3</span>Inside a system call</a>
+        <a href="#ch4"><span class="n">4</span>Kernel modules</a>
+        <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+      </nav>
+    </details>
+
+    <div class="sec present-only title-slide" id="title">
+      <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 02</div>
+      <h1>Operating System Services</h1>
+      <p class="lede">The boot loader that starts them, system calls that reach them, and kernel modules that extend them.</p>
+      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 2</div>
+    </div>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch0">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 0</div>
+    <h2>Operating-system services</h2>
+    <p class="ch-lede">An OS provides an environment for executing programs, and services to programs and users.</p>
+  </div>
+
+  <div class="sec" id="s0-1">
+    <h3><span class="sec-no">0.1</span>Services that help the user</h3>
+    <div class="opts3" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div><span class="tag">User interface</span>Almost every OS has one: command line (CLI), graphical (GUI), touch screen, or batch.</div>
+      <div><span class="tag">Program execution</span>Load a program into memory, run it, and end it, normally or abnormally (with an error).</div>
+      <div><span class="tag">I/O operations</span>A running program may need I/O to a file or a device; it cannot drive devices itself.</div>
+      <div data-step="1"><span class="tag">File-system manipulation</span>Read and write files and directories, create and delete them, search, list information, manage permissions.</div>
+      <div data-step="1"><span class="tag">Communications</span>Processes exchange information on one computer or across a network, through shared memory or message passing.</div>
+      <div data-step="1"><span class="tag">Error detection</span>Errors in the CPU and memory, in devices, in user programs: take the right action for each, and offer debugging facilities.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-2">
+    <h3><span class="sec-no">0.2</span>Services that keep the system efficient</h3>
+    <div class="opts3">
+      <div><span class="tag">Resource allocation</span>With many users or jobs at once, share out CPU cycles, main memory, file storage, and devices.</div>
+      <div data-step="1"><span class="tag">Logging</span>Keep track of which users use how much of which resources.</div>
+      <div data-step="2"><span class="tag">Protection and security</span>Control all access to system resources, keep concurrent processes from interfering, and authenticate users against outsiders.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-3">
+    <h3><span class="sec-no">0.3</span>A view of OS services</h3>
+    <figure class="fig" style="max-width:860px">
+      <div class="fig-frame">
+        <svg class="dia" viewBox="0 0 760 330" width="720" role="img" aria-label="User and other system programs, user interfaces, system calls, services, and hardware">
+          <rect x="20" y="10" width="720" height="40" class="pbox"/><text x="380" y="36" text-anchor="middle">user and other system programs</text>
+          <rect x="20" y="60" width="720" height="44" class="box2"/><text x="120" y="87" text-anchor="middle" class="lbl">GUI</text><text x="280" y="87" text-anchor="middle" class="lbl">touch screen</text><text x="440" y="87" text-anchor="middle" class="lbl">command line</text><text x="600" y="87" text-anchor="middle" class="lbl">batch</text>
+          <rect x="20" y="114" width="720" height="30" class="obox"/><text x="380" y="134" text-anchor="middle" class="mono">system calls</text>
+          <g id="svc-g"></g>
+          <rect x="20" y="284" width="720" height="36" class="fbox"/><text x="380" y="307" text-anchor="middle">hardware</text>
+        </svg>
+      </div>
+      <figcaption><span class="fno">Fig. 0.1</span>Programs reach every service through the system-call layer. The grey row of user interfaces is the <b>shell</b>; everything from the system calls down is the <span class="os">kernel</span> (after Silberschatz Fig. 2.1).</figcaption>
+    </figure>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#top">Back to<b>the top</b></a>
+    <a href="#ch1">Next<b>1 · Booting</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch1">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 1</div>
+    <h2>Booting: starting the services</h2>
+    <p class="ch-lede">Before any service exists, something has to load the kernel into memory and jump to it.</p>
+  </div>
+
+  <div class="sec" id="s1-1">
+    <h3><span class="sec-no">1.1</span>Bootstrapping</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>Booting</strong> ("bootstrapping") is loading and starting the operating system.</li>
+        <li data-step="1">A <strong>bootstrap program</strong> (bootstrap loader) locates the kernel, loads it into memory, and starts it.</li>
+        <li data-step="2">It is usually a <strong>two-step</strong> process: run a simple bootstrap loader, which fetches a more complex one, which loads the kernel from disk and jumps to it.</li>
+        <li data-step="3">The first loader must be inside the machine, not on an external device: in <strong>ROM</strong> or flash firmware.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-2">
+    <h3><span class="sec-no">1.2</span>The boot chain</h3>
+    <div class="widget" id="bt-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">From power button to login prompt</span><button class="w-reset" type="button" id="bt-reset">Reset</button></div>
+      <div class="controls">
+        <button type="button" class="btn" id="bt-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="bt-next">Next ›</button>
+        <span class="mono muted" id="bt-n" style="font-size:13px"></span>
+      </div>
+      <div class="widget-body">
+        <div class="chain" id="bt-chain"></div>
+        <div class="grub" id="bt-grub"></div>
+      </div>
+      <div class="readout" id="bt-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <div class="note note-honest read-only">
+      <span class="note-tag">BIOS or UEFI</span>
+      <p>The classic picture: BIOS firmware reads the first sector of the disk (the MBR), whose 446 bytes of code load the second stage. Modern PCs use <strong>UEFI</strong> firmware, which reads a small FAT partition and runs the boot loader directly from a file. Either way, GRUB is the second stage, and LILO is now rarely used.</p>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch0">Back<b>0 · OS services</b></a>
+    <a href="#ch2">Next<b>2 · System calls</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 2</div>
+    <h2>System calls: accessing the services</h2>
+    <p class="ch-lede">The programming interface to the kernel, and the only door from user mode into kernel mode.</p>
+  </div>
+
+  <div class="sec" id="s2-1">
+    <h3><span class="sec-no">2.1</span>System calls and APIs</h3>
+    <div class="prose">
+      <ul>
+        <li>A <strong>system call</strong> is the programming interface to a service provided by the OS. The kernel side is typically written in C or C++.</li>
+        <li data-step="1">Programs mostly reach system calls through a high-level <strong>application programming interface (API)</strong> rather than directly.</li>
+        <li data-step="2">The three most common: the <strong>Win32 API</strong> for Windows; the <strong>POSIX API</strong> for POSIX systems (virtually every UNIX, Linux, macOS); the <strong>Java API</strong> for the JVM.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-2">
+    <h3><span class="sec-no">2.2</span>How many system calls does <code>cp</code> make?</h3>
+    <div class="prose">
+      <p>Copying one file to another sounds like one operation. Watch it as a sequence of system calls:</p>
+    </div>
+    <div class="widget" id="cp-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title"><code>cp in.txt out.txt</code>, call by call</span><button class="w-reset" type="button" id="cp-reset">Reset</button></div>
+      <div class="controls">
+        <label class="ctl-label" for="cp-sz">in.txt is <select id="cp-sz"><option value="0">missing</option><option value="4096">4 KB</option><option value="10000" selected>10 KB</option><option value="65536">64 KB</option></select></label>
+        <span class="gap"></span>
+        <button type="button" class="btn" id="cp-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="cp-next">Next ›</button>
+        <button type="button" class="btn" id="cp-all">Run all</button>
+      </div>
+      <div class="widget-body">
+        <div class="trace" id="cp-t"></div>
+        <div class="stats" id="cp-stats" style="margin-top:12px"></div>
+      </div>
+      <div class="readout" id="cp-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">A simplified trace in the style of <code>strace</code>, with a 4096-byte buffer. Try <code>strace cp in.txt out.txt</code> in the course VM to see the real one; it has many more calls, most of them from loading the C library.</p>
+  </div>
+
+  <div class="sec" id="s2-3">
+    <h3><span class="sec-no">2.3</span>An example API: <code>read()</code></h3>
+    <div class="two-up" style="align-items:start">
+      <div>
+        <div class="code"><span class="kw">#include</span> &lt;unistd.h&gt;
+
+ssize_t read(int fd, void *buf, size_t count);</div>
+        <p class="small muted" style="margin-top:6px">From <code>man 2 read</code>.</p>
+      </div>
+      <div class="prose">
+        <ul>
+          <li><code>int fd</code>: the file descriptor to read from;</li>
+          <li><code>void *buf</code>: the buffer the data goes into;</li>
+          <li><code>size_t count</code>: the most bytes to read.</li>
+        </ul>
+        <p>Returns the number of bytes read; <strong>0</strong> means end of file; <strong>−1</strong> means an error (with the reason in <code>errno</code>).</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-4">
+    <h3><span class="sec-no">2.4</span>API, system call, OS</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ul>
+          <li>Each system call has a <strong>number</strong>. The system-call interface keeps a table indexed by these numbers.</li>
+          <li data-step="1">It invokes the intended call in the kernel and returns its status and any return values.</li>
+          <li data-step="2">The caller needs to know nothing about how the call is implemented: it obeys the API and understands what the OS will do. The details are hidden by the <strong>run-time support library</strong> (for C, libc).</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 420 330" width="380" role="img" aria-label="A user application calls open, the system-call interface traps into kernel mode and indexes the table to the open implementation, then returns">
+            <rect x="10" y="10" width="400" height="120" class="pbox" style="fill-opacity:.3"/><text x="20" y="28" class="lbl t-p">user mode</text>
+            <rect x="120" y="40" width="180" height="36" class="pbox"/><text x="210" y="63" text-anchor="middle" class="mono">open("in.txt", …)</text>
+            <rect x="60" y="92" width="300" height="30" class="box"/><text x="210" y="112" text-anchor="middle" class="lbl">system-call interface (libc)</text>
+            <path d="M210 76 V88" class="wire p thin" marker-end="url(#ah-p)"/>
+            <rect x="10" y="150" width="400" height="170" class="obox" style="fill-opacity:.3"/><text x="20" y="168" class="lbl t-o">kernel mode</text>
+            <g data-step="1">
+              <path d="M150 122 V190" class="wire o" marker-end="url(#ah-o)"/><text x="156" y="146" class="lbl" style="font-size:11px">trap · rax = 2</text>
+              <rect x="60" y="194" width="140" height="110" class="box"/><text x="130" y="212" text-anchor="middle" class="lbl">trap table</text>
+              <text x="70" y="232" class="lbl mono" style="font-size:11px">0 → sys_read</text><text x="70" y="250" class="lbl mono" style="font-size:11px">1 → sys_write</text>
+              <rect x="64" y="258" width="132" height="20" class="obox"/><text x="70" y="272" class="lbl mono" style="font-size:11px">2 → sys_open</text>
+              <text x="70" y="294" class="lbl mono" style="font-size:11px">…</text>
+              <rect x="250" y="240" width="140" height="44" class="obox"/><text x="320" y="260" text-anchor="middle" class="lbl">implementation</text><text x="320" y="276" text-anchor="middle" class="lbl mono" style="font-size:11px">of open()</text>
+              <path d="M196 268 H246" class="wire o thin" marker-end="url(#ah-o)"/>
+            </g>
+            <g data-step="2"><path d="M320 240 V200 H270 V126" class="wire f" marker-end="url(#ah-f)"/><text x="276" y="190" class="lbl t-f" style="font-size:11px">return fd</text></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 2.1</span>The number indexes the trap table; control returns to the instruction after the trap.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="q1">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Chapter 2</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Your C program calls <code>printf("hi\n")</code>. Which statement is most accurate?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="printf is not a system call; it is a C-library function running in user mode.">printf is itself a system call that traps into the kernel.</button>
+          <button type="button" class="q-opt" data-ok>printf is a library (API) function in user mode; it formats the text into a buffer and eventually calls the write() system call to output it.</button>
+          <button type="button" class="q-opt" data-why="User code cannot drive the terminal hardware directly; that is exactly why the write() system call exists.">printf writes directly to the terminal hardware.</button>
+        </div>
+        <div class="q-fb ok">Right. The API hides the system call; <code>strace</code> would show one <code>write(1, "hi\n", 3)</code>.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch1">Back<b>1 · Booting</b></a>
+    <a href="#ch3">Next<b>3 · Inside a system call</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch3">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 3</div>
+    <h2>Inside a system call</h2>
+    <p class="ch-lede">How the call's number and arguments reach the kernel, and how the kernel handles a pointer it cannot trust.</p>
+  </div>
+
+  <div class="sec" id="s3-1">
+    <h3><span class="sec-no">3.1</span>Passing parameters</h3>
+    <div class="prose">
+      <p>A call usually needs more than its number; what and how much depends on the OS and the call. Three general methods:</p>
+    </div>
+    <div class="opts3">
+      <div><span class="tag">1 · Registers</span>Put the parameters in CPU registers. Fast, but there may be more parameters than registers.</div>
+      <div data-step="1"><span class="tag">2 · Block + pointer</span>Store the parameters in a block in memory and pass its address in a register. Used by Linux and Solaris for calls with many or large arguments.</div>
+      <div data-step="2"><span class="tag">3 · Stack</span>The program pushes the parameters; the OS pops them. Like the pointer method, it limits neither the number nor the length of parameters.</div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-2">
+    <h3><span class="sec-no">3.2</span>Linux on x86-64</h3>
+    <div class="prose">
+      <ul>
+        <li>The trap instruction is <code>syscall</code> on x86-64 (<code>int 0x80</code> on 32-bit x86).</li>
+        <li data-step="1">The system-call <strong>number</strong> goes in <code>rax</code>; up to six arguments go in <code>rdi</code>, <code>rsi</code>, <code>rdx</code>, <code>r10</code>, <code>r8</code>, <code>r9</code>; the result comes back in <code>rax</code>.</li>
+        <li data-step="2">Complex arguments, such as a structure or a buffer, are passed as <strong>user-space pointers</strong>: method 2 for the data, method 1 for the pointer.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-3">
+    <h3><span class="sec-no">3.3</span>Make a system call</h3>
+    <div class="widget" id="sc-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">From <code>syscall</code> to the handler and back</span><button class="w-reset" type="button" id="sc-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Call" id="sc-call"></span>
+        <span class="gap"></span>
+        <button type="button" class="btn" id="sc-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="sc-next">Next ›</button>
+      </div>
+      <div class="widget-body">
+        <div class="regs" id="sc-regs"></div>
+        <div class="flow" id="sc-flow"></div>
+      </div>
+      <div class="readout" id="sc-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Numbers are from Linux's x86-64 table (<code>arch/x86/entry/syscalls/syscall_64.tbl</code>).</p>
+  </div>
+
+  <div class="sec" id="s3-4">
+    <h3><span class="sec-no">3.4</span>When the pointer is bad</h3>
+    <div class="prose">
+      <p>What if <code>buf</code> in <code>read(fd, buf, count)</code> points somewhere invalid, or into the kernel? The kernel must never trust a user pointer. It uses special functions to touch user memory:</p>
+    </div>
+    <div class="table-wrap" data-step="1">
+      <table class="glossary" style="max-width:none">
+        <thead><tr><th>Function</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>access_ok</code></td><td>checks that a user-space pointer range is valid</td></tr>
+          <tr><td><code>get_user</code> / <code>put_user</code></td><td>read / write one simple variable in user space</td></tr>
+          <tr><td><code>clear_user</code></td><td>zero a block in user space</td></tr>
+          <tr><td><code>copy_to_user</code> / <code>copy_from_user</code></td><td>copy a block from the kernel to user space / from user space to the kernel</td></tr>
+          <tr><td><code>strnlen_user</code> / <code>strncpy_from_user</code></td><td>get the length of / copy a string from user space</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="widget" id="cu-w" data-step="1">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title"><code>read(fd, buf, 100)</code> with different <code>buf</code> values</span><button class="w-reset" type="button" id="cu-reset">Reset</button></div>
+      <div class="controls"><span class="seg" aria-label="buf" id="cu-b"></span></div>
+      <div class="widget-body"><div class="flow" id="cu-flow"></div></div>
+      <div class="readout" id="cu-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-5">
+    <h3><span class="sec-no">3.5</span>Types of system calls</h3>
+    <div class="table-wrap">
+      <table class="glossary" style="max-width:none">
+        <thead><tr><th>Category</th><th>Examples of what they do</th><th>UNIX</th><th>Windows</th></tr></thead>
+        <tbody>
+          <tr><td>process control</td><td>create, terminate, load, execute, wait, allocate memory</td><td class="mono">fork, exit, wait</td><td class="mono">CreateProcess, ExitProcess, WaitForSingleObject</td></tr>
+          <tr data-step="1"><td>file management</td><td>create, delete, open, close, read, write, get attributes</td><td class="mono">open, read, write, close</td><td class="mono">CreateFile, ReadFile, WriteFile, CloseHandle</td></tr>
+          <tr data-step="1"><td>device management</td><td>request, release, read, write, attach devices</td><td class="mono">ioctl, read, write</td><td class="mono">SetConsoleMode, ReadConsole, WriteConsole</td></tr>
+          <tr data-step="2"><td>information maintenance</td><td>get or set time, date, process attributes</td><td class="mono">getpid, alarm, sleep</td><td class="mono">GetCurrentProcessID, SetTimer, Sleep</td></tr>
+          <tr data-step="2"><td>communications</td><td>create connections, send and receive messages, shared memory</td><td class="mono">pipe, shm_open, mmap</td><td class="mono">CreatePipe, CreateFileMapping, MapViewOfFile</td></tr>
+          <tr data-step="3"><td>protection</td><td>get and set permissions, allow or deny access</td><td class="mono">chmod, umask, chown</td><td class="mono">SetFileSecurity, SetSecurityDescriptorGroup</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec" id="q2">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Chapter 3</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A program calls <code>read(fd, (void *)0xffff888000000000, 100)</code>, a kernel address. What should happen?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="If the kernel wrote there, any program could overwrite kernel memory just by choosing the pointer.">The kernel copies 100 bytes to that address; the program asked for it.</button>
+          <button type="button" class="q-opt" data-ok>copy_to_user refuses the range, and read() returns −1 with errno = EFAULT.</button>
+          <button type="button" class="q-opt" data-why="A bad pointer from user space is an expected error; a correct kernel reports it without crashing.">The kernel crashes.</button>
+        </div>
+        <div class="q-fb ok">Right. Checking user pointers is what keeps a system call from becoming a way into the kernel's memory.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch2">Back<b>2 · System calls</b></a>
+    <a href="#ch4">Next<b>4 · Kernel modules</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch4">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 4</div>
+    <h2>Loadable kernel modules: extending the services</h2>
+    <p class="ch-lede">New kernel code, loaded into the running kernel, without rebuilding or rebooting.</p>
+  </div>
+
+  <div class="sec" id="s4-1">
+    <h3><span class="sec-no">4.1</span>What a module is</h3>
+    <div class="prose">
+      <ul>
+        <li>A <strong>loadable kernel module (LKM)</strong> is an object file with code that extends a running kernel. It can be loaded and unloaded on demand at run time, without rebuilding or recompiling the kernel.</li>
+        <li data-step="1">Windows has kernel-mode drivers, Linux has LKMs, macOS had kernel extensions (kexts).</li>
+        <li data-step="2">Most device drivers are written as modules. The installed ones live under <code>/lib/modules/$(uname -r)</code>; <code>lsmod</code> lists the loaded ones.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-2">
+    <h3><span class="sec-no">4.2</span>Writing one</h3>
+    <div class="two-up" style="align-items:start">
+      <div class="prose">
+        <ul>
+          <li>Modules are written in C and built against a <strong>Linux kernel source tree</strong>, into a <code>.ko</code> (kernel object) file.</li>
+          <li data-step="1">The running kernel must be the <strong>same version</strong> the module was built for.</li>
+          <li data-step="1">A module declares <code>MODULE_AUTHOR</code> and <code>MODULE_LICENSE</code>.</li>
+          <li data-step="2">The <strong>init</strong> function runs when the module loads: initialize everything, typically by registering a handler with the kernel; return 0 on success, negative on failure.</li>
+          <li data-step="2">The <strong>exit</strong> function runs when it unloads: free everything.</li>
+        </ul>
+      </div>
+      <div class="code" aria-label="hello.c"><span class="kw">#include</span> &lt;linux/kernel.h&gt;
+<span class="kw">#include</span> &lt;linux/module.h&gt;
+
+MODULE_AUTHOR(<span class="s">"Awesome Developer"</span>);
+MODULE_LICENSE(<span class="s">"GPL"</span>);
+
+<span class="kw">static int</span> __init hello_init(<span class="kw">void</span>)
+{
+    printk(KERN_ALERT <span class="s">"Hello world: I am a developer in CS3753 speaking from the Kernel\n"</span>);
+    <span class="kw">return</span> 0;
+}
+
+<span class="kw">static void</span> __exit hello_exit(<span class="kw">void</span>)
+{
+    printk(KERN_ALERT <span class="s">"Goodbye from a developer in CS3753, I am exiting the Kernel\n"</span>);
+}
+
+module_init(hello_init);   <span class="c">/* older style: name it init_module() */</span>
+module_exit(hello_exit);   <span class="c">/* older style: cleanup_module()      */</span></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-3">
+    <h3><span class="sec-no">4.3</span>Load it, find its messages, unload it</h3>
+    <div class="widget" id="km-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">A shell in the course VM (simulated)</span><button class="w-reset" type="button" id="km-reset">Reset</button></div>
+      <div class="controls" id="km-cmds"></div>
+      <div class="widget-body"><div class="shell" id="km-sh" aria-live="polite"></div></div>
+      <div class="readout" id="km-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only"><code>printk</code> writes to the kernel log, not to your terminal: read it with <code>dmesg</code> or <code>journalctl -k</code>. (The slides' <code>/var/log/system.log</code> is the macOS path.)</p>
+  </div>
+
+  <div class="sec" id="q3">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Why modules?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">You plug in a new USB device whose driver is not loaded. Why is it an advantage that the driver is a module?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>The kernel can load the driver's code into the running kernel on demand, without rebuilding the kernel or rebooting.</button>
+          <button type="button" class="q-opt" data-why="A module runs in kernel mode with full privileges; it is not isolated like a user process.">The driver runs in user mode, so a bug cannot crash the system.</button>
+          <button type="button" class="q-opt" data-why="A module must match the kernel version it was built for.">The same .ko file works with any kernel version.</button>
+        </div>
+        <div class="q-fb ok">Right. And that also means a buggy module is as dangerous as any kernel code: it runs with full privilege.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q4">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Where are the arguments?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">On Linux x86-64, a program calls <code>write(1, buf, 3)</code>. Which register holds the system-call number?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="rdi holds the first argument, the file descriptor 1.">rdi</button>
+          <button type="button" class="q-opt" data-ok>rax, set to 1 (write)</button>
+          <button type="button" class="q-opt" data-why="rsp is the stack pointer; x86-64 Linux passes system-call arguments in registers, not on the stack.">rsp</button>
+        </div>
+        <div class="q-fb ok">Right: rax = 1, rdi = 1 (fd), rsi = buf, rdx = 3; the result comes back in rax. Step through it in §3.3.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch3">Back<b>3 · Inside a system call</b></a>
+    <a href="#tail">Next<b>∎ · Summary and glossary</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="tail">
+  <div class="ch-head">
+    <div class="ch-no">Epilogue</div>
+    <h2>Summary and glossary</h2>
+  </div>
+
+  <div class="sec" id="s-sum">
+    <h3><span class="sec-no">∎</span>What to take away</h3>
+    <div class="prose">
+      <ul>
+        <li>The OS offers services to users (UI, program execution, I/O, files, communication, error detection) and to itself (allocation, logging, protection).</li>
+        <li>Booting runs firmware, then a small loader, then a second-stage loader such as GRUB, which loads the kernel.</li>
+        <li>Programs reach services through APIs (POSIX, Win32, Java), which make system calls: a number and arguments, a trap into kernel mode, a table lookup, a return.</li>
+        <li>On Linux x86-64: <code>syscall</code>, number in <code>rax</code>, arguments in registers, pointers for complex data, checked with <code>copy_*_user</code>.</li>
+        <li>Loadable kernel modules add code, such as drivers, to a running kernel; they must match its version and run with full privilege.</li>
+      </ul>
+    </div>
+    <div class="note note-lab" data-step="1">
+      <span class="note-tag">In the lab</span>
+      <p>Basecamp 0 boots the course VM through exactly this chain, headless, under QEMU. Basecamp 5 has you write a module: the same <code>module_init</code> / <code>module_exit</code> skeleton, plus a <code>file_operations</code> table that makes your code the target of <code>read()</code> and <code>write()</code> system calls.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap read-only">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>bootstrap loader</td><td>Firmware or small program that locates, loads and starts the kernel.</td></tr>
+        <tr><td>GRUB</td><td>A second-stage boot loader that can choose among several OSes.</td></tr>
+        <tr><td>system call</td><td>The programming interface to an OS service; a trap into kernel mode.</td></tr>
+        <tr><td>API</td><td>The library interface programs use (POSIX, Win32, Java), which makes the system calls.</td></tr>
+        <tr><td>system-call number, table</td><td>The index identifying a call / the kernel's array of handlers indexed by it.</td></tr>
+        <tr><td>run-time support library</td><td>libc and friends: the code that turns API calls into system calls.</td></tr>
+        <tr><td>copy_to_user / copy_from_user</td><td>Kernel functions that move data across the user/kernel boundary safely.</td></tr>
+        <tr><td>EFAULT</td><td>The error a system call returns for a bad user pointer.</td></tr>
+        <tr><td>LKM, .ko</td><td>Loadable kernel module / its object file.</td></tr>
+        <tr><td>insmod, lsmod, rmmod, dmesg</td><td>Load, list, unload a module; print the kernel log.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Adapted from the Lecture 02 slides.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  /* ---------- hero: calls crossing the user/kernel line ---------- */
+  (function () {
+    const cv = $('#hero-canvas'); if (!cv) return;
+    let W = 0, H = 0, calls = [];
+    function size() {
+      const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+      W = r.width; H = r.height;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+      calls = []; draw();
+    }
+    function draw() {
+      const ctx = cv.getContext('2d'), line = H * 0.62; ctx.clearRect(0, 0, W, H);
+      ctx.globalAlpha = 0.25; ctx.strokeStyle = tok('--co'); ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.moveTo(0, line); ctx.lineTo(W, line); ctx.stroke(); ctx.setLineDash([]);
+      calls.forEach((c) => {
+        const y = c.t < 0.5 ? line - 90 + c.t * 2 * 150 : line + 60 - (c.t - 0.5) * 2 * 150;
+        ctx.globalAlpha = 0.5; ctx.fillStyle = tok(c.t < 0.5 ? '--cz' : '--cf');
+        ctx.fillRect(c.x - 3, y - 3, 6, 6);
+      });
+      ctx.globalAlpha = 1;
+    }
+    size();
+    addEventListener('resize', size);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    if (!reduce) setInterval(() => {
+      if (document.hidden || document.documentElement.classList.contains('present')) return;
+      if (calls.length < 14 && Math.random() < 0.3) calls.push({ x: Math.round(Math.random() * W / 26) * 26 + 13, t: 0 });
+      calls.forEach((c) => { c.t += 0.02; }); calls = calls.filter((c) => c.t < 1); draw();
+    }, 50);
+  })();
+
+  /* ---------- Fig. 0.1 services ---------- */
+  (function () {
+    const g = $('#svc-g');
+    const S = ['program execution', 'I/O operations', 'file systems', 'communication', 'resource allocation', 'accounting', 'error detection', 'protection & security'];
+    S.forEach((n, i) => {
+      const x = 20 + (i % 4) * 182, y = 156 + Math.floor(i / 4) * 62;
+      g.appendChild(el('rect', { x, y, width: 172, height: 52, class: i >= 4 ? 'box2' : 'box' }));
+      g.appendChild(el('text', { x: x + 86, y: y + 31, 'text-anchor': 'middle', class: 'lbl' }, n));
+    });
+  })();
+
+  /* ---------- §1.2 boot chain ---------- */
+  (function () {
+    const ST = [
+      ['firmware', 'power on: CPU starts in ROM/flash firmware', 'BIOS / UEFI'],
+      ['POST', 'diagnostics: is the CPU and memory working?', 'power-on self-test'],
+      ['boot device', 'find a device to boot from: disk, flash, DVD, network', 'boot order'],
+      ['stage 1', 'load the primitive boot loader and jump to it', 'MBR / EFI file'],
+      ['stage 2', 'load the second-stage loader; choose an OS', 'GRUB'],
+      ['kernel', 'load the kernel from that OS\'s partition and start it', 'vmlinuz'],
+    ];
+    const TXT = [
+      'Power on. The CPU starts executing code at a fixed address in ROM or flash on the motherboard: the only code that exists yet.',
+      'The firmware runs diagnostics to make sure the CPU and memory work before trusting them.',
+      'It looks for a device to boot from, in a configured order: disk, flash, DVD, network…',
+      'It loads the primitive boot loader from that device (on a BIOS machine, the 512-byte master boot record) and transfers control to it.',
+      'The primitive loader loads the second-stage loader, GRUB. GRUB can offer several OSes on different partitions: dual booting. Pick one.',
+      'GRUB goes to the chosen OS\'s partition, loads its kernel into memory, and jumps to it. The kernel initializes itself and starts the first process (init / systemd), which starts the system daemons. The OS is running.',
+    ];
+    const OS = ['Ubuntu 24.04 (Linux 6.6.87)', 'Ubuntu, recovery mode', 'Windows Boot Manager'];
+    let i = 0, os = 0;
+    function show(k) {
+      i = Math.max(0, Math.min(ST.length - 1, k));
+      $('#bt-chain').innerHTML = ST.map(([n, d, w], j) => `<div class="st ${j < i ? 'done' : j === i ? 'cur' : 'pend'}"><span class="k">${j + 1} · ${n}</span>${d}<span class="w">${w}</span></div>`).join('');
+      $('#bt-grub').style.display = i >= 4 ? '' : 'none';
+      $('#bt-grub').innerHTML = '<div style="text-align:center;opacity:.7">GNU GRUB</div>' + OS.map((o, j) => `<div><button type="button" data-os="${j}" class="${j === os ? 'sel' : ''}">${j === os ? '*' : '&nbsp;'} ${o}</button></div>`).join('') + (i === 5 ? `<div class="dim" style="margin-top:6px">Booting '${OS[os]}' …</div>` : '');
+      $('#bt-out').innerHTML = TXT[i] + (i === 5 && os === 2 ? ' (Here GRUB instead hands control to Windows\' own boot manager: chain loading.)' : '');
+      $('#bt-n').textContent = (i + 1) + '/' + ST.length;
+      $('#bt-prev').disabled = i === 0; $('#bt-next').disabled = i === ST.length - 1;
+    }
+    const ctl = Academy.register('s1-2', { steps: ST.length - 1, readStep: 0, show });
+    $('#bt-prev').addEventListener('click', () => ctl.go(i - 1));
+    $('#bt-next').addEventListener('click', () => ctl.go(i + 1));
+    $('#bt-grub').addEventListener('click', (e) => { const b = e.target.closest('[data-os]'); if (b) { os = +b.dataset.os; show(i); } });
+    $('#bt-reset').addEventListener('click', () => { os = 0; ctl.go(0); });
+    show(0);
+  })();
+
+  /* ---------- §2.2 cp trace ---------- */
+  (function () {
+    let L = [], i = -1;
+    function build() {
+      const sz = +$('#cp-sz').value;
+      L = [
+        ['write(1, "Source: ", 8)', '= 8', 'Prompt for the input file name.', 'io'],
+        ['read(0, "in.txt\\n", 1024)', '= 7', 'Accept input from the keyboard.', 'io'],
+        ['write(1, "Destination: ", 13)', '= 13', 'Prompt for the output file name.', 'io'],
+        ['read(0, "out.txt\\n", 1024)', '= 8', 'Accept input.', 'io'],
+      ];
+      if (!sz) {
+        L.push(['openat(AT_FDCWD, "in.txt", O_RDONLY)', '= −1 ENOENT', 'Open the input file. It does not exist: the call fails with ENOENT.', 'err']);
+        L.push(['write(2, "cp: in.txt: No such file…", 34)', '= 34', 'Report the error on standard error.', 'io']);
+        L.push(['exit_group(1)', '', 'Abort: terminate abnormally.', '']);
+        return;
+      }
+      L.push(['openat(AT_FDCWD, "in.txt", O_RDONLY)', '= 3', 'Open the input file: file descriptor 3.', '']);
+      L.push(['openat(AT_FDCWD, "out.txt", O_WRONLY|O_CREAT|O_EXCL, 0644)', '= 4', 'Create the output file (O_EXCL: abort if it already exists).', '']);
+      let left = sz;
+      while (left > 0) { const n = Math.min(4096, left); L.push([`read(3, buf, 4096)`, '= ' + n, 'Read from the input file…', 'rw']); L.push([`write(4, buf, ${n})`, '= ' + n, '…write to the output file.', 'rw']); left -= n; }
+      L.push(['read(3, buf, 4096)', '= 0', 'read returns 0: end of file. The loop ends.', 'rw']);
+      L.push(['close(4)', '= 0', 'Close the output file.', '']);
+      L.push(['close(3)', '= 0', 'Close the input file.', '']);
+      L.push(['write(1, "Done.\\n", 6)', '= 6', 'Write a completion message.', 'io']);
+      L.push(['exit_group(0)', '', 'Terminate normally.', '']);
+    }
+    function render() {
+      $('#cp-t').innerHTML = L.map(([c, r, , k], j) => `<div class="ln${j === i ? ' cur' : ''}${j > i ? ' pend' : ''}${r.includes('−1') ? ' err' : ''}"><span class="n">${j + 1}</span><span>${c}</span><span class="rv">${r}</span></div>`).join('');
+      const done = L.slice(0, i + 1);
+      $('#cp-stats').innerHTML = `<div><div class="lab">system calls so far</div><div class="big">${done.length}</div></div><div><div class="lab">user → kernel crossings</div><div class="big">${done.length}</div><div class="sub">and as many returns</div></div><div><div class="lab">read/write in the copy loop</div><div class="big">${done.filter((x) => x[3] === 'rw').length}</div></div>`;
+      $('#cp-out').innerHTML = i < 0 ? 'Every line below is one trap into the kernel and one return. Step through it.' : L[i][2];
+      $('#cp-prev').disabled = i < 0; $('#cp-next').disabled = i >= L.length - 1; $('#cp-all').disabled = i >= L.length - 1;
+    }
+    const ctl = Academy.register('s2-2', { steps: 30, readStep: 0, show: (k) => { i = Math.min(k, L.length) - 1; render(); } });
+    $('#cp-sz').addEventListener('change', () => { build(); i = -1; render(); });
+    $('#cp-prev').addEventListener('click', () => { i = Math.max(-1, i - 1); render(); });
+    $('#cp-next').addEventListener('click', () => { i = Math.min(L.length - 1, i + 1); render(); });
+    $('#cp-all').addEventListener('click', () => { i = L.length - 1; render(); });
+    $('#cp-reset').addEventListener('click', () => { $('#cp-sz').value = '10000'; build(); i = -1; render(); });
+    build(); render();
+  })();
+
+  /* ---------- §3.3 syscall dispatch ---------- */
+  (function () {
+    const C = [
+      { n: 'write', nr: 1, args: [['rdi', '1', 'fd: stdout'], ['rsi', '0x7ffd…a0', 'buf → "hi\\n"'], ['rdx', '3', 'count']], ret: '3', rets: 'bytes written', h: 'ksys_write → the terminal driver' },
+      { n: 'read', nr: 0, args: [['rdi', '3', 'fd'], ['rsi', '0x7ffd…10', 'buf'], ['rdx', '4096', 'count']], ret: '4096', rets: 'bytes read', h: 'ksys_read → the file system' },
+      { n: 'getpid', nr: 39, args: [], ret: '1234', rets: 'process ID', h: 'sys_getpid: reads current->tgid' },
+      { n: 'exit', nr: 60, args: [['rdi', '0', 'status']], ret: '—', rets: 'never returns', h: 'do_exit: frees the process\'s resources' },
+    ];
+    const STEPS = ['load', 'trap', 'table', 'run', 'ret'];
+    let c = 0, s = 0;
+    $('#sc-call').innerHTML = C.map((x, k) => `<button type="button" data-c="${k}" class="mono">${x.n}()</button>`).join('');
+    function render() {
+      const x = C[c], st = STEPS[s];
+      $$('#sc-call [data-c]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.c === c)));
+      const regs = [['rax', s >= 4 && x.n !== 'exit' ? x.ret : String(x.nr), s >= 4 && x.n !== 'exit' ? 'return value' : 'system-call number']].concat(x.args);
+      while (regs.length < 4) regs.push(['—', '', 'unused']);
+      $('#sc-regs').innerHTML = regs.map(([r, v, d], k) => `<div class="${k === 0 && s >= 4 && x.n !== 'exit' ? 'ret' : s === 0 && r !== '—' ? 'hot' : ''}"><div class="r">${r}</div><div class="v">${v}<small>${d}</small></div></div>`).join('');
+      const hops = [
+        ['u', 'user mode', `libc's <code>${x.n}()</code> loads the registers`],
+        [s >= 1 ? 'kk' : '', 'trap', '<code>syscall</code>: mode bit → kernel, jump to the entry point'],
+        [s >= 2 ? 'kk' : '', 'table', `<code>sys_call_table[${x.nr}]</code>`],
+        [s >= 3 ? 'kk' : '', 'handler', x.h],
+        [s >= 4 ? (x.n === 'exit' ? 'bad' : 'ok') : '', 'return', x.n === 'exit' ? 'no return: the process is gone' : '<code>sysret</code>: back to user mode, next instruction'],
+      ];
+      $('#sc-flow').innerHTML = hops.map(([cls, k, d], j) => `${j ? '<span class="arr">→</span>' : ''}<div class="hop ${j <= s ? cls : ''}" style="${j > s ? 'opacity:.35' : ''}"><span class="k">${k}</span>${d}</div>`).join('');
+      const T = [
+        `The C library puts the number of <code>${x.n}</code> (<b>${x.nr}</b>) in <code>rax</code> and the arguments in <code>rdi</code>, <code>rsi</code>, <code>rdx</code>… in order.`,
+        'The <code>syscall</code> instruction switches to kernel mode and jumps to the single entry point the kernel registered at boot. The program cannot choose where to land.',
+        `The entry code uses <code>rax</code> as an index into the system-call table: entry ${x.nr} points to the handler.`,
+        `The handler runs in kernel mode: ${x.h}.`,
+        x.n === 'exit' ? 'exit never returns: the kernel tears the process down and schedules another.' : `The result (${x.rets}: <b>${x.ret}</b>) goes back in <code>rax</code>, and <code>sysret</code> returns to user mode at the instruction after <code>syscall</code>. On error, the kernel returns a negative errno, which libc turns into −1 and sets <code>errno</code>.`,
+      ];
+      $('#sc-out').innerHTML = T[s];
+      $('#sc-prev').disabled = s === 0; $('#sc-next').disabled = s === STEPS.length - 1;
+    }
+    const ctl = Academy.register('s3-3', { steps: 4, readStep: 0, show: (k) => { s = k; render(); } });
+    $('#sc-call').addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (b) { c = +b.dataset.c; ctl.go(0); } });
+    $('#sc-prev').addEventListener('click', () => ctl.go(s - 1));
+    $('#sc-next').addEventListener('click', () => ctl.go(s + 1));
+    $('#sc-reset').addEventListener('click', () => { c = 0; ctl.go(0); });
+    render();
+  })();
+
+  /* ---------- §3.4 user pointers ---------- */
+  (function () {
+    const B = [
+      ['valid', '0x7ffd…10', 'a buffer on the program\'s own stack'],
+      ['NULL', '0x0', 'a null pointer'],
+      ['unmapped', '0x10000000', 'a user address with no page behind it'],
+      ['kernel', '0xffff888000000000', 'an address in kernel memory'],
+    ];
+    let b = 0;
+    $('#cu-b').innerHTML = B.map(([n], k) => `<button type="button" data-b="${k}">buf = ${n}</button>`).join('');
+    function render() {
+      $$('#cu-b [data-b]').forEach((x) => x.setAttribute('aria-pressed', String(+x.dataset.b === b)));
+      const [n, addr, what] = B[b];
+      const kern = b === 3, ok = b === 0;
+      const hops = [
+        ['u', 'user', `<code>read(3, ${addr}, 100)</code><br><span class="small muted">${what}</span>`],
+        ['kk', 'sys_read', 'the file system reads 100 bytes into a kernel buffer'],
+        [kern ? 'bad' : 'kk', 'access_ok', kern ? 'range is not in user space: <b>refused</b>' : 'range lies in user space: continue'],
+        [kern ? '' : ok ? 'ok' : 'bad', 'copy_to_user', kern ? 'never reached' : ok ? 'copies 100 bytes' : 'the write faults; the kernel catches the fault'],
+        [ok ? 'ok' : 'bad', 'return', ok ? 'rax = 100' : 'rax = −EFAULT → read() returns −1, errno = EFAULT'],
+      ];
+      $('#cu-flow').innerHTML = hops.map(([cls, k, d], j) => `${j ? '<span class="arr">→</span>' : ''}<div class="hop ${cls}" style="${cls === '' ? 'opacity:.35' : ''}"><span class="k">${k}</span>${d}</div>`).join('');
+      $('#cu-out').innerHTML = ok ? 'The normal case: the data lands in the program\'s buffer.'
+        : kern ? 'Without this check, a program could make the kernel overwrite its own memory just by passing a kernel address. <code>access_ok</code> stops it before any copy.'
+        : 'The address is in the user range but nothing is mapped there. <code>copy_to_user</code> is written so that the resulting page fault is caught and turned into an error return instead of crashing the kernel.';
+    }
+    $('#cu-b').addEventListener('click', (e) => { const x = e.target.closest('[data-b]'); if (x) { b = +x.dataset.b; render(); } });
+    $('#cu-reset').addEventListener('click', () => { b = 0; render(); });
+    render();
+  })();
+
+  /* ---------- §4.3 module shell ---------- */
+  (function () {
+    const P = '<span class="pr">student@basecamp:~$</span> ';
+    let loaded = false, log = [], out = [], t = 1523.4;
+    const CMDS = [
+      ['make', 'build hello.ko'],
+      ['sudo insmod hello.ko', 'load it'],
+      ['lsmod | head -3', 'list modules'],
+      ['sudo dmesg | tail -2', 'read the kernel log'],
+      ['sudo rmmod hello', 'unload it'],
+      ['insmod hello.ko', 'without sudo'],
+    ];
+    const NOTE = {
+      0: 'The kernel build system compiles hello.c against the kernel source tree of the running version and produces <code>hello.ko</code>.',
+      1: '', 2: '', 3: '', 4: '', 5: '',
+    };
+    $('#km-cmds').innerHTML = CMDS.map(([c, d], k) => `<button type="button" class="btn small" data-k="${k}"><span class="mono">${c.split(' ')[0] === 'sudo' ? c.split(' ').slice(0, 2).join(' ') : c.split(' ')[0]}</span></button>`).join('');
+    function stamp() { t += 0.8 + Math.random(); return '[' + t.toFixed(6).padStart(12, ' ') + ']'; }
+    function run(k) {
+      const c = CMDS[k][0]; out.push(P + c); let note = '';
+      if (k === 0) { out.push('  CC [M]  hello.o', '  MODPOST Module.symvers', '  LD [M]  hello.ko'); note = NOTE[0]; }
+      else if (k === 1) { if (loaded) { out.push('<span class="er">insmod: ERROR: could not insert module hello.ko: File exists</span>'); note = 'A module with that name is already loaded.'; } else { loaded = true; log.push(stamp() + ' Hello world: I am a developer in CS3753 speaking from the Kernel'); note = 'insmod loads the object file into the kernel and calls its init function. Nothing appears in the terminal: printk writes to the kernel log.'; } }
+      else if (k === 2) { out.push('Module                  Size  Used by'); if (loaded) out.push('hello                  12288  0'); out.push('char_driver            16384  0'); note = loaded ? 'hello is now part of the running kernel.' : 'hello is not loaded.'; }
+      else if (k === 3) { (log.length ? log.slice(-2) : ['(no messages from hello)']).forEach((l) => out.push(l)); note = 'dmesg prints the kernel\'s ring buffer, where printk wrote.'; }
+      else if (k === 4) { if (!loaded) { out.push('<span class="er">rmmod: ERROR: Module hello is not currently loaded</span>'); note = ''; } else { loaded = false; log.push(stamp() + ' Goodbye from a developer in CS3753, I am exiting the Kernel'); note = 'rmmod calls the exit function and removes the code from the kernel. Run dmesg to see the goodbye.'; } }
+      else if (k === 5) { out.push('<span class="er">insmod: ERROR: could not insert module hello.ko: Operation not permitted</span>'); note = 'Loading kernel code is privileged (CAP_SYS_MODULE, Lecture 22): an ordinary user cannot.'; }
+      out = out.slice(-18);
+      $('#km-sh').innerHTML = out.join('\n') + '\n' + P;
+      $('#km-sh').scrollTop = 1e6;
+      $('#km-out').innerHTML = note;
+    }
+    $('#km-cmds').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (b) run(+b.dataset.k); });
+    $('#km-reset').addEventListener('click', () => { loaded = false; log = []; out = []; $('#km-sh').innerHTML = P; $('#km-out').innerHTML = 'Try: make, insmod, lsmod, dmesg, rmmod, dmesg. Then try insmod twice, or without sudo.'; });
+    $('#km-sh').innerHTML = P; $('#km-out').innerHTML = 'Try: make, insmod, lsmod, dmesg, rmmod, dmesg. Then try insmod twice, or without sudo.';
+    $('#km-cmds').querySelectorAll('button').forEach((b, k) => { b.title = CMDS[k][0] + ' — ' + CMDS[k][1]; b.innerHTML = `<span class="mono">${CMDS[k][0]}</span>`; });
+  })();
+})();
+</script>
+</body>
+</html>

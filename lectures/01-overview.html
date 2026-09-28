@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Overview · L01</title>
+<meta name="description" content="CSCI 3753 Lecture 01, interactive edition: what an operating system is, computer-system organization, interrupts, the storage hierarchy, multiprogramming, dual-mode operation, and the OS's management jobs.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+/* ---- lecture-local ---- */
+.sub-lab { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); }
+.hier { display: grid; gap: 5px; }
+.hier .lv { display: grid; grid-template-columns: 11em 9em minmax(0, 1fr) 11em; gap: 10px; align-items: center; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); cursor: pointer; font-size: 13.5px; }
+.hier .lv:hover { border-color: var(--ink3); }
+.hier .lv[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.hier .lv .nm { font-weight: 600; }
+.hier .lv .t { font-family: var(--f-mono); font-size: 12.5px; color: var(--ink2); }
+.hier .lv .bar { height: 12px; border-radius: 3px; background: var(--cz-soft2); border: 1px solid var(--cz); }
+.hier .lv .hu { font-family: var(--f-mono); font-size: 12.5px; text-align: right; font-variant-numeric: tabular-nums; }
+.hier .lv.vol .nm::after { content: " · volatile"; font-weight: 400; color: var(--cd); font-size: 11.5px; }
+.modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.modes > div { border-top: 2px solid var(--line2); padding-top: 6px; }
+.modes .lab { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); }
+.modes .v { font-family: var(--f-display); font-size: 21px; font-weight: 600; }
+.modes .v.k { color: var(--co); }
+.modes .v.u { color: var(--cz-ink); }
+@media (max-width: 760px) {
+  .hier .lv { grid-template-columns: minmax(0, 1fr) auto; }
+  .hier .lv .bar { display: none; }
+  .modes { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="7" height="7" class="hatch-bg"/><line x1="0" y1="0" x2="0" y2="7" class="hatch-line"/>
+    </pattern>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+    <marker id="ah-p" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-p"/></marker>
+    <marker id="ah-f" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-f"/></marker>
+    <marker id="ah-m" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-m"/></marker>
+    <marker id="ah-o" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah-o"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><rect x="3" y="3" width="16" height="4" rx="1"/><rect x="3" y="9" width="16" height="4" rx="1"/><rect x="3" y="15" width="16" height="4" rx="1"/></g><rect x="4.5" y="10.2" width="13" height="1.6" fill="var(--co)"/></svg>
+    <span>Lecture 01 · Overview</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Lecture 01 · Interactive notes</div>
+    <h1>The one program<br>that is <span class="accent">always running</span></h1>
+    <p class="lede">Every program you have written asked the computer for something: memory, a file, the screen, the CPU itself. Something decided whether and when to say yes. That something is the operating system. This first lecture places it between users and hardware, reviews the hardware it manages, and names the jobs the rest of the course takes apart one by one.</p>
+    <div class="promise">
+      <span>Before you start:</span><span class="mono">some C and a computer-organization course</span><span>Everything OS-specific is introduced here.</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn primary" href="#ch0">Begin ↓</a>
+      <span class="muted small">About 50 minutes · 4 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 1 · Continues in Lecture 02, OS Services</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="chapters">
+    <p class="rail-title">Contents</p>
+    <a href="#ch0"><span class="n">0</span>What an OS is</a>
+    <a href="#ch1"><span class="n">1</span>Computer organization</a>
+    <a href="#ch2"><span class="n">2</span>Storage</a>
+    <a href="#ch3"><span class="n">3</span>Running many programs</a>
+    <a href="#ch4"><span class="n">4</span>Dual mode and the timer</a>
+    <a href="#ch5"><span class="n">5</span>What the OS manages</a>
+    <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#ch0"><span class="n">0</span>What an OS is</a>
+        <a href="#ch1"><span class="n">1</span>Computer organization</a>
+        <a href="#ch2"><span class="n">2</span>Storage</a>
+        <a href="#ch3"><span class="n">3</span>Running many programs</a>
+        <a href="#ch4"><span class="n">4</span>Dual mode and the timer</a>
+        <a href="#ch5"><span class="n">5</span>What the OS manages</a>
+        <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
+      </nav>
+    </details>
+
+    <div class="sec present-only title-slide" id="title">
+      <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 01</div>
+      <h1>Overview</h1>
+      <p class="lede">The OS in the computer system, a review of computer organization, and OS basics.</p>
+      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 1</div>
+    </div>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch0">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 0</div>
+    <h2>What an operating system is</h2>
+    <p class="ch-lede">There is no universally accepted definition. Start with where it sits.</p>
+  </div>
+
+  <div class="sec" id="s0-1">
+    <h3><span class="sec-no">0.1</span>Four components of a computer system</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ul>
+          <li><strong>Users</strong>: people, machines, other computers.</li>
+          <li data-step="1"><strong>Application programs</strong> define how system resources are used to solve users' problems: word processors, compilers, web browsers, database systems, games.</li>
+          <li data-step="2"><strong>The operating system</strong> controls and coordinates the use of the hardware among the applications and users.</li>
+          <li data-step="3"><strong>Hardware</strong> provides the basic computing resources: CPU, memory, I/O devices.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 440 300" width="400" role="img" aria-label="Users on top, application programs, the operating system, and hardware at the bottom">
+            <g id="layers-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 0.1</span>The OS sits between the applications and the hardware.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-2">
+    <h3><span class="sec-no">0.2</span>What operating systems do</h3>
+    <div class="prose">
+      <p>An OS is a program that acts as an <strong>intermediary</strong> between a user of a computer and the hardware. Its goals: execute user programs and make solving problems easier; make the computer convenient to use; use the hardware efficiently.</p>
+      <p data-step="1">What that means depends on the point of view:</p>
+      <ul data-step="1">
+        <li>A <strong>user at a laptop</strong> wants convenience, ease of use, and good performance, and does not care about resource utilization.</li>
+        <li>A <strong>shared computer</strong> (mainframe, minicomputer, server) must keep all its users happy: the OS is a <strong>resource allocator</strong> and a <strong>control program</strong> that uses the hardware efficiently and manages the execution of user programs.</li>
+        <li>Workstation users have dedicated resources but often use shared ones from servers.</li>
+        <li><strong>Mobile devices</strong> are resource poor and optimized for usability and battery life, with touch and voice interfaces.</li>
+        <li><strong>Embedded computers</strong> in devices and cars have little or no user interface and run mostly without user intervention.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-3">
+    <h3><span class="sec-no">0.3</span>Defining the operating system</h3>
+    <div class="prose">
+      <ul>
+        <li>"Everything a vendor ships when you order an operating system" is a good approximation, but it varies wildly.</li>
+        <li data-step="1">"The one program running at all times on the computer" is the <strong>kernel</strong>, part of the OS. Everything else is either a <strong>system program</strong> (ships with the OS, not part of the kernel) or an <strong>application program</strong>.</li>
+        <li data-step="2">General-purpose and mobile OSes today also include <strong>middleware</strong>: frameworks that give application developers extra services such as databases, multimedia and graphics.</li>
+      </ul>
+    </div>
+    <div class="note note-key" data-step="2">
+      <span class="note-tag">In this course</span>
+      <p>"The OS" mostly means the kernel: the code that runs in the privileged mode of Chapter 4 and that every other program has to ask.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s0-4">
+    <h3><span class="sec-no">0.4</span>What an OS is written in</h3>
+    <div class="prose">
+      <ul>
+        <li>Early OSes were written in assembly; then in system programming languages like Algol and PL/1; now in C, C++, and increasingly Rust.</li>
+        <li data-step="1">Usually a mix: the lowest levels in assembly, the main body in C, system programs in C, C++ and scripting languages (Perl, Python, shell).</li>
+        <li data-step="2">A higher-level language is easier to port to other hardware, but slower. Emulation can let an OS run on non-native hardware.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#top">Back to<b>the top</b></a>
+    <a href="#ch1">Next<b>1 · Computer organization</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch1">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 1</div>
+    <h2>Review of computer organization</h2>
+    <p class="ch-lede">The hardware the OS manages, and the one mechanism it depends on above all: the interrupt.</p>
+  </div>
+
+  <div class="sec" id="s1-1">
+    <h3><span class="sec-no">1.1</span>Computer-system organization</h3>
+    <div class="two-up">
+      <div class="prose">
+        <ul>
+          <li>One or more CPUs and device controllers connect through a common <strong>bus</strong> that gives access to shared memory.</li>
+          <li data-step="1">CPUs and devices execute <strong>concurrently</strong>, competing for memory cycles.</li>
+          <li data-step="2">Each <strong>device controller</strong> is in charge of one device type and has a local buffer; each controller type has an OS <strong>device driver</strong> to manage it.</li>
+          <li data-step="3">The CPU moves data between main memory and the controllers' buffers; I/O itself moves data between the device and its controller's buffer. The controller tells the CPU it has finished by causing an <strong>interrupt</strong>.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 460 260" width="420" role="img" aria-label="CPU, disk, USB and graphics controllers and memory on a shared bus">
+            <rect x="20" y="20" width="90" height="50" class="pbox"/><text x="65" y="50" text-anchor="middle">CPU</text>
+            <rect x="130" y="20" width="100" height="50" class="fbox"/><text x="180" y="42" text-anchor="middle" class="lbl">disk</text><text x="180" y="58" text-anchor="middle" class="lbl">controller</text>
+            <rect x="245" y="20" width="100" height="50" class="fbox"/><text x="295" y="42" text-anchor="middle" class="lbl">USB</text><text x="295" y="58" text-anchor="middle" class="lbl">controller</text>
+            <rect x="360" y="20" width="90" height="50" class="fbox"/><text x="405" y="42" text-anchor="middle" class="lbl">graphics</text><text x="405" y="58" text-anchor="middle" class="lbl">adapter</text>
+            <path d="M10 120 H450" class="wire" style="stroke-width:6;opacity:.45"/><text x="440" y="110" text-anchor="end" class="lbl">system bus</text>
+            <path d="M65 70 V120 M180 70 V120 M295 70 V120 M405 70 V120" class="wire thin"/>
+            <rect x="140" y="160" width="180" height="60" class="box2"/><text x="230" y="195" text-anchor="middle">memory</text>
+            <path d="M230 120 V160" class="wire thin"/>
+            <text x="180" y="12" text-anchor="middle" class="lbl">disks</text><text x="295" y="12" text-anchor="middle" class="lbl">mouse · keyboard</text><text x="405" y="12" text-anchor="middle" class="lbl">monitor</text>
+            <g data-step="3"><path d="M150 72 C 130 100, 110 100, 90 74" class="wire m" marker-end="url(#ah-m)"/><text x="120" y="98" text-anchor="middle" class="lbl t-m">interrupt</text></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1.1</span>A modern computer system (Silberschatz Fig. 1.2, redrawn).</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-2">
+    <h3><span class="sec-no">1.2</span>Interrupts</h3>
+    <div class="prose">
+      <ul>
+        <li>An interrupt transfers control to an <strong>interrupt service routine</strong>, generally through the <strong>interrupt vector</strong>, a table with the addresses of all the service routines.</li>
+        <li data-step="1">The interrupt architecture must save the address of the interrupted instruction. The OS preserves the rest of the CPU state by storing the registers and the program counter.</li>
+        <li data-step="2">It determines which kind of interrupt occurred; separate code handles each kind.</li>
+        <li data-step="3">A <strong>trap</strong> or <strong>exception</strong> is a software-generated interrupt, caused by an error or by a user request.</li>
+      </ul>
+    </div>
+    <div class="note note-key" data-step="3">
+      <span class="note-tag">Key idea</span>
+      <p>An operating system is <strong>interrupt driven</strong>. After booting, the kernel mostly waits: it runs when a device interrupts, a program traps, or the timer fires.</p>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-3">
+    <h3><span class="sec-no">1.3</span>An interrupt timeline</h3>
+    <div class="widget" id="it-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">A program writes to a device twice</span><button class="w-reset" type="button" id="it-reset">Reset</button></div>
+      <div class="controls">
+        <button type="button" class="btn" id="it-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="it-next">Next ›</button>
+        <span class="mono muted" id="it-n" style="font-size:13px"></span>
+      </div>
+      <div class="widget-body">
+        <div class="canvas-wrap"><svg class="dia" id="it-svg" viewBox="0 0 720 220" width="700" style="min-width:540px" role="img" aria-label="Timeline of the CPU and an I/O device with interrupts"></svg></div>
+      </div>
+      <div class="readout" id="it-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="s1-4">
+    <h3><span class="sec-no">1.4</span>Two ways to wait for I/O</h3>
+    <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div><span class="tag">Return only when I/O completes</span>A wait instruction idles the CPU until the next interrupt, or a wait loop spins (contending for memory). At most one I/O request is outstanding at a time: no simultaneous I/O.</div>
+      <div data-step="1"><span class="tag">Return without waiting</span>The program continues; a <strong>system call</strong> lets it wait for completion when it wants. A <strong>device-status table</strong> has an entry per device with its type, address and state; the OS updates the entry when the device interrupts.</div>
+    </div>
+    <p class="prose small muted" data-step="1">Lectures 17 and 18 take these apart as polling, interrupt-driven I/O, and DMA.</p>
+  </div>
+
+  <div class="sec" id="q1">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Chapter 1</span></div>
+      <div class="quiz-body">
+        <div class="q-text">How does a disk controller tell the CPU that a transfer it was asked to do has finished?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="The OS could poll, but that wastes CPU time; the normal mechanism is for the device to signal.">The OS checks the controller every millisecond.</button>
+          <button type="button" class="q-opt" data-ok>It raises an interrupt; the CPU saves its state and jumps, through the interrupt vector, to the disk's service routine.</button>
+          <button type="button" class="q-opt" data-why="Traps are software-generated, by the running program. A device completing work is a hardware interrupt.">It executes a trap instruction.</button>
+        </div>
+        <div class="q-fb ok">Right. That is why the OS is called interrupt driven.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch0">Back<b>0 · What an OS is</b></a>
+    <a href="#ch2">Next<b>2 · Storage</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 2</div>
+    <h2>Storage</h2>
+    <p class="ch-lede">Fast storage is small, expensive and forgets; big storage is slow and remembers. The OS lives with both.</p>
+  </div>
+
+  <div class="sec" id="s2-1">
+    <h3><span class="sec-no">2.1</span>Main memory and secondary storage</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>Main memory</strong> is the only large storage the CPU can access directly: random access, typically <strong>volatile</strong>, usually dynamic RAM (DRAM).</li>
+        <li data-step="1"><strong>Secondary storage</strong> extends main memory with large <strong>non-volatile</strong> capacity.</li>
+        <li data-step="2"><strong>Hard disk drives</strong> (HDDs): rigid platters coated with magnetic material, divided into tracks and sectors; the disk controller manages the interaction with the computer. <strong>Non-volatile memory</strong> (NVM) devices, such as flash SSDs, are faster and becoming more popular as capacity and performance rise and prices fall (Lecture 19).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-2">
+    <h3><span class="sec-no">2.2</span>The storage hierarchy</h3>
+    <div class="prose">
+      <p>Storage is organized in a hierarchy by <strong>speed</strong>, <strong>cost</strong> and <strong>volatility</strong>. <strong>Caching</strong> copies information into faster storage; main memory can be viewed as a cache for secondary storage. Click a level:</p>
+    </div>
+    <div class="widget" id="hy-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">If a register access took one second…</span><button class="w-reset" type="button" id="hy-reset">Reset</button></div>
+      <div class="widget-body"><div class="hier" id="hy-l"></div></div>
+      <div class="readout" id="hy-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Typical access times from Silberschatz Fig. 1.14. The bars use a logarithmic scale.</p>
+  </div>
+
+  <div class="sec" id="s2-3">
+    <h3><span class="sec-no">2.3</span>Caching</h3>
+    <div class="prose">
+      <ul>
+        <li>An important principle, applied at many levels: hardware, OS, and software.</li>
+        <li data-step="1">Information in use is copied temporarily from slower to faster storage. The cache is checked first: if the information is there, use it directly (fast); if not, copy it into the cache and use it there.</li>
+        <li data-step="2">The cache is smaller than what it caches, so <strong>cache management</strong> (its size and its replacement policy) is an important design problem. You will meet it as the TLB (L14), page replacement (L16), and the buffer cache (L20).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s2-4">
+    <h3><span class="sec-no">2.4</span>How a modern computer works</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>A <strong>von Neumann</strong> architecture: instructions and data share memory. The CPU fetches an instruction, executes it, and moves data between memory and its registers.</p>
+        <p data-step="1">Devices move data either one word at a time through the CPU (after an interrupt), or in bulk by <strong>DMA</strong>, straight into memory, with a single interrupt at the end.</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 420 250" width="380" role="img" aria-label="CPU with cache, memory holding instructions and data, a device moving data by DMA">
+            <rect x="20" y="20" width="150" height="100" class="pbox"/><text x="95" y="44" text-anchor="middle" class="big">CPU</text>
+            <rect x="40" y="60" width="110" height="40" class="box"/><text x="95" y="85" text-anchor="middle" class="lbl">cache</text>
+            <rect x="250" y="20" width="150" height="100" class="box2"/><text x="325" y="44" text-anchor="middle" class="big">memory</text>
+            <text x="325" y="74" text-anchor="middle" class="lbl">instructions</text><text x="325" y="96" text-anchor="middle" class="lbl">and data</text>
+            <path d="M170 55 H246" class="wire p" marker-start="url(#ah-p)" marker-end="url(#ah-p)"/><text x="208" y="78" text-anchor="middle" class="lbl" style="font-size:11px">fetch, load, store</text>
+            <rect x="250" y="170" width="150" height="60" class="fbox"/><text x="325" y="205" text-anchor="middle">device</text>
+            <g data-step="1">
+              <path d="M325 170 V124" class="wire f" marker-end="url(#ah-f)"/><text x="333" y="152" class="lbl t-f">DMA</text>
+              <path d="M250 200 H95 V124" class="wire m" marker-end="url(#ah-m)"/><text x="120" y="194" class="lbl t-m">interrupt</text>
+            </g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 2.1</span>How a modern computer system works (after Silberschatz Fig. 1.7).</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch1">Back<b>1 · Computer organization</b></a>
+    <a href="#ch3">Next<b>3 · Running many programs</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch3">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 3</div>
+    <h2>Running many programs</h2>
+    <p class="ch-lede">From boot to multiprogramming to timesharing: why the OS switches between programs at all.</p>
+  </div>
+
+  <div class="sec" id="s3-1">
+    <h3><span class="sec-no">3.1</span>From boot to running</h3>
+    <div class="prose">
+      <ol>
+        <li>A small <strong>bootstrap program</strong> initializes the system and loads the kernel.</li>
+        <li data-step="1">The <strong>kernel</strong> loads and starts <strong>system daemons</strong>: services provided outside the kernel.</li>
+        <li data-step="2">From then on the kernel is <strong>interrupt driven</strong>, by hardware interrupts from devices and by software interrupts (exceptions or traps): software errors such as division by zero, requests for OS service (<strong>system calls</strong>), and other process problems such as infinite loops or processes modifying each other or the OS.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-2">
+    <h3><span class="sec-no">3.2</span>Multiprogramming and timesharing</h3>
+    <div class="prose">
+      <ul>
+        <li>A single user cannot keep the CPU and I/O devices busy all the time.</li>
+        <li data-step="1"><strong>Multiprogramming</strong> (batch systems) keeps several jobs (code and data) in memory so the CPU always has one to run. One is selected by <strong>job scheduling</strong>; when it has to wait, for I/O for example, the OS switches to another.</li>
+        <li data-step="2"><strong>Multitasking</strong> (timesharing) is the logical extension: the CPU switches so often that users can interact with each job while it runs. Response time should be under a second. Each user has at least one program in memory, a <strong>process</strong>; choosing among ready processes is <strong>CPU scheduling</strong>; <strong>swapping</strong> and <strong>virtual memory</strong> handle processes that do not fit in memory.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s3-3">
+    <h3><span class="sec-no">3.3</span>Keep the CPU busy</h3>
+    <div class="widget" id="mp-w">
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Three jobs, three ways to run them</span><button class="w-reset" type="button" id="mp-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Mode" id="mp-m"></span>
+      </div>
+      <div class="widget-body">
+        <div class="canvas-wrap"><svg class="dia" id="mp-svg" viewBox="0 0 720 200" width="700" style="min-width:540px" role="img" aria-label="Gantt chart of three jobs"></svg></div>
+        <div class="legend" style="padding:10px 0 0">
+          <span class="li"><span class="sw" style="background:var(--cz)"></span>running on the CPU</span>
+          <span class="li"><span class="sw" style="background:var(--cf)"></span>doing I/O</span>
+          <span class="li"><span class="sw" style="background:var(--line2)"></span>waiting for the CPU</span>
+        </div>
+        <div class="stats" id="mp-stats" style="margin-top:12px"></div>
+      </div>
+      <div class="readout" id="mp-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+    <p class="small muted prose read-only">Each job alternates CPU bursts and I/O. Timesharing here uses a 1-unit time slice.</p>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch2">Back<b>2 · Storage</b></a>
+    <a href="#ch4">Next<b>4 · Dual mode and the timer</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch4">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 4</div>
+    <h2>Dual mode and the timer</h2>
+    <p class="ch-lede">If many programs share one machine, the OS must protect itself and them from each other. Two pieces of hardware make that possible.</p>
+  </div>
+
+  <div class="sec" id="s4-1">
+    <h3><span class="sec-no">4.1</span>User mode and kernel mode</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>Dual-mode operation</strong> lets the OS protect itself and other components: <strong>user mode</strong> and <strong>kernel mode</strong>.</li>
+        <li data-step="1">A <strong>mode bit</strong>, provided by hardware, says whether user code or kernel code is running.</li>
+        <li data-step="2">Some instructions are <strong>privileged</strong>: executable only in kernel mode.</li>
+        <li data-step="3">How do we guarantee a user program never sets the mode bit to "kernel" itself? It can't: only a <strong>system call</strong> (a trap) switches to kernel mode, and it jumps to kernel code the OS chose. Returning from the call sets user mode again.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-2">
+    <h3><span class="sec-no">4.2</span>The timer</h3>
+    <div class="prose">
+      <ul>
+        <li>A <strong>timer</strong> prevents an infinite loop, or a process hogging resources, from keeping the CPU forever.</li>
+        <li data-step="1">The OS sets a counter (a privileged instruction), which the physical clock decrements; when it reaches zero, the hardware raises an interrupt.</li>
+        <li data-step="2">The OS sets it before scheduling a process, to regain control, or to terminate a program that exceeds its allotted time.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s4-3">
+    <h3><span class="sec-no">4.3</span>Watch the mode bit</h3>
+    <div class="widget" id="md-w">
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">Three ways into the kernel</span><button class="w-reset" type="button" id="md-reset">Reset</button></div>
+      <div class="controls">
+        <span class="seg" aria-label="Scenario" id="md-sc"></span>
+        <span class="gap"></span>
+        <button type="button" class="btn" id="md-prev">‹ Back</button>
+        <button type="button" class="btn primary" id="md-next">Next ›</button>
+      </div>
+      <div class="widget-body">
+        <div class="canvas-wrap"><svg class="dia" id="md-svg" viewBox="0 0 700 186" width="680" style="min-width:520px" role="img" aria-label="User process and kernel, with the transition between modes"></svg></div>
+        <div class="modes" id="md-st" style="margin-top:12px"></div>
+      </div>
+      <div class="readout" id="md-out" style="font-family:var(--f-body);font-size:14.5px"></div>
+    </div>
+  </div>
+
+  <div class="sec" id="q2">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Chapter 4</span></div>
+      <div class="quiz-body">
+        <div class="q-text">A user program tries to execute the instruction that sets the timer. What happens?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="If it worked, any program could turn the timer off and keep the CPU forever.">The timer is set; the program gets more CPU time.</button>
+          <button type="button" class="q-opt" data-ok>It is a privileged instruction in user mode, so the hardware traps to the OS, which typically terminates the program.</button>
+          <button type="button" class="q-opt" data-why="The mode bit cannot be flipped by user code; only a trap enters kernel mode, and it jumps to the OS, not to the program.">The CPU switches to kernel mode and executes it.</button>
+        </div>
+        <div class="q-fb ok">Right. That is how dual mode and the timer protect each other.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch3">Back<b>3 · Running many programs</b></a>
+    <a href="#ch5">Next<b>5 · What the OS manages</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="ch5">
+  <div class="ch-head">
+    <div class="ch-no">Chapter 5</div>
+    <h2>What the OS manages</h2>
+    <p class="ch-lede">A map of the rest of the semester.</p>
+  </div>
+
+  <div class="sec" id="s5-1">
+    <h3><span class="sec-no">5.1</span>Process management</h3>
+    <div class="prose">
+      <ul>
+        <li>A <strong>process</strong> is a program in execution, a unit of work. A program is a <em>passive</em> entity; a process is <em>active</em>.</li>
+        <li data-step="1">It needs resources (CPU, memory, I/O, files, initialization data), and its termination must reclaim the reusable ones.</li>
+        <li data-step="2">A single-threaded process has one <strong>program counter</strong> and executes instructions one at a time; a multi-threaded process has one per thread. Many processes, user and OS, run concurrently by <strong>multiplexing</strong> the CPUs.</li>
+        <li data-step="3">The OS creates and deletes processes, suspends and resumes them, and provides mechanisms for <strong>synchronization</strong>, <strong>communication</strong>, and <strong>deadlock</strong> handling. <span class="muted">(Lectures 3–12.)</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-2">
+    <h3><span class="sec-no">5.2</span>Memory management</h3>
+    <div class="prose">
+      <ul>
+        <li>To execute, all or part of a program's instructions and data must be in memory. Memory management decides what is in memory and when, to optimize CPU utilization and response time.</li>
+        <li data-step="1">It keeps track of which parts of memory are in use and by whom, decides which processes and data move in and out, and allocates and frees memory. <span class="muted">(Lectures 13–16.)</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-3">
+    <h3><span class="sec-no">5.3</span>Storage, files and I/O</h3>
+    <div class="opts3">
+      <div><span class="tag">File systems</span>A uniform, logical view of storage: the <strong>file</strong> abstracts the physical medium. Directories, access control, creating and deleting files and directories, mapping them onto secondary storage, backups. (L20)</div>
+      <div data-step="1"><span class="tag">Mass storage</span>The speed of the whole computer can hinge on the disk subsystem: mounting, free-space management, allocation, disk scheduling, partitioning, protection. (L19)</div>
+      <div data-step="2"><span class="tag">I/O subsystem</span>Hide the peculiarities of devices: buffering, caching, spooling (overlapping one job's output with another's input), a general driver interface, and specific drivers. (L17–18)</div>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-4">
+    <h3><span class="sec-no">5.4</span>Structuring an operating system</h3>
+    <div class="two-up">
+      <div class="prose">
+        <p>A general-purpose OS is a very large program, and there are several ways to structure it:</p>
+        <ul>
+          <li><strong>Monolithic</strong> (UNIX, Linux): the whole kernel is one program in one address space.</li>
+          <li data-step="1"><strong>Microkernel</strong> (Mach): a small kernel with only communication, basic memory and CPU scheduling; file systems and drivers run as user-level servers that talk by messages.</li>
+          <li data-step="2">This course focuses on <strong>monolithic plus modular</strong> design: Linux, with loadable kernel modules, like the driver you write in Basecamp 5.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 440 250" width="400" role="img" aria-label="Monolithic kernel beside a microkernel with user-level servers">
+            <text x="100" y="18" text-anchor="middle" class="lbl">monolithic</text>
+            <rect x="20" y="28" width="160" height="40" class="pbox"/><text x="100" y="53" text-anchor="middle" class="lbl">applications</text>
+            <rect x="20" y="76" width="160" height="110" class="obox"/><text x="100" y="98" text-anchor="middle" class="lbl">kernel</text>
+            <text x="100" y="124" text-anchor="middle" class="lbl" style="font-size:11px">file system · scheduler</text>
+            <text x="100" y="142" text-anchor="middle" class="lbl" style="font-size:11px">memory · drivers · network</text>
+            <rect x="20" y="194" width="160" height="36" class="fbox"/><text x="100" y="217" text-anchor="middle" class="lbl">hardware</text>
+            <g data-step="1">
+              <text x="330" y="18" text-anchor="middle" class="lbl">microkernel</text>
+              <rect x="240" y="28" width="60" height="40" class="pbox"/><text x="270" y="53" text-anchor="middle" class="lbl" style="font-size:11px">app</text>
+              <rect x="305" y="28" width="60" height="40" class="box2"/><text x="335" y="47" text-anchor="middle" class="lbl" style="font-size:10px">file</text><text x="335" y="60" text-anchor="middle" class="lbl" style="font-size:10px">server</text>
+              <rect x="370" y="28" width="60" height="40" class="box2"/><text x="400" y="47" text-anchor="middle" class="lbl" style="font-size:10px">device</text><text x="400" y="60" text-anchor="middle" class="lbl" style="font-size:10px">driver</text>
+              <rect x="240" y="140" width="190" height="46" class="obox"/><text x="335" y="160" text-anchor="middle" class="lbl">microkernel</text><text x="335" y="176" text-anchor="middle" class="lbl" style="font-size:10px">messages · memory · CPU sched</text>
+              <path d="M270 68 V136 M335 136 V72" class="wire o thin" marker-end="url(#ah-o)"/><text x="340" y="108" class="lbl" style="font-size:10px">messages</text>
+              <rect x="240" y="194" width="190" height="36" class="fbox"/><text x="335" y="217" text-anchor="middle" class="lbl">hardware</text>
+            </g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 5.1</span>Two structures (after Silberschatz Figs. 2.12 and 2.15).</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="sec" id="s5-5">
+    <h3><span class="sec-no">5.5</span>Policy and mechanism</h3>
+    <div class="prose">
+      <ul>
+        <li><strong>Policy</strong>: <em>what</em> needs to be done? Example: interrupt every 100 seconds.</li>
+        <li data-step="1"><strong>Mechanism</strong>: <em>how</em> to do it? Example: the timer.</li>
+        <li data-step="2">Separate them. Then a policy decision can change later (100 becomes 200) without touching the mechanism: maximum flexibility.</li>
+      </ul>
+    </div>
+    <div class="note note-key" data-step="2">
+      <span class="note-tag">Watch for it</span>
+      <p>This split recurs all semester: the timer vs. the scheduling policy (L6), paging vs. the replacement policy (L16), the access matrix vs. who may use what (L22).</p>
+    </div>
+  </div>
+
+  <div class="sec" id="q3">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Program or process?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">You run <code>./a.out</code> in two terminals at the same time. How many programs and how many processes are there?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="There is one executable file, but two separate executions, each with its own memory and program counter.">1 program, 1 process</button>
+          <button type="button" class="q-opt" data-ok>1 program, 2 processes</button>
+          <button type="button" class="q-opt" data-why="The file on disk exists once; copying it into memory twice does not make two programs.">2 programs, 2 processes</button>
+        </div>
+        <div class="q-fb ok">Right. The program is passive; each running instance is an active process.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" id="q4">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Policy or mechanism?</span></div>
+      <div class="quiz-body">
+        <div class="q-text">"Interactive programs get twice as much CPU time as background jobs." Is that a policy or a mechanism?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>A policy: it says what should happen; the timer and context switch are the mechanism that carries it out.</button>
+          <button type="button" class="q-opt" data-why="It does not say how CPU time is taken away or given back; it only states the goal.">A mechanism: it controls the CPU.</button>
+        </div>
+        <div class="q-fb ok">Right. Changing it to "three times as much" should not require changing the timer.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ch-nav">
+    <a href="#ch4">Back<b>4 · Dual mode and the timer</b></a>
+    <a href="#tail">Next<b>∎ · Summary and glossary</b></a>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" id="tail">
+  <div class="ch-head">
+    <div class="ch-no">Epilogue</div>
+    <h2>Summary and glossary</h2>
+  </div>
+
+  <div class="sec" id="s-sum">
+    <h3><span class="sec-no">∎</span>What to take away</h3>
+    <div class="prose">
+      <ul>
+        <li>The OS sits between applications and hardware, as a resource allocator and control program. Its core, the kernel, is the one program always running.</li>
+        <li>CPUs and device controllers run concurrently on a shared bus; devices report with interrupts, and the OS is interrupt driven.</li>
+        <li>Storage forms a hierarchy of speed, cost and volatility; caching makes it look fast.</li>
+        <li>Multiprogramming keeps the CPU busy while jobs wait for I/O; timesharing switches often enough for interaction.</li>
+        <li>Dual-mode operation and the timer let the OS protect itself and keep control.</li>
+        <li>The OS manages processes, memory, files, storage and I/O; it is structured monolithically, as microkernels, or modularly; policy is kept apart from mechanism.</li>
+      </ul>
+    </div>
+    <div class="note note-lab" data-step="1">
+      <span class="note-tag">In the lab</span>
+      <p>Basecamp 0 has you read <code>/proc</code> inside the course VM: the kernel's own view of the processes, memory and devices this lecture lists.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap read-only">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>kernel</td><td>The part of the OS that runs at all times, in kernel mode.</td></tr>
+        <tr><td>system / application program</td><td>Ships with the OS but runs outside the kernel / everything else.</td></tr>
+        <tr><td>middleware</td><td>Frameworks giving applications extra services (databases, graphics).</td></tr>
+        <tr><td>device controller / driver</td><td>Hardware in charge of one device type / the OS code that manages it.</td></tr>
+        <tr><td>interrupt, interrupt vector</td><td>A signal that transfers control to a service routine / the table of their addresses.</td></tr>
+        <tr><td>trap, exception</td><td>A software-generated interrupt: an error or a request for OS service.</td></tr>
+        <tr><td>volatile</td><td>Loses its contents when power is removed.</td></tr>
+        <tr><td>caching</td><td>Copying information into faster storage while it is in use.</td></tr>
+        <tr><td>multiprogramming / timesharing</td><td>Keep several jobs in memory so the CPU is busy / switch often enough for interactive use.</td></tr>
+        <tr><td>mode bit, privileged instruction</td><td>Hardware state distinguishing user and kernel mode / an instruction allowed only in kernel mode.</td></tr>
+        <tr><td>system call</td><td>A trap that asks the OS for a service and enters kernel mode.</td></tr>
+        <tr><td>process</td><td>A program in execution.</td></tr>
+        <tr><td>policy / mechanism</td><td>What should be done / how it is done.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Adapted from the Lecture 01 slides.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  const clear = (n) => { while (n.firstChild) n.removeChild(n.firstChild); };
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  /* ---------- hero: stacked layers with time slices ---------- */
+  (function () {
+    const cv = $('#hero-canvas'); if (!cv) return;
+    let W = 0, H = 0, t = 0;
+    function size() {
+      const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+      W = r.width; H = r.height;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
+    }
+    function draw() {
+      const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H);
+      const cols = ['--cz', '--co', '--cf'];
+      for (let row = 0; row < 3; row++) {
+        const y = H - 118 + row * 34;
+        for (let x = 0; x < W; x += 26) {
+          const k = Math.floor((x / 26 + t) / 3) % 3;
+          if (k !== row) continue;
+          ctx.globalAlpha = 0.22; ctx.fillStyle = tok(cols[row]); ctx.fillRect(x + 2, y, 23, 22);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+    size();
+    addEventListener('resize', size);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+    if (!reduce) setInterval(() => { if (document.hidden || document.documentElement.classList.contains('present')) return; t += 1; draw(); }, 400);
+  })();
+
+  /* ---------- Fig. 0.1 layers ---------- */
+  (function () {
+    const g = $('#layers-g');
+    const U = ['user 1', 'user 2', 'user 3', '…'];
+    U.forEach((u, i) => { g.appendChild(el('rect', { x: 30 + i * 100, y: 12, width: 80, height: 36, rx: 18, class: 'box' })); g.appendChild(el('text', { x: 70 + i * 100, y: 35, 'text-anchor': 'middle', class: 'lbl' }, u)); });
+    const s1 = el('g', { 'data-step': '1' });
+    ['compiler', 'browser', 'database', 'game'].forEach((a, i) => { s1.appendChild(el('rect', { x: 20 + i * 102, y: 80, width: 94, height: 44, class: 'pbox' })); s1.appendChild(el('text', { x: 67 + i * 102, y: 107, 'text-anchor': 'middle', class: 'lbl' }, a)); });
+    s1.appendChild(el('text', { x: 220, y: 142, 'text-anchor': 'middle', class: 'lbl' }, 'application programs'));
+    g.appendChild(s1);
+    const s2 = el('g', { 'data-step': '2' });
+    s2.appendChild(el('rect', { x: 20, y: 156, width: 400, height: 50, class: 'obox' })); s2.appendChild(el('text', { x: 220, y: 187, 'text-anchor': 'middle' }, 'operating system'));
+    g.appendChild(s2);
+    const s3 = el('g', { 'data-step': '3' });
+    ['CPU', 'memory', 'I/O devices'].forEach((h, i) => { s3.appendChild(el('rect', { x: 20 + i * 136, y: 226, width: 128, height: 50, class: 'fbox' })); s3.appendChild(el('text', { x: 84 + i * 136, y: 256, 'text-anchor': 'middle', class: 'lbl' }, h)); });
+    g.appendChild(s3);
+  })();
+
+  /* ---------- §1.3 interrupt timeline ---------- */
+  (function () {
+    const svg = $('#it-svg'), X0 = 110, U = 55, X = (t) => X0 + t * U;
+    // CPU: 0 user, 1 ISR; device: 0 idle, 1 transferring
+    const CPU = [[0, 2, 'user'], [2, 2.5, 'isr'], [2.5, 5, 'user'], [5, 5.5, 'isr'], [5.5, 10.5, 'user']];
+    const DEV = [[0, 0.4, 'idle'], [0.4, 2, 'xfer'], [2, 3, 'idle'], [3, 5, 'xfer'], [5, 10.5, 'idle']];
+    const EV = [
+      { t: 0, cap: 'The user program runs on the CPU; the I/O device is idle.' },
+      { t: 0.4, cap: 'The program requests output. The device starts transferring, while the CPU keeps running the program: they work <b>concurrently</b>.' },
+      { t: 2, cap: 'The transfer is done: the device raises an <span class="bad">interrupt</span>. The CPU saves the program\'s state and runs the interrupt service routine.' },
+      { t: 2.5, cap: 'The service routine finishes; the CPU restores the program\'s state and resumes it exactly where it stopped.' },
+      { t: 3, cap: 'A second I/O request: the device transfers again, still in parallel with the program.' },
+      { t: 5, cap: 'Another interrupt, another short trip through the service routine. The CPU spends only brief moments on I/O.' },
+    ];
+    let i = 0;
+    function show(k) {
+      i = Math.max(0, Math.min(EV.length - 1, k));
+      const T = EV[i].t + (i === EV.length - 1 ? 5.5 : 0.001);
+      clear(svg);
+      svg.appendChild(el('text', { x: 10, y: 64, class: 'lbl' }, 'CPU'));
+      svg.appendChild(el('text', { x: 10, y: 150, class: 'lbl' }, 'I/O device'));
+      const lane = (segs, y, cls) => segs.forEach(([a, b, kind]) => {
+        if (a >= T) return; const bb = Math.min(b, T);
+        svg.appendChild(el('rect', { x: X(a), y, width: X(bb) - X(a), height: 32, class: cls[kind] }));
+      });
+      lane(CPU, 44, { user: 'pbox', isr: 'mbox' });
+      lane(DEV, 130, { idle: 'box2', xfer: 'fbox' });
+      svg.appendChild(el('text', { x: X(1), y: 36, 'text-anchor': 'middle', class: 'lbl' }, 'user process'));
+      if (T > 2) svg.appendChild(el('text', { x: X(2.25), y: 36, 'text-anchor': 'middle', class: 'lbl t-m' }, 'ISR'));
+      [[0.4, 'request'], [3, 'request']].forEach(([t, n]) => { if (t < T) { svg.appendChild(el('path', { d: `M${X(t)} 78 V126`, class: 'wire p thin', 'marker-end': 'url(#ah-p)' })); svg.appendChild(el('text', { x: X(t) + 4, y: 104, class: 'lbl', style: 'font-size:11px' }, n)); } });
+      [2, 5].forEach((t) => { if (t < T) { svg.appendChild(el('path', { d: `M${X(t)} 128 V80`, class: 'wire m', 'marker-end': 'url(#ah-m)' })); svg.appendChild(el('text', { x: X(t) + 4, y: 104, class: 'lbl t-m', style: 'font-size:11px' }, 'interrupt')); } });
+      for (let t = 0; t <= 10; t += 2) svg.appendChild(el('text', { x: X(t), y: 196, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, 't=' + t));
+      if (T > 0.4) svg.appendChild(el('text', { x: X(1.2), y: 152, 'text-anchor': 'middle', class: 'lbl' }, 'transferring'));
+      $('#it-out').innerHTML = EV[i].cap;
+      $('#it-n').textContent = i + '/' + (EV.length - 1);
+      $('#it-prev').disabled = i === 0; $('#it-next').disabled = i === EV.length - 1;
+    }
+    const ctl = Academy.register('s1-3', { steps: EV.length - 1, readStep: EV.length - 1, show });
+    $('#it-prev').addEventListener('click', () => ctl.go(i - 1));
+    $('#it-next').addEventListener('click', () => ctl.go(i + 1));
+    $('#it-reset').addEventListener('click', () => ctl.go(0));
+    show(EV.length - 1);
+  })();
+
+  /* ---------- §2.2 storage hierarchy ---------- */
+  (function () {
+    const L = [
+      ['registers', '< 1 KB', 0.3, true], ['cache', '< 16 MB', 5, true], ['main memory', '< 64 GB', 150, true],
+      ['SSD (flash)', '< 1 TB', 35000, false], ['hard disk', '< 10 TB', 5000000, false],
+    ];
+    const human = (ns) => { const s = ns / 0.3; if (s < 60) return s.toFixed(0) + ' s'; if (s < 3600) return (s / 60).toFixed(0) + ' min'; if (s < 86400) return (s / 3600).toFixed(1) + ' h'; if (s < 86400 * 365) return (s / 86400).toFixed(0) + ' days'; return (s / 86400 / 365).toFixed(1) + ' years'; };
+    const fmt = (ns) => ns < 1 ? ns + ' ns' : ns < 1000 ? ns + ' ns' : ns < 1e6 ? (ns / 1000) + ' µs' : (ns / 1e6) + ' ms';
+    let sel = 4;
+    function render() {
+      $('#hy-l').innerHTML = L.map(([n, sz, ns, vol], i) => `<div class="lv${vol ? ' vol' : ''}" data-i="${i}" role="button" tabindex="0" aria-pressed="${i === sel}"><span class="nm">${n}</span><span class="t">~${fmt(ns)} · ${sz}</span><span class="bar" style="width:${Math.max(3, (Math.log10(ns) + 1) / 8 * 100)}%"></span><span class="hu">${human(ns)}</span></div>`).join('');
+      const [n, sz, ns, vol] = L[sel];
+      $('#hy-out').innerHTML = `If a register access took <b>1 second</b>, one ${n} access would take <b>${human(ns)}</b>. ${sel >= 3 ? 'This is why the CPU never waits for storage directly: the OS schedules another process instead (Chapter 3).' : sel === 2 ? 'Main memory is the last level the CPU reaches directly, and the first that is large. It is still volatile.' : 'Small and fast: managed by hardware, invisible to the OS.'} ${vol ? '' : 'It is non-volatile: it keeps data without power.'}`;
+    }
+    $('#hy-l').addEventListener('click', (e) => { const d = e.target.closest('[data-i]'); if (d) { sel = +d.dataset.i; render(); } });
+    $('#hy-l').addEventListener('keydown', (e) => { const d = e.target.closest('[data-i]'); if (d && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); sel = +d.dataset.i; render(); } });
+    $('#hy-reset').addEventListener('click', () => { sel = 4; render(); });
+    render();
+  })();
+
+  /* ---------- §3.3 multiprogramming ---------- */
+  (function () {
+    const svg = $('#mp-svg');
+    // jobs: bursts alternating cpu, io
+    const JOBS = [['A', [2, 3, 2]], ['B', [1, 4, 2]], ['C', [3, 2, 1]]];
+    const MODES = [['one', 'One job at a time'], ['multi', 'Multiprogramming'], ['ts', 'Timesharing']];
+    let m = 0;
+    $('#mp-m').innerHTML = MODES.map(([, n], i) => `<button type="button" data-m="${i}">${n}</button>`).join('');
+    function sim(mode) {
+      const jobs = JOBS.map(([n, b]) => ({ n, b: b.slice(), k: 0, left: b[0], state: 'ready', segs: [] }));
+      let t = 0, cur = null, busy = 0, slice = 0, rr = 0;
+      const seg = (j, kind) => { const s = j.segs[j.segs.length - 1]; if (s && s[1] === t && s[2] === kind) s[1] = t + 1; else j.segs.push([t, t + 1, kind]); };
+      while (jobs.some((j) => j.state !== 'done') && t < 60) {
+        // pick
+        const ready = jobs.filter((j) => j.state === 'ready');
+        if (mode === 'one') {
+          const j = jobs.find((x) => x.state !== 'done');
+          cur = j && j.state === 'ready' ? j : null;
+        } else if (mode === 'multi') {
+          if (!cur || cur.state !== 'ready') cur = ready[0] || null;
+        } else {
+          if (!cur || cur.state !== 'ready' || slice >= 1) {
+            if (ready.length) { const order = jobs.map((_, k) => jobs[(rr + k) % jobs.length]).filter((x) => x.state === 'ready'); cur = order[0]; rr = (jobs.indexOf(cur) + 1) % jobs.length; slice = 0; } else cur = null;
+          }
+        }
+        jobs.forEach((j) => {
+          if (j.state === 'done') return;
+          if (j === cur) seg(j, 'cpu');
+          else if (j.state === 'io') seg(j, 'io');
+          else if (mode !== 'one' || jobs.find((x) => x.state !== 'done') === j) seg(j, 'wait');
+          else seg(j, 'wait');
+        });
+        if (cur) busy++;
+        t++; slice++;
+        jobs.forEach((j) => {
+          if (j.state === 'done') return;
+          if (j === cur || j.state === 'io') {
+            j.left--;
+            if (j.left === 0) {
+              j.k++;
+              if (j.k >= j.b.length) j.state = 'done';
+              else { j.left = j.b[j.k]; j.state = j.k % 2 ? 'io' : 'ready'; }
+            }
+          }
+        });
+      }
+      return { jobs, t, busy };
+    }
+    function render() {
+      $$('#mp-m [data-m]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.m === m)));
+      const r = sim(MODES[m][0]);
+      clear(svg);
+      const X = (t) => 60 + t * 32;
+      r.jobs.forEach((j, k) => {
+        const y = 20 + k * 48;
+        svg.appendChild(el('text', { x: 10, y: y + 20, class: 'mono' }, 'job ' + j.n));
+        j.segs.forEach(([a, b, kind]) => svg.appendChild(el('rect', { x: X(a), y, width: X(b) - X(a) - 1, height: 30, class: kind === 'cpu' ? 'pbox' : kind === 'io' ? 'fbox' : 'box2' })));
+      });
+      for (let t = 0; t <= r.t; t += 2) svg.appendChild(el('text', { x: X(t), y: 180, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, t));
+      const util = Math.round(r.busy / r.t * 100);
+      $('#mp-stats').innerHTML = `<div><div class="lab">all jobs finish at</div><div class="big">t = ${r.t}</div></div><div class="${util < 60 ? 'warn' : ''}"><div class="lab">CPU utilization</div><div class="big">${util}%</div></div>`;
+      $('#mp-out').innerHTML = ['One job at a time: whenever the running job waits for I/O, the CPU sits idle, and the others wait even though they could run.', 'Multiprogramming: when a job starts I/O, the OS switches to another ready job. Same work, much less idle CPU, everything finishes sooner.', 'Timesharing: the OS also switches every time slice, even while a job still wants the CPU. The finishing time barely changes, but no job waits long for its next turn: that is what makes interaction possible.'][m];
+    }
+    const ctl = Academy.register('s3-3', { steps: 2, readStep: 0, show: (i) => { m = i; render(); } });
+    $('#mp-m').addEventListener('click', (e) => { const b = e.target.closest('[data-m]'); if (b) ctl.go(+b.dataset.m); });
+    $('#mp-reset').addEventListener('click', () => ctl.go(0));
+    render();
+  })();
+
+  /* ---------- §4.3 mode bit ---------- */
+  (function () {
+    const svg = $('#md-svg');
+    const SC = [
+      { n: 'System call', steps: [
+        ['u', 'user process runs', 'The process runs in user mode (mode bit = 1).'],
+        ['t', 'calls read(): trap', 'It needs the OS: the system call executes a trap instruction. The hardware sets the mode bit to 0 and jumps to the kernel\'s system-call handler, an address the OS chose.'],
+        ['k', 'kernel executes the call', 'Kernel mode: the OS may run privileged instructions and touch any memory, on the process\'s behalf.'],
+        ['r', 'return: mode bit = 1', 'Returning from the call sets user mode again, and the process continues after the call.'],
+      ] },
+      { n: 'Privileged instruction', steps: [
+        ['u', 'user process runs', 'User mode.'],
+        ['t', 'tries a privileged instruction', 'The program tries, say, to disable interrupts. In user mode the hardware refuses: it raises an exception, which traps to the OS.'],
+        ['k', 'kernel handles the exception', 'The OS decides what to do; normally it terminates the process (on Linux, SIGILL or SIGSEGV). The program never ran its instruction.'],
+      ] },
+      { n: 'Timer interrupt', steps: [
+        ['u', 'while (1) ;', 'A buggy program loops forever in user mode. It never makes a system call, so it never gives the CPU back.'],
+        ['t', 'timer reaches zero', 'The counter the OS set before scheduling it runs out: the hardware interrupts, entering kernel mode.'],
+        ['k', 'scheduler runs', 'The OS has control again: it can run another process, or terminate this one for exceeding its time.'],
+        ['r', 'another process runs', 'Back to user mode, with a different process and a freshly set timer. The loop could not hold the machine.'],
+      ] },
+    ];
+    let sc = 0, i = 0;
+    $('#md-sc').innerHTML = SC.map((s, k) => `<button type="button" data-s="${k}">${s.n}</button>`).join('');
+    function show(k) {
+      let a = 0; for (sc = 0; sc < SC.length; sc++) { if (k < a + SC[sc].steps.length) break; a += SC[sc].steps.length; }
+      if (sc >= SC.length) { sc = SC.length - 1; a -= SC[sc].steps.length; }
+      i = k - a;
+      const S = SC[sc].steps, cur = S[i];
+      $$('#md-sc [data-s]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.s === sc)));
+      clear(svg);
+      svg.appendChild(el('rect', { x: 10, y: 6, width: 680, height: 78, class: 'pbox', style: 'fill-opacity:.35' }));
+      svg.appendChild(el('text', { x: 20, y: 24, class: 'lbl t-p' }, 'user mode · mode bit = 1'));
+      svg.appendChild(el('rect', { x: 10, y: 100, width: 680, height: 78, class: 'obox', style: 'fill-opacity:.5' }));
+      svg.appendChild(el('text', { x: 20, y: 170, class: 'lbl t-o' }, 'kernel mode · mode bit = 0'));
+      const W = 660 / S.length;
+      S.forEach(([kind, label], k) => {
+        const x = 20 + k * W + W / 2, y = kind === 'k' ? 130 : 54, on = k <= i;
+        svg.appendChild(el('rect', { x: x - W / 2 + 6, y: y - 14, width: W - 12, height: 28, rx: 6, class: kind === 'k' ? 'obox' : kind === 't' && sc === 1 ? 'mbox' : 'pbox', style: on ? '' : 'opacity:.25' }));
+        svg.appendChild(el('text', { x, y: y + 5, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:12px' + (on ? '' : ';opacity:.35') }, label));
+        if (k > 0 && k <= i) {
+          const pk = S[k - 1][0] === 'k' ? 130 : 54;
+          const px = 20 + (k - 1) * W + W / 2;
+          svg.appendChild(el('path', { d: `M${px + W / 2 - 6} ${pk} L${x - W / 2 + 6} ${y}`, class: 'wire ' + (y > pk ? 'm' : y < pk ? 'o' : 'thin'), 'marker-end': y > pk ? 'url(#ah-m)' : y < pk ? 'url(#ah-o)' : 'url(#ah)' }));
+        }
+      });
+      const kern = cur[0] === 'k';
+      $('#md-st').innerHTML = `<div><div class="lab">mode bit</div><div class="v ${kern ? 'k' : 'u'}">${kern ? '0 · kernel' : '1 · user'}</div></div><div><div class="lab">privileged instructions</div><div class="v">${kern ? 'allowed' : 'trap if tried'}</div></div><div><div class="lab">running</div><div class="v" style="font-size:17px">${kern ? 'OS code' : 'user code'}</div></div>`;
+      $('#md-out').innerHTML = `<span class="mono muted">${i + 1}/${S.length}</span> · ${cur[2]}`;
+      $('#md-prev').disabled = i === 0; $('#md-next').disabled = i === S.length - 1;
+    }
+    const total = SC.reduce((a, s) => a + s.steps.length, 0);
+    const base = (s) => SC.slice(0, s).reduce((a, x) => a + x.steps.length, 0);
+    const ctl = Academy.register('s4-3', { steps: total - 1, readStep: 0, show });
+    $('#md-sc').addEventListener('click', (e) => { const b = e.target.closest('[data-s]'); if (b) ctl.go(base(+b.dataset.s)); });
+    $('#md-prev').addEventListener('click', () => { if (i > 0) ctl.go(base(sc) + i - 1); });
+    $('#md-next').addEventListener('click', () => { if (i < SC[sc].steps.length - 1) ctl.go(base(sc) + i + 1); });
+    $('#md-reset').addEventListener('click', () => ctl.go(0));
+    show(0);
+  })();
+})();
+</script>
+</body>
+</html>
