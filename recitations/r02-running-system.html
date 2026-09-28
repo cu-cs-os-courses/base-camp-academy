@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>A Running System · R02</title>
+<meta name="description" content="CSCI 3753 Recitation 02: /proc as a virtual file system, a process's directory and file descriptors, watching system calls with strace, and Lab00 help before the deadline.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+.code { font-family: var(--f-mono); font-size: 13px; line-height: 1.7; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 0; overflow-x: auto; margin: 0.8em 0 1.2em; }
+.code .ln { display: block; padding: 0 14px; white-space: pre; }
+.code .ln.hl { background: var(--cx-soft); }
+.code .c { color: var(--ink3); }
+.code .kw { color: var(--co); }
+.agenda { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 1em 0 1.4em; }
+.agenda div { border-top: 3px solid var(--line2); padding-top: 6px; font-size: 14px; }
+.agenda div b { display: block; font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
+.agenda div:nth-child(2) { border-color: var(--cz); } .agenda div:nth-child(3) { border-color: var(--cx); } .agenda div:nth-child(4) { border-color: var(--cf); }
+.check { list-style: none; padding: 0; }
+.check li { padding-left: 1.6em; position: relative; margin: 6px 0; }
+.check li::before { content: "☐"; position: absolute; left: 0; color: var(--ink3); }
+table.cs { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.cs td { border-bottom: 1px solid var(--line); padding: 5px 10px; vertical-align: top; }
+table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-space: nowrap; }
+@media (max-width: 760px) { .agenda { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="2.5" y="4" width="17" height="14" rx="2" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M2.5 11h17" stroke="var(--co)" stroke-width="1.6" stroke-dasharray="2 2"/><circle cx="11" cy="7.5" r="1.5" fill="var(--cx)"/><circle cx="11" cy="14.5" r="1.5" fill="var(--cz)"/></svg>
+    <span>Recitation 02 · Looking at a running system</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Recitation 02 · Week 2</div>
+    <h1>Two doors into the <span class="accent">kernel</span></h1>
+    <p class="lede">Lectures 01–02 said a program talks to the kernel only through system calls, and that the kernel runs in a mode your code cannot enter. Today you watch both happen. <code>/proc</code> shows the kernel's own state as files, and <code>strace</code> shows every system call a program makes. Then the second half is Lab00 help: it is due <b>Sunday</b>.</p>
+    <div class="agenda">
+      <div><b>0–5</b>Recap: modes and system calls</div>
+      <div><b>5–25</b>Worked example: /proc and strace</div>
+      <div><b>25–45</b>Lab00 help (due Sun Jan 17)</div>
+      <div><b>45–50</b>Exit ticket</div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="sections">
+    <p class="rail-title">Contents</p>
+    <a href="#before"><span class="n">0</span>Before you come</a>
+    <a href="#a"><span class="n">1</span>/proc is not on the disk</a>
+    <a href="#b"><span class="n">2</span>Watching system calls</a>
+    <a href="#help"><span class="n">3</span>Lab00 help</a>
+    <a href="#ticket"><span class="n">4</span>Exit ticket</a>
+    <a href="#sheet"><span class="n">∎</span>Cheat sheet</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#before"><span class="n">0</span>Before you come</a>
+        <a href="#a"><span class="n">1</span>/proc is not on the disk</a>
+        <a href="#b"><span class="n">2</span>Watching system calls</a>
+        <a href="#help"><span class="n">3</span>Lab00 help</a>
+        <a href="#ticket"><span class="n">4</span>Exit ticket</a>
+        <a href="#sheet"><span class="n">∎</span>Cheat sheet</a>
+      </nav>
+    </details>
+
+<section class="chapter" id="before">
+  <div class="ch-head">
+    <div class="ch-no">Part 0</div>
+    <h2>Before you come</h2>
+  </div>
+  <div class="sec">
+    <ul class="check prose">
+      <li>My VM boots (<code>make smoke</code> passes). If not, say so at the start and your TA comes to you first.</li>
+      <li>I have run <code>make check LAB=00-getting-started</code> at least once, even if some lines fail.</li>
+      <li>I know which lines fail, and what I have tried.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="chapter" id="a">
+  <div class="ch-head">
+    <div class="ch-no">Part 1 · follow along</div>
+    <h2>/proc is not on the disk</h2>
+  </div>
+  <div class="sec">
+    <div class="prose"><p>In the VM:</p></div>
+    <div class="code"><span class="ln">mount | grep ' /proc '            <span class="c"># proc on /proc type proc (...)</span></span><span class="ln">ls -l /proc/uptime                <span class="c"># size 0 ...</span></span><span class="ln">cat /proc/uptime                  <span class="c"># ... yet it prints text</span></span><span class="ln">sleep 2; cat /proc/uptime         <span class="c"># and the text changes</span></span></div>
+    <div class="note note-key">
+      <span class="note-tag">A virtual file system</span>
+      <p>Nothing in <code>/proc</code> is stored anywhere. When you read a file, the kernel generates its contents on the spot from its own data structures. That is why the size is 0 and why the numbers change. The first number in <code>uptime</code> is seconds since boot.</p>
+    </div>
+    <div class="prose"><p>Every process has a directory named by its PID:</p></div>
+    <div class="code"><span class="ln">sleep 300 &amp;                       <span class="c"># start one in the background; $! is its PID</span></span><span class="ln">ls /proc/$!</span><span class="ln">grep -E '^(State|PPid|Threads)' /proc/$!/status</span><span class="ln">ls -l /proc/$!/fd                 <span class="c"># its open files</span></span><span class="ln">kill %1</span></div>
+    <div class="prose"><p><code>fd</code> holds 0, 1 and 2, pointing to your terminal: every process starts with standard input, output and error as <strong>file descriptors</strong> 0, 1 and 2. These are the numbers behind <code>2&gt;&amp;1</code> in R01.</p></div>
+  </div>
+</section>
+
+<section class="chapter" id="b">
+  <div class="ch-head">
+    <div class="ch-no">Part 2 · follow along</div>
+    <h2>Watching system calls</h2>
+  </div>
+  <div class="sec">
+    <div class="two-up">
+      <div>
+        <div class="code"><span class="ln"><span class="c">/* hello.c */</span></span><span class="ln"><span class="kw">#include</span> &lt;stdio.h&gt;</span><span class="ln"><span class="kw">int</span> main(<span class="kw">void</span>) { printf("hello\n"); <span class="kw">return</span> 0; }</span></div>
+        <div class="code"><span class="ln">gcc -Wall -Werror -o hello hello.c</span><span class="ln">strace ./hello</span></div>
+        <div class="prose"><p>The last lines are what <code>main</code> did:</p></div>
+        <div class="code"><span class="ln hl">write(1, "hello\n", 6)                  = 6</span><span class="ln hl">exit_group(0)                           = ?</span><span class="ln">+++ exited with 0 +++</span></div>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 330 250" width="320" role="img" aria-label="printf in the C library calls write, which traps into the kernel; the kernel writes to the terminal and returns">
+            <g id="sc-g"></g>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1</span>printf never reaches the kernel; write does.</figcaption>
+      </figure>
+    </div>
+    <div class="prose">
+      <ul>
+        <li><code>printf</code> is a <strong>library</strong> function. The only thing that reached the kernel was a <code>write</code> to file descriptor 1. <code>return 0</code> became <code>exit_group(0)</code>.</li>
+        <li>Everything above those lines (<code>execve</code>, <code>mmap</code>, <code>openat</code> of <code>libc.so.6</code>, …) is the program being loaded, before <code>main</code> ran.</li>
+      </ul>
+      <p>Now a program you did not write:</p>
+    </div>
+    <div class="code"><span class="ln">strace -e trace=openat,read,write,close cat /proc/uptime</span></div>
+    <div class="code"><span class="ln"><span class="c">… openat of ld.so.cache and libc.so.6: the loader, ignore …</span></span><span class="ln hl">openat(AT_FDCWD, "/proc/uptime", O_RDONLY) = 3</span><span class="ln hl">read(3, "1234.56 1180.02\n", 131072)      = 16</span><span class="ln hl">write(1, "1234.56 1180.02\n", 16)         = 16</span><span class="ln hl">read(3, "", 131072)                       = 0</span><span class="ln hl">close(3)                                  = 0</span></div>
+    <div class="prose">
+      <p>That is the whole of <code>cat</code>: open, read, write, and read again until <code>read</code> returns 0 (end of file). <code>3</code> is the next free descriptor after 0, 1 and 2. One more:</p>
+    </div>
+    <div class="code"><span class="ln">strace -c ls / &gt; /dev/null        <span class="c"># a table: which system calls, how many times</span></span></div>
+    <p class="prose">Every use of files, memory, other processes or the network appears in <code>strace</code>. There is no other door into the kernel.</p>
+  </div>
+</section>
+
+<section class="chapter" id="help">
+  <div class="ch-head">
+    <div class="ch-no">Part 3</div>
+    <h2>Lab00 help</h2>
+    <p class="ch-lede">Lab00 is due Sunday, Jan 17. Bring your failing lines.</p>
+  </div>
+  <div class="sec">
+    <div class="prose">
+      <p>To debug a failing check, run your script in a live VM, exactly as the README's "If a check fails" section describes:</p>
+    </div>
+    <div class="code"><span class="ln"><span class="c"># repository root, on the laptop</span></span><span class="ln">SHARE=$PWD/labs/00-getting-started/submit env/run.sh</span><span class="ln"><span class="c"># in the VM</span></span><span class="ln">bash /share/observe.sh</span></div>
+    <div class="prose">
+      <p>Compare each line with the format in the header of <code>observe.sh</code>: one <code>KEY=VALUE</code> per line, in order, with nothing extra in the value. <code>man 5 proc</code> documents every file in <code>/proc</code>; press <code>/</code> to search it.</p>
+      <p>When it passes, submit:</p>
+    </div>
+    <div class="code"><span class="ln">git add labs/00-getting-started/submit/observe.sh labs/00-getting-started/submit/report.md</span><span class="ln">git commit -m "Lab00"</span><span class="ln">git push</span><span class="ln">git remote -v        <span class="c"># must be YOUR Classroom repository</span></span></div>
+    <p class="prose">Then open your repository on GitHub and check that both files are there. What is on GitHub at the deadline is what gets graded.</p>
+    <div class="note note-key">
+      <span class="note-tag">How to ask a good question</span>
+      <p>Show the failing line from <code>make check</code>, what your script printed, and what you already tried. TAs will point you to a manual page or a debugging step. They will not tell you which file holds the answer.</p>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="ticket">
+  <div class="ch-head">
+    <div class="ch-no">Part 4</div>
+    <h2>Exit ticket</h2>
+    <p class="ch-lede">Not graded. Answer, then check.</p>
+  </div>
+  <div class="sec">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Exit ticket</span><span class="q-title">1 of 2</span></div>
+      <div class="quiz-body">
+        <div class="q-text"><code>strace cat /proc/uptime</code> shows <code>openat</code>, <code>read</code>, <code>write</code> and <code>close</code>. Which of them do their work in kernel mode?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="openat and close are system calls too: opening a file needs the kernel's file tables.">Only read and write</button>
+          <button type="button" class="q-opt" data-ok>All four</button>
+          <button type="button" class="q-opt" data-why="strace only observes; the calls still trap into the kernel.">None: strace runs them in user mode</button>
+        </div>
+        <div class="q-fb ok">Right. Each is a system call, so each switches into kernel mode. cat itself runs in user mode between them.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Exit ticket</span><span class="q-title">2 of 2</span></div>
+      <div class="quiz-body">
+        <div class="q-text"><code>ls -l /proc/uptime</code> says the file's size is 0, yet <code>cat</code> prints text. Why?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="There is no disk behind /proc at all.">The file is compressed on disk.</button>
+          <button type="button" class="q-opt" data-why="Permissions do not change the reported size.">Only root can see its real size.</button>
+          <button type="button" class="q-opt" data-ok>/proc is a virtual file system: the kernel generates the contents when the file is read.</button>
+        </div>
+        <div class="q-fb ok">Right. Nothing is stored; there is nothing to measure in advance.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="sheet">
+  <div class="ch-head">
+    <div class="ch-no">Keep</div>
+    <h2>Cheat sheet</h2>
+  </div>
+  <div class="sec">
+    <div class="table-wrap">
+      <table class="cs">
+        <tbody>
+          <tr><td>strace ./prog</td><td>Print every system call <code>prog</code> makes, with arguments and return values.</td></tr>
+          <tr><td>strace -e trace=openat,read …</td><td>Only the listed system calls.</td></tr>
+          <tr><td>strace -c …</td><td>A summary table instead: count and time per system call.</td></tr>
+          <tr><td>strace -f …</td><td>Follow child processes too (useful from Lab01 on).</td></tr>
+          <tr><td>/proc/&lt;pid&gt;/status</td><td>A process's state, parent, threads and memory, in readable form.</td></tr>
+          <tr><td>/proc/&lt;pid&gt;/fd/</td><td>Its open file descriptors, as links to what they refer to.</td></tr>
+          <tr><td>man 5 proc</td><td>The manual for every file in <code>/proc</code>. Press <code>/</code> to search.</td></tr>
+          <tr><td>git remote -v</td><td>Where <code>git push</code> sends your work.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Recitation 02.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const NS = 'http://www.w3.org/2000/svg', g = document.getElementById('sc-g');
+  const el = (t, a, x) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (x != null) e.textContent = x; g.appendChild(e); return e; };
+  el('rect', { x: 10, y: 10, width: 310, height: 128, rx: 8, class: 'box', style: 'fill:none' });
+  el('text', { x: 20, y: 28, class: 'lbl', style: 'font-size:10.5px' }, 'user mode');
+  el('rect', { x: 10, y: 150, width: 310, height: 90, rx: 8, class: 'obox' });
+  el('text', { x: 20, y: 168, class: 'lbl', style: 'font-size:10.5px' }, 'kernel mode');
+  [['main(): printf("hello\\n")', 36, 'pbox'], ['C library: buffer, then write(1, …)', 80, 'dbox']].forEach(([t, y, c]) => { el('rect', { x: 40, y, width: 250, height: 30, rx: 5, class: c }); el('text', { x: 165, y: y + 19, 'text-anchor': 'middle', class: 'mono', style: 'font-size:11px' }, t); });
+  el('rect', { x: 40, y: 190, width: 250, height: 30, rx: 5, class: 'box' });
+  el('text', { x: 165, y: 209, 'text-anchor': 'middle', class: 'mono', style: 'font-size:11px' }, 'sys_write → terminal driver');
+  el('path', { d: 'M165 66 V78', class: 'wire thin', 'marker-end': 'url(#ah)' });
+  el('path', { d: 'M140 110 V188', class: 'wire', 'marker-end': 'url(#ah)' });
+  el('path', { d: 'M190 188 V112', class: 'wire', style: 'stroke-dasharray:4 3', 'marker-end': 'url(#ah)' });
+  el('text', { x: 134, y: 146, 'text-anchor': 'end', class: 'lbl', style: 'font-size:10px' }, 'trap (syscall)');
+  el('text', { x: 196, y: 146, class: 'lbl', style: 'font-size:10px' }, 'return 6');
+})();
+</script>
+</body>
+</html>
