@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scheduling by Hand · R04</title>
+<meta name="description" content="CSCI 3753 Recitation 04: drawing FCFS, SJF, SRTF and round-robin Gantt charts on one workload, computing waiting, turnaround and response time, the course's tie-breaking conventions, and Lab01/Lab02 help.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../assets/academy.css">
+<style>
+.agenda { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 1em 0 1.4em; }
+.agenda div { border-top: 3px solid var(--line2); padding-top: 6px; font-size: 14px; }
+.agenda div b { display: block; font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
+.agenda div:nth-child(2) { border-color: var(--cz); } .agenda div:nth-child(3) { border-color: var(--cx); } .agenda div:nth-child(4) { border-color: var(--cf); }
+.code { font-family: var(--f-mono); font-size: 13px; line-height: 1.7; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 0; overflow-x: auto; margin: 0.8em 0 1.2em; }
+.code .ln { display: block; padding: 0 14px; white-space: pre; }
+.code .c { color: var(--ink3); }
+table.wl, table.rq { border-collapse: collapse; font-family: var(--f-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+table.wl th, table.wl td, table.rq th, table.rq td { padding: 4px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+table.wl th, table.rq th { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); border-bottom-color: var(--line2); }
+table.rq td b { color: var(--cx-ink); }
+table.cmp { border-collapse: collapse; font-family: var(--f-mono); font-size: 13px; }
+table.cmp th, table.cmp td { padding: 4px 14px; border-bottom: 1px solid var(--line); text-align: right; }
+table.cmp th:first-child, table.cmp td:first-child { text-align: left; }
+table.cmp th { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); border-bottom-color: var(--line2); }
+table.cmp td.best { color: var(--good); font-weight: 600; }
+table.cs { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.cs td { border-bottom: 1px solid var(--line); padding: 5px 10px; vertical-align: top; }
+table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-space: nowrap; }
+.gantt { margin: 8px 0 4px; overflow-x: auto; }
+@media (max-width: 760px) { .agenda { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#top">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.3" fill="none"><rect x="2" y="7" width="18" height="8" rx="1"/></g><rect x="2.8" y="7.8" width="5" height="6.4" fill="var(--cz)"/><rect x="7.8" y="7.8" width="3" height="6.4" fill="var(--cx)"/><rect x="10.8" y="7.8" width="4" height="6.4" fill="var(--cf)"/><rect x="14.8" y="7.8" width="4.4" height="6.4" fill="var(--co)"/></svg>
+    <span>Recitation 04 · Scheduling by hand</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <div class="progress-track"><div class="progress-bar"></div></div>
+</header>
+
+<div class="hero" id="top">
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 · Recitation 04 · Week 4</div>
+    <h1>One workload, four <span class="accent">schedules</span></h1>
+    <p class="lede">Lecture 06 compared scheduling algorithms. Today you draw them yourself: the same four processes under FCFS, SJF, SRTF and round robin, with waiting, turnaround and response time for each, and the two tie-breaking rules the course's problems use. Then lab help: Lab01 is due Sunday, and Lab02 is open.</p>
+    <div class="agenda">
+      <div><b>0–5</b>Recap: threads, scheduler, three measures</div>
+      <div><b>5–25</b>Worked example: four Gantt charts</div>
+      <div><b>25–45</b>Lab01 (due Sun Jan 31) and Lab02 help</div>
+      <div><b>45–50</b>Exit ticket</div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="rail" aria-label="sections">
+    <p class="rail-title">Contents</p>
+    <a href="#setup"><span class="n">1</span>The workload and the rules</a>
+    <a href="#np"><span class="n">2</span>FCFS and SJF</a>
+    <a href="#srtf"><span class="n">3</span>SRTF</a>
+    <a href="#rr"><span class="n">4</span>Round robin</a>
+    <a href="#cmp"><span class="n">5</span>Compare</a>
+    <a href="#help"><span class="n">6</span>Lab help</a>
+    <a href="#ticket"><span class="n">7</span>Exit ticket</a>
+    <a href="#sheet"><span class="n">∎</span>Cheat sheet</a>
+  </nav>
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav>
+        <a href="#setup"><span class="n">1</span>The workload and the rules</a>
+        <a href="#np"><span class="n">2</span>FCFS and SJF</a>
+        <a href="#srtf"><span class="n">3</span>SRTF</a>
+        <a href="#rr"><span class="n">4</span>Round robin</a>
+        <a href="#cmp"><span class="n">5</span>Compare</a>
+        <a href="#help"><span class="n">6</span>Lab help</a>
+        <a href="#ticket"><span class="n">7</span>Exit ticket</a>
+        <a href="#sheet"><span class="n">∎</span>Cheat sheet</a>
+      </nav>
+    </details>
+
+<section class="chapter" id="setup">
+  <div class="ch-head">
+    <div class="ch-no">Part 1 · follow along</div>
+    <h2>The workload and the rules</h2>
+    <p class="ch-lede">Try each chart on paper for a minute before your TA draws it; open the answer after.</p>
+  </div>
+  <div class="sec">
+    <div class="two-up">
+      <div>
+        <table class="wl">
+          <thead><tr><th>process</th><th>arrival</th><th>burst</th></tr></thead>
+          <tbody><tr><td>P1</td><td>0</td><td>7</td></tr><tr><td>P2</td><td>2</td><td>4</td></tr><tr><td>P3</td><td>4</td><td>1</td></tr><tr><td>P4</td><td>5</td><td>4</td></tr></tbody>
+        </table>
+      </div>
+      <div class="prose">
+        <p><b>Measures</b>, per process:</p>
+        <ul>
+          <li>turnaround = completion − arrival</li>
+          <li>waiting = turnaround − burst</li>
+          <li>response = first run − arrival</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note note-key">
+      <span class="note-tag">Two rules, used in every course problem</span>
+      <p><b>1.</b> In SJF and SRTF, equal bursts (or equal remaining times) go to the process that <strong>arrived first</strong>. <b>2.</b> In RR, if a new arrival and a process whose quantum just expired enter the ready queue at the same moment, the <strong>new arrival is queued first</strong>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="np">
+  <div class="ch-head">
+    <div class="ch-no">Part 2</div>
+    <h2>FCFS and SJF</h2>
+  </div>
+  <div class="sec">
+    <h3><span class="sec-no">2.1</span>FCFS</h3>
+    <details class="fold"><summary>Chart and waiting times</summary><div class="prose">
+      <div class="gantt" data-g="fcfs"></div>
+      <p>Waiting 0, 5, 7, 7: average <b>4.75</b>. P3 needs 1 unit and waits 7: the convoy effect.</p>
+    </div></details>
+    <h3><span class="sec-no">2.2</span>SJF (nonpreemptive)</h3>
+    <details class="fold"><summary>Chart and waiting times</summary><div class="prose">
+      <div class="gantt" data-g="sjf"></div>
+      <p>At 0 only P1 has arrived, so it runs to 7 even though shorter jobs arrive meanwhile. At 7 the choice is P2 (4), P3 (1), P4 (4): P3 first, then P2 before P4 by rule 1. Waiting 0, 6, 3, 7: average <b>4.00</b>.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="chapter" id="srtf">
+  <div class="ch-head">
+    <div class="ch-no">Part 3</div>
+    <h2>SRTF</h2>
+    <p class="ch-lede">Decide again at every arrival, by <em>remaining</em> time. Keep a remaining-time column.</p>
+  </div>
+  <div class="sec">
+    <details class="fold"><summary>Step by step</summary><div class="prose">
+      <ul>
+        <li>t = 0: P1 runs (7 left).</li>
+        <li>t = 2: P2 arrives with 4, less than P1's 5 left: P1 is preempted and P2 runs.</li>
+        <li>t = 4: P3 arrives with 1, less than P2's 2 left: P3 runs and finishes at 5.</li>
+        <li>t = 5: P4 arrives with 4. Remaining: P1 5, P2 2, P4 4. P2 runs and finishes at 7.</li>
+        <li>t = 7: P4 (4) before P1 (5). P4 finishes at 11, P1 at 16.</li>
+      </ul>
+      <div class="gantt" data-g="srtf"></div>
+      <p>Waiting 9, 1, 0, 2: average <b>3.00</b>. Response 0, 0, 0, 2: average 0.50.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="chapter" id="rr">
+  <div class="ch-head">
+    <div class="ch-no">Part 4</div>
+    <h2>Round robin, q = 2</h2>
+    <p class="ch-lede">Write the ready queue down after every event. This is where most mistakes happen.</p>
+  </div>
+  <div class="sec">
+    <details class="fold"><summary>The queue, event by event</summary><div class="prose">
+      <div class="table-wrap">
+        <table class="rq">
+          <thead><tr><th>time</th><th>event</th><th>queue after (front first)</th><th>runs next</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>P1 arrives</td><td>P1</td><td>P1 0–2</td></tr>
+            <tr><td>2</td><td>P2 arrives; P1's quantum ends</td><td><b>P2</b>, P1 (rule 2)</td><td>P2 2–4</td></tr>
+            <tr><td>4</td><td>P3 arrives; P2's quantum ends</td><td>P1, <b>P3</b>, P2 (rule 2)</td><td>P1 4–6</td></tr>
+            <tr><td>5</td><td>P4 arrives</td><td>P3, P2, P4</td><td>(P1 still running)</td></tr>
+            <tr><td>6</td><td>P1's quantum ends</td><td>P3, P2, P4, P1</td><td>P3 6–7, done</td></tr>
+            <tr><td>7</td><td>P3 done</td><td>P2, P4, P1</td><td>P2 7–9, done</td></tr>
+            <tr><td>9</td><td>P2 done</td><td>P4, P1</td><td>P4 9–11</td></tr>
+            <tr><td>11</td><td>P4's quantum ends</td><td>P1, P4</td><td>P1 11–13</td></tr>
+            <tr><td>13</td><td>P1's quantum ends</td><td>P4, P1</td><td>P4 13–15, done</td></tr>
+            <tr><td>15</td><td>P4 done</td><td>P1</td><td>P1 15–16, done</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="gantt" data-g="rr"></div>
+      <p>Waiting 9, 3, 2, 6: average <b>5.00</b>. Response 0, 0, 2, 4: average 1.50.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="chapter" id="cmp">
+  <div class="ch-head">
+    <div class="ch-no">Part 5</div>
+    <h2>Compare</h2>
+  </div>
+  <div class="sec">
+    <details class="fold"><summary>All four, side by side</summary><div class="prose">
+      <div class="table-wrap">
+        <table class="cmp">
+          <thead><tr><th></th><th>FCFS</th><th>SJF</th><th>SRTF</th><th>RR q=2</th></tr></thead>
+          <tbody>
+            <tr><td>avg waiting</td><td>4.75</td><td>4.00</td><td class="best">3.00</td><td>5.00</td></tr>
+            <tr><td>avg turnaround</td><td>8.75</td><td>8.00</td><td class="best">7.00</td><td>9.00</td></tr>
+            <tr><td>avg response</td><td>4.75</td><td>4.00</td><td class="best">0.50</td><td>1.50</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>SRTF wins every column here, but it needs to know burst lengths, which a real OS does not. RR needs nothing and still keeps response time low; it pays in turnaround.</p>
+    </div></details>
+    <p class="prose">Practice with your own workloads in the <a href="../lectures/06-scheduling.html#s3-3">Lecture 06 scheduler</a>. It follows the same two rules.</p>
+  </div>
+</section>
+
+<section class="chapter" id="help">
+  <div class="ch-head">
+    <div class="ch-no">Part 6</div>
+    <h2>Lab help</h2>
+    <p class="ch-lede">Lab01 is due Sunday, Jan 31. Lab02 is open until Feb 14.</p>
+  </div>
+  <div class="sec">
+    <div class="prose">
+      <ul>
+        <li><b>Lab01</b>: if the zombie check fails, reread the README's buffering warning and R03's <code>fork2.c</code>.</li>
+        <li><b>Lab02</b>: <code>man 5 proc</code> documents every field of <code>/proc/&lt;pid&gt;/stat</code>. <code>taskset</code>, <code>nice</code> and <code>chrt</code> each have a man page. Kill leftover spinners before you leave the VM.</li>
+        <li><b>PS1</b>: TAs can explain the rules and the three measures above, but they will not work or check PS1's problems.</li>
+      </ul>
+    </div>
+    <div class="code"><span class="ln">SHARE=$PWD/labs/02-scheduling/submit env/run.sh</span><span class="ln"><span class="c"># in the VM</span></span><span class="ln">cd /share &amp;&amp; gcc -Wall -Werror -O2 -o /tmp/spin spin.c</span></div>
+  </div>
+</section>
+
+<section class="chapter" id="ticket">
+  <div class="ch-head">
+    <div class="ch-no">Part 7</div>
+    <h2>Exit ticket</h2>
+    <p class="ch-lede">Not graded. Answer, then check.</p>
+  </div>
+  <div class="sec">
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Exit ticket</span><span class="q-title">1 of 2</span></div>
+      <div class="quiz-body">
+        <div class="q-text">Under SRTF, a process with 3 units left is running when a process with a 2-unit burst arrives. What happens?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-why="That is nonpreemptive SJF. SRTF re-decides at every arrival.">The running process finishes first.</button>
+          <button type="button" class="q-opt" data-ok>The running process is preempted and the new one runs.</button>
+          <button type="button" class="q-opt" data-why="SRTF has no quantum; only arrivals and completions trigger a decision.">They take turns, one unit each.</button>
+        </div>
+        <div class="q-fb ok">Right: 2 remaining beats 3 remaining.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+    <div class="quiz" data-quiz>
+      <div class="quiz-head"><span class="chip">Exit ticket</span><span class="q-title">2 of 2</span></div>
+      <div class="quiz-body">
+        <div class="q-text">RR: at t = 8, P1's quantum expires and P2 arrives. Under the course's rule, who is ahead in the ready queue?</div>
+        <div class="q-opts">
+          <button type="button" class="q-opt" data-ok>P2, the new arrival</button>
+          <button type="button" class="q-opt" data-why="Rule 2 puts the new arrival first.">P1, the preempted process</button>
+          <button type="button" class="q-opt" data-why="Round robin does not look at priorities or burst lengths.">Whichever has the shorter burst</button>
+        </div>
+        <div class="q-fb ok">Right. Write the rule on every RR problem you solve.</div>
+        <div class="q-fb no">Not quite.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="sheet">
+  <div class="ch-head">
+    <div class="ch-no">Keep</div>
+    <h2>Cheat sheet</h2>
+  </div>
+  <div class="sec">
+    <div class="table-wrap">
+      <table class="cs">
+        <tbody>
+          <tr><td>FCFS</td><td>Arrival order, each to completion. Nonpreemptive.</td></tr>
+          <tr><td>SJF</td><td>Shortest burst among those that have arrived, to completion. Nonpreemptive.</td></tr>
+          <tr><td>SRTF</td><td>Shortest remaining time; re-decide at every arrival. Preemptive SJF.</td></tr>
+          <tr><td>RR, quantum q</td><td>Run the front of the queue for at most q, then send it to the back.</td></tr>
+          <tr><td>turnaround</td><td>completion − arrival</td></tr>
+          <tr><td>waiting</td><td>turnaround − burst (time spent ready, not running)</td></tr>
+          <tr><td>response</td><td>first run − arrival</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Recitation 04.
+</footer>
+
+<script src="../assets/academy.js"></script>
+<script>
+(function () {
+  'use strict';
+  const NS = 'http://www.w3.org/2000/svg';
+  const G = {
+    fcfs: [[1, 0, 7], [2, 7, 11], [3, 11, 12], [4, 12, 16]],
+    sjf: [[1, 0, 7], [3, 7, 8], [2, 8, 12], [4, 12, 16]],
+    srtf: [[1, 0, 2], [2, 2, 4], [3, 4, 5], [2, 5, 7], [4, 7, 11], [1, 11, 16]],
+    rr: [[1, 0, 2], [2, 2, 4], [1, 4, 6], [3, 6, 7], [2, 7, 9], [4, 9, 11], [1, 11, 13], [4, 13, 15], [1, 15, 16]],
+  };
+  const COL = { 1: 'pbox', 2: 'dbox', 3: 'fbox', 4: 'obox' };
+  document.querySelectorAll('.gantt[data-g]').forEach((d) => {
+    const segs = G[d.dataset.g], X = (t) => 10 + t * 38;
+    const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 630 64'); svg.setAttribute('width', '630'); svg.setAttribute('class', 'dia'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Gantt chart: ' + segs.map(([p, a, b]) => `P${p} ${a}-${b}`).join(', '));
+    const add = (t, a, x) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (x != null) e.textContent = x; svg.appendChild(e); };
+    const ticks = new Set([0]);
+    segs.forEach(([p, a, b]) => { add('rect', { x: X(a), y: 6, width: X(b) - X(a), height: 30, class: COL[p] }); add('text', { x: (X(a) + X(b)) / 2, y: 26, 'text-anchor': 'middle', class: 'mono', style: 'font-size:12px' }, 'P' + p); ticks.add(b); });
+    [...ticks].forEach((t) => add('text', { x: X(t), y: 54, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10.5px' }, t));
+    d.appendChild(svg);
+  });
+})();
+</script>
+</body>
+</html>
