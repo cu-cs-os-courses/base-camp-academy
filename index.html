@@ -28,6 +28,8 @@
 .lec .st.live.rec { color: var(--cf-ink); border-color: var(--cf); background: var(--cf-soft); }
 .lec li.lab .n { color: var(--co); }
 .lec .st.live.lab { color: var(--co); border-color: var(--co); background: var(--co-soft); }
+.lec li.qz .n { color: var(--cd); }
+.lec .st.live.qz { color: var(--cd); border-color: var(--cd); background: var(--cd-soft); }
 </style>
 </head>
 <body>
@@ -35,7 +37,7 @@
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 Operating Systems · CU Boulder</div>
     <h1>Base Camp <span class="accent">Academy</span></h1>
-    <p class="lede">Lecture notes you can read on your own or present in class, and the Friday recitations that go with them. Each lecture reads like a tutorial, with hands-on experiments running in your browser. Lectures are numbered L, recitations R; lab guides walk you through each Basecamp lab.</p>
+    <p class="lede">Lecture notes you can read on your own or present in class, and the Friday recitations that go with them. Each lecture reads like a tutorial, with hands-on experiments running in your browser. Lectures are numbered L, recitations R; lab guides walk you through each Basecamp lab. Quizzes, problem sets and exams are taken on Canvas.</p>
   </div>
 </div>
 <div class="layout">
@@ -73,6 +75,8 @@
     <li class="rec"><span class="n">R01</span><a class="t" href="recitations/r01-c-and-linux.html">C and the Linux command line<span class="d">Strings and argv; warnings and AddressSanitizer; pipes, redirection, exit status; Lab00 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="rec"><span class="n">R02</span><a class="t" href="recitations/r02-running-system.html">Looking at a running system<span class="d">/proc as a virtual file system; watching system calls with strace; Lab00 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="lab"><span class="n">Lab00</span><a class="t" href="tutorials/lab00-getting-started.html">Walkthrough: Learning to See a Running System<span class="d">Repository and VM setup, the edit–run loop, finding and checking the eight /proc facts, make check, submitting.</span></a><span class="st live lab">lab guide</span></li>
+    <li class="qz"><span class="n">Pre</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Pre-exam<span class="d">C and systems background, in class in week 1 · 45 minutes.</span></a><span class="st live qz">exam</span></li>
+    <li class="qz"><span class="n">Q1</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Quiz 1<span class="d">L01–L02: what an OS is, system calls, kernel modules · opens week 1, due week 3.</span></a><span class="st live qz">quiz</span></li>
     </ul>
   </section>
   <section class="grp" id="part-ii">
@@ -84,6 +88,7 @@
     <li><span class="n">L05</span><a class="t" href="lectures/05-thread.html">Thread<span class="d">Threads vs processes, user and kernel threads, pthreads, races, thread safety, reentrancy.</span></a><span class="st live">lecture</span></li>
     <li class="rec"><span class="n">R03</span><a class="t" href="recitations/r03-fork-exec-wait.html">fork, exec, wait<span class="d">Predicting fork; buffers copied by fork; a shell traced with strace; a zombie from the shell; Lab01 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="lab"><span class="n">Lab01</span><a class="t" href="tutorials/lab01-processes.html">Walkthrough: The Life and Times of a Process<span class="d">Reading a status file by hand, ptree.sh, fork/exec/wait in spawn.c, zombies and orphans in undead.c, make check.</span></a><span class="st live lab">lab guide</span></li>
+    <li class="qz"><span class="n">Q2</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Quiz 2<span class="d">L03–L04: processes, fork and exec, the PCB, IPC · opens week 2, due week 4.</span></a><span class="st live qz">quiz</span></li>
     </ul>
   </section>
   <section class="grp" id="part-iii">
@@ -95,6 +100,8 @@
     <li class="rec"><span class="n">R04</span><a class="t" href="recitations/r04-scheduling-by-hand.html">Scheduling by hand<span class="d">FCFS, SJF, SRTF and round-robin Gantt charts on one workload; the tie-breaking rules; Lab01–02 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="rec"><span class="n">R05</span><a class="t" href="recitations/r05-real-schedulers.html">Real schedulers; seeing a race<span class="d">An MLFQ traced by hand; CFS vruntime with nice weights; a lost update on paper; Lab02–03 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="lab"><span class="n">Lab02</span><a class="t" href="tutorials/lab02-scheduling.html">Walkthrough: Sharing the CPU<span class="d">A CPU-bound spinner, watching preemption, building and validating fairshare.sh, nice weights, SCHED_FIFO and throttling.</span></a><span class="st live lab">lab guide</span></li>
+    <li class="qz"><span class="n">Q3</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Quiz 3<span class="d">L05–L06: threads, CPU scheduling basics · opens week 3, due week 5.</span></a><span class="st live qz">quiz</span></li>
+    <li class="qz"><span class="n">PS1</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Problem Set 1<span class="d">L01–L06: system calls, fork, IPC, a race, four schedules by hand · opens week 4, due week 6.</span></a><span class="st live qz">problem set</span></li>
     </ul>
   </section>
   <section class="grp" id="part-iv">
@@ -109,6 +116,11 @@
     <li class="rec"><span class="n">R06</span><a class="t" href="recitations/r06-concurrency-bugs.html">Finding concurrency bugs<span class="d">A data race caught by ThreadSanitizer; a lost wakeup; the predicate-in-a-while-loop fix; Lab02–03 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="rec"><span class="n">R07</span><a class="t" href="recitations/r07-deadlock.html">Deadlock and classic problems<span class="d">Banker's algorithm on a new state; a request refused although free; cycle or deadlock in a graph; Lab03 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="lab"><span class="n">Lab03</span><a class="t" href="tutorials/lab03-concurrency.html">Walkthrough: The Trouble with Threads<span class="d">Making a race visible, threads in /proc, designing a bounded buffer with a mutex and two condition variables, testing it scenario by scenario.</span></a><span class="st live lab">lab guide</span></li>
+    <li class="qz"><span class="n">Q4</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Quiz 4<span class="d">L07–L08: priority and fair scheduling, critical sections, hardware locks · opens week 4, due week 6.</span></a><span class="st live qz">quiz</span></li>
+    <li class="qz"><span class="n">Q5</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Quiz 5<span class="d">L09–L10: semaphores, monitors, condition variables · opens week 5, due week 7.</span></a><span class="st live qz">quiz</span></li>
+    <li class="qz"><span class="n">Q6</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Quiz 6<span class="d">L11–L12: readers–writers, dining philosophers, deadlock · opens week 6, due week 8.</span></a><span class="st live qz">quiz</span></li>
+    <li class="qz"><span class="n">PS2</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Problem Set 2<span class="d">L07–L12: MLFQ, bounded buffers, condition variables, the Banker's algorithm · opens week 5, due week 8.</span></a><span class="st live qz">problem set</span></li>
+    <li class="qz"><span class="n">Mid</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Midterm<span class="d">L01–L12 and the matching textbook chapters, in class in week 9 · 60 minutes.</span></a><span class="st live qz">exam</span></li>
     </ul>
   </section>
   <section class="grp" id="part-v">
@@ -123,6 +135,9 @@
     <li class="rec"><span class="n">R09</span><a class="t" href="recitations/r09-paging-arithmetic.html">Paging arithmetic<span class="d">Translating addresses with 2 KB pages; why two-level tables save memory; EAT with a TLB and faults; Lab04 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="rec"><span class="n">R10</span><a class="t" href="recitations/r10-replacement.html">Replacement, and the file syscalls<span class="d">FIFO, LRU, OPT and clock traced on one string; where FIFO and LRU part ways; Lab04–05 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="lab"><span class="n">Lab04</span><a class="t" href="tutorials/lab04-virtual-memory.html">Walkthrough: Pages, Faults, and the Art of Eviction<span class="d">VmRSS and minor faults in touch.c, huge pages, the paging simulator, designing and tuning an LRU pager.</span></a><span class="st live lab">lab guide</span></li>
+    <li class="qz"><span class="n">Q7</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Quiz 7<span class="d">L13–L14: memory management, paging basics · opens week 10, due week 12.</span></a><span class="st live qz">quiz</span></li>
+    <li class="qz"><span class="n">Q8</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Quiz 8<span class="d">L15–L16: virtual memory, page replacement · opens week 12, due week 14.</span></a><span class="st live qz">quiz</span></li>
+    <li class="qz"><span class="n">PS3</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Problem Set 3<span class="d">L13–L16: allocation, address translation, the TLB, replacement by hand · opens week 10, due week 13.</span></a><span class="st live qz">problem set</span></li>
     </ul>
   </section>
   <section class="grp" id="part-vi">
@@ -136,6 +151,7 @@
     <li class="rec"><span class="n">R11</span><a class="t" href="recitations/r11-kernel-modules.html">Kernel modules<span class="d">Build, load, inspect and unload a hello-world module; dmesg; how /dev names a driver by major and minor; Lab05 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="rec"><span class="n">R12</span><a class="t" href="recitations/r12-file-systems.html">File systems from the inside<span class="d">Inodes and directories on ext4; hard and symbolic links; a file's blocks found with debugfs and read raw with dd; Lab05 help.</span></a><span class="st live rec">recitation</span></li>
     <li class="lab"><span class="n">Lab05</span><a class="t" href="tutorials/lab05-storage-and-io.html">Walkthrough: Everything Is a File<span class="d">A raw-syscall file tool, building and loading a kernel module, a 900-byte character driver, the capstone comparison.</span></a><span class="st live lab">lab guide</span></li>
+    <li class="qz"><span class="n">Q9</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Quiz 9<span class="d">L17–L18: devices and drivers, polling, interrupts, DMA · opens week 13, due week 15.</span></a><span class="st live qz">quiz</span></li>
     </ul>
   </section>
   <section class="grp" id="part-vii">
@@ -143,6 +159,7 @@
     <p class="gd">The OS beyond one machine.</p>
     <ul class="lec">
     <li><span class="n">L21</span><a class="t" href="lectures/21-network-and-vms.html">Network &amp; VMs<span class="d">The network stack, packetization, TCP/UDP, routing; virtual machines and trap-and-emulate.</span></a><span class="st live">lecture</span></li>
+    <li class="qz"><span class="n">Q10</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Quiz 10<span class="d">L19–L21: disks, flash, RAID, file systems, networks and VMs · opens week 14, due week 16.</span></a><span class="st live qz">quiz</span></li>
     </ul>
   </section>
   <section class="grp" id="part-viii">
@@ -152,6 +169,8 @@
     <li><span class="n">L22</span><a class="t" href="lectures/22-protection.html">Protection<span class="d">Domains, the access matrix, ACLs and capabilities, MAC, sandboxing, stack inspection.</span></a><span class="st live">lecture</span></li>
     <li><span class="n">L23</span><a class="t" href="lectures/23-security.html">Security<span class="d">Threats, cryptography and RSA, certificates, passwords and salt, firewalls, defense in depth.</span></a><span class="st live">lecture</span></li>
     <li class="rec"><span class="n">R13</span><a class="t" href="recitations/r13-protection.html">Protection in practice<span class="d">Users as domains, permission bits, the check on every open, setuid and effective uids, least privilege.</span></a><span class="st live rec">recitation</span></li>
+    <li class="qz"><span class="n">PS4</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Problem Set 4<span class="d">L17–L23: devices, storage, file systems, networks and VMs, protection, security · opens week 13, due week 16.</span></a><span class="st live qz">problem set</span></li>
+    <li class="qz"><span class="n">Final</span><a class="t" href="https://canvas.colorado.edu/" target="_blank" rel="noopener">Final exam<span class="d">L13–L23, in the registrar's finals slot · 60 minutes.</span></a><span class="st live qz">exam</span></li>
     </ul>
   </section>
 </main>
