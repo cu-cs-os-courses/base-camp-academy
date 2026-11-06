@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lab00 Walkthrough · Basecamp 0</title>
-<meta name="description" content="Step-by-step walkthrough for Basecamp 0, Learning to See a Running System: get the repository, build and boot the course VM, the edit-in-host run-in-guest loop, finding eight facts in /proc and checking them, reading make check, and submitting.">
+<meta name="description" content="Step-by-step walkthrough for Basecamp 0, Learning to See a Running System: getting the repository, building and booting the course VM, the edit-on-host, run-in-guest loop, finding and checking eight facts in /proc, reading make check output, and submitting.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -44,12 +44,12 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="hero-inner">
     <div class="eyebrow"><span class="chip-t">walkthrough</span> &nbsp;Basecamp 0 · Weeks 1–3 · due Sun Jan 17</div>
     <h1>From zero to a <span class="accent">running</span> kernel</h1>
-    <p class="lede">This page walks you through Lab00 one step at a time: what to do, how to tell that it worked, and what usually goes wrong. It does not do the lab for you. It never shows code for <code>observe.sh</code> and never names the file that holds an answer. It shows you how to search and how to check yourself. Keep <code>labs/00-getting-started/README.md</code> from your repository open beside it: the README is the specification, and this page is the map.</p>
+    <p class="lede">This page walks you through Lab00 step by step. For each step, it describes what to do, how to tell whether it worked, and what usually goes wrong. Note that this page does not do the lab for you. It never shows code for <code>observe.sh</code>, and it never names the file that holds an answer. Instead, it shows you how to search and how to check your own work. Keep <code>labs/00-getting-started/README.md</code> from your repository open alongside this page. The README is the specification, and this page is the map.</p>
     <div class="steps-map">
-      <div><b>Step 0–1</b>Repository and VM (do this first: the build takes up to an hour)</div>
+      <div><b>Step 0–1</b>Repository and VM (do this first, because the build takes up to an hour)</div>
       <div><b>Step 2</b>The edit–run loop</div>
-      <div><b>Step 3–4</b>Find the eight facts; check each one</div>
-      <div><b>Step 5–7</b>make check, report, submit</div>
+      <div><b>Step 3–4</b>Find the eight facts and check each one</div>
+      <div><b>Step 5–7</b>make check, report, and submit</div>
     </div>
   </div>
 </div>
@@ -85,16 +85,23 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 0</div>
     <h2>Get your repository</h2>
+    <p class="ch-lede">You work in your own private copy of the course repository. That copy is what we grade.</p>
   </div>
   <div class="sec">
     <div class="prose">
       <ol>
-        <li>Accept the GitHub Classroom invitation posted on Canvas. It creates a private repository that belongs to you.</li>
-        <li>Clone <em>that</em> repository, not the course's:</li>
+        <li>On GitHub, create a new <strong>private</strong> repository named <code>3753-27-spring-&lt;identikey&gt;</code>, where <code>&lt;identikey&gt;</code> is your CU IdentiKey. Leave it empty: no README, no <code>.gitignore</code>, and no license.</li>
+        <li>Clone the course repository, and make your private repository the place you push to:</li>
       </ol>
     </div>
-    <div class="code"><span class="ln">git clone &lt;the URL on your repository's green "Code" button&gt;</span><span class="ln">cd &lt;your-repo&gt;</span><span class="ln">git remote -v        <span class="c"># check: the URL contains your GitHub username</span></span></div>
-    <div class="note note-warn"><span class="note-tag">Common mistake</span><p>Cloning the course repository instead. Everything seems fine until you push, and then grading cannot see your work. If <code>git remote -v</code> does not show your own repository, clone again.</p></div>
+    <div class="code"><span class="ln">git clone https://github.com/cu-cs-os-courses/3753-27-spring</span><span class="ln">cd 3753-27-spring</span><span class="ln">git remote rename origin upstream</span><span class="ln">git remote add origin https://github.com/&lt;your-username&gt;/3753-27-spring-&lt;identikey&gt;.git</span><span class="ln">git push -u origin main</span><span class="ln">git remote -v        <span class="c"># check: origin = your repository, upstream = the course</span></span></div>
+    <div class="prose">
+      <ol start="3">
+        <li>In your repository, open <b>Settings → Collaborators → Add people</b>, and add <code>chenyueqi</code>, the instructor. Grading clones your repository with this account. Without it, your work cannot be graded.</li>
+      </ol>
+      <p>When a new lab is released, run <code>git pull upstream main</code> and then <code>git push</code>. A release adds files under <code>labs/</code> and never touches your <code>submit/</code> directories.</p>
+    </div>
+    <div class="note note-warn"><span class="note-tag">Common mistakes</span><p>Forking the course repository instead of creating a new one. A fork of a public repository cannot be private, and a public repository exposes your graded work to everyone. Pushing to <code>upstream</code> instead of <code>origin</code> also fails, because you cannot write to the course repository. If <code>git remote -v</code> does not show your own repository as <code>origin</code>, fix the remotes before you continue.</p></div>
   </div>
 </section>
 
@@ -102,19 +109,19 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 1</div>
     <h2>Build and boot the VM</h2>
-    <p class="ch-lede">Start this the day the lab opens. The first build takes 30–60 minutes.</p>
+    <p class="ch-lede">Start this step on the day the lab opens. The first build takes 30–60 minutes.</p>
   </div>
   <div class="sec">
     <div class="code"><span class="ln">cd env</span><span class="ln">make setup      <span class="c"># once; macOS (on Ubuntu: scripts/host-setup-ubuntu.sh)</span></span><span class="ln">make images     <span class="c"># 30–60 min the first time</span></span><span class="ln">make smoke      <span class="c"># should end with every check passing</span></span><span class="ln">make run        <span class="c"># boots to a root prompt; leave with Ctrl-a x</span></span></div>
-    <div class="prose"><p><b>How you know it worked:</b> inside the VM, <code>cat /proc/version</code> prints a line starting <code>Linux version 6.6.87</code>.</p></div>
+    <div class="prose"><p><b>How to tell that it worked:</b> Inside the VM, <code>cat /proc/version</code> prints a line that starts with <code>Linux version 6.6.87</code>.</p></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>symptom</th><th>likely cause</th><th>what to try</th></tr></thead>
         <tbody>
           <tr><td>docker: cannot connect</td><td>Docker is not running</td><td>On macOS: <code>colima start</code>, then rerun.</td></tr>
-          <tr><td>no space left on device</td><td>Needs ~20 GB free</td><td>Free disk space; <code>docker system prune</code> removes old images.</td></tr>
-          <tr><td>make smoke fails</td><td>Varies</td><td>Read the first failing line; the console log is under the path it prints. Bring it to office hours or recitation.</td></tr>
-          <tr><td>VM feels slow</td><td>Apple Silicon emulates x86</td><td>Expected. The labs are designed for it.</td></tr>
+          <tr><td>no space left on device</td><td>The build needs about 20 GB of free space</td><td>Free up disk space. <code>docker system prune</code> removes old images.</td></tr>
+          <tr><td>make smoke fails</td><td>Varies</td><td>Read the first failing line. The console log is under the path that the line prints. Bring the log to office hours or recitation.</td></tr>
+          <tr><td>VM feels slow</td><td>Apple Silicon emulates x86</td><td>This is expected, and the labs are designed for it.</td></tr>
         </tbody>
       </table>
     </div>
@@ -125,14 +132,14 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 2</div>
     <h2>The edit–run loop</h2>
-    <p class="ch-lede">Edit on your laptop with your usual editor; run inside the VM. Every lab works this way.</p>
+    <p class="ch-lede">Edit on your laptop with your usual editor, and run inside the VM. Every lab follows this loop.</p>
   </div>
   <div class="sec">
     <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">SHARE=$PWD/labs/00-getting-started/submit env/run.sh</span><span class="ln"><span class="c"># VM</span></span><span class="ln">ls /share                 <span class="c"># your submit/ directory, live</span></span><span class="ln">bash /share/observe.sh</span></div>
     <div class="prose">
       <ul>
-        <li>The share is <strong>live</strong>: save the file on the laptop and rerun it in the VM, with no reboot.</li>
-        <li>At first every line prints an empty value, because each <code>$( : TODO )</code> does nothing. That is expected. Fill them in one at a time and rerun after each.</li>
+        <li>The share is <strong>live</strong>. Save the file on your laptop and rerun it in the VM. No reboot is needed.</li>
+        <li>At first, every line prints an empty value, because each <code>$( : TODO )</code> does nothing. This is expected. Fill in one <code>TODO</code> at a time, and rerun the script after each one.</li>
       </ul>
     </div>
   </div>
@@ -142,18 +149,18 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 3</div>
     <h2>Tools for reading /proc</h2>
-    <p class="ch-lede">Every fact is text in a file. You need to find the file, then cut out exactly one value.</p>
+    <p class="ch-lede">Every fact is text in a file. First, find the file. Second, cut out exactly one value.</p>
   </div>
   <div class="sec">
     <div class="prose">
-      <p><b>Finding.</b> <code>/proc</code> is documented in <code>man 5 proc</code>. Press <code>/</code> to search for a word, and <code>n</code> for the next match. To find which files mention a word, use <code>grep -l</code> over a set of files, for example:</p>
+      <p><b>Finding the file.</b> <code>man 5 proc</code> documents <code>/proc</code>. In the man page, press <code>/</code> to search for a word, and press <code>n</code> to jump to the next match. To find which files mention a word, run <code>grep -l</code> over a set of files. For example:</p>
     </div>
     <div class="code"><span class="ln">grep -l -i swap /proc/* 2&gt;/dev/null        <span class="c"># which top-level files mention "swap"?</span></span><span class="ln">man 5 proc                                 <span class="c"># then /swap, n, n, ...</span></span></div>
     <div class="prose">
-      <p><b>Cutting out a value.</b> These are practice examples on files the lab does <em>not</em> ask about. The same patterns carry over:</p>
+      <p><b>Cutting out a value.</b> The examples below use files that the lab does <em>not</em> ask about. However, the same patterns apply to the lab's files:</p>
     </div>
     <div class="code"><span class="ln">cat /proc/sys/vm/swappiness               <span class="c"># a whole file that is one value</span></span><span class="ln">awk '{print $1}' /proc/loadavg             <span class="c"># field 1 of a one-line file</span></span><span class="ln">awk '/^Threads:/ {print $2}' /proc/self/status   <span class="c"># field 2 of the line starting "Threads:"</span></span><span class="ln">grep -c '^Vm' /proc/self/status            <span class="c"># count the lines that match</span></span><span class="ln">ls /proc | wc -l                           <span class="c"># count directory entries</span></span><span class="ln">readlink /proc/1/exe                       <span class="c"># where a symbolic link points</span></span></div>
-    <div class="note note-key"><span class="note-tag">The output contract</span><p>Each line must be exactly <code>KEY=VALUE</code>: no spaces, no units, no trailing text. <code>echo "KEY=$(command)"</code> prints whatever the command prints, so make sure the command prints only the value.</p></div>
+    <div class="note note-key"><span class="note-tag">The output contract</span><p>Each line must be exactly <code>KEY=VALUE</code>, with no spaces, no units, and no trailing text. Note that <code>echo "KEY=$(command)"</code> prints whatever the command prints. Therefore, make sure the command prints only the value.</p></div>
   </div>
 </section>
 
@@ -161,25 +168,25 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 4</div>
     <h2>The eight facts, one at a time</h2>
-    <p class="ch-lede">For each fact: exactly what you are after, how to go looking for it, and how to check your answer with a tool that is off-limits in the script but fine to type in the terminal.</p>
+    <p class="ch-lede">For each fact, the table below lists exactly what you are looking for, how to search for it, and how to check your answer. Some checks use tools that are not allowed in the script, but you can still type them in the terminal.</p>
   </div>
   <div class="sec">
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>fact</th><th>what you are after</th><th>how to look for it</th><th>check it with</th></tr></thead>
         <tbody>
-          <tr><td>KERNEL_RELEASE</td><td>The release string of the running kernel, like <code>6.6.87</code>.</td><td>One system-wide value. Search <code>man 5 proc</code> for "release" and read which file it names.</td><td><code>uname -r</code></td></tr>
-          <tr><td>NPROC</td><td>How many CPUs the kernel is using: a single number.</td><td>Find the <code>/proc</code> file that describes the CPUs, one entry per CPU. Then turn "entries" into a count.</td><td><code>nproc</code></td></tr>
-          <tr><td>PID1_COMM</td><td>The command name of process 1, the first process the kernel starts.</td><td><code>man 5 proc</code> lists the files inside each process's directory. Find the one that holds only the command name.</td><td><code>ps -p 1 -o comm=</code></td></tr>
+          <tr><td>KERNEL_RELEASE</td><td>The release string of the running kernel, like <code>6.6.87</code>.</td><td>This is one system-wide value. Search <code>man 5 proc</code> for "release," and read which file it names.</td><td><code>uname -r</code></td></tr>
+          <tr><td>NPROC</td><td>The number of CPUs the kernel is using, as a single number.</td><td>Find the <code>/proc</code> file that describes the CPUs, with one entry per CPU. Then turn the entries into a count.</td><td><code>nproc</code></td></tr>
+          <tr><td>PID1_COMM</td><td>The command name of process 1, the first process the kernel starts.</td><td><code>man 5 proc</code> lists the files inside each process's directory. Find the file that holds only the command name.</td><td><code>ps -p 1 -o comm=</code></td></tr>
           <tr><td>MEM_TOTAL_KB</td><td>Total usable RAM in kB, as a bare number.</td><td>Find the <code>/proc</code> file that reports memory, then the line for the total.</td><td><code>free -k</code>, "total" column</td></tr>
-          <tr><td>BOOT_CMDLINE</td><td>The parameters the kernel was booted with, exactly as passed.</td><td>Search <code>man 5 proc</code> for "command line"; make sure you pick the kernel's, not a process's.</td><td>The <code>-append</code> line in <code>env/run.sh</code></td></tr>
-          <tr><td>SELF_PID</td><td>The PID of whichever process reads <code>/proc/self</code>.</td><td><code>/proc/self</code> is a symbolic link. Work out what it points to, and extract the PID from that.</td><td>Run the script twice: the value changes, and it is never 1.</td></tr>
-          <tr><td>CTXT</td><td>Total context switches since boot: one number.</td><td>The header tells you the file. <code>man 5 proc</code> explains each of its lines; find the one for context switches.</td><td>Read it twice, a few seconds apart: it only grows.</td></tr>
-          <tr><td>NUM_PROCS</td><td>How many processes exist right now.</td><td>Every process is a directory whose name is all digits, and nothing else in <code>/proc</code> is. Count those names only.</td><td><code>ps aux | wc -l</code> (one header line; roughly equal is right)</td></tr>
+          <tr><td>BOOT_CMDLINE</td><td>The parameters the kernel was booted with, exactly as passed.</td><td>Search <code>man 5 proc</code> for "command line." Make sure you pick the kernel's command line, not a process's.</td><td>The <code>-append</code> line in <code>env/run.sh</code></td></tr>
+          <tr><td>SELF_PID</td><td>The PID of the process that reads <code>/proc/self</code>.</td><td><code>/proc/self</code> is a symbolic link. Work out what it points to, and extract the PID from the target.</td><td>Run the script twice. The value changes between runs, and it is never 1.</td></tr>
+          <tr><td>CTXT</td><td>The total number of context switches since boot, as one number.</td><td>The header names the file. <code>man 5 proc</code> explains each of its lines. Find the line for context switches.</td><td>Read it twice, a few seconds apart. The value only grows.</td></tr>
+          <tr><td>NUM_PROCS</td><td>The number of processes that exist right now.</td><td>Every process is a directory whose name is all digits, and no other entry in <code>/proc</code> has such a name. Count only those names.</td><td><code>ps aux | wc -l</code> (this includes one header line, so a roughly equal count is correct)</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="note note-warn"><span class="note-tag">Rules the checks enforce</span><p>No <code>uname</code> and no <code>nproc</code> anywhere in the script, even inside a command substitution: a check looks for those words. SELF_PID must come from <code>/proc/self</code>, not from the shell's <code>$$</code>: a check looks for <code>/proc/self</code> in your script.</p></div>
+    <div class="note note-warn"><span class="note-tag">Rules the checks enforce</span><p>The script must not contain <code>uname</code> or <code>nproc</code> anywhere, even inside a command substitution, because a check searches for those words. Further, SELF_PID must come from <code>/proc/self</code>, not from the shell's <code>$$</code>, because a check searches your script for <code>/proc/self</code>.</p></div>
   </div>
 </section>
 
@@ -192,10 +199,10 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">make check LAB=00-getting-started</span></div>
     <div class="prose">
       <ul>
-        <li>It boots a fresh VM without a console, runs your script there, and prints one <code>PASS</code> or <code>FAIL</code> per check, then a <code>RESULT</code> line. Grading runs <strong>the same checks</strong>.</li>
-        <li>Check names map to facts: <code>kernel-release</code>, <code>nproc</code>, <code>pid1-comm</code>, <code>mem-total</code>, <code>boot-cmdline</code>, <code>self-pid</code>, <code>ctxt</code>, <code>num-procs</code>, plus the rule checks <code>no-uname</code>, <code>no-nproc</code> and <code>uses-proc-self</code>.</li>
-        <li>A <code>FAIL</code> names the check, not your output. Go back to Step 2, run the script in a live VM, and compare that one line with the format in the file header.</li>
-        <li>A failed run prints <code>(artifacts kept at …)</code>. In that directory, <code>result.txt</code> is the raw check output, and <code>console.log</code> is the VM's boot log, which is where to look if the VM never came up.</li>
+        <li><code>make check</code> boots a fresh VM without a console and runs your script there. It prints one <code>PASS</code> or <code>FAIL</code> per check, followed by a <code>RESULT</code> line. Grading runs <strong>the same checks</strong>.</li>
+        <li>Each check name maps to a fact: <code>kernel-release</code>, <code>nproc</code>, <code>pid1-comm</code>, <code>mem-total</code>, <code>boot-cmdline</code>, <code>self-pid</code>, <code>ctxt</code>, <code>num-procs</code>, plus the rule checks <code>no-uname</code>, <code>no-nproc</code>, and <code>uses-proc-self</code>.</li>
+        <li>A <code>FAIL</code> names the check but does not show your output. To debug, go back to Step 2, run the script in a live VM, and compare the failing line with the format in the file header.</li>
+        <li>A failed run prints <code>(artifacts kept at …)</code>. In that directory, <code>result.txt</code> holds the raw check output, and <code>console.log</code> holds the VM's boot log. If the VM never came up, look at <code>console.log</code>.</li>
       </ul>
     </div>
   </div>
@@ -208,10 +215,10 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   </div>
   <div class="sec">
     <div class="prose">
-      <p>Create <code>submit/report.md</code> and answer the README's two questions in your own words. How to investigate, not the answers:</p>
+      <p>Create <code>submit/report.md</code>, and answer the two questions in the README in your own words. The hints below describe how to investigate, not the answers:</p>
       <ol>
-        <li><b>What changed between two runs, and what is <code>/proc/self</code>?</b> Run the script twice and compare line by line. Then run <code>ls -l /proc/self</code> twice. Ask yourself: which process is doing the looking each time?</li>
-        <li><b>MemFree vs MemAvailable.</b> Read both lines of <code>/proc/meminfo</code>, then read what <code>man 5 proc</code> says about each. Think about what the kernel keeps in memory that it could give back.</li>
+        <li><b>What changed between two runs, and what is <code>/proc/self</code>?</b> Run the script twice, and compare the output line by line. Then run <code>ls -l /proc/self</code> twice. Ask yourself which process reads <code>/proc/self</code> each time.</li>
+        <li><b>MemFree vs MemAvailable.</b> Read both lines of <code>/proc/meminfo</code>, and then read what <code>man 5 proc</code> says about each. Consider what the kernel keeps in memory that it could give back.</li>
       </ol>
     </div>
   </div>
@@ -224,12 +231,12 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   </div>
   <div class="sec">
     <div class="code"><span class="ln">git add labs/00-getting-started/submit/observe.sh labs/00-getting-started/submit/report.md</span><span class="ln">git commit -m "Lab00"</span><span class="ln">git push</span></div>
-    <div class="prose"><p>Then open your repository on GitHub and check that both files are there with your latest changes. What is on GitHub at the deadline is what gets graded.</p></div>
+    <div class="prose"><p>Then open your repository on GitHub, and check that both files are there with your latest changes. We grade what is on GitHub at the deadline.</p></div>
     <ul class="check prose">
       <li><code>make check LAB=00-getting-started</code> shows no <code>FAIL</code>.</li>
-      <li>The script contains no <code>uname</code> or <code>nproc</code> and reads <code>/proc/self</code>.</li>
+      <li>The script contains no <code>uname</code> or <code>nproc</code>, and it reads <code>/proc/self</code>.</li>
       <li><code>report.md</code> answers both questions.</li>
-      <li>Both files are visible on GitHub in <em>your</em> repository.</li>
+      <li>Both files are visible on GitHub in <em>your</em> private repository, and <code>chenyueqi</code> is a collaborator.</li>
     </ul>
   </div>
 </section>
@@ -238,7 +245,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 </div>
 
 <footer class="footer">
-  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab00 walkthrough. The lab README is the specification; if they ever disagree, the README wins.
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab00 walkthrough. The lab README is the specification. If this page and the README disagree, follow the README.
 </footer>
 
 <script src="../assets/academy.js"></script>
