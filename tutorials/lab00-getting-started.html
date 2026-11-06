@@ -44,7 +44,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="hero-inner">
     <div class="eyebrow"><span class="chip-t">walkthrough</span> &nbsp;Basecamp 0 · Weeks 1–3 · due Sun Jan 17</div>
     <h1>From zero to a <span class="accent">running</span> kernel</h1>
-    <p class="lede">This page walks you through Lab00 step by step. For each step, it describes what to do, how to tell whether it worked, and what usually goes wrong. Note that this page does not do the lab for you. It never shows code for <code>observe.sh</code>, and it never names the file that holds an answer. Instead, it shows you how to search and how to check your own work. Keep <code>labs/00-getting-started/README.md</code> from your repository open alongside this page. The README is the specification, and this page is the map.</p>
+    <p class="lede">This page walks you through Lab00 step by step. For each step, it describes what to do, how to tell whether it worked, and what usually goes wrong. Note that this page does not do the lab for you. It never shows code for <code>observe.sh</code>, and it never names the file that holds an answer. Instead, it shows you how to search and how to check your own work. This page and the header of <code>submit/observe.sh</code> are the specification for this lab.</p>
     <div class="steps-map">
       <div><b>Step 0–1</b>Repository and VM (do this first, because the build takes up to an hour)</div>
       <div><b>Step 2</b>The edit–run loop</div>
@@ -99,6 +99,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       <ol start="3">
         <li>In your repository, open <b>Settings → Collaborators → Add people</b>, and add <code>chenyueqi</code>, the instructor. Grading clones your repository with this account. Without it, your work cannot be graded.</li>
       </ol>
+      <p>Do all three before the Lab00 deadline.</p>
       <p>When a new lab is released, run <code>git pull upstream main</code> and then <code>git push</code>. A release adds files under <code>labs/</code> and never touches your <code>submit/</code> directories.</p>
     </div>
     <div class="note note-warn"><span class="note-tag">Common mistakes</span><p>Forking the course repository instead of creating a new one. A fork of a public repository cannot be private, and a public repository exposes your graded work to everyone. Pushing to <code>upstream</code> instead of <code>origin</code> also fails, because you cannot write to the course repository. If <code>git remote -v</code> does not show your own repository as <code>origin</code>, fix the remotes before you continue.</p></div>
@@ -112,6 +113,15 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     <p class="ch-lede">Start this step on the day the lab opens. The first build takes 30–60 minutes.</p>
   </div>
   <div class="sec">
+    <div class="prose">
+      <p>The whole environment builds and runs on your laptop. There is no VDI and no shared server. Before you start, you need:</p>
+      <ul>
+        <li>a laptop running macOS (Apple Silicon or Intel) or Linux, with about <strong>20 GB of free disk</strong> (kernel build cache, a 4 GB disk image, and Docker images) and 8 GB of RAM;</li>
+        <li>on macOS, <a href="https://brew.sh" target="_blank" rel="noopener">Homebrew</a>, which <code>make setup</code> uses to install QEMU and Docker;</li>
+        <li>a GitHub account (Step 0).</li>
+      </ul>
+      <p>Then run, from the repository root (<code>env/README.md</code> explains each target):</p>
+    </div>
     <div class="code"><span class="ln">cd env</span><span class="ln">make setup      <span class="c"># once; macOS (on Ubuntu: scripts/host-setup-ubuntu.sh)</span></span><span class="ln">make images     <span class="c"># 30–60 min the first time</span></span><span class="ln">make smoke      <span class="c"># should end with every check passing</span></span><span class="ln">make run        <span class="c"># boots to a root prompt; leave with Ctrl-a x</span></span></div>
     <div class="prose"><p><b>How to tell that it worked:</b> Inside the VM, <code>cat /proc/version</code> prints a line that starts with <code>Linux version 6.6.87</code>.</p></div>
     <div class="table-wrap">
@@ -153,6 +163,11 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   </div>
   <div class="sec">
     <div class="prose">
+      <p><b>Start with the map.</b> Inside the VM, look around <code>/proc</code>, the kernel's window onto itself:</p>
+    </div>
+    <div class="code"><span class="ln">ls /proc                     <span class="c"># the whole window: files, and one directory per process</span></span><span class="ln">cat /proc/version</span><span class="ln">ls /proc/1/</span><span class="ln">cat /proc/meminfo | head</span><span class="ln">grep . /proc/sys/kernel/*    <span class="c"># everything here greps like an ordinary file</span></span></div>
+    <div class="prose">
+      <p>The eight facts in <code>observe.sh</code> make you look at four different faces of <code>/proc</code>. First, system-wide constants: the kernel release, the CPUs, and memory. Second, the boot command line, which you can compare with <code>env/run.sh</code>. Third, per-process views: <code>/proc/&lt;pid&gt;/</code>, and <code>/proc/self</code>, which answers "who is asking?" Fourth, live counters that change every time you look (<code>/proc/stat</code>).</p>
       <p><b>Finding the file.</b> <code>man 5 proc</code> documents <code>/proc</code>. In the man page, press <code>/</code> to search for a word, and press <code>n</code> to jump to the next match. To find which files mention a word, run <code>grep -l</code> over a set of files. For example:</p>
     </div>
     <div class="code"><span class="ln">grep -l -i swap /proc/* 2&gt;/dev/null        <span class="c"># which top-level files mention "swap"?</span></span><span class="ln">man 5 proc                                 <span class="c"># then /swap, n, n, ...</span></span></div>
@@ -181,7 +196,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
           <tr><td>MEM_TOTAL_KB</td><td>Total usable RAM in kB, as a bare number.</td><td>Find the <code>/proc</code> file that reports memory, then the line for the total.</td><td><code>free -k</code>, "total" column</td></tr>
           <tr><td>BOOT_CMDLINE</td><td>The parameters the kernel was booted with, exactly as passed.</td><td>Search <code>man 5 proc</code> for "command line." Make sure you pick the kernel's command line, not a process's.</td><td>The <code>-append</code> line in <code>env/run.sh</code></td></tr>
           <tr><td>SELF_PID</td><td>The PID of the process that reads <code>/proc/self</code>.</td><td><code>/proc/self</code> is a symbolic link. Work out what it points to, and extract the PID from the target.</td><td>Run the script twice. The value changes between runs, and it is never 1.</td></tr>
-          <tr><td>CTXT</td><td>The total number of context switches since boot, as one number.</td><td>The header names the file. <code>man 5 proc</code> explains each of its lines. Find the line for context switches.</td><td>Read it twice, a few seconds apart. The value only grows.</td></tr>
+          <tr><td>CTXT</td><td>The total number of context switches since boot, as one number.</td><td>The header of <code>observe.sh</code> names the file. <code>man 5 proc</code> explains each of its lines. Find the line for context switches.</td><td>Read it twice, a few seconds apart. The value only grows.</td></tr>
           <tr><td>NUM_PROCS</td><td>The number of processes that exist right now.</td><td>Every process is a directory whose name is all digits, and no other entry in <code>/proc</code> has such a name. Count only those names.</td><td><code>ps aux | wc -l</code> (this includes one header line, so a roughly equal count is correct)</td></tr>
         </tbody>
       </table>
@@ -215,10 +230,11 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   </div>
   <div class="sec">
     <div class="prose">
-      <p>Create <code>submit/report.md</code>, and answer the two questions in the README in your own words. The hints below describe how to investigate, not the answers:</p>
+      <p>Create a short <code>submit/report.md</code> that answers the three questions below in your own words. The hint after each question describes how to investigate, not the answer:</p>
       <ol>
-        <li><b>What changed between two runs, and what is <code>/proc/self</code>?</b> Run the script twice, and compare the output line by line. Then run <code>ls -l /proc/self</code> twice. Ask yourself which process reads <code>/proc/self</code> each time.</li>
-        <li><b>MemFree vs MemAvailable.</b> Read both lines of <code>/proc/meminfo</code>, and then read what <code>man 5 proc</code> says about each. Consider what the kernel keeps in memory that it could give back.</li>
+        <li><b>Run <code>observe.sh</code> twice. Which values changed, and why?</b> <code>SELF_PID</code> deserves a sentence of its own: what exactly is <code>/proc/self</code>? <span class="muted">Hint: compare the two outputs line by line. Then run <code>ls -l /proc/self</code> twice, and ask yourself which process reads <code>/proc/self</code> each time.</span></li>
+        <li><b><code>/proc/meminfo</code> reports both <code>MemFree</code> and <code>MemAvailable</code>, and they disagree. What is the difference, and which one should a program that wants to know "can I allocate this much?" look at?</b> <span class="muted">Hint: read what <code>man 5 proc</code> says about each line, and consider what the kernel keeps in memory that it could give back.</span></li>
+        <li><b>One thing you found in <code>/proc</code> that surprised you.</b></li>
       </ol>
     </div>
   </div>
@@ -235,7 +251,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     <ul class="check prose">
       <li><code>make check LAB=00-getting-started</code> shows no <code>FAIL</code>.</li>
       <li>The script contains no <code>uname</code> or <code>nproc</code>, and it reads <code>/proc/self</code>.</li>
-      <li><code>report.md</code> answers both questions.</li>
+      <li><code>report.md</code> answers all three questions.</li>
       <li>Both files are visible on GitHub in <em>your</em> private repository, and <code>chenyueqi</code> is a collaborator.</li>
     </ul>
   </div>
@@ -245,7 +261,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 </div>
 
 <footer class="footer">
-  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab00 walkthrough. The lab README is the specification. If this page and the README disagree, follow the README.
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab00 walkthrough. This page and the header of <code>submit/observe.sh</code> are the specification for this lab.
 </footer>
 
 <script src="../assets/academy.js"></script>

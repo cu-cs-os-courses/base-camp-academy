@@ -110,7 +110,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   </div>
   <div class="sec">
     <div class="code"><span class="ln"><span class="c"># repository root; the directory must be inside the repo (Docker's file sharing)</span></span><span class="ln">mkdir -p mod-r11 &amp;&amp; cp hello.c mod-r11/ &amp;&amp; printf 'obj-m := hello.o\n' &gt; mod-r11/Makefile</span><span class="ln">docker run --rm --platform linux/amd64 \</span><span class="ln">  -v kernel-lens-cache:/work/cache -v "$PWD/mod-r11:/mod" kernel-lens-build \</span><span class="ln">  sh -c 'make -C /work/cache/linux-6.6.87 M=/mod modules \</span><span class="ln">         &amp;&amp; objcopy --remove-section .BTF /mod/hello.ko'</span><span class="ln">SHARE=$PWD/mod-r11 env/run.sh          <span class="c"># boot with the module at /share</span></span></div>
-    <p class="prose small muted">If Docker reports that the image <code>kernel-lens-build</code> is missing, run <code>make images</code> in <code>env/</code>. The <code>objcopy</code> step is explained in the Lab05 README.</p>
+    <p class="prose small muted">If Docker reports that the image <code>kernel-lens-build</code> is missing, run <code>make images</code> in <code>env/</code>. The <code>objcopy</code> step is explained in Step 3 of the Lab05 walkthrough.</p>
   </div>
 </section>
 
@@ -164,10 +164,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="prose">
       <ul>
-        <li>Use the README's "Build &amp; load loop": the same commands as today, pointed at <code>char_driver.c</code> and <code>mod/</code>.</li>
+        <li>Use the build and load loop in Step 3 of the Lab05 walkthrough: the same commands as today, pointed at <code>char_driver.c</code> and <code>mod/</code>.</li>
         <li><code>Invalid module format</code> means it was built against a different tree, or the <code>.BTF</code> section was not stripped. Rebuild with the exact command.</li>
         <li><code>Module is in use</code> means something still has your device open.</li>
-        <li>If the VM freezes or prints an Oops, your kernel code touched a bad pointer. Reread the README on <code>copy_to_user</code>.</li>
+        <li>If the VM freezes or prints an Oops, your kernel code touched a bad pointer. Reread Step 5 of the Lab05 walkthrough on <code>copy_to_user</code>.</li>
         <li>The skeleton's contract gives the exact dmesg formats; compare character by character.</li>
         <li><b>PS4</b>: TAs explain rules and definitions; they do not work its problems.</li>
       </ul>

@@ -44,7 +44,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="hero-inner">
     <div class="eyebrow"><span class="chip-t">walkthrough</span> &nbsp;Basecamp 5 · Weeks 12–15 · due Sun Apr 11</div>
     <h1>Both sides of <span class="accent">read()</span></h1>
-    <p class="lede">Part 1 calls the five file verbs from user space; Part 2 implements them inside the kernel, for a device whose "disk" is a 900-byte buffer. The capstone runs one session through your tool against a regular file and against your device, and the two outputs must match. This page says what each function must do, what each verb must return at the edges, and how to test each piece before <code>make check</code>. It never shows code for the lab files. The README and the contract at the top of each file are the specification; L17–L20 and R11 are behind it.</p>
+    <p class="lede">Part 1 calls the five file verbs from user space; Part 2 implements them inside the kernel, for a device whose "disk" is a 900-byte buffer. The capstone runs one session through your tool against a regular file and against your device, and the two outputs must match. This page says what each function must do, what each verb must return at the edges, and how to test each piece before <code>make check</code>. It never shows code for the lab files. This page and the contract at the top of each file are the specification; L17–L20 and R11 are behind it.</p>
     <div class="steps-map">
       <div><b>Step 0–2</b>The loop; filetest.c</div>
       <div><b>Step 3–5</b>Build, load, write the driver</div>
@@ -91,7 +91,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   </div>
   <div class="sec">
     <div class="code"><span class="ln"><span class="c"># laptop, repository root: Part 1</span></span><span class="ln">SHARE=$PWD/labs/05-storage-and-io/submit env/run.sh</span><span class="ln"><span class="c"># VM</span></span><span class="ln">gcc -Wall -Werror -O2 -o /tmp/filetest /share/filetest.c</span></div>
-    <div class="note note-warn"><span class="note-tag">Docker must be running</span><p>Both the manual build (Step 3) and <code>make check</code> build the module in the same Docker container that built your VM. On macOS, <code>colima start</code> first. The first build ever also indexes the kernel's exported symbols, which takes a few minutes once.</p></div>
+    <div class="note note-warn"><span class="note-tag">Docker must be running</span><p>This is the course's only kernel-code lab. Both the manual build (Step 3) and <code>make check</code> build the module in the same Docker container that built your VM, against the pinned kernel tree. A kernel module is built for one exact kernel, and the VM has no kernel tree of its own. On macOS, <code>colima start</code> first. The first build ever also indexes the kernel's exported symbols, which takes a few minutes once.</p></div>
   </div>
 </section>
 
@@ -121,13 +121,15 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
           <tr><td>r &lt;n&gt;</td><td><code>read</code> up to n bytes; print <code>READ &lt;k&gt; &lt;data&gt;</code></td><td>k is what <code>read</code> returned, which can be less than n. The data is not a C string, so print exactly k bytes; the TODO's <code>printf</code> hint shows how.</td></tr>
           <tr><td>w &lt;text&gt;</td><td><code>write</code> the text; print <code>WROTE &lt;k&gt;</code></td><td>No newline is written, only the text.</td></tr>
           <tr><td>s &lt;off&gt; &lt;whence&gt;</td><td><code>lseek</code>; print <code>OFFSET &lt;newoff&gt;</code></td><td>Map <code>set</code>, <code>cur</code>, <code>end</code> to the three <code>SEEK_</code> constants; anything else prints <code>ERR</code>. Print what <code>lseek</code> returns.</td></tr>
+          <tr><td>q, or end of input</td><td><code>close</code>; print nothing; exit 0</td><td>Already written in the skeleton.</td></tr>
         </tbody>
       </table>
     </div>
+    <div class="prose"><p>There is deliberately no "tell" command: <code>s 0 cur</code> is tell. Work out why; understanding it is half the point of <code>lseek</code>.</p></div>
     <div class="prose"><p><b>How to check it yourself.</b> These are the checker's own sessions; each output must match exactly.</p></div>
     <div class="code"><span class="ln">printf 'hello, basecamp!' &gt; /tmp/fx                       <span class="c"># 16 bytes, no newline</span></span><span class="ln">printf 'r 5\nq\n' | /tmp/filetest /tmp/fx                  <span class="c"># READ 5 hello</span></span><span class="ln">rm -f /tmp/f2; printf 'w abcdef\ns 0 set\nr 6\nq\n' | /tmp/filetest /tmp/f2</span><span class="ln">    <span class="c"># WROTE 6 / OFFSET 0 / READ 6 abcdef</span></span><span class="ln">printf 's 7 set\nr 8\ns -8 end\nr 8\ns 0 cur\nq\n' | /tmp/filetest /tmp/fx</span><span class="ln">    <span class="c"># OFFSET 7 / READ 8 basecamp / OFFSET 8 / READ 8 asecamp! / OFFSET 16</span></span></div>
     <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>Garbage after the data in READ</b>: you printed the buffer as a string instead of exactly k bytes. <b><code>READ 0</code> right after a write</b>: the offset is now after what you wrote; the session has to seek back first, and <code>s 0 set</code> has to really move it. <b>Nothing printed at all when piped</b>: output was buffered and lost; the loop's <code>fflush</code> must still run after your print.</p></div>
-    <div class="prose"><p>Then run the same tool on <code>/proc/version</code> and <code>/dev/null</code>, as the README suggests, and note what <code>r</code>, <code>w</code> and <code>s 0 end</code> do on each. Same code, three different things behind the file descriptor.</p></div>
+    <div class="prose"><p>Then run the same tool on a scratch file, then on <code>/proc/version</code>, then on <code>/dev/null</code>, and note what <code>r</code>, <code>w</code>, and <code>s 0 end</code> do on each. Same tool, three very different things pretending to be files.</p></div>
   </div>
 </section>
 
@@ -138,14 +140,15 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     <p class="ch-lede">Get this loop working with the <em>unfilled</em> skeleton first. Then every later change is edit, rebuild, reload.</p>
   </div>
   <div class="sec">
-    <div class="prose"><p>Copy the README's "Build &amp; load loop" exactly. On the laptop, it stages your file in <code>mod/</code> at the repository root and builds <code>mod/char_driver.ko</code>. In the VM (booted with <code>SHARE=$PWD/mod</code>), it loads the module, creates the device node and pokes it. R11 walked through the same commands.</p></div>
+    <div class="prose"><p><code>make check LAB=05-storage-and-io</code> builds the .ko automatically: a host-side step runs before the VM boots. For iterating by hand, copy the loop below exactly. On the laptop, it stages your file in <code>mod/</code> at the repository root and builds <code>mod/char_driver.ko</code>. In the VM (booted with <code>SHARE=$PWD/mod</code>), it loads the module, creates the device node, and pokes it. R11 walked through the same commands.</p></div>
+    <div class="code"><span class="ln"><span class="c"># build (host, repo root; result lands in mod/)</span></span><span class="ln">mkdir -p mod &amp;&amp; cp labs/05-storage-and-io/submit/char_driver.c mod/ \</span><span class="ln">  &amp;&amp; printf 'obj-m := char_driver.o\n' &gt; mod/Makefile</span><span class="ln">docker run --rm --platform linux/amd64 \</span><span class="ln">  -v kernel-lens-cache:/work/cache -v "$PWD/mod:/mod" kernel-lens-build \</span><span class="ln">  sh -c 'make -C /work/cache/linux-6.6.87 M=/mod modules \</span><span class="ln">         &amp;&amp; objcopy --remove-section .BTF /mod/char_driver.ko'</span><span class="ln"><span class="c"># (the objcopy matters: module BTF is validated against the *running*</span></span><span class="ln"><span class="c"># kernel and drifts with the build tree — this course doesn't need it)</span></span><span class="ln"> </span><span class="ln"><span class="c"># load &amp; poke (inside the VM: SHARE=$PWD/mod env/run.sh)</span></span><span class="ln">insmod /share/char_driver.ko</span><span class="ln">grep simple_char_driver /proc/devices        <span class="c"># registered at 511?</span></span><span class="ln">mknod /dev/simple_char_driver c 511 0</span><span class="ln">printf 'hi' &gt; /dev/simple_char_driver</span><span class="ln">dd if=/dev/simple_char_driver bs=1 count=2   <span class="c"># hi</span></span><span class="ln">dmesg | tail                                 <span class="c"># your printks</span></span><span class="ln">rmmod char_driver</span></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>command (VM)</th><th>what it proves</th></tr></thead>
         <tbody>
           <tr><td>insmod /share/char_driver.ko</td><td>The module loaded, and your init ran.</td></tr>
           <tr><td>grep simple_char_driver /proc/devices</td><td>Registration worked: the line must read <code>511 simple_char_driver</code>. With the unfilled skeleton, nothing is registered yet.</td></tr>
-          <tr><td>mknod /dev/simple_char_driver c 511 0</td><td>A name for (major 511, minor 0). Once per boot; "File exists" afterwards is harmless.</td></tr>
+          <tr><td>mknod /dev/simple_char_driver c 511 0</td><td>A name for (major 511, minor 0). Note that the <code>/dev</code> entry is only a name binding a (major, minor) pair: you are creating the file that is not a file. Once per boot; "File exists" afterwards is harmless.</td></tr>
           <tr><td>dmesg | tail</td><td>Your <code>printk</code> lines.</td></tr>
           <tr><td>rmmod char_driver</td><td>Your exit ran; the line in <code>/proc/devices</code> is gone.</td></tr>
         </tbody>
@@ -162,6 +165,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     <p class="ch-lede">Goal: the module registers major 511 under the exact name, owns a zeroed 900-byte buffer while loaded, and logs every open and close in the exact format.</p>
   </div>
   <div class="sec">
+    <div class="prose"><p>The contract at the top of <code>char_driver.c</code> gives major 511, the name <code>simple_char_driver</code>, the exact <code>printk</code> formats, and the lseek semantics. The checks match it literally, including the dmesg lines. <code>struct file_operations</code> is the dispatch table. Registering it against major 511 is what makes <code>read(fd, ...)</code> on your device node arrive at <em>your</em> <code>scd_read</code>; this is the fork in the road that report question 4 asks you to find.</p></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>function</th><th>what it must do</th><th>read first</th></tr></thead>
@@ -173,7 +177,8 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
         </tbody>
       </table>
     </div>
-    <div class="prose"><p><b>How to check it yourself</b>: reload, then <code>cat /dev/simple_char_driver</code> once. It prints nothing yet, because read is still a TODO. <code>dmesg | tail -2</code> must show exactly one "opened" line and one "closed" line in the contract's format. Run it again and watch the number.</p></div>
+    <div class="prose"><p><b>How to check it yourself</b>: reload, then <code>cat /dev/simple_char_driver</code> once. It prints nothing yet, because read is still a TODO. <code>dmesg | tail -2</code> must show exactly one "opened" line and one "closed" line in the contract's format. Run it again and watch the number. For example, the lines for a third open and close read:</p></div>
+    <div class="code"><span class="ln">simple_char_driver: opened 3 times</span><span class="ln">simple_char_driver: closed 3 times</span></div>
     <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>The build fails on unused variables</b>: kernel builds treat warnings as errors; the placeholder casts or an unused local are the usual cause. <b><code>/proc/devices</code> shows 511 with a different name</b>: the name you registered is not <code>DEVICE_NAME</code>. <b>The line is still there after rmmod</b>: exit does not unregister, and the next insmod will fail.</p></div>
   </div>
 </section>
@@ -186,6 +191,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   </div>
   <div class="sec">
     <div class="prose">
+      <p>Read and write move bytes with <code>copy_to_user</code> and <code>copy_from_user</code>. The user's buffer pointer lives in another address space; Lab04 made you watch those pages materialize. Therefore, the kernel must not dereference user pointers directly. These helpers check and copy across the boundary.</p>
       <p>Answer these for <code>read</code> before writing it. <code>write</code> has the same questions.</p>
       <ol>
         <li>The caller asked for <code>len</code> bytes at <code>*offset</code>. How many bytes are actually left between <code>*offset</code> and <code>BUFFER_SIZE</code>? How many will you copy?</li>
@@ -226,6 +232,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       <table class="t">
         <thead><tr><th>check</th><th>what it tests</th><th>go back to</th></tr></thead>
         <tbody>
+          <tr><td>missing-filetest.c, missing-char_driver.c</td><td>the file is not in <code>submit/</code>; no further checks run</td><td>Step 8</td></tr>
           <tr><td>report-present</td><td><code>report.md</code> is not empty</td><td>Step 8</td></tr>
           <tr><td>filetest-compiles</td><td><code>-Wall -Werror -O2</code></td><td>Step 1</td></tr>
           <tr><td>ft-read, ft-roundtrip, ft-seek</td><td>the three sessions in Step 2, exactly</td><td>Step 2</td></tr>
@@ -249,7 +256,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   </div>
   <div class="sec">
     <div class="prose">
-      <p>Four questions in <code>submit/report.md</code>. How to investigate, not the answers:</p>
+      <p>You submit three files in <code>submit/</code>: <code>filetest.c</code> (Part 1), <code>char_driver.c</code> (Part 2), and <code>report.md</code>. The report has four questions: who owns the offset, why <code>copy_to_user</code> exists, your buffer's afterlife across rmmod, and where the ext4 path and your driver's path diverge in the kernel. Their full wording is in <code>submit/report.md</code>. How to investigate, not the answers:</p>
       <ol>
         <li><b>Who owns the offset?</b> The question describes the experiment. Run it, record each command and output, and then run a variant: one process whose two file descriptors come from a single open (look up <code>dup</code>), against two independent opens. Then name the level where the offset lives, using your driver's code as evidence: which argument of <code>scd_read</code> carries it?</li>
         <li><b>Why copy_to_user.</b> Recall from Lab04 whose address space a user pointer belongs to, and whether the page behind it is even present. For the garbage-pointer half, predict what your driver returns for one, and what the process then sees. The <code>errno</code> list in <code>man 2 read</code> helps.</li>
@@ -271,7 +278,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 </div>
 
 <footer class="footer">
-  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab05 walkthrough. The lab README is the specification; if they ever disagree, the README wins.
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab05 walkthrough. This page and the contract at the top of each file in <code>submit/</code> are the specification.
 </footer>
 
 <script src="../assets/academy.js"></script>

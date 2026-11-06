@@ -44,7 +44,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="hero-inner">
     <div class="eyebrow"><span class="chip-t">walkthrough</span> &nbsp;Basecamp 1 · Weeks 3–5 · due Sun Jan 31</div>
     <h1>Birth, family, death, and <span class="accent">afterlife</span></h1>
-    <p class="lede">Three small programs, one process life cycle. For each one, this page says exactly what the program must do and print, which manual pages hold the pieces, and how to check each behavior yourself before <code>make check</code> does. It never shows code for the lab files. Keep <code>labs/01-processes/README.md</code> and the header comment of each file open beside it: those are the specification.</p>
+    <p class="lede">Three small programs, one process life cycle. For each one, this page says exactly what the program must do and print, which manual pages hold the pieces, and how to check each behavior yourself before <code>make check</code> does. It never shows code for the lab files. This page and the header comment of each file in <code>labs/01-processes/submit/</code> are the specification. Keep the file headers open beside this page.</p>
     <div class="steps-map">
       <div><b>Step 0–1</b>The loop; read a status file by hand</div>
       <div><b>Step 2</b>ptree.sh (shell)</div>
@@ -88,10 +88,31 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     <p class="ch-lede">Same loop as Lab00, now with a compiler in it. Edit on the laptop; compile and run in the VM.</p>
   </div>
   <div class="sec">
+    <div class="prose">
+      <p>In Basecamp 0 you learned to see the system. In this lab you follow one process through its whole life: birth (<code>fork</code>, <code>exec</code>), family (<code>PPid</code>, the tree), states (R, S, Z), and death and afterlife (exit status, zombies, orphans, reaping). Several Lab00 observations return here:</p>
+      <ul>
+        <li>"Every process is a directory under <code>/proc</code>" becomes the family tree.</li>
+        <li><code>PID1_COMM</code> becomes the adoptive parent of orphans.</li>
+        <li><code>/proc/self</code> becomes "who is asking" when your script walks its own ancestry.</li>
+      </ul>
+      <p>This is the first lab with C. The VM has <code>gcc</code>, and you compile and run inside the guest. Therefore, there is nothing to install on your laptop. You edit four files in <code>labs/01-processes/submit/</code>:</p>
+    </div>
+    <div class="table-wrap">
+      <table class="t">
+        <thead><tr><th>file</th><th>what it is</th><th>step</th></tr></thead>
+        <tbody>
+          <tr><td>ptree.sh</td><td>Part 1, the family tree (shell)</td><td>Step 2</td></tr>
+          <tr><td>spawn.c</td><td>Part 2, birth: <code>fork</code> and <code>exec</code> (C)</td><td>Step 3</td></tr>
+          <tr><td>undead.c</td><td>Part 3, death and afterlife (C)</td><td>Steps 4–5</td></tr>
+          <tr><td>report.md</td><td>three questions about what your code made observable</td><td>Step 7</td></tr>
+        </tbody>
+      </table>
+    </div>
     <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">SHARE=$PWD/labs/01-processes/submit env/run.sh</span><span class="ln"><span class="c"># VM</span></span><span class="ln">cd /share</span><span class="ln">gcc -Wall -Werror -O2 -o /tmp/spawn spawn.c     <span class="c"># the exact flags make check uses</span></span><span class="ln">gcc -Wall -Werror -O2 -o /tmp/undead undead.c</span><span class="ln">bash ptree.sh $$</span></div>
     <div class="prose">
       <ul>
         <li>Put binaries in <code>/tmp</code>, not in <code>/share</code>. They are build products, not something to commit.</li>
+        <li>Warnings are errors, here and in grading: the checks compile your C with <code>-Wall -Werror</code>.</li>
         <li>Compile with <code>-O2</code> as well as <code>-Wall -Werror</code>. Some warnings (an uninitialized variable, for example) appear only when optimizing, and the checker optimizes.</li>
         <li>Before you have written anything, both C programs compile and print nothing, and <code>ptree.sh</code> prints nothing. That is the starting point, not a bug.</li>
       </ul>
@@ -138,6 +159,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
         <li>decide: if the current PID is 1, stop; otherwise the parent becomes the current PID.</li>
       </ol>
       <p>Get one pass right first: make the script print only the first line, run it on <code>$$</code>, and compare with your notes from Step 1. Then add the loop.</p>
+      <p>The rule: read only <code>/proc/&lt;pid&gt;/status</code>. Do not call <code>ps</code> or <code>pstree</code>.</p>
     </div>
     <div class="prose"><p><b>How to check it yourself</b></p></div>
     <div class="table-wrap">
@@ -148,7 +170,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
           <tr><td>the last line</td><td>It is PID 1's line, its PPID is <code>0</code>, and nothing is printed after it.</td></tr>
           <tr><td>every line</td><td>Exactly four fields, and the 4th field of each line equals the 1st field of the next.</td></tr>
           <tr><td>sleep 60 &amp;<br>bash ptree.sh $!</td><td>The first line is the sleep, in state <code>S</code>, with your shell as its parent. <code>make check</code> runs exactly this test.</td></tr>
-          <tr><td>the README's nested bash -c</td><td>Run it, find the innermost sleep's PID, and walk its chain. Which ancestors did you not expect?</td></tr>
+          <tr><td>bash -c 'bash -c "sleep 60; :"; :' &amp;</td><td>Find the innermost sleep's PID and walk its chain. Which ancestors did you not expect to find?</td></tr>
         </tbody>
       </table>
     </div>
@@ -163,7 +185,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     <p class="ch-lede">Goal: <code>spawn &lt;program&gt; [args…]</code> runs the program in a child, then prints exactly <code>CHILD &lt;pid&gt; EXITED &lt;status&gt;</code>.</p>
   </div>
   <div class="sec">
-    <div class="prose"><p>The file has three TODOs, one per system call. What each must do, and what to read first:</p></div>
+    <div class="prose"><p><code>fork</code> copies a process; <code>exec</code> replaces one. They are two separate ideas, and a shell is just a loop around both.</p><p>The file has three TODOs, one per system call. What each must do, and what to read first:</p></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>TODO</th><th>what it must do</th><th>read first</th></tr></thead>
@@ -176,6 +198,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     </div>
     <div class="prose"><p><b>How to check it yourself.</b> These four runs are the contract, and they are exactly what <code>make check</code> runs:</p></div>
     <div class="code"><span class="ln">/tmp/spawn /bin/true              <span class="c"># CHILD &lt;pid&gt; EXITED 0</span></span><span class="ln">/tmp/spawn /bin/false             <span class="c"># CHILD &lt;pid&gt; EXITED 1</span></span><span class="ln">/tmp/spawn /bin/echo hello        <span class="c"># hello, and only then the CHILD line</span></span><span class="ln">/tmp/spawn /no/such/program       <span class="c"># CHILD &lt;pid&gt; EXITED 127</span></span><span class="ln">/nonexistent; echo $?             <span class="c"># the shell's own convention, for comparison</span></span></div>
+    <div class="prose"><p>Note that the child's own output, if any, must appear <em>before</em> the <code>EXITED</code> line. Why is that guaranteed, given that the parent waits?</p></div>
     <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>Status 256 instead of 1</b>: you printed the raw status word without decoding it. <b>Two CHILD lines for a missing program</b>: after exec failed, the child kept going and ran the parent's code too. <b>Some status other than 127 for a missing program</b>: the failure path is not exiting with 127. <b><code>hello</code> is missing</b>: look again at what you passed as the argument vector.</p></div>
     <details class="fold"><summary>Why does the TODO say <code>_exit</code>, not <code>exit</code>?</summary><div class="prose"><p>Think about what <code>fork</code> copies, including any unwritten output sitting in the parent's stdio buffer. Then read what <code>exit(3)</code> does that <code>_exit(2)</code> does not. It is the same buffering problem you will meet in Step 4.</p></div></details>
   </div>
@@ -198,6 +221,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
         </tbody>
       </table>
     </div>
+    <div class="note note-warn"><span class="note-tag">Buffering</span><p>stdio buffers output. When stdout is a file, as it is under the checker, a <code>printf</code> without <code>fflush(stdout)</code> may not reach the file until the process exits. That is 10 seconds too late for anyone observing. Therefore, flush before you sleep, in both acts. This bites real systems programmers weekly; it is better that it bites you here first.</p></div>
     <div class="prose"><p><b>How to check it yourself.</b> Send stdout to a file: that is what the checker does, and it is the case where a missing flush shows up.</p></div>
     <div class="code"><span class="ln">/tmp/undead zombie &gt; /tmp/z.out &amp;</span><span class="ln">cat /tmp/z.out                          <span class="c"># right away: the CHILD line must already be there</span></span><span class="ln">cat /proc/&lt;that pid&gt;/stat               <span class="c"># during the 10 s, the third field is Z</span></span><span class="ln">ps -o pid,ppid,stat,comm -p &lt;that pid&gt;  <span class="c"># ps is fine here, in the terminal</span></span><span class="ln">sleep 10; cat /tmp/z.out                <span class="c"># now also REAPED &lt;pid&gt; STATUS 42</span></span><span class="ln">ls /proc/&lt;that pid&gt;                     <span class="c"># after reaping: No such file or directory</span></span></div>
     <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b><code>/tmp/z.out</code> stays empty for 10 seconds, then everything appears at once</b>: the output sat in the stdio buffer; the flush must come before the sleep. <b>The state is never Z</b>: either the parent waits before it sleeps, or the child does not exit at once. <b><code>STATUS 10752</code></b>: the raw status word again, as in Step 3.</p></div>
@@ -283,7 +307,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 </div>
 
 <footer class="footer">
-  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab01 walkthrough. The lab README is the specification; if they ever disagree, the README wins.
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab01 walkthrough. This page and the header comments of the files in <code>labs/01-processes/submit/</code> are the specification.
 </footer>
 
 <script src="../assets/academy.js"></script>

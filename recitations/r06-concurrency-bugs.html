@@ -136,7 +136,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <p class="ch-lede">Lab02 is due Sunday, Feb 14. Lab03 is open until Feb 28.</p>
   </div>
   <div class="sec">
-    <div class="prose"><p>Use ThreadSanitizer on Lab03 Part 2 with the lab's own test harness (the README says <code>check/array-test.c</code> is not secret). Share the whole lab directory so <code>check/</code> is visible:</p></div>
+    <div class="prose"><p>Use ThreadSanitizer on Lab03 Part 2 with the lab's own test harness (Step 5 of the Lab03 walkthrough says <code>check/array-test.c</code> is not secret). Share the whole lab directory so <code>check/</code> is visible:</p></div>
     <div class="code"><span class="ln">SHARE=$PWD/labs/03-concurrency env/run.sh</span><span class="ln"><span class="c"># in the VM</span></span><span class="ln">cd /share/submit</span><span class="ln">gcc -g -O1 -fsanitize=thread -pthread -I. -o /tmp/at ../check/array-test.c array.c</span><span class="ln">/tmp/at stress          <span class="c"># prefix with setarch -R if TSan aborts</span></span></div>
     <div class="prose">
       <ul>

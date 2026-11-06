@@ -44,7 +44,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="hero-inner">
     <div class="eyebrow"><span class="chip-t">walkthrough</span> &nbsp;Basecamp 2 · Weeks 4–7 · due Sun Feb 14</div>
     <h1>Make load, then <span class="accent">measure</span> the scheduler</h1>
-    <p class="lede">This lab is an experiment more than a program: a spinner that burns CPU, an instrument (<code>fairshare.sh</code>) that measures how the scheduler divides one CPU between two spinners, and a real-time spinner that breaks the rules. This page says what each piece must do and print, and how to tell whether your measurement can be trusted. It never shows code for the lab files. The README and the file headers are the specification.</p>
+    <p class="lede">This lab is an experiment more than a program: a spinner that burns CPU, an instrument (<code>fairshare.sh</code>) that measures how the scheduler divides one CPU between two spinners, and a real-time spinner that breaks the rules. This page says what each piece must do and print, and how to tell whether your measurement can be trusted. It never shows code for the lab files. This page and the file headers in <code>labs/02-scheduling/submit/</code> are the specification.</p>
     <div class="steps-map">
       <div><b>Step 0–2</b>The loop; spin.c; watch preemption</div>
       <div><b>Step 3–4</b>Build and trust fairshare.sh</div>
@@ -92,8 +92,11 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       <ul>
         <li>The VM has 2 CPUs. Every experiment in this lab pins its spinners to <strong>CPU 0</strong> with <code>taskset -c 0</code>, which leaves CPU 1 free for your shell. That is why the VM stays usable while two spinners fight.</li>
         <li>Spinners never stop on their own. Before every new experiment, make sure none is left over from the last one (<code>jobs</code>, or <code>ps -C spin</code> in the terminal), because a leftover spinner on CPU 0 silently changes every number you measure.</li>
+        <li>This is the live-VM flow from Lab00 and Lab01: start the VM with <code>SHARE</code> pointing at your <code>submit</code> directory, then work in <code>/share</code>.</li>
+        <li>You submit three files from <code>labs/02-scheduling/submit/</code>: <code>spin.c</code> (Step 1), <code>fairshare.sh</code> (Step 3), and <code>report.md</code> (Step 7).</li>
       </ul>
     </div>
+    <div class="note note-key"><span class="note-tag">CFS and EEVDF</span><p>Lecture teaches CFS. However, your 6.6 kernel runs CFS's successor, <strong>EEVDF</strong>, inside the same fair scheduling class. Everything you measure in this lab (the nice weight table, vruntime accounting, and CPU shares) is identical under both. What EEVDF changed is how the next task is picked. Report question 2 asks you to make exactly this distinction, with your own data.</p></div>
   </div>
 </section>
 
@@ -117,9 +120,10 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 2</div>
     <h2>Two spinners, one CPU: watch preemption</h2>
-    <p class="ch-lede">No code in this step. Run the README's Part 1 commands and write down what you see: you will need it for the report.</p>
+    <p class="ch-lede">No code in this step. Run two spinners pinned to the same CPU, observe them from the outside with Lab01 skills, and write down what you see: you will need it for the report.</p>
   </div>
   <div class="sec">
+    <div class="code"><span class="ln"><span class="c"># VM, after compiling /tmp/spin in Step 0</span></span><span class="ln">taskset -c 0 /tmp/spin &amp;</span><span class="ln">taskset -c 0 /tmp/spin &amp;</span><span class="ln">cat /proc/&lt;pid&gt;/stat                    <span class="c"># field 3: the state</span></span><span class="ln">grep nr_involuntary /proc/&lt;pid&gt;/sched   <span class="c"># times forced off the CPU</span></span><span class="ln">grep se.load.weight /proc/&lt;pid&gt;/sched   <span class="c"># the weight behind "fairness"</span></span><span class="ln">kill %1 %2</span></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>look at</th><th>what to record</th></tr></thead>
@@ -131,7 +135,9 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
         </tbody>
       </table>
     </div>
-    <div class="prose"><p>Then kill both (<code>kill %1 %2</code>). <code>make check</code> repeats this experiment and requires at least 5 involuntary switches in 5 seconds.</p></div>
+    <div class="prose"><p>Record all four before the final <code>kill %1 %2</code>. Two processes share one CPU and neither starves: you are watching timeslicing. <code>make check</code> repeats this experiment and requires at least 5 involuntary switches in 5 seconds.</p></div>
+    <div class="prose"><p><b>Look deeper (ungraded).</b> The kernel can narrate every context switch it makes. The commands below let you watch your two spinners take turns, timestamped at microsecond resolution. Every line that <code>trace-cmd report</code> prints is one decision by the scheduler you measure in this lab. <code>/sys/kernel/tracing/</code> is the raw interface underneath; the graduate course, KernelLens, works at that level.</p></div>
+    <div class="code"><span class="ln">taskset -c 0 /tmp/spin &amp;  taskset -c 0 /tmp/spin &amp;</span><span class="ln">trace-cmd record -e sched_switch -- sleep 2</span><span class="ln">trace-cmd report | grep spin | head -20</span><span class="ln">kill %1 %2</span></div>
   </div>
 </section>
 
@@ -169,12 +175,13 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     <p class="ch-lede">An instrument is only useful once you have checked it against a case whose answer you know.</p>
   </div>
   <div class="sec">
+    <div class="prose"><p><code>nice</code> is not a polite suggestion. It indexes a weight table, and the scheduler divides the CPU in proportion to weight. The weight for nice 0 is 1024; for nice 10 it is 110. Each nice level is a factor of about 1.25: geometric, not linear. Therefore, before you trust your number, predict it.</p></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>run</th><th>prediction</th><th>make check accepts</th></tr></thead>
         <tbody>
-          <tr><td>bash fairshare.sh 0 0 10</td><td>Equal weights, so work out what the ratio must be.</td><td>0.60 – 1.60</td></tr>
-          <tr><td>bash fairshare.sh 0 10 15</td><td>The ratio of the two weights; the README gives both.</td><td>6.0 – 13.0</td></tr>
+          <tr><td>bash fairshare.sh 0 0 10</td><td>Equal weights: RATIO near 1.</td><td>0.60 – 1.60</td></tr>
+          <tr><td>bash fairshare.sh 0 10 15</td><td>The ratio of the two weights: 1024/110 ≈ 9.3.</td><td>6.0 – 13.0</td></tr>
           <tr><td>a pair of your choice</td><td>Predict it from "each nice level is a factor of about 1.25" <em>before</em> you run it.</td><td>not checked; good for the report</td></tr>
         </tbody>
       </table>
@@ -190,11 +197,13 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     <p class="ch-lede">Goal: measure the share a normal spinner gets next to a <code>SCHED_FIFO</code> spinner, then find the setting that explains it. No code to submit here.</p>
   </div>
   <div class="sec">
+    <div class="prose"><p>Weights share; <strong>policies rank</strong>. A <code>SCHED_FIFO</code> task outranks every fair-class task, categorically. These are the two spinners for this step:</p></div>
+    <div class="code"><span class="ln">taskset -c 0 /tmp/spin &amp;                 <span class="c"># a normal citizen</span></span><span class="ln">taskset -c 0 chrt -f 50 /tmp/spin &amp;      <span class="c"># a real-time task, priority 50</span></span></div>
     <ol class="prose">
       <li><b>Predict first</b>, from lecture: a real-time task outranks every fair-class task. What share should the normal one get?</li>
-      <li><b>Measure by hand.</b> Start the README's two spinners, then use the fairshare method manually: two samples of each utime, some seconds apart. Compute the normal spinner's share, its growth divided by the total.</li>
+      <li><b>Measure by hand.</b> Start the two spinners above, then use the fairshare method manually: two samples of each utime, some seconds apart. Compute the normal spinner's share, its growth divided by the total. The answer is not 0%: the normal spinner clings to a small, suspiciously round share.</li>
       <li><b>Find the setting.</b> It lives in <code>/proc/sys/kernel/</code>. List that directory and look at the names about real-time scheduling. <code>man 7 sched</code> has a section on limiting the CPU usage of real-time processes; read it and match its numbers with your measured share.</li>
-      <li><b>Clean up</b> both spinners at once.</li>
+      <li><b>Clean up</b> both spinners at once. A stray FIFO-50 spinner makes the VM miserable.</li>
     </ol>
     <div class="note"><span class="note-tag">What make check expects</span><p>The checker repeats this itself (your code is not involved) and expects the normal spinner's share between 2% and 10%. Your hand measurement should land in the same range. If the console becomes sluggish, remember the FIFO spinner is pinned to CPU 0 and your shell can still run on CPU 1: <code>kill %2</code> works.</p></div>
   </div>
@@ -211,6 +220,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       <table class="t">
         <thead><tr><th>check</th><th>what it tests</th><th>go back to</th></tr></thead>
         <tbody>
+          <tr><td>missing-spin.c, missing-fairshare.sh</td><td>the file exists in <code>submit/</code>; if one is missing, the checker stops there</td><td>Step 0</td></tr>
           <tr><td>report-present</td><td><code>report.md</code> is not empty</td><td>Step 7</td></tr>
           <tr><td>no-top, no-ps, uses-proc</td><td>with comments removed, fairshare.sh contains neither word and reads <code>/proc</code></td><td>Step 3</td></tr>
           <tr><td>spin-compiles</td><td><code>gcc -Wall -Werror -O2</code> succeeds</td><td>Step 1</td></tr>
@@ -222,7 +232,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
         </tbody>
       </table>
     </div>
-    <div class="prose"><p>The checks take about a minute, most of it inside your fairshare windows. If <code>fair-format</code> fails, every other fairshare check is meaningless: fix the format first.</p></div>
+    <div class="prose"><p>The bands are wide on purpose; a correct implementation passes with margin. The checks take about a minute, most of it inside your fairshare windows. If <code>fair-format</code> fails, every other fairshare check is meaningless: fix the format first.</p></div>
   </div>
 </section>
 
@@ -235,8 +245,8 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     <div class="prose">
       <p>The three questions in <code>submit/report.md</code> ask you to argue from your own numbers. How to investigate, not the answers:</p>
       <ol>
-        <li><b>The geometry of nice.</b> Quote your measured ratio and how far it is from 9.3. For the "why geometric" part, take the README's hint literally: with 100 runnable tasks, compute what share one task gains or loses from one nice step under a table that <em>adds</em> a fixed amount per level, and under one that <em>multiplies</em>. Which keeps its meaning?</li>
-        <li><b>CFS vs EEVDF.</b> Use the <code>se.load.weight</code> and <code>se.vruntime</code> values you recorded in Step 2. Lecture tells you what CFS does with them. Then ask: your ratio measures how much CPU each task gets over 15 seconds, not which task runs next. Which of those two did EEVDF change?</li>
+        <li><b>The geometry of nice.</b> Quote your measured ratio and how far it is from 9.3. For the "why geometric" part, take the hint in <code>report.md</code> literally: with 100 runnable tasks already on the system, compute what share one task gains or loses from one nice step under a table that <em>adds</em> a fixed amount per level, and under one that <em>multiplies</em>. Which keeps its meaning?</li>
+        <li><b>CFS vs EEVDF.</b> Use the <code>se.load.weight</code> and <code>se.vruntime</code> values you recorded in Step 2. Lecture tells you what CFS does with them. Then connect them to the CFS and EEVDF note in Step 0: your ratio measures how much CPU each task gets over 15 seconds, not which task runs next. Explain, from your data, why that makes your ratio the same under both.</li>
         <li><b>The safety valve.</b> Name the setting from Step 5, quote its value (and the value it is measured against), and show that it matches your measured share. For the "why", imagine the FIFO spinner with no limit on a machine with one CPU: what could no longer run, including anything you would use to stop it?</li>
       </ol>
     </div>
@@ -254,7 +264,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 </div>
 
 <footer class="footer">
-  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab02 walkthrough. The lab README is the specification; if they ever disagree, the README wins.
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab02 walkthrough. This page and the file headers in <code>labs/02-scheduling/submit/</code> are the specification of the lab.
 </footer>
 
 <script src="../assets/academy.js"></script>
