@@ -23,6 +23,49 @@
     });
   }
 
+  /* ---------- lecture cross-references ----------
+     .ref[data-sec][data-title][data-href] > .ref-body → a card under the word. */
+  let pop = null, popFor = null;
+  function closeRef() { if (pop) { pop.remove(); pop = null; popFor = null; } }
+  function openRef(el) {
+    if (popFor === el) { closeRef(); return; }
+    closeRef();
+    const body = el.querySelector('.ref-body');
+    const sec = el.dataset.sec || '';
+    const href = el.dataset.href || '';
+    pop = doc.createElement('div');
+    pop.className = 'refpop';
+    pop.setAttribute('role', 'dialog');
+    pop.innerHTML =
+      '<div class="rp-head"><span class="rp-sec">' + sec + '</span><span class="rp-title">' + (el.dataset.title || '') +
+      '</span><button type="button" class="rp-x" aria-label="Close">×</button></div>' +
+      '<div class="rp-body">' + (body ? body.innerHTML : '') + '</div>' +
+      (href ? '<div class="rp-foot"><a href="' + href + '">Read ' + sec + ' →</a></div>' : '');
+    doc.body.appendChild(pop);
+    pop.style.maxWidth = Math.min(390, root.innerWidth - 24) + 'px';
+    const r = el.getBoundingClientRect();
+    const pw = pop.offsetWidth, ph = pop.offsetHeight;
+    const x = Math.max(12, Math.min(r.left + r.width / 2 - pw / 2, root.innerWidth - pw - 12));
+    let y = r.bottom + 8;
+    if (y + ph > root.innerHeight - 12 && r.top - ph - 8 > 12) y = r.top - ph - 8;
+    pop.style.left = x + 'px';
+    pop.style.top = y + 'px';
+    pop.querySelector('.rp-x').addEventListener('click', closeRef);
+    popFor = el;
+  }
+  function initRefs() {
+    doc.querySelectorAll('.ref').forEach((el) => {
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('role', 'button');
+      el.title = 'Click to recall this from the lecture';
+      el.addEventListener('click', (e) => { e.stopPropagation(); openRef(el); });
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); openRef(el); } });
+    });
+    doc.addEventListener('click', (e) => { if (pop && !pop.contains(e.target)) closeRef(); });
+    root.addEventListener('scroll', closeRef, { passive: true });
+    root.addEventListener('resize', closeRef);
+  }
+
   /* ---------- quizzes ----------
      <div class="quiz" data-quiz> … .q-opt[data-ok] … .q-fb.ok / .q-fb.no
      A wrong option may carry its own hint in data-why. */
@@ -151,7 +194,7 @@
     return t && (t.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName));
   }
   function onKey(e) {
-    if (e.key === 'Escape') doc.querySelectorAll('.term.tip-open').forEach((o) => o.classList.remove('tip-open'));
+    if (e.key === 'Escape') { closeRef(); doc.querySelectorAll('.term.tip-open').forEach((o) => o.classList.remove('tip-open')); }
     if (e.metaKey || e.ctrlKey || e.altKey || typing(e)) return;
     const k = e.key;
     if (k === 'p' || k === 'P') { e.preventDefault(); setPresent(!html.classList.contains('present')); return; }
@@ -173,6 +216,7 @@
     slides = [...doc.querySelectorAll('main > .sec, main .chapter > .ch-head, main .chapter > .sec')];
     slides.forEach((s) => applyStep(s, readStep(s)));
     initTerms();
+    initRefs();
     initQuizzes();
     initNav();
 

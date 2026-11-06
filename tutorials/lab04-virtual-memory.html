@@ -266,12 +266,13 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   </div>
   <div class="sec">
     <div class="prose">
-      <p>Four questions in <code>submit/report.md</code>; the file holds their exact wording, and your answer replaces each <em>(your answer)</em> placeholder. How to investigate, not the answers:</p>
+      <p>Five questions in <code>submit/report.md</code>; the file holds their exact wording, and your answer replaces each <em>(your answer)</em> placeholder. How to investigate, not the answers:</p>
       <ol>
         <li><b>The lie of malloc.</b> Paste your Step 1 and Step 2 numbers. For "what did each fault do", compare RSS just before and just after the loop, and think about the read-vs-write experiment. For "major", ask where the data of a page would have to come from for a fault to need the disk.</li>
         <li><b>The 75×.</b> Put your three seeds next to pager-basic's. Explain the gap from what pager-basic refuses to do (Step 3), then describe your victim choice and your local or global decision, with the evidence from Step 5.</li>
         <li><b>Is 100:1 honest?</b> Compute the real ratio from the question's two numbers yourself, and compare it with 100. Then convert: how many instructions could the CPU have run during one fault?</li>
         <li><b>Where LRU is exactly wrong.</b> Pick a loop from the five program shapes, or make one up. Give LRU fewer frames than the loop has pages, and simulate by hand, tick by tick, which page LRU evicts and which page the loop needs next.</li>
+        <li><b>MemFree or MemAvailable?</b> In the VM, read both lines of <code>/proc/meminfo</code>. Then read a lot of file data, for example with <code>find /usr -type f -exec cat {} + &gt; /dev/null</code>, and read both lines again. Which one dropped, and which one barely moved? The kernel's documentation for <code>/proc</code>, at <a href="https://docs.kernel.org/filesystems/proc.html">docs.kernel.org/filesystems/proc.html</a>, explains each line. <a href="../lectures/15-virtual-memory.html#s3-1">L15 §3.1</a> says which victim frames cost no disk write.</li>
       </ol>
     </div>
     <div class="code"><span class="ln">cd labs/04-virtual-memory/submit</span><span class="ln">git add touch.c pager-lru.c report.md</span><span class="ln">git commit -m "Lab04"</span><span class="ln">git push</span></div>

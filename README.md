@@ -74,6 +74,11 @@ decks/                     lecture slides (PowerPoint); gitignored, local only, 
 - Widgets: `.widget > .widget-head(.chip, .w-title, .w-reset) > .controls >
   .widget-body > .readout`.
 - Glossary: `<span class="term">word<span class="tip">definition</span></span>`.
+- Lecture reference: `<span class="ref" data-sec="L03 §4.3" data-title="Context switch"
+  data-href="../lectures/03-process.html#s4-3">word<span class="ref-body">One or two
+  sentences</span></span>`. The word gets a dashed underline; a click opens a card with
+  the explanation and a link to that lecture section. Use it in a walkthrough where a
+  concept is first needed, and explain only as much as the lab needs.
 - Checkpoint: `.quiz[data-quiz]` with `.q-opt` buttons. Mark the right one
   `data-ok`, and give each wrong one a `data-why` hint.
 - Widgets that step with the arrow keys call

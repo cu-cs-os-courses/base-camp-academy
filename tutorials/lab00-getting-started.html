@@ -30,6 +30,12 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 </head>
 <body>
 
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+  </defs>
+</svg>
+
 <header class="topbar">
   <a class="brand" href="#top">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M2 18L8 8l4 6 3-4 5 8z" stroke="currentColor" stroke-width="1.4" fill="none"/><circle cx="16" cy="5" r="2" fill="var(--co)"/></svg>
@@ -113,17 +119,63 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     <p class="ch-lede">Start this step on the day the lab opens. The first build takes 30–60 minutes.</p>
   </div>
   <div class="sec">
-    <div class="prose">
-      <p>The whole environment builds and runs on your laptop. There is no VDI and no shared server. Before you start, you need:</p>
-      <ul>
-        <li>a laptop running macOS (Apple Silicon or Intel) or Linux, with about <strong>20 GB of free disk</strong> (kernel build cache, a 4 GB disk image, and Docker images) and 8 GB of RAM;</li>
-        <li>on macOS, <a href="https://brew.sh" target="_blank" rel="noopener">Homebrew</a>, which <code>make setup</code> uses to install QEMU and Docker;</li>
-        <li>a GitHub account (Step 0).</li>
-      </ul>
-      <p>Then run, from the repository root (<code>env/README.md</code> explains each target):</p>
+    <div class="two-up">
+      <div class="prose">
+        <p>The whole environment builds and runs on your laptop. There is no VDI and no shared server. Before you start, you need:</p>
+        <ul>
+          <li>a laptop running macOS (Apple Silicon or Intel) or Linux, with about <strong>20 GB of free disk</strong> (kernel build cache, a 4 GB disk image, and Docker images) and 8 GB of RAM;</li>
+          <li>on macOS, <a href="https://brew.sh" target="_blank" rel="noopener">Homebrew</a>, which <code>make setup</code> uses to install QEMU and Docker;</li>
+          <li>a GitHub account (Step 0).</li>
+        </ul>
+        <p>Then run, from the repository root (<code>env/README.md</code> explains each target):</p>
+      </div>
+      <figure class="fig">
+        <div class="fig-frame">
+          <svg class="dia" viewBox="0 0 420 392" width="420" role="img" aria-label="Your laptop runs Docker and QEMU. Docker builds the kernel and root file system into env/dist. QEMU boots them as the VM, where your labs run. SHARE makes your repository's submit directory appear in the VM at /share.">
+            <rect class="box" x="6" y="6" width="408" height="380" rx="12"/>
+            <text class="big" x="22" y="34">Your laptop (host)</text>
+            <text class="lbl" x="22" y="54">macOS or Linux</text>
+
+            <rect class="box2" x="22" y="70" width="176" height="92" rx="8"/>
+            <text class="big" x="36" y="96">Docker</text>
+            <text class="lbl" x="36" y="118">builds the kernel and</text>
+            <text class="lbl" x="36" y="135">the root file system</text>
+            <text class="lbl" x="36" y="152">(colima on macOS)</text>
+
+            <rect class="box2" x="222" y="70" width="176" height="92" rx="8"/>
+            <text class="big" x="236" y="96">Your repository</text>
+            <text class="lbl" x="236" y="118">you edit here, in</text>
+            <text class="lbl" x="236" y="135">your usual editor</text>
+            <text class="mono lbl" x="236" y="152">labs/…/submit/</text>
+
+            <path class="wire thin" d="M110 162 V196" marker-end="url(#ah)"/>
+            <text class="mono lbl" x="118" y="184">make images</text>
+
+            <rect class="dash" x="22" y="198" width="192" height="46" rx="8"/>
+            <text class="mono" x="36" y="219" style="font-size:13px">env/dist/</text>
+            <text class="mono lbl" x="36" y="236">bzImage, rootfs.ext4</text>
+
+            <path class="wire thin" d="M110 244 V276" marker-end="url(#ah)"/>
+            <text class="mono lbl" x="118" y="264">make run</text>
+
+            <rect class="fbox" x="22" y="278" width="376" height="96" rx="8"/>
+            <text class="lbl t-f" x="36" y="298">QEMU: a virtual x86 PC</text>
+            <rect class="obox" x="36" y="308" width="348" height="54" rx="6"/>
+            <text class="big" x="50" y="332">VM: Linux 6.6.87, Debian</text>
+            <text class="lbl" x="50" y="352">your labs run here; your files at <tspan class="mono">/share</tspan></text>
+
+            <path class="wire thin dashed" d="M310 162 V306" marker-end="url(#ah)"/>
+            <text class="mono lbl" x="318" y="196">SHARE=</text>
+            <text class="lbl" x="318" y="213">live, no</text>
+            <text class="lbl" x="318" y="230">reboot</text>
+          </svg>
+        </div>
+        <figcaption><span class="fno">Fig. 1.1</span>Docker only builds the kernel and the root file system. QEMU runs the VM, and your labs run inside the VM. You edit on the laptop, and <code>SHARE</code> makes your files appear in the VM at <code>/share</code> (Step 2).</figcaption>
+      </figure>
     </div>
     <div class="code"><span class="ln">cd env</span><span class="ln">make setup      <span class="c"># once; macOS (on Ubuntu: scripts/host-setup-ubuntu.sh)</span></span><span class="ln">make images     <span class="c"># 30–60 min the first time</span></span><span class="ln">make smoke      <span class="c"># should end with every check passing</span></span><span class="ln">make run        <span class="c"># boots to a root prompt; leave with Ctrl-a x</span></span></div>
-    <div class="prose"><p><b>How to tell that it worked:</b> Inside the VM, <code>cat /proc/version</code> prints a line that starts with <code>Linux version 6.6.87</code>.</p></div>
+    <div class="prose"><p><b>How to tell that it worked:</b> Inside the VM, <code>cat /proc/version</code> prints a line that starts with <code>Linux version 6.6.87</code>.</p>
+      <p><b>How to leave the VM:</b> Press <kbd>Control</kbd> and <kbd>a</kbd> together, release both, and then press <kbd>x</kbd>. On a Mac, this is the Control key, not Command. Alternatively, type <code>poweroff</code> inside the VM.</p></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>symptom</th><th>likely cause</th><th>what to try</th></tr></thead>
@@ -142,15 +194,46 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 2</div>
     <h2>The edit–run loop</h2>
-    <p class="ch-lede">Edit on your laptop with your usual editor, and run inside the VM. Every lab follows this loop.</p>
+    <p class="ch-lede">You edit files on your laptop and run them inside the VM. Follow these steps once now. Every later lab uses the same loop.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">SHARE=$PWD/labs/00-getting-started/submit env/run.sh</span><span class="ln"><span class="c"># VM</span></span><span class="ln">ls /share                 <span class="c"># your submit/ directory, live</span></span><span class="ln">bash /share/observe.sh</span></div>
     <div class="prose">
-      <ul>
-        <li>The share is <strong>live</strong>. Save the file on your laptop and rerun it in the VM. No reboot is needed.</li>
-        <li>At first, every line prints an empty value, because each <code>$( : TODO )</code> does nothing. This is expected. Fill in one <code>TODO</code> at a time, and rerun the script after each one.</li>
-      </ul>
+      <ol>
+        <li>
+          <p><b>On your laptop, open a terminal and go to the root of your repository.</b></p>
+          <div class="code"><span class="ln">cd 3753-27-spring        <span class="c"># wherever you cloned it in Step 0</span></span></div>
+          <p>The next command builds a path from <code>$PWD</code>, the directory you are in. Therefore, it only works from the repository root.</p>
+        </li>
+        <li>
+          <p><b>Boot the VM, and share your lab's <code>submit/</code> directory with it.</b></p>
+          <div class="code"><span class="ln">SHARE=$PWD/labs/00-getting-started/submit env/run.sh</span></div>
+          <p>This is the same VM that <code>make run</code> booted in Step 1. The only difference is <code>SHARE</code>: it names a directory on your laptop, and the VM mounts that directory at <code>/share</code>. When the boot finishes, you are at a root prompt inside the VM. Note that this terminal now belongs to the VM, so keep it open.</p>
+        </li>
+        <li>
+          <p><b>In the VM, list the shared directory.</b></p>
+          <div class="code"><span class="ln">ls /share                <span class="c"># prints: observe.sh</span></span></div>
+          <p><code>/share</code> is not a copy. It is the same directory as <code>labs/00-getting-started/submit</code> on your laptop, seen from inside the VM.</p>
+        </li>
+        <li>
+          <p><b>In the VM, run the script.</b></p>
+          <div class="code"><span class="ln">bash /share/observe.sh</span></div>
+          <p>You see eight lines, from <code>KERNEL_RELEASE=</code> to <code>NUM_PROCS=</code>, and every value is empty. This is expected. Each value comes from <code>$(: TODO)</code>, and <code>:</code> is the shell's do-nothing command, so the substitution produces nothing.</p>
+        </li>
+        <li>
+          <p><b>On your laptop, open <code>labs/00-getting-started/submit/observe.sh</code> in your editor, add <code>echo hello</code> as the last line, and save.</b></p>
+          <p>Use your usual editor, or a second terminal. The first terminal still belongs to the VM.</p>
+        </li>
+        <li>
+          <p><b>In the VM, run the script again.</b></p>
+          <div class="code"><span class="ln">bash /share/observe.sh   <span class="c"># the last line is now: hello</span></span></div>
+          <p>You did not reboot the VM or copy any file. The VM reads the file directly from your laptop, so every save is visible immediately.</p>
+        </li>
+        <li>
+          <p><b>On your laptop, delete the <code>echo hello</code> line, and save.</b></p>
+          <p>The script must print only the eight lines in the format given in the header of <code>observe.sh</code>.</p>
+        </li>
+      </ol>
+      <p>This is the loop for the rest of the lab: fill in one <code>TODO</code> on your laptop, save, and rerun the script in the VM. Step 3 and Step 4 tell you how to find each value. When you are done, leave the VM with <kbd>Control</kbd>-<kbd>a</kbd>, then <kbd>x</kbd> (Step 1).</p>
     </div>
   </div>
 </section>
@@ -159,23 +242,33 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 3</div>
     <h2>Tools for reading /proc</h2>
-    <p class="ch-lede">Every fact is text in a file. First, find the file. Second, cut out exactly one value.</p>
+    <p class="ch-lede">Every fact is text in a file. In this step, you practice the two skills the lab needs: finding the file, and cutting out exactly one value. Work in the VM from Step 2.</p>
   </div>
   <div class="sec">
     <div class="prose">
-      <p><b>Start with the map.</b> Inside the VM, look around <code>/proc</code>, the kernel's window onto itself:</p>
+      <ol>
+        <li>
+          <p><b>In the VM, look around <code>/proc</code>.</b></p>
+          <div class="code"><span class="ln">ls /proc                     <span class="c"># files, and one directory per process</span></span><span class="ln">cat /proc/version</span><span class="ln">ls /proc/1/</span><span class="ln">cat /proc/meminfo | head</span><span class="ln">grep . /proc/sys/kernel/*    <span class="c"># everything here greps like an ordinary file</span></span></div>
+          <p><code>/proc</code> is the kernel's window onto itself. Each numbered directory is one running <span class="ref" data-sec="L01 §5.1" data-title="Process" data-href="../lectures/01-overview.html#s5-1">process<span class="ref-body">A process is a program in execution. The program is a file on disk. Each time you run it, the kernel creates a new process for it. Therefore, every program you start, such as <code>cat</code> or <code>ls</code>, runs as a new process.</span></span>, named by its <span class="ref" data-sec="L03 §1.1" data-title="Process identifier (PID)" data-href="../lectures/03-process.html#s1-1">PID<span class="ref-body">The kernel gives each new process a number, its process identifier (PID). Two processes that exist at the same time never share a PID. Therefore, if you run the same program twice, you get two different PIDs.</span></span>. The eight facts in <code>observe.sh</code> make you look at four different faces of <code>/proc</code>. First, system-wide constants: the kernel release, the CPUs, and memory. Second, the boot command line, which you can compare with <code>env/run.sh</code>. Third, per-process views: <code>/proc/&lt;pid&gt;/</code>, and <code>/proc/self</code>, which answers "who is asking?" Fourth, live counters that change every time you look (<code>/proc/stat</code>).</p>
+        </li>
+        <li>
+          <p><b>Find which files mention a word.</b></p>
+          <div class="code"><span class="ln">grep -l -i swap /proc/* 2&gt;/dev/null</span></div>
+          <p><code>-l</code> prints only the names of the files that match, and <code>-i</code> ignores case. <code>2&gt;/dev/null</code> hides the error messages for directories and for files you are not allowed to read.</p>
+        </li>
+        <li>
+          <p><b>Practice cutting out one value.</b></p>
+          <p>Run each command below. Then run <code>cat</code> on the same file, and compare. These files are <em>not</em> ones the lab asks about. However, the same patterns apply to the lab's files.</p>
+          <div class="code"><span class="ln">cat /proc/sys/vm/swappiness                      <span class="c"># a whole file that is one value</span></span><span class="ln">awk '{print $1}' /proc/loadavg                   <span class="c"># field 1 of a one-line file</span></span><span class="ln">awk '/^Threads:/ {print $2}' /proc/self/status   <span class="c"># field 2 of the line that starts with "Threads:"</span></span><span class="ln">grep -c '^Vm' /proc/self/status                  <span class="c"># count the lines that match</span></span><span class="ln">ls /proc | wc -l                                 <span class="c"># count directory entries</span></span><span class="ln">readlink /proc/1/exe                             <span class="c"># where a symbolic link points</span></span></div>
+          <p><code>awk</code> splits each line into fields at spaces, and <code>$1</code> is the first field. A pattern between slashes, such as <code>/^Threads:/</code>, keeps only the lines that match it.</p>
+        </li>
+        <li>
+          <p><b>On your laptop, read the header of <code>observe.sh</code>.</b></p>
+          <p>It gives the output format, which the checks compare exactly. Each line must be <code>KEY=VALUE</code>, with no spaces, no units, and no trailing text. Note that <code>echo "KEY=$(command)"</code> prints whatever the command prints. Therefore, make sure each command prints only the value.</p>
+        </li>
+      </ol>
     </div>
-    <div class="code"><span class="ln">ls /proc                     <span class="c"># the whole window: files, and one directory per process</span></span><span class="ln">cat /proc/version</span><span class="ln">ls /proc/1/</span><span class="ln">cat /proc/meminfo | head</span><span class="ln">grep . /proc/sys/kernel/*    <span class="c"># everything here greps like an ordinary file</span></span></div>
-    <div class="prose">
-      <p>The eight facts in <code>observe.sh</code> make you look at four different faces of <code>/proc</code>. First, system-wide constants: the kernel release, the CPUs, and memory. Second, the boot command line, which you can compare with <code>env/run.sh</code>. Third, per-process views: <code>/proc/&lt;pid&gt;/</code>, and <code>/proc/self</code>, which answers "who is asking?" Fourth, live counters that change every time you look (<code>/proc/stat</code>).</p>
-      <p><b>Finding the file.</b> <code>man 5 proc</code> documents <code>/proc</code>. In the man page, press <code>/</code> to search for a word, and press <code>n</code> to jump to the next match. To find which files mention a word, run <code>grep -l</code> over a set of files. For example:</p>
-    </div>
-    <div class="code"><span class="ln">grep -l -i swap /proc/* 2&gt;/dev/null        <span class="c"># which top-level files mention "swap"?</span></span><span class="ln">man 5 proc                                 <span class="c"># then /swap, n, n, ...</span></span></div>
-    <div class="prose">
-      <p><b>Cutting out a value.</b> The examples below use files that the lab does <em>not</em> ask about. However, the same patterns apply to the lab's files:</p>
-    </div>
-    <div class="code"><span class="ln">cat /proc/sys/vm/swappiness               <span class="c"># a whole file that is one value</span></span><span class="ln">awk '{print $1}' /proc/loadavg             <span class="c"># field 1 of a one-line file</span></span><span class="ln">awk '/^Threads:/ {print $2}' /proc/self/status   <span class="c"># field 2 of the line starting "Threads:"</span></span><span class="ln">grep -c '^Vm' /proc/self/status            <span class="c"># count the lines that match</span></span><span class="ln">ls /proc | wc -l                           <span class="c"># count directory entries</span></span><span class="ln">readlink /proc/1/exe                       <span class="c"># where a symbolic link points</span></span></div>
-    <div class="note note-key"><span class="note-tag">The output contract</span><p>Each line must be exactly <code>KEY=VALUE</code>, with no spaces, no units, and no trailing text. Note that <code>echo "KEY=$(command)"</code> prints whatever the command prints. Therefore, make sure the command prints only the value.</p></div>
   </div>
 </section>
 
@@ -183,25 +276,60 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 4</div>
     <h2>The eight facts, one at a time</h2>
-    <p class="ch-lede">For each fact, the table below lists exactly what you are looking for, how to search for it, and how to check your answer. Some checks use tools that are not allowed in the script, but you can still type them in the terminal.</p>
+    <p class="ch-lede">Fill in the eight <code>TODO</code>s in order. For each fact, repeat the five steps below. The table after them says what each fact is, where to start looking, and how to check it.</p>
   </div>
   <div class="sec">
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>Read the fact's row in the table below.</b></p>
+          <p>The second column says exactly what value you are after. The third column says how to search for it, not where it is.</p>
+        </li>
+        <li>
+          <p><b>In the VM, find the file, and try commands at the prompt until one prints exactly the value.</b></p>
+          <p>Use the search tools and the patterns from Step 3. Trying commands at the prompt is faster than editing the script for every attempt.</p>
+        </li>
+        <li>
+          <p><b>In the VM, check the value with the tool in the last column.</b></p>
+          <p>These tools, such as <code>uname</code> and <code>nproc</code>, compute the same value in another way. You may type them at the prompt. However, you may not use them in the script (step 6 below).</p>
+        </li>
+        <li>
+          <p><b>On your laptop, put the command into the fact's <code>TODO</code>, and save.</b></p>
+          <p>Replace only <code>: TODO</code> inside <code>$( )</code>, so that the line keeps the form <code>echo "KEY=$(command)"</code>.</p>
+        </li>
+        <li>
+          <p><b>In the VM, rerun the script, and check that line.</b></p>
+          <div class="code"><span class="ln">bash /share/observe.sh</span></div>
+          <p>The line for this fact now shows its value. Then go to the next fact.</p>
+        </li>
+      </ol>
+    </div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>fact</th><th>what you are after</th><th>how to look for it</th><th>check it with</th></tr></thead>
         <tbody>
-          <tr><td>KERNEL_RELEASE</td><td>The release string of the running kernel, like <code>6.6.87</code>.</td><td>This is one system-wide value. Search <code>man 5 proc</code> for "release," and read which file it names.</td><td><code>uname -r</code></td></tr>
+          <tr><td>KERNEL_RELEASE</td><td>The release string of the running kernel, like <code>6.6.87</code>.</td><td>This is one system-wide value. Look for a file whose name contains "release."</td><td><code>uname -r</code></td></tr>
           <tr><td>NPROC</td><td>The number of CPUs the kernel is using, as a single number.</td><td>Find the <code>/proc</code> file that describes the CPUs, with one entry per CPU. Then turn the entries into a count.</td><td><code>nproc</code></td></tr>
-          <tr><td>PID1_COMM</td><td>The command name of process 1, the first process the kernel starts.</td><td><code>man 5 proc</code> lists the files inside each process's directory. Find the file that holds only the command name.</td><td><code>ps -p 1 -o comm=</code></td></tr>
+          <tr><td>PID1_COMM</td><td>The command name of <span class="ref" data-sec="L03 §1.1" data-title="Process 1" data-href="../lectures/03-process.html#s1-1">process 1<span class="ref-body">After the kernel finishes booting, it starts one process itself, with PID 1. That process starts other processes, and they start more. As such, the processes form a tree, and process 1 is its root.</span></span>, the first process the kernel starts.</td><td>Each process's directory, such as <code>/proc/1/</code>, holds many files. Find the one that holds only the command name.</td><td><code>ps -p 1 -o comm=</code></td></tr>
           <tr><td>MEM_TOTAL_KB</td><td>Total usable RAM in kB, as a bare number.</td><td>Find the <code>/proc</code> file that reports memory, then the line for the total.</td><td><code>free -k</code>, "total" column</td></tr>
-          <tr><td>BOOT_CMDLINE</td><td>The parameters the kernel was booted with, exactly as passed.</td><td>Search <code>man 5 proc</code> for "command line." Make sure you pick the kernel's command line, not a process's.</td><td>The <code>-append</code> line in <code>env/run.sh</code></td></tr>
+          <tr><td>BOOT_CMDLINE</td><td>The parameters the kernel was booted with, exactly as passed.</td><td>Look for a file named after "command line." Make sure you pick the kernel's command line, not a process's.</td><td>The <code>-append</code> line in <code>env/run.sh</code></td></tr>
           <tr><td>SELF_PID</td><td>The PID of the process that reads <code>/proc/self</code>.</td><td><code>/proc/self</code> is a symbolic link. Work out what it points to, and extract the PID from the target.</td><td>Run the script twice. The value changes between runs, and it is never 1.</td></tr>
-          <tr><td>CTXT</td><td>The total number of context switches since boot, as one number.</td><td>The header of <code>observe.sh</code> names the file. <code>man 5 proc</code> explains each of its lines. Find the line for context switches.</td><td>Read it twice, a few seconds apart. The value only grows.</td></tr>
+          <tr><td>CTXT</td><td>The total number of <span class="ref" data-sec="L03 §4.3" data-title="Context switch" data-href="../lectures/03-process.html#s4-3">context switches<span class="ref-body">Many processes share a few CPUs. When the kernel stops the process running on a CPU and runs another one there, it saves the state of the first and loads the state of the second. This is a context switch. The kernel counts every context switch since boot.</span></span> since boot, as one number.</td><td>The header of <code>observe.sh</code> names the file. Find the line whose name refers to context switches.</td><td>Read it twice, a few seconds apart. The value only grows.</td></tr>
           <tr><td>NUM_PROCS</td><td>The number of processes that exist right now.</td><td>Every process is a directory whose name is all digits, and no other entry in <code>/proc</code> has such a name. Count only those names.</td><td><code>ps aux | wc -l</code> (this includes one header line, so a roughly equal count is correct)</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="note note-warn"><span class="note-tag">Rules the checks enforce</span><p>The script must not contain <code>uname</code> or <code>nproc</code> anywhere, even inside a command substitution, because a check searches for those words. Further, SELF_PID must come from <code>/proc/self</code>, not from the shell's <code>$$</code>, because a check searches your script for <code>/proc/self</code>.</p></div>
+    <div class="prose">
+      <p>When all eight lines show values, do one last check on your laptop:</p>
+    </div>
+    <div class="prose">
+      <ol start="6">
+        <li>
+          <p><b>Make sure that the script never uses <code>uname</code> or <code>nproc</code>, and that <code>SELF_PID</code> comes from <code>/proc/self</code>.</b></p>
+          <p>A check searches your script for the words <code>uname</code> and <code>nproc</code>, even inside a command substitution. It ignores comments. Another check searches for <code>/proc/self</code>, so <code>SELF_PID</code> cannot come from the shell's <code>$$</code>. The point of the lab is to read each fact where the kernel itself exposes it.</p>
+        </li>
+      </ol>
+    </div>
   </div>
 </section>
 
@@ -209,16 +337,31 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 5</div>
     <h2>make check, and reading a failure</h2>
+    <p class="ch-lede"><code>make check</code> runs the same checks that grading runs. Therefore, a pass on your laptop is a pass in grading.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">make check LAB=00-getting-started</span></div>
     <div class="prose">
-      <ul>
-        <li><code>make check</code> boots a fresh VM without a console and runs your script there. It prints one <code>PASS</code> or <code>FAIL</code> per check, followed by a <code>RESULT</code> line. Grading runs <strong>the same checks</strong>.</li>
-        <li>Each check name maps to a fact: <code>kernel-release</code>, <code>nproc</code>, <code>pid1-comm</code>, <code>mem-total</code>, <code>boot-cmdline</code>, <code>self-pid</code>, <code>ctxt</code>, <code>num-procs</code>, plus the rule checks <code>no-uname</code>, <code>no-nproc</code>, and <code>uses-proc-self</code>.</li>
-        <li>A <code>FAIL</code> names the check but does not show your output. To debug, go back to Step 2, run the script in a live VM, and compare the failing line with the format in the file header.</li>
-        <li>A failed run prints <code>(artifacts kept at …)</code>. In that directory, <code>result.txt</code> holds the raw check output, and <code>console.log</code> holds the VM's boot log. If the VM never came up, look at <code>console.log</code>.</li>
-      </ul>
+      <ol>
+        <li>
+          <p><b>On your laptop, at the repository root, run the checks.</b></p>
+          <div class="code"><span class="ln">make check LAB=00-getting-started</span></div>
+          <p>It boots a fresh VM without a console, runs your script inside it, and powers the VM off. This takes a few minutes, especially on Apple Silicon. Then it prints one <code>PASS</code> or <code>FAIL</code> line per check, and a last line that starts with <code>RESULT</code>.</p>
+        </li>
+        <li>
+          <p><b>Read the result.</b></p>
+          <p>If every check passes, the last line ends with <code>status=pass passes=14 fails=0</code>. The 14 checks fall into three groups:</p>
+          <ul>
+            <li><code>boot</code>, <code>proc-mounted</code>, and <code>tracefs</code> check the VM, not your script. If one of them fails, the environment is broken: go back to the table in Step 1.</li>
+            <li><code>no-uname</code>, <code>no-nproc</code>, and <code>uses-proc-self</code> check the rules from Step 4.</li>
+            <li><code>kernel-release</code>, <code>nproc</code>, <code>pid1-comm</code>, <code>mem-total</code>, <code>boot-cmdline</code>, <code>self-pid</code>, <code>ctxt</code>, and <code>num-procs</code> check one fact each.</li>
+          </ul>
+        </li>
+        <li>
+          <p><b>If a check fails, look at your output in a live VM.</b></p>
+          <p>A <code>FAIL</code> line names the check, but it does not show what your script printed. Therefore, boot the VM as in Step 2, run <code>bash /share/observe.sh</code>, and compare the failing line with the format in the header of <code>observe.sh</code>. Fix the script, leave the VM, and run <code>make check</code> again.</p>
+          <p>A failed run also prints <code>(artifacts kept at …)</code>. In that directory, <code>result.txt</code> holds the raw check output, and <code>console.log</code> holds the VM's boot log. If the VM never came up, look at <code>console.log</code>.</p>
+        </li>
+      </ol>
     </div>
   </div>
 </section>
@@ -227,14 +370,30 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 6</div>
     <h2>The report</h2>
+    <p class="ch-lede">The report answers three questions in your own words. Each step below tells you how to investigate, not what the answer is.</p>
   </div>
   <div class="sec">
     <div class="prose">
-      <p>Create a short <code>submit/report.md</code> that answers the three questions below in your own words. The hint after each question describes how to investigate, not the answer:</p>
       <ol>
-        <li><b>Run <code>observe.sh</code> twice. Which values changed, and why?</b> <code>SELF_PID</code> deserves a sentence of its own: what exactly is <code>/proc/self</code>? <span class="muted">Hint: compare the two outputs line by line. Then run <code>ls -l /proc/self</code> twice, and ask yourself which process reads <code>/proc/self</code> each time.</span></li>
-        <li><b><code>/proc/meminfo</code> reports both <code>MemFree</code> and <code>MemAvailable</code>, and they disagree. What is the difference, and which one should a program that wants to know "can I allocate this much?" look at?</b> <span class="muted">Hint: read what <code>man 5 proc</code> says about each line, and consider what the kernel keeps in memory that it could give back.</span></li>
-        <li><b>One thing you found in <code>/proc</code> that surprised you.</b></li>
+        <li>
+          <p><b>On your laptop, create <code>labs/00-getting-started/submit/report.md</code>.</b></p>
+          <p>It goes in <code>submit/</code>, next to <code>observe.sh</code>, because everything in <code>submit/</code> is your submission. Keep it short.</p>
+        </li>
+        <li>
+          <p><b>Question 1: “Run <code>observe.sh</code> twice. Which values changed, and why? (<code>SELF_PID</code> deserves a sentence of its own: what exactly is <code>/proc/self</code>?)”</b></p>
+          <p>Boot the VM as in Step 2, and investigate:</p>
+          <div class="code"><span class="ln">bash /share/observe.sh</span><span class="ln">bash /share/observe.sh   <span class="c"># compare the two outputs line by line</span></span><span class="ln">ls -l /proc/self</span><span class="ln">ls -l /proc/self         <span class="c"># compare the two link targets</span></span></div>
+          <p>Ask yourself which process reads <code>/proc/self</code> each time. Then write your answer in <code>report.md</code>.</p>
+        </li>
+        <li>
+          <p><b>Question 2: “Even while you type nothing, <code>CTXT</code> keeps growing. Which processes run while you wait, and why does the kernel keep switching between them?”</b></p>
+          <div class="code"><span class="ln">bash /share/observe.sh | grep CTXT</span><span class="ln">sleep 10                            <span class="c"># type nothing</span></span><span class="ln">bash /share/observe.sh | grep CTXT</span><span class="ln">ps -e                               <span class="c"># every process that exists right now</span></span></div>
+          <p>First, subtract the two values. Then look at the list from <code>ps -e</code>: you started only a few of these processes. Reread the card on context switches in Step 4, and <a href="../lectures/01-overview.html#s4-2">L01 §4.2</a> on the timer. Then write your answer.</p>
+        </li>
+        <li>
+          <p><b>Question 3: “One thing you found in <code>/proc</code> that surprised you.”</b></p>
+          <p>Anything you met in Steps 3 and 4 counts. Say what it is, and why it surprised you.</p>
+        </li>
       </ol>
     </div>
   </div>
@@ -244,16 +403,36 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 7</div>
     <h2>Submit</h2>
+    <p class="ch-lede">We grade what is on GitHub at the deadline.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln">git add labs/00-getting-started/submit/observe.sh labs/00-getting-started/submit/report.md</span><span class="ln">git commit -m "Lab00"</span><span class="ln">git push</span></div>
-    <div class="prose"><p>Then open your repository on GitHub, and check that both files are there with your latest changes. We grade what is on GitHub at the deadline.</p></div>
-    <ul class="check prose">
-      <li><code>make check LAB=00-getting-started</code> shows no <code>FAIL</code>.</li>
-      <li>The script contains no <code>uname</code> or <code>nproc</code>, and it reads <code>/proc/self</code>.</li>
-      <li><code>report.md</code> answers all three questions.</li>
-      <li>Both files are visible on GitHub in <em>your</em> private repository, and <code>chenyueqi</code> is a collaborator.</li>
-    </ul>
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>On your laptop, at the repository root, commit your two files.</b></p>
+          <div class="code"><span class="ln">git add labs/00-getting-started/submit/observe.sh labs/00-getting-started/submit/report.md</span><span class="ln">git commit -m "Lab00"</span></div>
+          <p>Add only these two files. They are your Lab00 submission.</p>
+        </li>
+        <li>
+          <p><b>Push the commit.</b></p>
+          <div class="code"><span class="ln">git push</span></div>
+          <p>This pushes to <code>origin</code>, your private repository from Step 0. You cannot push to <code>upstream</code>, the course repository.</p>
+        </li>
+        <li>
+          <p><b>Open your repository on GitHub, and check the files.</b></p>
+          <p>Go to <code>labs/00-getting-started/submit/</code>, and check that both files are there with your latest changes. If they are not, the push did not reach your repository: run <code>git remote -v</code>, and compare its output with Step 0.</p>
+        </li>
+        <li>
+          <p><b>Before the deadline, go through this list.</b></p>
+          <ul class="check">
+            <li><code>make check LAB=00-getting-started</code> shows no <code>FAIL</code>.</li>
+            <li>The script contains no <code>uname</code> or <code>nproc</code>, and it reads <code>/proc/self</code>.</li>
+            <li><code>report.md</code> answers all three questions.</li>
+            <li>Both files are visible on GitHub in <em>your</em> private repository, and <code>chenyueqi</code> is a collaborator.</li>
+          </ul>
+        </li>
+      </ol>
+    </div>
   </div>
 </section>
 

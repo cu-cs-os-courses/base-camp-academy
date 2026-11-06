@@ -472,6 +472,34 @@ details.fold .fold-body p:last-child, details.fold .fold-body ul:last-child { ma
 }
 .term:hover .tip, .term.tip-open .tip, .term:focus-visible .tip { opacity: 1; }
 
+/* ---------- lecture cross-references (dashed underline; click for a card) ----------
+   <span class="ref" data-sec="L03 §4.3" data-href="../lectures/03-process.html#s4-3">word
+     <span class="ref-body">One or two sentences, just enough for here.</span></span>
+   Click or Enter opens a card: the lecture section, the explanation, and a link to it. */
+.ref { border-bottom: 1.5px dashed var(--cx); cursor: pointer; border-radius: 2px; transition: background 0.12s; }
+.ref:hover, .ref:focus-visible { background: var(--cx-soft); outline: none; }
+.ref .ref-body { display: none; }
+.refpop {
+  position: fixed;
+  z-index: 90;
+  background: var(--bg2);
+  border: 1px solid var(--line2);
+  border-left: 3px solid var(--cx);
+  border-radius: 11px;
+  box-shadow: var(--shadow);
+  width: max-content;
+  animation: rp-in 0.14s ease-out;
+}
+@keyframes rp-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.refpop .rp-head { display: flex; gap: 9px; align-items: baseline; padding: 9px 13px 7px; border-bottom: 1px solid var(--line); }
+.refpop .rp-sec { font-family: var(--f-mono); font-size: 11px; color: var(--cx-ink); font-weight: 600; white-space: nowrap; }
+.refpop .rp-title { font-weight: 600; font-size: 13.5px; flex: 1; line-height: 1.4; }
+.refpop .rp-x { border: 0; background: transparent; cursor: pointer; color: var(--ink3); font-size: 17px; line-height: 1; padding: 0 2px; align-self: flex-start; }
+.refpop .rp-x:hover { color: var(--ink); }
+.refpop .rp-body { padding: 9px 13px; font-size: 13.5px; line-height: 1.65; color: var(--ink2); }
+.refpop .rp-foot { padding: 7px 13px 10px; border-top: 1px dashed var(--line); font-size: 12.5px; }
+@media (prefers-reduced-motion: reduce) { .refpop { animation: none; } }
+
 /* ---------- widgets ---------- */
 .widget {
   margin: 1.8em 0;
