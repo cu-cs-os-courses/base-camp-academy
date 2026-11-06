@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Network &amp; VMs · L21</title>
-<meta name="description" content="CSCI 3753 Lecture 21, interactive edition: the OS network stack, packetization, TCP/UDP, routing, and virtual machines with trap-and-emulate.">
+<meta name="description" content="CSCI 3753 Lecture 21, interactive edition. It covers the OS network stack, packetization, TCP/UDP, routing, and virtual machines with trap-and-emulate.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -65,12 +65,12 @@
 </svg>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><rect x="2.5" y="3" width="17" height="11" rx="1.5"/><rect x="5.5" y="6" width="11" height="5" rx="1"/><path d="M8 19h6M11 14v5"/></g><circle cx="11" cy="8.5" r="1.6" fill="var(--co)"/></svg>
-    <span>Lecture 21 · Network &amp; VMs</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Lecture 21 · Network &amp; VMs</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -78,14 +78,14 @@
   <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 21 · Interactive notes</div>
-    <h1>Two more illusions:<br>a reliable pipe, and a <span class="accent">whole machine</span></h1>
-    <p class="lede">The OS has spent the semester building illusions: a private CPU out of time slices, private memory out of page tables, files out of blocks. This lecture adds two more. The network stack turns a lossy, reordering Internet into a reliable pipe between two processes. A virtual machine goes further and gives an entire operating system the illusion of its own hardware.</p>
+    <h1>Two more illusions,<br>a reliable pipe, and a <span class="accent">whole machine</span></h1>
+    <p class="lede">The OS has spent the semester building illusions. It made a private CPU out of time slices, private memory out of page tables, and files out of blocks. This lecture adds two more. The network stack turns a lossy, reordering Internet into a reliable pipe between two processes. A virtual machine goes further and gives an entire operating system the illusion of its own hardware.</p>
     <div class="promise">
-      <span>Before you start:</span><span class="mono">system calls, kernel mode, traps</span><span>(L2, L17), and devices (L17–18).</span>
+      <span>Before you start, review</span><span class="mono">system calls, kernel mode, traps</span><span>(L2, L17), and devices (L17–18).</span>
     </div>
     <div class="cta-row">
       <a class="btn primary" href="#ch0">Begin ↓</a>
-      <span class="muted small">About 60 minutes · 4 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 18–19 · Continues in Lecture 22, Protection</span>
+      <span class="muted small">About 60 minutes · 4 hands-on experiments · 4 checkpoints · Textbook Silberschatz, Ch. 18–19 · Continues in Lecture 22, Protection</span>
     </div>
   </div>
 </div>
@@ -96,7 +96,7 @@
     <a href="#ch0"><span class="n">0</span>The network stack</a>
     <a href="#ch1"><span class="n">1</span>Packetization</a>
     <a href="#ch2"><span class="n">2</span>Layer by layer</a>
-    <a href="#ch3"><span class="n">3</span>Recall: modes and rings</a>
+    <a href="#ch3"><span class="n">3</span>A recap of modes and rings</a>
     <a href="#ch4"><span class="n">4</span>Virtual machines</a>
     <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
   </nav>
@@ -107,7 +107,7 @@
         <a href="#ch0"><span class="n">0</span>The network stack</a>
         <a href="#ch1"><span class="n">1</span>Packetization</a>
         <a href="#ch2"><span class="n">2</span>Layer by layer</a>
-        <a href="#ch3"><span class="n">3</span>Recall: modes and rings</a>
+        <a href="#ch3"><span class="n">3</span>A recap of modes and rings</a>
         <a href="#ch4"><span class="n">4</span>Virtual machines</a>
         <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
       </nav>
@@ -117,7 +117,7 @@
       <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 21</div>
       <h1>Networking &amp; Virtualization</h1>
       <p class="lede">The network stack in the OS, and virtual machines.</p>
-      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 18–19</div>
+      <div class="meta">Instructor Yueqi Chen · Textbook Silberschatz, Ch. 18–19</div>
     </div>
 
 <!-- ============================================================ -->
@@ -125,16 +125,16 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 0</div>
     <h2>The network stack</h2>
-    <p class="ch-lede">Web search, peer-to-peer, streaming video, social networks, mobile apps: all send and receive data over the Internet, through one part of the kernel.</p>
+    <p class="ch-lede">Web search, peer-to-peer, streaming video, social networks, and mobile apps all send and receive data over the Internet, through one part of the kernel.</p>
   </div>
 
   <div class="sec" id="s0-1">
     <h3><span class="sec-no">0.1</span>Sockets and the kernel</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Every networked application talks to a remote process through the <strong>socket API</strong>: <code>send(message)</code>, <code>receive(message)</code>.</p>
+        <p>Every networked application talks to a remote process through the <strong>socket API</strong>, which offers <code>send(message)</code> and <code>receive(message)</code>.</p>
         <p data-step="1">The socket library makes system calls into the kernel's <strong>network stack</strong>, a manager next to the process, memory, file and device managers.</p>
-        <p data-step="2">The stack drives the <strong>network interface cards</strong> (NICs) on the I/O bus: Ethernet, WiFi, Bluetooth. Those are devices, handled exactly as in Lectures 17–18.</p>
+        <p data-step="2">The stack drives the <strong>network interface cards</strong> (NICs) on the I/O bus, such as Ethernet, WiFi, and Bluetooth. Those are devices, handled exactly as in Lectures 17–18.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -170,9 +170,9 @@
     <h3><span class="sec-no">0.2</span>A stack of protocol layers</h3>
     <div class="two-up">
       <div class="prose">
-        <p>The network stack is organized into <strong>layers of protocols</strong>; each protocol performs a specific set of duties.</p>
+        <p>The network stack is organized into <strong>layers of protocols</strong>, and each protocol performs a specific set of duties.</p>
         <p data-step="1">To <strong>send</strong>, each layer passes the packet down to the layer below. To <strong>receive</strong>, each layer takes the packet from the layer below, processes it, and passes it up.</p>
-        <p data-step="2">The socket API sits between the application and the transport layer: everything below it is in the kernel (or the NIC).</p>
+        <p data-step="2">The socket API sits between the application and the transport layer. Everything below it is in the kernel (or the NIC).</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -204,14 +204,14 @@
     <div class="prose">
       <ul>
         <li>To send, the application calls the socket API's <code>send()</code> with a pointer to a user-space buffer holding the data.</li>
-        <li data-step="1">A large file is cut into smaller packets: a 1 GB file into 1 KB pieces, say.</li>
+        <li data-step="1">A large file is cut into smaller packets, say a 1 GB file into 1 KB pieces.</li>
         <li data-step="2">Each layer N prepends its own header NH<sub>x</sub> to data x and hands the result down. The packet <strong>grows</strong> as it descends. The header carries what the peer layer at the receiver needs to decode the packet.</li>
         <li data-step="3">On receipt, each layer N strips off its header, and the packet <strong>shrinks</strong> as it moves up.</li>
       </ul>
     </div>
     <div class="note note-honest read-only">
       <span class="note-tag">Who cuts</span>
-      <p>In practice the application usually hands the whole buffer to <code>send()</code>, and TCP does the cutting: into segments that fit one link-layer frame, about 1460 bytes of payload on Ethernet.</p>
+      <p>In practice the application usually hands the whole buffer to <code>send()</code>, and TCP does the cutting. It cuts the data into segments that fit one link-layer frame, about 1460 bytes of payload on Ethernet.</p>
     </div>
   </div>
 
@@ -232,7 +232,7 @@
       </div>
       <div class="readout" id="enc-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Header sizes are the usual minimums: TCP 20 bytes, IPv4 20, Ethernet 14 plus a 4-byte trailer.</p>
+    <p class="small muted prose read-only">Header sizes are the usual minimums, namely TCP 20 bytes, IPv4 20, and Ethernet 14 plus a 4-byte trailer.</p>
   </div>
 
   <div class="sec" id="q1">
@@ -241,9 +241,9 @@
       <div class="quiz-body">
         <div class="q-text">A packet arrives at the receiver's transport layer. What has already happened to it, and what does the transport layer do?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="Headers are added on the way down, at the sender. The receiver only removes them.">The network layer added an IP header; transport adds its own.</button>
-          <button type="button" class="q-opt" data-ok>The link and network layers have stripped their headers; transport reads and strips the TCP header and passes the rest up.</button>
-          <button type="button" class="q-opt" data-why="If nothing were stripped, every layer would have to understand every other layer's header. Each layer handles only its own.">Nothing has been removed; the application strips all headers at once.</button>
+          <button type="button" class="q-opt" data-why="Headers are added on the way down, at the sender. The receiver only removes them.">The network layer added an IP header, and transport adds its own.</button>
+          <button type="button" class="q-opt" data-ok>The link and network layers have stripped their headers. Transport reads and strips the TCP header and passes the rest up.</button>
+          <button type="button" class="q-opt" data-why="If nothing were stripped, every layer would have to understand every other layer's header. Each layer handles only its own.">Nothing has been removed. The application strips all headers at once.</button>
         </div>
         <div class="q-fb ok">Right. Each layer on the way up removes exactly the header its peer added on the way down.</div>
         <div class="q-fb no">Not quite.</div>
@@ -268,36 +268,36 @@
   <div class="sec" id="s2-1">
     <h3><span class="sec-no">2.1</span>Application layer (5)</h3>
     <div class="prose">
-      <p>Ignore the lower layers for a moment. The layer-5 sender exchanges application-specific information with its <strong>peer</strong> layer 5 at the receiver. A web (HTTP) client sends a <code>GET</code> request for a page; the remote web server's layer 5 answers with the page.</p>
+      <p>Ignore the lower layers for a moment. The layer-5 sender exchanges application-specific information with its <strong>peer</strong> layer 5 at the receiver. A web (HTTP) client sends a <code>GET</code> request for a page, and the remote web server's layer 5 answers with the page.</p>
     </div>
   </div>
 
   <div class="sec" id="s2-2">
-    <h3><span class="sec-no">2.2</span>Transport layer (4): TCP</h3>
+    <h3><span class="sec-no">2.2</span>Transport layer (4), TCP</h3>
     <div class="prose">
       <ul>
-        <li>The Internet can <strong>lose</strong> the application's message. The transport layer's job is end-to-end error recovery, if wanted: <strong>retransmit lost packets</strong>. That is TCP, the Transmission Control Protocol.</li>
-        <li data-step="1">How does the sender know a packet arrived? The receiver sends an <strong>acknowledgment (ACK)</strong>. When should it retransmit? It sets a <strong>timer</strong>; if the timer expires before the ACK arrives, it retransmits.</li>
-        <li data-step="2">TCP also guarantees <strong>in-order delivery</strong>. The web and email need both: a page with holes, or with its text reordered, is unreadable.</li>
-        <li data-step="3">So an application can treat a TCP connection as a <strong>pipe</strong>: everything put in comes out the other end, in the same order.</li>
+        <li>The Internet can <strong>lose</strong> the application's message. The transport layer's job is end-to-end error recovery, if wanted, which means it must <strong>retransmit lost packets</strong>. That is TCP, the Transmission Control Protocol.</li>
+        <li data-step="1">How does the sender know a packet arrived? The receiver sends an <strong>acknowledgment (ACK)</strong>. When should it retransmit? It sets a <strong>timer</strong>. If the timer expires before the ACK arrives, it retransmits.</li>
+        <li data-step="2">TCP also guarantees <strong>in-order delivery</strong>. The web and email need both, because a page with holes, or with its text reordered, is unreadable.</li>
+        <li data-step="3">So an application can treat a TCP connection as a <strong>pipe</strong>. Everything put in comes out the other end, in the same order.</li>
       </ul>
     </div>
   </div>
 
   <div class="sec" id="s2-3">
-    <h3><span class="sec-no">2.3</span>When reliability is too slow: UDP</h3>
+    <h3><span class="sec-no">2.3</span>When reliability is too slow, use UDP</h3>
     <div class="prose">
       <ul>
-        <li>Reliability costs delay: every retransmission waits for a timer.</li>
-        <li data-step="1">Interactive real-time applications like video conferencing cannot wait: a packet must arrive within about 30 ms or it is useless.</li>
-        <li data-step="2">Voice-over-IP apps like Skype and FaceTime can tolerate loss; the audio drops out briefly, and that's OK. They are built on the unreliable <strong>UDP</strong> (User Datagram Protocol) at layer 4 instead of TCP.</li>
+        <li>Reliability costs delay, because every retransmission waits for a timer.</li>
+        <li data-step="1">Interactive real-time applications like video conferencing cannot wait. A packet must arrive within about 30 ms or it is useless.</li>
+        <li data-step="2">Voice-over-IP apps like Skype and FaceTime can tolerate loss. The audio drops out briefly, and that's OK. They are built on the unreliable <strong>UDP</strong> (User Datagram Protocol) at layer 4 instead of TCP.</li>
       </ul>
     </div>
     <div class="widget" id="tu-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Six packets over a lossy network</span><button class="w-reset" type="button" id="tu-reset">Reset</button></div>
       <div class="controls">
         <span class="seg" aria-label="Protocol"><button type="button" data-p="tcp">TCP</button><button type="button" data-p="udp">UDP</button></span>
-        <span class="ctl-label">click to drop:</span>
+        <span class="ctl-label">click to drop</span>
         <span class="pkts-row" id="tu-drop"></span>
       </div>
       <div class="widget-body">
@@ -306,17 +306,17 @@
       </div>
       <div class="readout" id="tu-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Model: one packet sent per time unit, one-way delay 2, retransmission timer 5. Retransmissions are not lost.</p>
+    <p class="small muted prose read-only">The model sends one packet per time unit, with one-way delay 2 and retransmission timer 5. Retransmissions are not lost.</p>
   </div>
 
   <div class="sec" id="s2-4">
-    <h3><span class="sec-no">2.4</span>Network layer (3): routing</h3>
+    <h3><span class="sec-no">2.4</span>Network layer (3), routing</h3>
     <div class="prose">
-      <p>The Internet is many <strong>routers</strong> connected into a graph. The Internet Protocol (IP) must route each packet to its destination, and there are many routes. The network layer looks for the <strong>shortest path</strong>, for example with Dijkstra's algorithm; "shortest" may mean fewest hops, shortest distance, lowest delay, or lowest cost.</p>
-      <p data-step="1">Every router implements the network layer. IP routing can <strong>lose</strong> packets: any router or link may fail, and congested router buffers overflow. That's fine, as long as TCP retransmits them.</p>
+      <p>The Internet is many <strong>routers</strong> connected into a graph. The Internet Protocol (IP) must route each packet to its destination, and there are many routes. The network layer looks for the <strong>shortest path</strong>, for example with Dijkstra's algorithm. "Shortest" may mean fewest hops, shortest distance, lowest delay, or lowest cost.</p>
+      <p data-step="1">Every router implements the network layer. IP routing can <strong>lose</strong> packets, because any router or link may fail, and congested router buffers overflow. That's fine, as long as TCP retransmits them.</p>
     </div>
     <div class="widget" id="rt-w">
-      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Route a packet; click a link to cut it</span><button class="w-reset" type="button" id="rt-reset">Reset</button></div>
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Route a packet, and click a link to cut it</span><button class="w-reset" type="button" id="rt-reset">Reset</button></div>
       <div class="controls">
         <span class="seg" aria-label="Metric"><button type="button" data-met="hops">fewest hops</button><button type="button" data-met="delay">lowest delay</button></span>
       </div>
@@ -331,8 +331,8 @@
     <h3><span class="sec-no">2.5</span>Data link (2) and physical (1)</h3>
     <div class="two-up" style="align-items:start">
       <div class="prose">
-        <p><strong>Data link layer</strong>: every link between two neighboring nodes (routers or endpoints) must carry packets. This layer defines where a packet begins and ends (<strong>framing</strong>), and since packets can be lost on a link, it may also retransmit locally. Examples: Ethernet, WiFi, Bluetooth.</p>
-        <p data-step="1"><strong>Physical layer</strong>: along each link, how 1s and 0s actually travel. A 1 might be +5 volts and a 0 be 0 volts; or 1s and 0s might be different frequencies.</p>
+        <p><strong>Data link layer.</strong> Every link between two neighboring nodes (routers or endpoints) must carry packets. This layer defines where a packet begins and ends (<strong>framing</strong>), and since packets can be lost on a link, it may also retransmit locally. Examples are Ethernet, WiFi, and Bluetooth.</p>
+        <p data-step="1"><strong>Physical layer.</strong> It defines how 1s and 0s actually travel along each link. A 1 might be +5 volts and a 0 be 0 volts. Or 1s and 0s might be different frequencies.</p>
       </div>
       <figure class="fig" data-step="1">
         <div class="fig-frame">
@@ -353,7 +353,7 @@
           <g id="ex-g"></g>
         </svg>
       </div>
-      <figcaption><span class="fno">Fig. 2.2</span>Routers run only layers 1–3, and each link can use a different data-link and physical layer: WiFi, then optical fiber, then Ethernet. Only the two endpoints run TCP and HTTP.</figcaption>
+      <figcaption><span class="fno">Fig. 2.2</span>Routers run only layers 1–3, and each link can use a different data-link and physical layer, such as WiFi, then optical fiber, then Ethernet. Only the two endpoints run TCP and HTTP.</figcaption>
     </figure>
   </div>
 
@@ -365,9 +365,9 @@
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="UDP adds no reliability at all. The lost packet stays lost.">UDP retransmits faster than TCP.</button>
           <button type="button" class="q-opt" data-ok>A retransmitted packet would arrive too late to be played, and TCP's in-order delivery would hold up every packet behind it.</button>
-          <button type="button" class="q-opt" data-why="Both run over IP; routing is the network layer's job, not the transport layer's.">UDP packets take shorter routes.</button>
+          <button type="button" class="q-opt" data-why="Both run over IP. Routing is the network layer's job, not the transport layer's.">UDP packets take shorter routes.</button>
         </div>
-        <div class="q-fb ok">Right. A brief dropout beats a frozen call; try dropping p3 under both protocols in §2.3.</div>
+        <div class="q-fb ok">Right. A brief dropout beats a frozen call. Try dropping p3 under both protocols in §2.3.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -375,7 +375,7 @@
 
   <div class="ch-nav">
     <a href="#ch1">Back<b>1 · Packetization</b></a>
-    <a href="#ch3">Next<b>3 · Recall: modes and rings</b></a>
+    <a href="#ch3">Next<b>3 · A recap of modes and rings</b></a>
   </div>
 </section>
 
@@ -383,7 +383,7 @@
 <section class="chapter" id="ch3">
   <div class="ch-head">
     <div class="ch-no">Chapter 3</div>
-    <h2>Recall: what the OS provides, and how it protects itself</h2>
+    <h2>A recap of what the OS provides, and how it protects itself</h2>
     <p class="ch-lede">A virtual machine is built from exactly these pieces, so start by laying them out again.</p>
   </div>
 
@@ -391,13 +391,13 @@
     <h3><span class="sec-no">3.1</span>What does an operating system provide?</h3>
     <div class="two-up">
       <div class="prose">
-        <p>An OS is a layer of software between <em>many</em> applications and <em>diverse</em> hardware that:</p>
+        <p>An OS is a layer of software between <em>many</em> applications and <em>diverse</em> hardware. It does the three things below.</p>
         <ol>
-          <li>provides a <strong>hardware abstraction</strong>, so an application saving a file need not know how the disk operates;</li>
-          <li data-step="1"><strong>arbitrates access</strong> to resources among applications, and lets them share (one printer, many apps);</li>
-          <li data-step="2">provides <strong>protection</strong>: isolates apps from each other, protects the OS from apps, and limits how much of a resource any one app consumes.</li>
+          <li>It provides a <strong>hardware abstraction</strong>, so an application saving a file need not know how the disk operates.</li>
+          <li data-step="1">It <strong>arbitrates access</strong> to resources among applications, and lets them share (one printer, many apps).</li>
+          <li data-step="2">It provides <strong>protection</strong>. It isolates apps from each other, protects the OS from apps, and limits how much of a resource any one app consumes.</li>
         </ol>
-        <p data-step="2">A <strong>task</strong> (application, job, process) is the unit of work: its code and data in memory, plus the OS's data about it, the task descriptors.</p>
+        <p data-step="2">A <strong>task</strong> (application, job, process) is the unit of work. It consists of its code and data in memory, plus the OS's data about it, the task descriptors.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -418,12 +418,12 @@
     <h3><span class="sec-no">3.2</span>Privileged instructions and the mode bit</h3>
     <div class="two-up" style="align-items:start">
       <div class="prose">
-        <p>Protection means stopping apps from writing privileged memory (another app's, or the kernel's) and from running privileged operations:</p>
+        <p>Protection means stopping apps from writing privileged memory (another app's, or the kernel's) and from running the privileged operations below.</p>
         <ul class="small">
-          <li>memory address mapping; invalidating TLB entries; flushing caches;</li>
-          <li>loading system registers; changing the processor mode from kernel to user;</li>
-          <li>changing processor voltage and frequency; halting or resetting the CPU;</li>
-          <li>performing I/O.</li>
+          <li>memory address mapping, invalidating TLB entries, flushing caches,</li>
+          <li>loading system registers, changing the processor mode from kernel to user,</li>
+          <li>changing processor voltage and frequency, halting or resetting the CPU,</li>
+          <li>and performing I/O.</li>
         </ul>
         <p data-step="1">But then how can a task reach OS functionality at all? The CPU needs to know whether an instruction is allowed right now, and how to switch from the task's code to the OS's. The hardware helper is the <strong>mode bit</strong>.</p>
       </div>
@@ -445,8 +445,8 @@
     <h3><span class="sec-no">3.3</span>Rings of privilege</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Intel x86 CPUs support <strong>four rings</strong> of privilege, 0 (most) to 3 (least). The common configuration: the OS kernel (Linux, Windows) runs in ring 0, applications in ring 3, and rings 1–2 are unused.</p>
-        <p data-step="1">One possible configuration for virtual machines: the <strong>hypervisor</strong> in ring 0, the guest OS in ring 1 or 2, and applications in ring 3.</p>
+        <p>Intel x86 CPUs support <strong>four rings</strong> of privilege, 0 (most) to 3 (least). In the common configuration, the OS kernel (Linux, Windows) runs in ring 0, applications in ring 3, and rings 1–2 are unused.</p>
+        <p data-step="1">One possible configuration for virtual machines puts the <strong>hypervisor</strong> in ring 0, the guest OS in ring 1 or 2, and applications in ring 3.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -470,7 +470,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 4</div>
     <h2>Virtual machines</h2>
-    <p class="ch-lede">Extend the process abstraction one step further: give an entire operating system the illusion of its own machine.</p>
+    <p class="ch-lede">Extend the process abstraction one step further, and give an entire operating system the illusion of its own machine.</p>
   </div>
 
   <div class="sec" id="s4-1">
@@ -479,7 +479,7 @@
       <ul>
         <li>A simulated computer running inside a real one. The virtual computer can run a different operating system from the host.</li>
         <li data-step="1">Every request for real hardware is routed to the appropriate host hardware, so the virtual OS and its applications do not know they are virtual. Like a person living in the Matrix.</li>
-        <li data-step="2"><strong>"Virtual X"</strong>: a process already has the illusion of its own memory (virtual memory) and its own CPU (time slicing). A virtual machine adds the illusion of its own hardware, and extends the idea from one process to an entire OS with its own memory, CPU, and I/O devices.</li>
+        <li data-step="2"><strong>"Virtual X."</strong> A process already has the illusion of its own memory (virtual memory) and its own CPU (time slicing). A virtual machine adds the illusion of its own hardware, and extends the idea from one process to an entire OS with its own memory, CPU, and I/O devices.</li>
       </ul>
     </div>
   </div>
@@ -489,7 +489,7 @@
     <div class="two-up">
       <div class="prose">
         <p>A <strong>Type 1 hypervisor</strong> provides a virtualization layer for guest operating systems and sits just above the hardware. Each guest OS believes it is running on real hardware.</p>
-        <p data-step="1">Each guest keeps providing abstraction, arbitration and protection for its own applications; the hypervisor does the same for the guests.</p>
+        <p data-step="1">Each guest keeps providing abstraction, arbitration and protection for its own applications. The hypervisor does the same for the guests.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -502,18 +502,18 @@
     </div>
     <div class="note note-honest read-only">
       <span class="note-tag">Type 2, too</span>
-      <p>A <strong>Type 2</strong> (hosted) hypervisor, such as VirtualBox or VMware Workstation, runs as an application on an ordinary host OS instead of directly on the hardware. Linux's KVM is somewhere in between: a kernel module that turns Linux itself into a hypervisor. The QEMU VM you use in the labs runs on top of one of these.</p>
+      <p>A <strong>Type 2</strong> (hosted) hypervisor, such as VirtualBox or VMware Workstation, runs as an application on an ordinary host OS instead of directly on the hardware. Linux's KVM is somewhere in between. It is a kernel module that turns Linux itself into a hypervisor. The QEMU VM you use in the labs runs on top of one of these.</p>
     </div>
   </div>
 
   <div class="sec" id="s4-3">
-    <h3><span class="sec-no">4.3</span>How it works: trap-and-emulate</h3>
+    <h3><span class="sec-no">4.3</span>How it works, trap-and-emulate</h3>
     <div class="prose">
       <ul>
-        <li>Goal: run a VM at close to native speed. Emulating or interpreting every instruction in software is far too slow.</li>
-        <li data-step="1">Solution: let the guest OS run normally, <strong>directly on the CPU</strong>, but not in kernel mode. Any privileged instruction it executes then traps to the hypervisor, which is in kernel mode.</li>
-        <li data-step="2">The hypervisor emulates only those instructions, then passes control back to the guest: a <strong>VM entry</strong>. The trap into the hypervisor is a <strong>VM exit</strong>.</li>
-        <li data-step="3">Ordinary instructions run at full speed; only privileged ones pay for a trap. This is <strong>trap-and-emulate</strong>.</li>
+        <li>The goal is to run a VM at close to native speed. Emulating or interpreting every instruction in software is far too slow.</li>
+        <li data-step="1">The solution is to let the guest OS run normally, <strong>directly on the CPU</strong>, but not in kernel mode. Any privileged instruction it executes then traps to the hypervisor, which is in kernel mode.</li>
+        <li data-step="2">The hypervisor emulates only those instructions, then passes control back to the guest, which is a <strong>VM entry</strong>. The trap into the hypervisor is a <strong>VM exit</strong>.</li>
+        <li data-step="3">Ordinary instructions run at full speed, and only privileged ones pay for a trap. This is <strong>trap-and-emulate</strong>.</li>
       </ul>
     </div>
   </div>
@@ -537,7 +537,7 @@
     </div>
     <div class="note note-honest read-only">
       <span class="note-tag">Why classic x86 needed help</span>
-      <p>Trap-and-emulate needs every sensitive instruction to trap when run outside kernel mode (Popek and Goldberg, 1974). Classic x86 broke that rule: <code>POPF</code> in ring 1 silently ignores changes to the interrupt flag instead of trapping. VMware worked around it with binary translation, Xen by modifying the guest kernel (paravirtualization). Since 2005–06, Intel VT-x and AMD-V add a "guest mode" in which the guest kernel runs in its own ring 0 and every sensitive instruction can be made to exit.</p>
+      <p>Trap-and-emulate needs every sensitive instruction to trap when run outside kernel mode (Popek and Goldberg, 1974). Classic x86 broke that rule. <code>POPF</code> in ring 1 silently ignores changes to the interrupt flag instead of trapping. VMware worked around it with binary translation, Xen by modifying the guest kernel (paravirtualization). Since 2005–06, Intel VT-x and AMD-V add a "guest mode" in which the guest kernel runs in its own ring 0 and every sensitive instruction can be made to exit.</p>
     </div>
   </div>
 
@@ -547,11 +547,11 @@
       <div class="quiz-body">
         <div class="q-text">Under trap-and-emulate, which of these guest-kernel instructions causes a VM exit?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="Arithmetic is not privileged; it runs directly on the CPU at full speed.">add rax, rbx</button>
+          <button type="button" class="q-opt" data-why="Arithmetic is not privileged, so it runs directly on the CPU at full speed.">add rax, rbx</button>
           <button type="button" class="q-opt" data-why="An ordinary load from the guest's own memory runs directly, translated by the page tables the hypervisor set up.">mov rax, [rbp-8]</button>
           <button type="button" class="q-opt" data-ok>mov cr3, rax (load a new page-table base)</button>
         </div>
-        <div class="q-fb ok">Right. Changing the page-table base is privileged; the hypervisor must intervene so the guest cannot map memory that isn't its own.</div>
+        <div class="q-fb ok">Right. Changing the page-table base is privileged, so the hypervisor must intervene so the guest cannot map memory that isn't its own.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -579,12 +579,12 @@
   </div>
 
   <div class="sec" id="s4-7">
-    <h3><span class="sec-no">4.7</span>Process VMs: the Java Virtual Machine</h3>
+    <h3><span class="sec-no">4.7</span>Process VMs and the Java Virtual Machine</h3>
     <div class="two-up">
       <div class="prose">
-        <p><strong>Process VMs</strong> differ from system VMs: the goal is not to run several OSes on one host, but <strong>portable execution</strong> of one application across different hosts.</p>
+        <p><strong>Process VMs</strong> differ from system VMs. The goal is not to run several OSes on one host, but <strong>portable execution</strong> of one application across different hosts.</p>
         <p data-step="1">Java programs are compiled to <strong>byte code</strong> that runs on any Java VM. The JVM acts as an <strong>interpreter</strong>, turning each byte-code instruction into a local action on the host OS.</p>
-        <p data-step="2"><strong>Just-in-time (JIT) compilation</strong> speeds this up: byte code is compiled at run time into native machine code that runs directly on the hardware.</p>
+        <p data-step="2"><strong>Just-in-time (JIT) compilation</strong> speeds this up. Byte code is compiled at run time into native machine code that runs directly on the hardware.</p>
         <p data-step="3">A JVM virtualizes an <em>abstract</em> machine, a software specification, not real hardware as system VMs do.</p>
       </div>
       <figure class="fig">
@@ -604,9 +604,9 @@
       <div class="quiz-body">
         <div class="q-text">What does the JVM virtualize that a system VM such as a Xen guest does not, and vice versa?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-ok>The JVM virtualizes an abstract machine defined by a specification, for one application; a system VM virtualizes real hardware for a whole OS.</button>
-          <button type="button" class="q-opt" data-why="Both can use real CPUs directly; the JVM does so through its JIT.">The JVM always interprets; a system VM always runs natively.</button>
-          <button type="button" class="q-opt" data-why="A JVM runs inside an ordinary process on a normal OS; it neither needs nor has a hypervisor.">Both need a hypervisor below them.</button>
+          <button type="button" class="q-opt" data-ok>The JVM virtualizes an abstract machine defined by a specification, for one application. A system VM virtualizes real hardware for a whole OS.</button>
+          <button type="button" class="q-opt" data-why="Both can use real CPUs directly. The JVM does so through its JIT.">The JVM always interprets, and a system VM always runs natively.</button>
+          <button type="button" class="q-opt" data-why="A JVM runs inside an ordinary process on a normal OS. It neither needs nor has a hypervisor.">Both need a hypervisor below them.</button>
         </div>
         <div class="q-fb ok">Right. Same word, "virtual machine", two different targets.</div>
         <div class="q-fb no">Not quite.</div>
@@ -615,7 +615,7 @@
   </div>
 
   <div class="ch-nav">
-    <a href="#ch3">Back<b>3 · Recall: modes and rings</b></a>
+    <a href="#ch3">Back<b>3 · A recap of modes and rings</b></a>
     <a href="#tail">Next<b>∎ · Summary and glossary</b></a>
   </div>
 </section>
@@ -631,9 +631,9 @@
     <h3><span class="sec-no">∎</span>What to take away</h3>
     <div class="prose">
       <ul>
-        <li>Applications reach the network through sockets; the kernel's stack is five layers, each adding its header on the way down and stripping it on the way up.</li>
-        <li>TCP turns a lossy network into a reliable, ordered pipe with ACKs, timers and retransmission; UDP skips that for applications that value timeliness over completeness.</li>
-        <li>IP routes packets over a graph of routers along shortest paths, and may lose them; the data link and physical layers move frames and bits across single links.</li>
+        <li>Applications reach the network through sockets. The kernel's stack is five layers, each adding its header on the way down and stripping it on the way up.</li>
+        <li>TCP turns a lossy network into a reliable, ordered pipe with ACKs, timers and retransmission. UDP skips that for applications that value timeliness over completeness.</li>
+        <li>IP routes packets over a graph of routers along shortest paths, and may lose them. The data link and physical layers move frames and bits across single links.</li>
         <li>The mode bit and privilege rings let the kernel keep privileged instructions for itself.</li>
         <li>A hypervisor runs guest OSes directly on the CPU and traps their privileged instructions (trap-and-emulate), so most code runs at full speed. Hardware support made this work on x86.</li>
         <li>Process VMs like the JVM virtualize an abstract machine for portability, and use JIT compilation to regain speed.</li>
@@ -641,7 +641,7 @@
     </div>
     <div class="note note-lab" data-step="1">
       <span class="note-tag">In the lab</span>
-      <p>Every Basecamp lab ran inside a QEMU virtual machine: a guest Linux kernel that believed the CPU, disk and serial port were its own. The <code>make check</code> harness talks to it over a virtual serial device, emulated exactly as in §4.4.</p>
+      <p>Every Basecamp lab ran inside a QEMU virtual machine, that is, a guest Linux kernel that believed the CPU, disk and serial port were its own. The <code>make check</code> harness talks to it over a virtual serial device, emulated exactly as in §4.4.</p>
     </div>
   </div>
 
@@ -650,7 +650,7 @@
       <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
       <tbody>
         <tr><td>socket</td><td>The API a process uses to send to and receive from a remote process.</td></tr>
-        <tr><td>NIC</td><td>Network interface card: the device that puts frames on a link.</td></tr>
+        <tr><td>NIC</td><td>Network interface card, the device that puts frames on a link.</td></tr>
         <tr><td>header</td><td>What a layer prepends so that its peer at the receiver can process the packet.</td></tr>
         <tr><td>TCP / UDP</td><td>Reliable, in-order byte stream / unreliable individual datagrams.</td></tr>
         <tr><td>ACK</td><td>Acknowledgment from the receiver that a packet arrived.</td></tr>
@@ -659,7 +659,7 @@
         <tr><td>mode bit, ring</td><td>Hardware state that says whether privileged instructions are allowed.</td></tr>
         <tr><td>hypervisor (VMM)</td><td>Software that runs virtual machines and controls their access to hardware.</td></tr>
         <tr><td>VM exit / entry</td><td>A trap from the guest into the hypervisor / the return to the guest.</td></tr>
-        <tr><td>trap-and-emulate</td><td>Run guests natively; trap and emulate only privileged instructions.</td></tr>
+        <tr><td>trap-and-emulate</td><td>Run guests natively, and trap and emulate only privileged instructions.</td></tr>
         <tr><td>process VM, JIT</td><td>A VM for one program on an abstract machine / compiling byte code to native code at run time.</td></tr>
       </tbody>
     </table>
@@ -760,16 +760,16 @@
     ];
     const TXT = [
       'The browser calls <code>send()</code>. Layer 5 prepends its header (HTTP request headers) to the data.',
-      'TCP prepends its header: source and destination <b>ports</b> (which process), a <b>sequence number</b> (for ordering and retransmission), and a checksum.',
-      'IP prepends its header: source and destination <b>IP addresses</b>, used by every router on the way.',
-      'Ethernet prepends source and destination <b>MAC addresses</b> of this one link, and appends a checksum trailer: this is the frame.',
+      'TCP prepends its header, which holds source and destination <b>ports</b> (which process), a <b>sequence number</b> (for ordering and retransmission), and a checksum.',
+      'IP prepends its header, which holds source and destination <b>IP addresses</b>, used by every router on the way.',
+      'Ethernet prepends source and destination <b>MAC addresses</b> of this one link, and appends a checksum trailer. This is the frame.',
       'The physical layer sends the frame as bits.',
-      'On the wire: routers in between look only at layers 1–3 (§2.6).',
+      'On the wire, routers in between look only at layers 1–3 (§2.6).',
       'The receiver\'s physical layer turns signals back into a frame.',
-      'Ethernet checks and strips its header and trailer: this frame was for our MAC address.',
-      'IP strips its header: the packet is for our IP address.',
+      'Ethernet checks and strips its header and trailer, because this frame was for our MAC address.',
+      'IP strips its header, because the packet is for our IP address.',
       'TCP strips its header, uses the port to find the server\'s socket, and puts the data in order in the socket buffer.',
-      'The server\'s <code>receive()</code> returns: layer 5 strips the HTTP headers and reads <code>GET /index.html</code>.',
+      'The server\'s <code>receive()</code> returns, and layer 5 strips the HTTP headers and reads <code>GET /index.html</code>.',
     ];
     let i = 0;
     function pkt(level, full) {
@@ -845,7 +845,7 @@
           svg.appendChild(el('text', { x: xm + 4, y: ym + 4, class: 'lbl t-m', style: 'font-size:14px' }, '✕'));
           if (p.re != null) {
             svg.appendChild(el('path', { d: `M${XS} ${Y(p.re)} L${XR - 3} ${Y(p.re + DL)}`, class: 'wire o', style: 'stroke-width:1.8', 'marker-end': 'url(#ah-o)' }));
-            svg.appendChild(el('text', { x: XS + 8, y: Y(p.re) + 14, class: 'lbl t-o', style: 'font-size:10px' }, 'timer expires: resend p' + (k + 1)));
+            svg.appendChild(el('text', { x: XS + 8, y: Y(p.re) + 14, class: 'lbl t-o', style: 'font-size:10px' }, 'timer expires, so resend p' + (k + 1)));
             svg.appendChild(el('path', { d: `M${XR} ${Y(p.re + DL)} L${XS + 3} ${Y(p.re + 2 * DL)}`, class: 'wire thin dashed', 'marker-end': 'url(#ah)' }));
           }
         } else {
@@ -854,15 +854,15 @@
         }
         svg.appendChild(el('text', { x: XS + 8, y: y0 - 3, class: 'lbl mono', style: 'font-size:11px' }, 'p' + (k + 1)));
       });
-      if (proto === 'tcp') svg.appendChild(el('text', { x: 350, y: 318, 'text-anchor': 'middle', class: 'lbl' }, 'dashed: ACKs'));
+      if (proto === 'tcp') svg.appendChild(el('text', { x: 350, y: 318, 'text-anchor': 'middle', class: 'lbl' }, 'dashed lines are ACKs'));
       const order = P.map((p, k) => ({ k, t: p.del })).filter((x) => x.t != null).sort((a, b) => a.t - b.t || a.k - b.k);
-      const got = P.map((p, k) => p.del == null ? `<span class="gap">p${k + 1}: lost</span>` : `p${k + 1}: <b>t=${p.del}</b>`).join(' · ');
+      const got = P.map((p, k) => p.del == null ? `<span class="gap">p${k + 1} lost</span>` : `p${k + 1} at <b>t=${p.del}</b>`).join(' · ');
       const lastT = Math.max(...P.map((p) => p.del ?? 0));
       const held = proto === 'tcp' ? P.filter((p, k) => !p.lost && p.del > p.arr).map((p) => 'p' + (P.indexOf(p) + 1)) : [];
-      $('#tu-deliv').innerHTML = `delivered to the app → ${got}<br>app sees: ${order.map((x) => 'p' + (x.k + 1)).join(' ')}${proto === 'udp' && drop.some(Boolean) ? ' <span class="gap">(gap)</span>' : ''}`;
+      $('#tu-deliv').innerHTML = `delivered to the app → ${got}<br>app sees ${order.map((x) => 'p' + (x.k + 1)).join(' ')}${proto === 'udp' && drop.some(Boolean) ? ' <span class="gap">(gap)</span>' : ''}`;
       $('#tu-out').innerHTML = proto === 'tcp'
-        ? (drop.some(Boolean) ? `Every packet arrives, in order, but the last one only at t=${lastT}. ${held.length ? held.join(', ') + ' arrived on time but waited in the buffer for the retransmission: in-order delivery holds them back.' : ''}` : 'Nothing lost: TCP costs only the ACKs.')
-        : (drop.some(Boolean) ? 'Lost packets stay lost, but everything that arrives is delivered immediately. For a call, that is a brief dropout instead of a freeze.' : 'Nothing lost: UDP delivers everything on time.');
+        ? (drop.some(Boolean) ? `Every packet arrives, in order, but the last one only at t=${lastT}. ${held.length ? held.join(', ') + ' arrived on time but waited in the buffer for the retransmission, because in-order delivery holds them back.' : ''}` : 'Nothing is lost, so TCP costs only the ACKs.')
+        : (drop.some(Boolean) ? 'Lost packets stay lost, but everything that arrives is delivered immediately. For a call, that is a brief dropout instead of a freeze.' : 'Nothing is lost, so UDP delivers everything on time.');
     }
     const ctl = Academy.register('s2-3', { steps: 1, readStep: 0, show: (k) => { proto = k ? 'udp' : 'tcp'; render(); } });
     $$('#tu-w [data-p]').forEach((b) => b.addEventListener('click', () => ctl.go(b.dataset.p === 'udp' ? 1 : 0)));
@@ -919,8 +919,8 @@
         svg.appendChild(el('text', { x, y: y + 5, 'text-anchor': 'middle', class: 'mono', style: 'font-size:12px;pointer-events:none' }, end ? (n === 'S' ? 'source' : 'dest') : n));
       });
       $('#rt-out').innerHTML = r
-        ? `Path: <b class="mono">${r.path.join(' → ')}</b>, ${met === 'hops' ? (r.path.length - 1) + ' hops' : r.cost + ' ms total delay'}. ${cut.size ? 'Routers route around the cut links.' : 'Click a link to cut it and watch the route change.'}`
-        : '<span class="bad">No route: the destination is unreachable.</span> Every packet sent now is lost; TCP will keep retransmitting until a link comes back or it gives up.';
+        ? `The path is <b class="mono">${r.path.join(' → ')}</b>, ${met === 'hops' ? (r.path.length - 1) + ' hops' : r.cost + ' ms total delay'}. ${cut.size ? 'Routers route around the cut links.' : 'Click a link to cut it and watch the route change.'}`
+        : '<span class="bad">No route. The destination is unreachable.</span> Every packet sent now is lost, and TCP will keep retransmitting until a link comes back or it gives up.';
     }
     $$('#rt-w [data-met]').forEach((b) => b.addEventListener('click', () => { met = b.dataset.met; render(); }));
     svg.addEventListener('click', (e) => { const p = e.target.closest('[data-e]'); if (p) { const i = +p.dataset.e; cut.has(i) ? cut.delete(i) : cut.add(i); render(); } });
@@ -973,7 +973,7 @@
     let x = 30;
     HW.forEach(([n, w]) => { g.appendChild(el('rect', { x, y: 134, width: w, height: 40, class: 'fbox' })); g.appendChild(el('text', { x: x + w / 2, y: 159, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:11px' }, n)); x += w + 4; });
     const s = el('g', { 'data-step': '2' });
-    s.appendChild(el('text', { x: 220, y: 204, 'text-anchor': 'middle', class: 'lbl' }, 'protection: apps cannot touch each other, the OS, or the hardware directly'));
+    s.appendChild(el('text', { x: 220, y: 204, 'text-anchor': 'middle', class: 'lbl' }, 'with protection, apps cannot touch each other, the OS, or hardware directly'));
     g.appendChild(s);
   })();
 
@@ -985,14 +985,14 @@
       g.appendChild(el('text', { x: cx, y: cy - r + 16, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:11px' }, n));
     });
     g.appendChild(el('text', { x: cx, y: cy + 8, 'text-anchor': 'middle', style: 'font-size:13px' }, 'kernel'));
-    g.appendChild(el('text', { x: 300, y: 50, class: 'lbl' }, 'ring 0: OS kernel'));
-    g.appendChild(el('text', { x: 300, y: 70, class: 'lbl' }, 'rings 1–2: unused'));
-    g.appendChild(el('text', { x: 300, y: 90, class: 'lbl' }, 'ring 3: applications'));
+    g.appendChild(el('text', { x: 300, y: 50, class: 'lbl' }, 'ring 0 = OS kernel'));
+    g.appendChild(el('text', { x: 300, y: 70, class: 'lbl' }, 'rings 1–2 unused'));
+    g.appendChild(el('text', { x: 300, y: 90, class: 'lbl' }, 'ring 3 = applications'));
     const s = el('g', { 'data-step': '1' });
-    s.appendChild(el('text', { x: 300, y: 150, class: 'lbl t-o' }, 'one VM configuration:'));
-    s.appendChild(el('text', { x: 300, y: 170, class: 'lbl t-o' }, 'ring 0: hypervisor'));
-    s.appendChild(el('text', { x: 300, y: 190, class: 'lbl t-o' }, 'ring 1: guest OS'));
-    s.appendChild(el('text', { x: 300, y: 210, class: 'lbl t-o' }, 'ring 3: applications'));
+    s.appendChild(el('text', { x: 300, y: 150, class: 'lbl t-o' }, 'one VM configuration'));
+    s.appendChild(el('text', { x: 300, y: 170, class: 'lbl t-o' }, 'ring 0 = hypervisor'));
+    s.appendChild(el('text', { x: 300, y: 190, class: 'lbl t-o' }, 'ring 1 = guest OS'));
+    s.appendChild(el('text', { x: 300, y: 210, class: 'lbl t-o' }, 'ring 3 = applications'));
     g.appendChild(s);
   })();
 
@@ -1016,7 +1016,7 @@
   (function () {
     const INS = [
       { t: 'add rax, rbx', k: 'n', how: 'runs directly on the CPU' },
-      { t: 'mov rcx, [rbp-8]', k: 'n', how: 'runs directly; the guest\'s own memory' },
+      { t: 'mov rcx, [rbp-8]', k: 'n', how: 'runs directly, since it uses the guest\'s own memory' },
       { t: 'mov cr3, rax', k: 'p', how: 'loads a page-table base', emu: 'the hypervisor checks the guest\'s page tables and installs the real mapping' },
       { t: 'cmp rcx, 0 · jne loop', k: 'n', how: 'runs directly on the CPU' },
       { t: 'out 0x3F8, al', k: 'p', how: 'writes the serial port', emu: 'the hypervisor emulates a virtual serial device and passes the byte on' },
@@ -1030,7 +1030,7 @@
       $$('#te-w [data-cpu]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cpu === cpu)));
       $('#te-list').innerHTML = INS.map((x, k) => {
         const kd = kind(x), done = k <= i;
-        const how = !done ? x.how : kd === 'direct' ? 'direct · full speed' : kd === 'bad' ? '✕ no trap: the change is silently ignored' : 'VM exit → emulate → VM entry';
+        const how = !done ? x.how : kd === 'direct' ? 'direct · full speed' : kd === 'bad' ? '✕ no trap, so the change is silently ignored' : 'VM exit → emulate → VM entry';
         return `<div class="ins ${done ? kd : 'pend'}${k === i ? ' cur' : ''}"><span class="n">${k + 1}</span><span>${x.t}</span><span class="how">${how}</span></div>`;
       }).join('');
       const run = INS.slice(0, i + 1), ex = run.filter((x) => kind(x) === 'exit').length, bad = run.filter((x) => kind(x) === 'bad').length;
@@ -1041,9 +1041,9 @@
         `<div class="${bad ? 'warn' : ''}"><div class="lab">silently wrong</div><div class="big">${bad}</div></div>`;
       const x = INS[i];
       $('#te-out').innerHTML = i < 0 ? 'The guest kernel runs directly on the CPU, outside real kernel mode. Step through its instructions.'
-        : kind(x) === 'direct' ? `<code>${x.t}</code> is not privileged: it runs on the real CPU at full speed, with no hypervisor involvement.`
-        : kind(x) === 'bad' ? `<code>popf</code> is <em>sensitive</em> (it controls interrupts) but not privileged. In ring 1, classic x86 simply ignores the interrupt-flag change and <b class="bad">does not trap</b>: the guest now wrongly believes interrupts are off, and the hypervisor never found out.`
-        : `<code>${x.t}</code> ${x.how}, which is privileged. <b class="os">VM exit</b>: ${x.emu}, then <b class="os">VM entry</b> returns to the guest's next instruction.`;
+        : kind(x) === 'direct' ? `<code>${x.t}</code> is not privileged, so it runs on the real CPU at full speed, with no hypervisor involvement.`
+        : kind(x) === 'bad' ? `<code>popf</code> is <em>sensitive</em> (it controls interrupts) but not privileged. In ring 1, classic x86 simply ignores the interrupt-flag change and <b class="bad">does not trap</b>. The guest now wrongly believes interrupts are off, and the hypervisor never found out.`
+        : `<code>${x.t}</code> ${x.how}, which is privileged. After the <b class="os">VM exit</b>, ${x.emu}, then <b class="os">VM entry</b> returns to the guest's next instruction.`;
       $('#te-prev').disabled = i < 0; $('#te-next').disabled = i === INS.length - 1; $('#te-all').disabled = i === INS.length - 1;
     }
     const ctl = Academy.register('s4-4', { steps: INS.length, readStep: 0, show: (k) => { i = k - 1; render(); } });

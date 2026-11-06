@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>C and the Shell · R01</title>
-<meta name="description" content="CSCI 3753 Recitation 01: C strings and argv, compiling with warnings and AddressSanitizer, pipes, redirection and exit status, and Lab00 help to get the course VM booted.">
+<meta name="description" content="CSCI 3753 Recitation 01 covers C strings and argv, compiling with warnings and AddressSanitizer, pipes, redirection and exit status, and Lab00 help to get the course VM booted.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -30,12 +30,12 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
 <body>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="2.5" y="4" width="17" height="14" rx="2" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M6 9l3 2.5L6 14" stroke="var(--cx)" stroke-width="1.6" fill="none"/><path d="M11 14h5" stroke="currentColor" stroke-width="1.4"/></svg>
-    <span>Recitation 01 · C and the Linux command line</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Recitation 01 · C and the Linux command line</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -43,11 +43,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 01 · Week 1</div>
     <h1>Boot it, then <span class="accent">talk</span> to it</h1>
-    <p class="lede">Today you get the course VM running on your laptop, and you pick up the C and shell you need for Lab00 and Lab01: strings as pointers, <code>argv</code>, compiler warnings that stop the build, pipes, redirection and exit status.</p>
+    <p class="lede">Today you get the course VM running on your laptop, and you pick up the C and shell you need for Lab00 and Lab01, namely strings as pointers, <code>argv</code>, compiler warnings that stop the build, pipes, redirection and exit status.</p>
     <div class="agenda">
       <div><b>0–5</b>Recap</div>
-      <div><b>5–25</b>Worked example: strings, the shell</div>
-      <div><b>25–45</b>Lab00 help: get your VM booted</div>
+      <div><b>5–25</b>Worked example on strings and the shell</div>
+      <div><b>25–45</b>Lab00 help to get your VM booted</div>
       <div><b>45–50</b>Exit ticket</div>
     </div>
   </div>
@@ -84,14 +84,14 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="note note-warn">
       <span class="note-tag">Do this before Friday</span>
-      <p>The first image build takes <strong>30–60 minutes</strong> and cannot happen during the section. Follow Lab00 Part 0–1: create your private repository, push the course repository to it, add <code>chenyueqi</code> as a collaborator, and then, in <code>env/</code> run <code>make setup</code> and <code>make images</code>.</p>
+      <p>The first image build takes <strong>30–60 minutes</strong> and cannot happen during the section. Follow Lab00 Part 0–1. Create your private repository, push the course repository to it, add <code>chenyueqi</code> as a collaborator, and then, in <code>env/</code> run <code>make setup</code> and <code>make images</code>.</p>
     </div>
     <ul class="check prose">
       <li>My course repository is cloned.</li>
       <li><code>make images</code> has finished without errors.</li>
-      <li>I can open two terminals: one for the laptop (host), one for the VM.</li>
+      <li>I can open two terminals, one for the laptop (host) and one for the VM.</li>
     </ul>
-    <p class="prose">If the build is not done when you arrive, start it at once; it can run while your TA works the example.</p>
+    <p class="prose">If the build is not done when you arrive, start it at once. It can run while your TA works the example.</p>
   </div>
 </section>
 
@@ -108,8 +108,8 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       <div class="prose">
         <ul>
           <li><code>argv</code> is an array of <code>argc</code> pointers. Each one points to characters that end with a <code>'\0'</code> byte.</li>
-          <li><code>strlen</code> counts characters up to the <code>'\0'</code>; it does not count the <code>'\0'</code> itself.</li>
-          <li>The shell splits the command line into words; quotes keep <code>"two words"</code> as one argument.</li>
+          <li><code>strlen</code> counts characters up to the <code>'\0'</code>, but it does not count the <code>'\0'</code> itself.</li>
+          <li>The shell splits the command line into words, and quotes keep <code>"two words"</code> as one argument.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -123,7 +123,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     </div>
     <div class="note note-key">
       <span class="note-tag">The bug everybody writes once</span>
-      <p><code>char name[5]; strcpy(name, "hello");</code> writes six bytes, five letters plus <code>'\0'</code>, into five. With <code>-Wall -Werror</code>, GCC refuses to compile it. Without the flags it compiles and even prints <code>hello</code>: undefined behavior often looks fine. Build it with <code>-fsanitize=address -g</code> and run it again, and AddressSanitizer names the line that overflowed. When a C program acts strangely, try that first.</p>
+      <p><code>char name[5]; strcpy(name, "hello");</code> writes six bytes, five letters plus <code>'\0'</code>, into five. With <code>-Wall -Werror</code>, GCC refuses to compile it. Without the flags it compiles and even prints <code>hello</code>, because undefined behavior often looks fine. Build it with <code>-fsanitize=address -g</code> and run it again, and AddressSanitizer names the line that overflowed. When a C program acts strangely, try that first.</p>
     </div>
   </div>
 </section>
@@ -134,9 +134,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <h2>Shell plumbing</h2>
   </div>
   <div class="sec">
-    <div class="prose"><p>Run these <strong>inside the VM</strong>: <code>/proc</code> exists only on Linux.</p></div>
+    <div class="prose"><p>Run these <strong>inside the VM</strong>, because <code>/proc</code> exists only on Linux.</p></div>
     <div class="code"><span class="ln">cat /proc/meminfo | head -3          <span class="c"># pipe: output of one → input of the next</span></span><span class="ln">grep MemFree /proc/meminfo           <span class="c"># kernel files read like text</span></span><span class="ln">ls /proc | wc -l                     <span class="c"># count entries</span></span><span class="ln">ls /nonexistent &gt; out.txt            <span class="c"># the error still shows: it is stderr</span></span><span class="ln">ls /nonexistent &gt; out.txt 2&gt;&amp;1       <span class="c"># both streams into the file</span></span><span class="ln">echo $?                              <span class="c"># exit status of the last command; 0 = success</span></span><span class="ln">man 3 strlen ; man 2 read            <span class="c"># 3 = C library, 2 = system calls</span></span></div>
-    <p class="prose small muted">Keys: Tab completes a name. Ctrl-C stops the running program. Ctrl-D ends input. <b>Ctrl-a x</b> quits the VM.</p>
+    <p class="prose small muted">Some useful keys follow. Tab completes a name. Ctrl-C stops the running program. Ctrl-D ends input. <b>Ctrl-a x</b> quits the VM.</p>
   </div>
 </section>
 
@@ -144,15 +144,15 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="ch-head">
     <div class="ch-no">Part 3</div>
     <h2>Lab00 help</h2>
-    <p class="ch-lede">The second half of the hour is for your own Lab00. Your TA comes round; the first goal is that your VM boots.</p>
+    <p class="ch-lede">The second half of the hour is for your own Lab00. Your TA comes round, and the first goal is that your VM boots.</p>
   </div>
   <div class="sec">
     <div class="prose">
       <ol>
-        <li><strong>Boot the VM.</strong> In <code>env/</code>: <code>make smoke</code> should pass, then <code>make run</code>. Inside, <code>cat /proc/version</code> should print a line starting <code>Linux version 6.6.87</code>. Leave with Ctrl-a x.</li>
+        <li><strong>Boot the VM.</strong> In <code>env/</code>, <code>make smoke</code> should pass, then <code>make run</code>. Inside, <code>cat /proc/version</code> should print a line starting <code>Linux version 6.6.87</code>. Leave with Ctrl-a x.</li>
         <li><strong>Work on Lab00 Part 2</strong>, and ask when you get stuck.</li>
       </ol>
-      <p>To edit on the laptop and run in the VM, share your <code>submit/</code> directory. From your repository root:</p>
+      <p>To edit on the laptop and run in the VM, share your <code>submit/</code> directory. Run the command below from your repository root.</p>
     </div>
     <div class="code"><span class="ln">SHARE=$PWD/labs/00-getting-started/submit env/run.sh</span><span class="ln"><span class="c"># in the VM: your files are in /share</span></span><span class="ln">bash /share/observe.sh</span></div>
     <div class="note note-key">
@@ -174,11 +174,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       <div class="quiz-body">
         <div class="q-text">On a 64-bit machine, after <code>char *s = "hello";</code>, what is <code>sizeof(s)</code>?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="That is strlen(s): the number of characters.">5</button>
+          <button type="button" class="q-opt" data-why="That is strlen(s), the number of characters.">5</button>
           <button type="button" class="q-opt" data-why="That would be sizeof of a char array holding &quot;hello&quot; plus its '\0'.">6</button>
           <button type="button" class="q-opt" data-ok>8</button>
         </div>
-        <div class="q-fb ok">Right: s is a pointer, and pointers are 8 bytes on a 64-bit machine. sizeof measures the variable, not the string it points to.</div>
+        <div class="q-fb ok">Right. s is a pointer, and pointers are 8 bytes on a 64-bit machine. sizeof measures the variable, not the string it points to.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -187,11 +187,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       <div class="quiz-body">
         <div class="q-text">What does <code>./prog &gt; out.txt 2&gt;&amp;1</code> do?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="Only the first half: 2>&1 then sends stderr to the same place.">Sends standard output to out.txt; errors still go to the screen.</button>
+          <button type="button" class="q-opt" data-why="Only the first half. 2>&1 then sends stderr to the same place.">Sends standard output to out.txt, while errors still go to the screen.</button>
           <button type="button" class="q-opt" data-ok>Sends both standard output and standard error into out.txt.</button>
-          <button type="button" class="q-opt" data-why="2>&1 redirects stream 2 (stderr) to wherever stream 1 goes; it does not create a file named 1.">Writes errors to a file named 1.</button>
+          <button type="button" class="q-opt" data-why="2>&1 redirects stream 2 (stderr) to wherever stream 1 goes. It does not create a file named 1.">Writes errors to a file named 1.</button>
         </div>
-        <div class="q-fb ok">Right. File descriptor 1 is stdout and 2 is stderr; 2&gt;&amp;1 points 2 where 1 already points.</div>
+        <div class="q-fb ok">Right. File descriptor 1 is stdout and 2 is stderr, and 2&gt;&amp;1 points 2 where 1 already points.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -209,11 +209,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <tbody>
           <tr><td>gcc -Wall -Werror -o p p.c</td><td>Compile with all common warnings, treated as errors. Every lab builds this way.</td></tr>
           <tr><td>gcc -fsanitize=address -g …</td><td>Catch buffer overflows and use-after-free at run time, with line numbers.</td></tr>
-          <tr><td>a | b</td><td>Pipe: a's standard output becomes b's standard input.</td></tr>
+          <tr><td>a | b</td><td>Pipe. a's standard output becomes b's standard input.</td></tr>
           <tr><td>&lt; f &nbsp; &gt; f &nbsp; &gt;&gt; f</td><td>Read stdin from f / write stdout to f / append to f.</td></tr>
           <tr><td>2&gt; f &nbsp; 2&gt;&amp;1</td><td>Redirect stderr to f / merge stderr into stdout.</td></tr>
-          <tr><td>echo $?</td><td>Exit status of the last command: 0 means success.</td></tr>
-          <tr><td>man 2 open · man 3 printf</td><td>Manual pages: section 2 is system calls, section 3 is the C library.</td></tr>
+          <tr><td>echo $?</td><td>Exit status of the last command, where 0 means success.</td></tr>
+          <tr><td>man 2 open · man 3 printf</td><td>Manual pages. Section 2 is system calls, section 3 is the C library.</td></tr>
           <tr><td>make run · Ctrl-a x</td><td>Boot the course VM / leave it.</td></tr>
           <tr><td>SHARE=$PWD/dir env/run.sh</td><td>Boot with a host directory mounted at <code>/share</code> in the VM.</td></tr>
         </tbody>
@@ -243,7 +243,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     el('path', { d: `M56 ${y + 14} H86`, class: 'wire thin' });
     [...s, '\\0'].forEach((ch, k) => { el('rect', { x: 90 + k * 20, y: y + 3, width: 19, height: 22, class: ch === '\\0' ? 'mbox' : 'box' }); el('text', { x: 99.5 + k * 20, y: y + 18, 'text-anchor': 'middle', class: 'mono', style: 'font-size:10.5px' }, ch === ' ' ? '␣' : ch); });
   });
-  el('text', { x: 10, y: 142, class: 'lbl', style: 'font-size:10.5px' }, 'argv[3] is NULL: the array ends with a null pointer');
+  el('text', { x: 10, y: 142, class: 'lbl', style: 'font-size:10.5px' }, 'argv[3] is NULL, the null pointer that ends the array');
 })();
 </script>
 </body>

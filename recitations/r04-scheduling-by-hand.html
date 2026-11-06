@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Scheduling by Hand · R04</title>
-<meta name="description" content="CSCI 3753 Recitation 04: drawing FCFS, SJF, SRTF and round-robin Gantt charts on one workload, computing waiting, turnaround and response time, the course's tie-breaking conventions, and Lab01/Lab02 help.">
+<meta name="description" content="CSCI 3753 Recitation 04 covers drawing FCFS, SJF, SRTF and round-robin Gantt charts on one workload, computing waiting, turnaround and response time, the course's tie-breaking conventions, and Lab01/Lab02 help.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -36,12 +36,12 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
 <body>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.3" fill="none"><rect x="2" y="7" width="18" height="8" rx="1"/></g><rect x="2.8" y="7.8" width="5" height="6.4" fill="var(--cz)"/><rect x="7.8" y="7.8" width="3" height="6.4" fill="var(--cx)"/><rect x="10.8" y="7.8" width="4" height="6.4" fill="var(--cf)"/><rect x="14.8" y="7.8" width="4.4" height="6.4" fill="var(--co)"/></svg>
-    <span>Recitation 04 · Scheduling by hand</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Recitation 04 · Scheduling by hand</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -49,10 +49,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 04 · Week 4</div>
     <h1>One workload, four <span class="accent">schedules</span></h1>
-    <p class="lede">Lecture 06 compared scheduling algorithms. Today you draw them yourself: the same four processes under FCFS, SJF, SRTF and round robin, with waiting, turnaround and response time for each, and the two tie-breaking rules the course's problems use. Then lab help: Lab01 is due Sunday, and Lab02 is open.</p>
+    <p class="lede">Lecture 06 compared scheduling algorithms. Today you draw them yourself. You schedule the same four processes under FCFS, SJF, SRTF and round robin, compute waiting, turnaround and response time for each, and apply the two tie-breaking rules the course's problems use. Then comes lab help. Lab01 is due Sunday, and Lab02 is open.</p>
     <div class="agenda">
-      <div><b>0–5</b>Recap: threads, scheduler, three measures</div>
-      <div><b>5–25</b>Worked example: four Gantt charts</div>
+      <div><b>0–5</b>Recap of threads, scheduler, three measures</div>
+      <div><b>5–25</b>Worked example with four Gantt charts</div>
       <div><b>25–45</b>Lab01 (due Sun Jan 31) and Lab02 help</div>
       <div><b>45–50</b>Exit ticket</div>
     </div>
@@ -90,7 +90,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="ch-head">
     <div class="ch-no">Part 1 · follow along</div>
     <h2>The workload and the rules</h2>
-    <p class="ch-lede">Try each chart on paper for a minute before your TA draws it; open the answer after.</p>
+    <p class="ch-lede">Try each chart on paper for a minute before your TA draws it, and open the answer after.</p>
   </div>
   <div class="sec">
     <div class="two-up">
@@ -101,7 +101,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         </table>
       </div>
       <div class="prose">
-        <p><b>Measures</b>, per process:</p>
+        <p><b>Measures</b>, per process, are listed below.</p>
         <ul>
           <li>turnaround = completion − arrival</li>
           <li>waiting = turnaround − burst</li>
@@ -125,12 +125,12 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <h3><span class="sec-no">2.1</span>FCFS</h3>
     <details class="fold"><summary>Chart and waiting times</summary><div class="prose">
       <div class="gantt" data-g="fcfs"></div>
-      <p>Waiting 0, 5, 7, 7: average <b>4.75</b>. P3 needs 1 unit and waits 7: the convoy effect.</p>
+      <p>Waiting 0, 5, 7, 7 gives an average of <b>4.75</b>. P3 needs 1 unit and waits 7, which is the convoy effect.</p>
     </div></details>
     <h3><span class="sec-no">2.2</span>SJF (nonpreemptive)</h3>
     <details class="fold"><summary>Chart and waiting times</summary><div class="prose">
       <div class="gantt" data-g="sjf"></div>
-      <p>At 0 only P1 has arrived, so it runs to 7 even though shorter jobs arrive meanwhile. At 7 the choice is P2 (4), P3 (1), P4 (4): P3 first, then P2 before P4 by rule 1. Waiting 0, 6, 3, 7: average <b>4.00</b>.</p>
+      <p>At 0 only P1 has arrived, so it runs to 7 even though shorter jobs arrive meanwhile. At 7 the choice is P2 (4), P3 (1), P4 (4). P3 goes first, then P2 before P4 by rule 1. Waiting 0, 6, 3, 7 gives an average of <b>4.00</b>.</p>
     </div></details>
   </div>
 </section>
@@ -144,14 +144,14 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <details class="fold"><summary>Step by step</summary><div class="prose">
       <ul>
-        <li>t = 0: P1 runs (7 left).</li>
-        <li>t = 2: P2 arrives with 4, less than P1's 5 left: P1 is preempted and P2 runs.</li>
-        <li>t = 4: P3 arrives with 1, less than P2's 2 left: P3 runs and finishes at 5.</li>
-        <li>t = 5: P4 arrives with 4. Remaining: P1 5, P2 2, P4 4. P2 runs and finishes at 7.</li>
-        <li>t = 7: P4 (4) before P1 (5). P4 finishes at 11, P1 at 16.</li>
+        <li>At t = 0, P1 runs (7 left).</li>
+        <li>At t = 2, P2 arrives with 4, less than P1's 5 left. P1 is preempted and P2 runs.</li>
+        <li>At t = 4, P3 arrives with 1, less than P2's 2 left. P3 runs and finishes at 5.</li>
+        <li>At t = 5, P4 arrives with 4. The remaining times are P1 5, P2 2, P4 4. P2 runs and finishes at 7.</li>
+        <li>At t = 7, P4 (4) goes before P1 (5). P4 finishes at 11, P1 at 16.</li>
       </ul>
       <div class="gantt" data-g="srtf"></div>
-      <p>Waiting 9, 1, 0, 2: average <b>3.00</b>. Response 0, 0, 0, 2: average 0.50.</p>
+      <p>Waiting 9, 1, 0, 2 gives an average of <b>3.00</b>. Response 0, 0, 0, 2 gives an average of 0.50.</p>
     </div></details>
   </div>
 </section>
@@ -169,8 +169,8 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <thead><tr><th>time</th><th>event</th><th>queue after (front first)</th><th>runs next</th></tr></thead>
           <tbody>
             <tr><td>0</td><td>P1 arrives</td><td>P1</td><td>P1 0–2</td></tr>
-            <tr><td>2</td><td>P2 arrives; P1's quantum ends</td><td><b>P2</b>, P1 (rule 2)</td><td>P2 2–4</td></tr>
-            <tr><td>4</td><td>P3 arrives; P2's quantum ends</td><td>P1, <b>P3</b>, P2 (rule 2)</td><td>P1 4–6</td></tr>
+            <tr><td>2</td><td>P2 arrives and P1's quantum ends</td><td><b>P2</b>, P1 (rule 2)</td><td>P2 2–4</td></tr>
+            <tr><td>4</td><td>P3 arrives and P2's quantum ends</td><td>P1, <b>P3</b>, P2 (rule 2)</td><td>P1 4–6</td></tr>
             <tr><td>5</td><td>P4 arrives</td><td>P3, P2, P4</td><td>(P1 still running)</td></tr>
             <tr><td>6</td><td>P1's quantum ends</td><td>P3, P2, P4, P1</td><td>P3 6–7, done</td></tr>
             <tr><td>7</td><td>P3 done</td><td>P2, P4, P1</td><td>P2 7–9, done</td></tr>
@@ -182,7 +182,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         </table>
       </div>
       <div class="gantt" data-g="rr"></div>
-      <p>Waiting 9, 3, 2, 6: average <b>5.00</b>. Response 0, 0, 2, 4: average 1.50.</p>
+      <p>Waiting 9, 3, 2, 6 gives an average of <b>5.00</b>. Response 0, 0, 2, 4 gives an average of 1.50.</p>
     </div></details>
   </div>
 </section>
@@ -204,7 +204,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           </tbody>
         </table>
       </div>
-      <p>SRTF wins every column here, but it needs to know burst lengths, which a real OS does not. RR needs nothing and still keeps response time low; it pays in turnaround.</p>
+      <p>SRTF wins every column here, but it needs to know burst lengths, which a real OS does not. RR needs nothing and still keeps response time low. However, it pays in turnaround.</p>
     </div></details>
     <p class="prose">Practice with your own workloads in the <a href="../lectures/06-scheduling.html#s3-3">Lecture 06 scheduler</a>. It follows the same two rules.</p>
   </div>
@@ -219,9 +219,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="prose">
       <ul>
-        <li><b>Lab01</b>: if the zombie check fails, reread the buffering warning in Step 4 of the Lab01 walkthrough and R03's <code>fork2.c</code>.</li>
-        <li><b>Lab02</b>: <code>man 5 proc</code> documents every field of <code>/proc/&lt;pid&gt;/stat</code>. <code>taskset</code>, <code>nice</code> and <code>chrt</code> each have a man page. Kill leftover spinners before you leave the VM.</li>
-        <li><b>PS1</b>: TAs can explain the rules and the three measures above, but they will not work or check PS1's problems.</li>
+        <li><b>Lab01.</b> If the zombie check fails, reread the buffering warning in Step 4 of the Lab01 walkthrough and R03's <code>fork2.c</code>.</li>
+        <li><b>Lab02.</b> <code>man 5 proc</code> documents every field of <code>/proc/&lt;pid&gt;/stat</code>. <code>taskset</code>, <code>nice</code> and <code>chrt</code> each have a man page. Kill leftover spinners before you leave the VM.</li>
+        <li><b>PS1.</b> TAs can explain the rules and the three measures above, but they will not work or check PS1's problems.</li>
       </ul>
     </div>
     <div class="code"><span class="ln">SHARE=$PWD/labs/02-scheduling/submit env/run.sh</span><span class="ln"><span class="c"># in the VM</span></span><span class="ln">cd /share &amp;&amp; gcc -Wall -Werror -O2 -o /tmp/spin spin.c</span></div>
@@ -242,16 +242,16 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="That is nonpreemptive SJF. SRTF re-decides at every arrival.">The running process finishes first.</button>
           <button type="button" class="q-opt" data-ok>The running process is preempted and the new one runs.</button>
-          <button type="button" class="q-opt" data-why="SRTF has no quantum; only arrivals and completions trigger a decision.">They take turns, one unit each.</button>
+          <button type="button" class="q-opt" data-why="SRTF has no quantum. Only arrivals and completions trigger a decision.">They take turns, one unit each.</button>
         </div>
-        <div class="q-fb ok">Right: 2 remaining beats 3 remaining.</div>
+        <div class="q-fb ok">Right. 2 remaining beats 3 remaining.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
     <div class="quiz" data-quiz>
       <div class="quiz-head"><span class="chip">Exit ticket</span><span class="q-title">2 of 2</span></div>
       <div class="quiz-body">
-        <div class="q-text">RR: at t = 8, P1's quantum expires and P2 arrives. Under the course's rule, who is ahead in the ready queue?</div>
+        <div class="q-text">In RR, at t = 8, P1's quantum expires and P2 arrives. Under the course's rule, who is ahead in the ready queue?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-ok>P2, the new arrival</button>
           <button type="button" class="q-opt" data-why="Rule 2 puts the new arrival first.">P1, the preempted process</button>
@@ -275,7 +275,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <tbody>
           <tr><td>FCFS</td><td>Arrival order, each to completion. Nonpreemptive.</td></tr>
           <tr><td>SJF</td><td>Shortest burst among those that have arrived, to completion. Nonpreemptive.</td></tr>
-          <tr><td>SRTF</td><td>Shortest remaining time; re-decide at every arrival. Preemptive SJF.</td></tr>
+          <tr><td>SRTF</td><td>Shortest remaining time, re-decided at every arrival. Preemptive SJF.</td></tr>
           <tr><td>RR, quantum q</td><td>Run the front of the queue for at most q, then send it to the back.</td></tr>
           <tr><td>turnaround</td><td>completion − arrival</td></tr>
           <tr><td>waiting</td><td>turnaround − burst (time spent ready, not running)</td></tr>
@@ -307,7 +307,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   const COL = { 1: 'pbox', 2: 'dbox', 3: 'fbox', 4: 'obox' };
   document.querySelectorAll('.gantt[data-g]').forEach((d) => {
     const segs = G[d.dataset.g], X = (t) => 10 + t * 38;
-    const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 630 64'); svg.setAttribute('width', '630'); svg.setAttribute('class', 'dia'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Gantt chart: ' + segs.map(([p, a, b]) => `P${p} ${a}-${b}`).join(', '));
+    const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 630 64'); svg.setAttribute('width', '630'); svg.setAttribute('class', 'dia'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Gantt chart of ' + segs.map(([p, a, b]) => `P${p} ${a}-${b}`).join(', '));
     const add = (t, a, x) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (x != null) e.textContent = x; svg.appendChild(e); };
     const ticks = new Set([0]);
     segs.forEach(([p, a, b]) => { add('rect', { x: X(a), y: 6, width: X(b) - X(a), height: 30, class: COL[p] }); add('text', { x: (X(a) + X(b)) / 2, y: 26, 'text-anchor': 'middle', class: 'mono', style: 'font-size:12px' }, 'P' + p); ticks.add(b); });

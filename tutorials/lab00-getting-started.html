@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lab00 Walkthrough · Basecamp 0</title>
-<meta name="description" content="Step-by-step walkthrough for Basecamp 0, Learning to See a Running System: getting the repository, building and booting the course VM, the edit-on-host, run-in-guest loop, finding and checking eight facts in /proc, reading make check output, and submitting.">
+<meta name="description" content="Step-by-step walkthrough for Basecamp 0, Learning to See a Running System. It covers getting the repository, building and booting the course VM, the edit-on-host, run-in-guest loop, finding and checking eight facts in /proc, reading make check output, and submitting.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -37,12 +37,12 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 </svg>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M2 18L8 8l4 6 3-4 5 8z" stroke="currentColor" stroke-width="1.4" fill="none"/><circle cx="16" cy="5" r="2" fill="var(--co)"/></svg>
-    <span>Lab00 walkthrough · Learning to See a Running System</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Lab00 walkthrough · Learning to See a Running System</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -96,8 +96,8 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="sec">
     <div class="prose">
       <ol>
-        <li>On GitHub, create a new <strong>private</strong> repository named <code>3753-27-spring-&lt;identikey&gt;</code>, where <code>&lt;identikey&gt;</code> is your CU IdentiKey. Leave it empty: no README, no <code>.gitignore</code>, and no license.</li>
-        <li>Clone the course repository, and make your private repository the place you push to:</li>
+        <li>On GitHub, create a new <strong>private</strong> repository named <code>3753-27-spring-&lt;identikey&gt;</code>, where <code>&lt;identikey&gt;</code> is your CU IdentiKey. Leave it empty, with no README, no <code>.gitignore</code>, and no license.</li>
+        <li>Clone the course repository, and make your private repository the place you push to, as below.</li>
       </ol>
     </div>
     <div class="code"><span class="ln">git clone https://github.com/cu-cs-os-courses/3753-27-spring</span><span class="ln">cd 3753-27-spring</span><span class="ln">git remote rename origin upstream</span><span class="ln">git remote add origin https://github.com/&lt;your-username&gt;/3753-27-spring-&lt;identikey&gt;.git</span><span class="ln">git push -u origin main</span><span class="ln">git remote -v        <span class="c"># check: origin = your repository, upstream = the course</span></span></div>
@@ -121,13 +121,13 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="sec">
     <div class="two-up">
       <div class="prose">
-        <p>The whole environment builds and runs on your laptop. There is no VDI and no shared server. Before you start, you need:</p>
+        <p>The whole environment builds and runs on your laptop. There is no VDI and no shared server. Before you start, you need the three things below.</p>
         <ul>
-          <li>a laptop running macOS (Apple Silicon or Intel) or Linux, with about <strong>20 GB of free disk</strong> (kernel build cache, a 4 GB disk image, and Docker images) and 8 GB of RAM;</li>
-          <li>on macOS, <a href="https://brew.sh" target="_blank" rel="noopener">Homebrew</a>, which <code>make setup</code> uses to install QEMU and Docker;</li>
-          <li>a GitHub account (Step 0).</li>
+          <li>You need a laptop running macOS (Apple Silicon or Intel) or Linux, with about <strong>20 GB of free disk</strong> (kernel build cache, a 4 GB disk image, and Docker images) and 8 GB of RAM.</li>
+          <li>On macOS, you need <a href="https://brew.sh" target="_blank" rel="noopener">Homebrew</a>, which <code>make setup</code> uses to install QEMU and Docker.</li>
+          <li>You need a GitHub account (Step 0).</li>
         </ul>
-        <p>Then run, from the repository root (<code>env/README.md</code> explains each target):</p>
+        <p>Then run, from the repository root (<code>env/README.md</code> explains each target).</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -159,10 +159,10 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
             <text class="mono lbl" x="118" y="264">make run</text>
 
             <rect class="fbox" x="22" y="278" width="376" height="96" rx="8"/>
-            <text class="lbl t-f" x="36" y="298">QEMU: a virtual x86 PC</text>
+            <text class="lbl t-f" x="36" y="298">QEMU, a virtual x86 PC</text>
             <rect class="obox" x="36" y="308" width="348" height="54" rx="6"/>
-            <text class="big" x="50" y="332">VM: Linux 6.6.87, Debian</text>
-            <text class="lbl" x="50" y="352">your labs run here; your files at <tspan class="mono">/share</tspan></text>
+            <text class="big" x="50" y="332">VM running Linux 6.6.87, Debian</text>
+            <text class="lbl" x="50" y="352">your labs run here, with your files at <tspan class="mono">/share</tspan></text>
 
             <path class="wire thin dashed" d="M310 162 V306" marker-end="url(#ah)"/>
             <text class="mono lbl" x="318" y="196">SHARE=</text>
@@ -174,13 +174,13 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       </figure>
     </div>
     <div class="code"><span class="ln">cd env</span><span class="ln">make setup      <span class="c"># once; macOS (on Ubuntu: scripts/host-setup-ubuntu.sh)</span></span><span class="ln">make images     <span class="c"># 30–60 min the first time</span></span><span class="ln">make smoke      <span class="c"># should end with every check passing</span></span><span class="ln">make run        <span class="c"># boots to a root prompt; leave with Ctrl-a x</span></span></div>
-    <div class="prose"><p><b>How to tell that it worked:</b> Inside the VM, <code>cat /proc/version</code> prints a line that starts with <code>Linux version 6.6.87</code>.</p>
-      <p><b>How to leave the VM:</b> Press <kbd>Control</kbd> and <kbd>a</kbd> together, release both, and then press <kbd>x</kbd>. On a Mac, this is the Control key, not Command. Alternatively, type <code>poweroff</code> inside the VM.</p></div>
+    <div class="prose"><p><b>How to tell that it worked.</b> Inside the VM, <code>cat /proc/version</code> prints a line that starts with <code>Linux version 6.6.87</code>.</p>
+      <p><b>How to leave the VM.</b> Press <kbd>Control</kbd> and <kbd>a</kbd> together, release both, and then press <kbd>x</kbd>. On a Mac, this is the Control key, not Command. Alternatively, type <code>poweroff</code> inside the VM.</p></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>symptom</th><th>likely cause</th><th>what to try</th></tr></thead>
         <tbody>
-          <tr><td>docker: cannot connect</td><td>Docker is not running</td><td>On macOS: <code>colima start</code>, then rerun.</td></tr>
+          <tr><td><code>docker: cannot connect</code></td><td>Docker is not running</td><td>On macOS, run <code>colima start</code>, then rerun.</td></tr>
           <tr><td>no space left on device</td><td>The build needs about 20 GB of free space</td><td>Free up disk space. <code>docker system prune</code> removes old images.</td></tr>
           <tr><td>make smoke fails</td><td>Varies</td><td>Read the first failing line. The console log is under the path that the line prints. Bring the log to office hours or recitation.</td></tr>
           <tr><td>VM feels slow</td><td>Apple Silicon emulates x86</td><td>This is expected, and the labs are designed for it.</td></tr>
@@ -207,7 +207,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
         <li>
           <p><b>Boot the VM, and share your lab's <code>submit/</code> directory with it.</b></p>
           <div class="code"><span class="ln">SHARE=$PWD/labs/00-getting-started/submit env/run.sh</span></div>
-          <p>This is the same VM that <code>make run</code> booted in Step 1. The only difference is <code>SHARE</code>: it names a directory on your laptop, and the VM mounts that directory at <code>/share</code>. When the boot finishes, you are at a root prompt inside the VM. Note that this terminal now belongs to the VM, so keep it open.</p>
+          <p>This is the same VM that <code>make run</code> booted in Step 1. The only difference is <code>SHARE</code>. It names a directory on your laptop, and the VM mounts that directory at <code>/share</code>. When the boot finishes, you are at a root prompt inside the VM. Note that this terminal now belongs to the VM, so keep it open.</p>
         </li>
         <li>
           <p><b>In the VM, list the shared directory.</b></p>
@@ -233,7 +233,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
           <p>The script must print only the eight lines in the format given in the header of <code>observe.sh</code>.</p>
         </li>
       </ol>
-      <p>This is the loop for the rest of the lab: fill in one <code>TODO</code> on your laptop, save, and rerun the script in the VM. Step 3 and Step 4 tell you how to find each value. When you are done, leave the VM with <kbd>Control</kbd>-<kbd>a</kbd>, then <kbd>x</kbd> (Step 1).</p>
+      <p>This is the loop for the rest of the lab. Fill in one <code>TODO</code> on your laptop, save, and rerun the script in the VM. Step 3 and Step 4 tell you how to find each value. When you are done, leave the VM with <kbd>Control</kbd>-<kbd>a</kbd>, then <kbd>x</kbd> (Step 1).</p>
     </div>
   </div>
 </section>
@@ -242,7 +242,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 3</div>
     <h2>Tools for reading /proc</h2>
-    <p class="ch-lede">Every fact is text in a file. In this step, you practice the two skills the lab needs: finding the file, and cutting out exactly one value. Work in the VM from Step 2.</p>
+    <p class="ch-lede">Every fact is text in a file. In this step, you practice the two skills the lab needs, namely finding the file and cutting out exactly one value. Work in the VM from Step 2.</p>
   </div>
   <div class="sec">
     <div class="prose">
@@ -250,7 +250,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
         <li>
           <p><b>In the VM, look around <code>/proc</code>.</b></p>
           <div class="code"><span class="ln">ls /proc                     <span class="c"># files, and one directory per process</span></span><span class="ln">cat /proc/version</span><span class="ln">ls /proc/1/</span><span class="ln">cat /proc/meminfo | head</span><span class="ln">grep . /proc/sys/kernel/*    <span class="c"># everything here greps like an ordinary file</span></span></div>
-          <p><code>/proc</code> is the kernel's window onto itself. Each numbered directory is one running <span class="ref" data-sec="L01 §5.1" data-title="Process" data-href="../lectures/01-overview.html#s5-1">process<span class="ref-body">A process is a program in execution. The program is a file on disk. Each time you run it, the kernel creates a new process for it. Therefore, every program you start, such as <code>cat</code> or <code>ls</code>, runs as a new process.</span></span>, named by its <span class="ref" data-sec="L03 §1.1" data-title="Process identifier (PID)" data-href="../lectures/03-process.html#s1-1">PID<span class="ref-body">The kernel gives each new process a number, its process identifier (PID). Two processes that exist at the same time never share a PID. Therefore, if you run the same program twice, you get two different PIDs.</span></span>. The eight facts in <code>observe.sh</code> make you look at four different faces of <code>/proc</code>. First, system-wide constants: the kernel release, the CPUs, and memory. Second, the boot command line, which you can compare with <code>env/run.sh</code>. Third, per-process views: <code>/proc/&lt;pid&gt;/</code>, and <code>/proc/self</code>, which answers "who is asking?" Fourth, live counters that change every time you look (<code>/proc/stat</code>).</p>
+          <p><code>/proc</code> is the kernel's window onto itself. Each numbered directory is one running <span class="ref" data-sec="L01 §5.1" data-title="Process" data-href="../lectures/01-overview.html#s5-1">process<span class="ref-body">A process is a program in execution. The program is a file on disk. Each time you run it, the kernel creates a new process for it. Therefore, every program you start, such as <code>cat</code> or <code>ls</code>, runs as a new process.</span></span>, named by its <span class="ref" data-sec="L03 §1.1" data-title="Process identifier (PID)" data-href="../lectures/03-process.html#s1-1">PID<span class="ref-body">The kernel gives each new process a number, its process identifier (PID). Two processes that exist at the same time never share a PID. Therefore, if you run the same program twice, you get two different PIDs.</span></span>. The eight facts in <code>observe.sh</code> make you look at four different faces of <code>/proc</code>. First, there are system-wide constants, such as the kernel release, the CPUs, and memory. Second, the boot command line, which you can compare with <code>env/run.sh</code>. Third, there are per-process views, namely <code>/proc/&lt;pid&gt;/</code>, and <code>/proc/self</code>, which answers "who is asking?" Fourth, live counters that change every time you look (<code>/proc/stat</code>).</p>
         </li>
         <li>
           <p><b>Find which files mention a word.</b></p>
@@ -320,7 +320,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       </table>
     </div>
     <div class="prose">
-      <p>When all eight lines show values, do one last check on your laptop:</p>
+      <p>When all eight lines show values, do one last check on your laptop.</p>
     </div>
     <div class="prose">
       <ol start="6">
@@ -349,9 +349,9 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
         </li>
         <li>
           <p><b>Read the result.</b></p>
-          <p>If every check passes, the last line ends with <code>status=pass passes=14 fails=0</code>. The 14 checks fall into three groups:</p>
+          <p>If every check passes, the last line ends with <code>status=pass passes=14 fails=0</code>. The 14 checks fall into three groups.</p>
           <ul>
-            <li><code>boot</code>, <code>proc-mounted</code>, and <code>tracefs</code> check the VM, not your script. If one of them fails, the environment is broken: go back to the table in Step 1.</li>
+            <li><code>boot</code>, <code>proc-mounted</code>, and <code>tracefs</code> check the VM, not your script. If one of them fails, the environment is broken. Go back to the table in Step 1.</li>
             <li><code>no-uname</code>, <code>no-nproc</code>, and <code>uses-proc-self</code> check the rules from Step 4.</li>
             <li><code>kernel-release</code>, <code>nproc</code>, <code>pid1-comm</code>, <code>mem-total</code>, <code>boot-cmdline</code>, <code>self-pid</code>, <code>ctxt</code>, and <code>num-procs</code> check one fact each.</li>
           </ul>
@@ -380,18 +380,18 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
           <p>It goes in <code>submit/</code>, next to <code>observe.sh</code>, because everything in <code>submit/</code> is your submission. Keep it short.</p>
         </li>
         <li>
-          <p><b>Question 1: “Run <code>observe.sh</code> twice. Which values changed, and why? (<code>SELF_PID</code> deserves a sentence of its own: what exactly is <code>/proc/self</code>?)”</b></p>
-          <p>Boot the VM as in Step 2, and investigate:</p>
+          <p><b>Question 1. “Run <code>observe.sh</code> twice. Which values changed, and why? (<code>SELF_PID</code> deserves a sentence of its own. What exactly is <code>/proc/self</code>?)”</b></p>
+          <p>Boot the VM as in Step 2, and investigate with the commands below.</p>
           <div class="code"><span class="ln">bash /share/observe.sh</span><span class="ln">bash /share/observe.sh   <span class="c"># compare the two outputs line by line</span></span><span class="ln">ls -l /proc/self</span><span class="ln">ls -l /proc/self         <span class="c"># compare the two link targets</span></span></div>
           <p>Ask yourself which process reads <code>/proc/self</code> each time. Then write your answer in <code>report.md</code>.</p>
         </li>
         <li>
-          <p><b>Question 2: “Even while you type nothing, <code>CTXT</code> keeps growing. Which processes run while you wait, and why does the kernel keep switching between them?”</b></p>
+          <p><b>Question 2. “Even while you type nothing, <code>CTXT</code> keeps growing. Which processes run while you wait, and why does the kernel keep switching between them?”</b></p>
           <div class="code"><span class="ln">bash /share/observe.sh | grep CTXT</span><span class="ln">sleep 10                            <span class="c"># type nothing</span></span><span class="ln">bash /share/observe.sh | grep CTXT</span><span class="ln">ps -e                               <span class="c"># every process that exists right now</span></span></div>
-          <p>First, subtract the two values. Then look at the list from <code>ps -e</code>: you started only a few of these processes. Reread the card on context switches in Step 4, and <a href="../lectures/01-overview.html#s4-2">L01 §4.2</a> on the timer. Then write your answer.</p>
+          <p>First, subtract the two values. Then look at the list from <code>ps -e</code>. You started only a few of these processes. Reread the card on context switches in Step 4, and <a href="../lectures/01-overview.html#s4-2">L01 §4.2</a> on the timer. Then write your answer.</p>
         </li>
         <li>
-          <p><b>Question 3: “One thing you found in <code>/proc</code> that surprised you.”</b></p>
+          <p><b>Question 3. “One thing you found in <code>/proc</code> that surprised you.”</b></p>
           <p>Anything you met in Steps 3 and 4 counts. Say what it is, and why it surprised you.</p>
         </li>
       </ol>
@@ -420,7 +420,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
         </li>
         <li>
           <p><b>Open your repository on GitHub, and check the files.</b></p>
-          <p>Go to <code>labs/00-getting-started/submit/</code>, and check that both files are there with your latest changes. If they are not, the push did not reach your repository: run <code>git remote -v</code>, and compare its output with Step 0.</p>
+          <p>Go to <code>labs/00-getting-started/submit/</code>, and check that both files are there with your latest changes. If they are not, the push did not reach your repository. Run <code>git remote -v</code>, and compare its output with Step 0.</p>
         </li>
         <li>
           <p><b>Before the deadline, go through this list.</b></p>

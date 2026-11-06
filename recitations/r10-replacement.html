@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Replacement by Hand · R10</title>
-<meta name="description" content="CSCI 3753 Recitation 10: FIFO, LRU, OPT and the clock algorithm traced by hand on one reference string, where FIFO and LRU part ways, and Lab04/Lab05 help with the file system calls.">
+<meta name="description" content="CSCI 3753 Recitation 10 covers FIFO, LRU, OPT and the clock algorithm traced by hand on one reference string, where FIFO and LRU part ways, and Lab04/Lab05 help with the file system calls.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -34,12 +34,12 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
 <body>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M11 11L11 4.5" stroke="var(--cx)" stroke-width="2" stroke-linecap="round"/></svg>
-    <span>Recitation 10 · Replacement, and the file syscalls</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Recitation 10 · Replacement, and the file syscalls</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -47,10 +47,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 10 · Week 12</div>
     <h1>Twelve references, four <span class="accent">verdicts</span></h1>
-    <p class="lede">Lecture 16 compared page-replacement policies on paper; today you run them yourself. One reference string, three frames, FIFO, LRU, OPT and the clock, with every eviction explained. You find the exact reference where FIFO and LRU stop agreeing. Then lab help: Lab04 and PS3 are due Sunday, and Lab05 has begun.</p>
+    <p class="lede">Lecture 16 compared page-replacement policies on paper, and today you run them yourself. One reference string, three frames, FIFO, LRU, OPT and the clock, with every eviction explained. You find the exact reference where FIFO and LRU stop agreeing. Then comes lab help. Lab04 and PS3 are due Sunday, and Lab05 has begun.</p>
     <div class="agenda">
-      <div><b>0–5</b>Recap: replacement policies; devices and files</div>
-      <div><b>5–25</b>Worked example: four traces of one string</div>
+      <div><b>0–5</b>Recap of replacement policies, devices and files</div>
+      <div><b>5–25</b>Worked example with four traces of one string</div>
       <div><b>25–45</b>Lab04 (due Sun Mar 28) and Lab05 help</div>
       <div><b>45–50</b>Exit ticket</div>
     </div>
@@ -91,16 +91,16 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   </div>
   <div class="sec">
     <p class="prose" style="font-family:var(--f-mono);font-size:16px">4 5 3 5 3 2 1 5 3 1 2 1 &nbsp;·&nbsp; 3 frames, empty at the start</p>
-    <div class="prose"><p>The first five references are the same for every policy: 4, 5 and 3 fill the frames (3 faults), then 5 and 3 hit. Draw a 12-column grid for each policy and try it before opening the answer.</p></div>
+    <div class="prose"><p>The first five references are the same for every policy. First 4, 5 and 3 fill the frames (3 faults), then 5 and 3 hit. Draw a 12-column grid for each policy and try it before opening the answer.</p></div>
   </div>
 </section>
 
 <section class="chapter" id="fifo">
   <div class="ch-head"><div class="ch-no">Part 2</div><h2>FIFO</h2></div>
   <div class="sec">
-    <details class="fold"><summary>Trace: 9 faults</summary><div class="prose">
+    <details class="fold"><summary>Trace with 9 faults</summary><div class="prose">
       <div class="grid-wrap" data-alg="fifo"></div>
-      <p>Look at reference 11: FIFO evicts <b>1</b>, the oldest arrival, and 1 is needed at the very next reference.</p>
+      <p>Look at reference 11. FIFO evicts <b>1</b>, the oldest arrival, and 1 is needed at the very next reference.</p>
     </div></details>
   </div>
 </section>
@@ -108,9 +108,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
 <section class="chapter" id="lru">
   <div class="ch-head"><div class="ch-no">Part 3</div><h2>LRU</h2></div>
   <div class="sec">
-    <details class="fold"><summary>Trace: 8 faults</summary><div class="prose">
+    <details class="fold"><summary>Trace with 8 faults</summary><div class="prose">
       <div class="grid-wrap" data-alg="lru"></div>
-      <p>Identical to FIFO until reference 11. There, 1 was used at reference 10, 3 at 9 and 5 at 8, so LRU evicts <b>5</b>; 1 survives and the last reference hits. FIFO and LRU agree whenever arrival order and use order agree. They part ways the moment an old page is used again.</p>
+      <p>Identical to FIFO until reference 11. There, 1 was used at reference 10, 3 at 9 and 5 at 8, so LRU evicts <b>5</b>, and 1 survives and the last reference hits. FIFO and LRU agree whenever arrival order and use order agree. They part ways the moment an old page is used again.</p>
     </div></details>
   </div>
 </section>
@@ -118,12 +118,12 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
 <section class="chapter" id="opt">
   <div class="ch-head"><div class="ch-no">Part 4</div><h2>OPT</h2></div>
   <div class="sec">
-    <details class="fold"><summary>Trace: 6 faults</summary><div class="prose">
+    <details class="fold"><summary>Trace with 6 faults</summary><div class="prose">
       <div class="grid-wrap" data-alg="opt"></div>
       <ul>
-        <li>Reference 6 (<code>2</code>): the next uses are 4 never, 5 at 8, 3 at 9, so evict <b>4</b>.</li>
-        <li>Reference 7 (<code>1</code>): 2 at 11, 5 at 8, 3 at 9, so evict <b>2</b>.</li>
-        <li>Reference 11 (<code>2</code>): 1 at 12; 5 and 3 never again. Evict <b>5</b>; evicting 3 is equally optimal.</li>
+        <li>At reference 6 (<code>2</code>), the next uses are 4 never, 5 at 8, 3 at 9, so evict <b>4</b>.</li>
+        <li>At reference 7 (<code>1</code>), the next uses are 2 at 11, 5 at 8, 3 at 9, so evict <b>2</b>.</li>
+        <li>At reference 11 (<code>2</code>), the next uses are 1 at 12, and 5 and 3 never again. Evict <b>5</b>, although evicting 3 is equally optimal.</li>
       </ul>
     </div></details>
   </div>
@@ -132,9 +132,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
 <section class="chapter" id="clock">
   <div class="ch-head"><div class="ch-no">Part 5</div><h2>Clock</h2></div>
   <div class="sec">
-    <details class="fold"><summary>Trace: 8 faults</summary><div class="prose">
+    <details class="fold"><summary>Trace with 8 faults</summary><div class="prose">
       <div class="grid-wrap" data-alg="clock"></div>
-      <p>Each frame's reference bit is in its corner, and the blue underline is the hand. At reference 6 all three bits are 1. The hand clears them in one full sweep, comes back to frame 0, and replaces <b>4</b>: with every bit set, clock is FIFO. On this string clock ends up evicting exactly what LRU does. On other strings it can do better or worse; it is an approximation.</p>
+      <p>Each frame's reference bit is in its corner, and the blue underline is the hand. At reference 6 all three bits are 1. The hand clears them in one full sweep, comes back to frame 0, and replaces <b>4</b>. With every bit set, clock is FIFO. On this string clock ends up evicting exactly what LRU does. On other strings it can do better or worse. It is an approximation.</p>
     </div></details>
     <div class="note note-key">
       <span class="note-tag">Scoreboard</span>
@@ -152,8 +152,8 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="prose">
       <ul>
-        <li><b>Lab04 Part 2</b>: to check that your policy really is LRU, trace it by hand on a four-page example, as you did today.</li>
-        <li><b>Lab05 Part 1</b>: use the raw system calls. <code>man 2 open</code>, <code>man 2 read</code>, <code>man 2 write</code>, <code>man 2 lseek</code>. Remember that <code>read</code> does not add a <code>'\0'</code>. Try your tool on a scratch file, <code>/proc/version</code> and <code>/dev/null</code>, as Step 2 of the Lab05 walkthrough suggests.</li>
+        <li><b>Lab04 Part 2.</b> To check that your policy really is LRU, trace it by hand on a four-page example, as you did today.</li>
+        <li><b>Lab05 Part 1.</b> Use the raw system calls. <code>man 2 open</code>, <code>man 2 read</code>, <code>man 2 write</code>, <code>man 2 lseek</code>. Remember that <code>read</code> does not add a <code>'\0'</code>. Try your tool on a scratch file, <code>/proc/version</code> and <code>/dev/null</code>, as Step 2 of the Lab05 walkthrough suggests.</li>
         <li><b>Lab05 Part 2</b>, the driver, is next week's recitation. Read the skeleton's contract before then.</li>
       </ul>
     </div>
@@ -172,11 +172,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       <div class="quiz-body">
         <div class="q-text">On this string, at which reference do FIFO and LRU first choose different victims?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="At reference 6 both evict 4: it is both the oldest and the least recently used.">Reference 6</button>
+          <button type="button" class="q-opt" data-why="At reference 6 both evict 4, because it is both the oldest and the least recently used.">Reference 6</button>
           <button type="button" class="q-opt" data-why="At reference 8 both evict 3.">Reference 8</button>
-          <button type="button" class="q-opt" data-ok>Reference 11: FIFO evicts 1, LRU evicts 5</button>
+          <button type="button" class="q-opt" data-ok>Reference 11, where FIFO evicts 1 and LRU evicts 5</button>
         </div>
-        <div class="q-fb ok">Right: page 1 is old but was just used.</div>
+        <div class="q-fb ok">Right. Page 1 is old but was just used.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -187,9 +187,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <div class="q-opts">
           <button type="button" class="q-opt" data-ok>Frame 0, after the hand clears all three bits</button>
           <button type="button" class="q-opt" data-why="The hand sweeps forward from frame 0 and comes back to it.">Frame 2</button>
-          <button type="button" class="q-opt" data-why="The clock always finds a victim; at worst it goes once around.">None of them</button>
+          <button type="button" class="q-opt" data-why="The clock always finds a victim. At worst it goes once around.">None of them</button>
         </div>
-        <div class="q-fb ok">Right: with every bit set, clock behaves like FIFO.</div>
+        <div class="q-fb ok">Right. With every bit set, clock behaves like FIFO.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -208,9 +208,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <tr><td>FIFO</td><td>Evict the page loaded earliest.</td></tr>
           <tr><td>LRU</td><td>Evict the page whose last use is oldest.</td></tr>
           <tr><td>OPT</td><td>Evict the page whose next use is farthest away (or never).</td></tr>
-          <tr><td>Clock</td><td>At the hand: bit 1 → clear it and move on; bit 0 → evict. New and referenced pages get bit 1.</td></tr>
-          <tr><td>open/read/write/lseek/close</td><td>The five file system calls; section 2 of the manual.</td></tr>
-          <tr><td>lseek(fd, 0, SEEK_CUR)</td><td>Returns the current offset: "tell".</td></tr>
+          <tr><td>Clock</td><td>At the hand, a bit of 1 means clear it and move on, and a bit of 0 means evict. New and referenced pages get bit 1.</td></tr>
+          <tr><td>open/read/write/lseek/close</td><td>The five file system calls, in section 2 of the manual.</td></tr>
+          <tr><td>lseek(fd, 0, SEEK_CUR)</td><td>Returns the current offset, which works as "tell".</td></tr>
         </tbody>
       </table>
     </div>

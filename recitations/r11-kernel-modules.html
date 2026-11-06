@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kernel Modules · R11</title>
-<meta name="description" content="CSCI 3753 Recitation 11: build, load, inspect and unload a hello-world kernel module, where printk output goes, how device files name a driver by major and minor number, and Lab05 help.">
+<meta name="description" content="CSCI 3753 Recitation 11 covers building, loading, inspecting and unloading a hello-world kernel module, where printk output goes, how device files name a driver by major and minor number, and Lab05 help.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -34,12 +34,12 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
 </svg>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="3" y="3" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.4" fill="none"/><rect x="7" y="7" width="8" height="8" rx="1" fill="var(--co)" opacity=".6"/><path d="M11 1v4M11 17v4M1 11h4M17 11h4" stroke="currentColor" stroke-width="1.3"/></svg>
-    <span>Recitation 11 · Kernel modules</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Recitation 11 · Kernel modules</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -47,10 +47,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 11 · Week 13</div>
     <h1>Code that runs <span class="accent">inside</span> the kernel</h1>
-    <p class="lede">Lectures 17–19 described drivers from the outside. Today you put code into the kernel yourself: build a hello-world module for the course VM's exact kernel, load it with a parameter, read its messages, and unload it. Then you see how a file in <code>/dev</code> finds its driver. That is the whole build-and-load loop of Lab05 Part 2, without the driver itself. Then Lab05 help.</p>
+    <p class="lede">Lectures 17–19 described drivers from the outside. Today you put code into the kernel yourself. You build a hello-world module for the course VM's exact kernel, load it with a parameter, read its messages, and unload it. Then you see how a file in <code>/dev</code> finds its driver. That is the whole build-and-load loop of Lab05 Part 2, without the driver itself. Then Lab05 help.</p>
     <div class="agenda">
-      <div><b>0–5</b>Recap: drivers, interrupts, DMA, disks</div>
-      <div><b>5–25</b>Worked example: build, load, inspect, unload</div>
+      <div><b>0–5</b>Recap of drivers, interrupts, DMA, disks</div>
+      <div><b>5–25</b>Worked example to build, load, inspect, unload</div>
       <div><b>25–45</b>Lab05 help (due Sun Apr 11)</div>
       <div><b>45–50</b>Exit ticket</div>
     </div>
@@ -93,7 +93,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       <div class="prose">
         <ul>
           <li>There is no <code>main</code>. <code>module_init</code> names the function the kernel calls on load, and <code>module_exit</code> the one it calls on unload. A nonzero return from init means "failed to load".</li>
-          <li>There is no <code>printf</code>: the kernel has no terminal. <code>pr_info</code> (a <code>printk</code>) writes to the <strong>kernel log</strong>.</li>
+          <li>There is no <code>printf</code>, because the kernel has no terminal. <code>pr_info</code> (a <code>printk</code>) writes to the <strong>kernel log</strong>.</li>
           <li><code>module_param</code> makes <code>count</code> settable when the module is loaded.</li>
           <li>Once loaded, this code runs in <strong>kernel mode</strong>. A bug here can crash the whole VM, not just one process.</li>
         </ul>
@@ -146,11 +146,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       </div>
       <figure class="fig">
         <div class="fig-frame"><svg class="dia" id="mm-svg" viewBox="0 0 330 200" width="320" role="img" aria-label="open on /dev/zero looks up major 1 in the driver table and calls the mem driver with minor 5"></svg></div>
-        <figcaption><span class="fno">Fig. 1</span>The major number picks the driver; the minor picks a device inside it.</figcaption>
+        <figcaption><span class="fno">Fig. 1</span>The major number picks the driver, and the minor picks a device inside it.</figcaption>
       </figure>
     </div>
     <div class="prose">
-      <p>The <code>c</code> means character device, and in place of a size <code>ls</code> shows two numbers. The <strong>major</strong> picks the driver; <code>/proc/devices</code> lists which driver owns which major. The <strong>minor</strong> picks a device within that driver. A file in <code>/dev</code> is only a <em>name</em> for a (major, minor) pair. <code>open</code> on it dispatches to whichever driver registered that major. In Lab05 Part 2 you register major 511 and create such a name yourself.</p>
+      <p>The <code>c</code> means character device, and in place of a size <code>ls</code> shows two numbers. The <strong>major</strong> picks the driver, and <code>/proc/devices</code> lists which driver owns which major. The <strong>minor</strong> picks a device within that driver. A file in <code>/dev</code> is only a <em>name</em> for a (major, minor) pair. <code>open</code> on it dispatches to whichever driver registered that major. In Lab05 Part 2 you register major 511 and create such a name yourself.</p>
     </div>
   </div>
 </section>
@@ -164,12 +164,12 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="prose">
       <ul>
-        <li>Use the build and load loop in Step 3 of the Lab05 walkthrough: the same commands as today, pointed at <code>char_driver.c</code> and <code>mod/</code>.</li>
+        <li>Use the build and load loop in Step 3 of the Lab05 walkthrough. It uses the same commands as today, pointed at <code>char_driver.c</code> and <code>mod/</code>.</li>
         <li><code>Invalid module format</code> means it was built against a different tree, or the <code>.BTF</code> section was not stripped. Rebuild with the exact command.</li>
         <li><code>Module is in use</code> means something still has your device open.</li>
         <li>If the VM freezes or prints an Oops, your kernel code touched a bad pointer. Reread Step 5 of the Lab05 walkthrough on <code>copy_to_user</code>.</li>
-        <li>The skeleton's contract gives the exact dmesg formats; compare character by character.</li>
-        <li><b>PS4</b>: TAs explain rules and definitions; they do not work its problems.</li>
+        <li>The skeleton's contract gives the exact dmesg formats, so compare character by character.</li>
+        <li><b>PS4.</b> TAs explain rules and definitions, but they do not work its problems.</li>
       </ul>
     </div>
   </div>
@@ -187,7 +187,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       <div class="quiz-body">
         <div class="q-text">Where does the output of <code>pr_info</code> in a kernel module go?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="The kernel has no terminal of its own; insmod does not print it either.">To the terminal that ran insmod</button>
+          <button type="button" class="q-opt" data-why="The kernel has no terminal of its own, and insmod does not print it either.">To the terminal that ran insmod</button>
           <button type="button" class="q-opt" data-ok>To the kernel log, read with dmesg</button>
           <button type="button" class="q-opt" data-why="/proc/modules lists loaded modules, not messages.">Into /proc/modules</button>
         </div>
@@ -200,8 +200,8 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       <div class="quiz-body">
         <div class="q-text"><code>ls -l /dev/zero</code> shows <code>1, 5</code>. What does the <code>1</code> select?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-ok>The driver: major number 1 (mem); 5 is the device within it</button>
-          <button type="button" class="q-opt" data-why="Device files have no size; those numbers replace it.">The file's size in blocks</button>
+          <button type="button" class="q-opt" data-ok>The driver is major number 1 (mem), and 5 is the device within it</button>
+          <button type="button" class="q-opt" data-why="Device files have no size. Those numbers replace it.">The file's size in blocks</button>
           <button type="button" class="q-opt" data-why="The link count is the earlier column.">The number of hard links</button>
         </div>
         <div class="q-fb ok">Right. Your Lab05 driver will own major 511.</div>
@@ -249,10 +249,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   const add = (t, a, x) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (x != null) e.textContent = x; svg.appendChild(e); };
   const box = (x, y, w, h, c, t) => { add('rect', { x, y, width: w, height: h, rx: 6, class: c }); add('text', { x: x + w / 2, y: y + h / 2 + 4, 'text-anchor': 'middle', class: 'mono', style: 'font-size:11px' }, t); };
   box(10, 10, 130, 30, 'pbox', 'open("/dev/zero")');
-  box(10, 74, 130, 30, 'box', '/dev/zero: c 1, 5');
+  box(10, 74, 130, 30, 'box', '/dev/zero (c 1, 5)');
   add('path', { d: 'M75 40 V72', class: 'wire thin', 'marker-end': 'url(#ah)' });
-  add('text', { x: 190, y: 26, class: 'lbl', style: 'font-size:10.5px' }, 'kernel: majors');
-  [['1', 'mem', true], ['4', 'tty', false], ['5', '/dev/tty …', false], ['511', 'your Lab05 driver', false]].forEach(([m, n, hot], k) => { box(190, 34 + k * 30, 130, 24, hot ? 'dbox' : 'box2', `${m}: ${n}`); });
+  add('text', { x: 190, y: 26, class: 'lbl', style: 'font-size:10.5px' }, 'kernel majors');
+  [['1', 'mem', true], ['4', 'tty', false], ['5', '/dev/tty …', false], ['511', 'your Lab05 driver', false]].forEach(([m, n, hot], k) => { box(190, 34 + k * 30, 130, 24, hot ? 'dbox' : 'box2', `${m} (${n})`); });
   add('path', { d: 'M140 89 C165 89 165 46 188 46', class: 'wire', 'marker-end': 'url(#ah)' });
   box(190, 158, 130, 28, 'obox', 'mem driver, minor 5');
   add('path', { d: 'M320 46 C338 46 338 172 322 172', class: 'wire thin', 'marker-end': 'url(#ah)' });

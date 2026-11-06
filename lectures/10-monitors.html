@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Monitors · L10</title>
-<meta name="description" content="CSCI 3753 Lecture 10, interactive edition: monitors, condition variables, Hoare and Mesa signaling, condition variables vs semaphores, priority waits, complex conditions, and POSIX condition variables.">
+<meta name="description" content="CSCI 3753 Lecture 10, interactive edition, covering monitors, condition variables, Hoare and Mesa signaling, condition variables vs semaphores, priority waits, complex conditions, and POSIX condition variables.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -59,12 +59,12 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
 </svg>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><rect x="4" y="5" width="14" height="13" rx="2"/><path d="M1 11.5h3M18 11.5h3"/></g><circle cx="11" cy="11.5" r="2.4" fill="var(--cx)"/></svg>
-    <span>Lecture 10 · Monitors and Condition Variables</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Lecture 10 · Monitors and Condition Variables</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -73,13 +73,13 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 10 · Interactive notes</div>
     <h1>Let the language hold the <span class="accent">lock</span></h1>
-    <p class="lede">Lecture 09 showed how one misplaced P or V breaks a program. A monitor moves the locking into the language: shared data is reachable only through the monitor's functions, and only one thread runs them at a time. For waiting, it adds condition variables. They look like semaphores but have no memory, and that difference decides how you must use them.</p>
+    <p class="lede">Lecture 09 showed how one misplaced P or V breaks a program. A monitor moves the locking into the language. Shared data is reachable only through the monitor's functions, and only one thread runs them at a time. For waiting, it adds condition variables. They look like semaphores but have no memory, and that difference decides how you must use them.</p>
     <div class="promise">
-      <span>Before you start:</span><span class="mono">semaphores, P and V, the bounded buffer</span><span>from Lecture 09.</span>
+      <span>Before you start, review</span><span class="mono">semaphores, P and V, the bounded buffer</span><span>from Lecture 09.</span>
     </div>
     <div class="cta-row">
       <a class="btn primary" href="#ch0">Begin ↓</a>
-      <span class="muted small">About 55 minutes · 4 hands-on experiments · 5 checkpoints · Textbook: Silberschatz, Ch. 6–7 · Lab: Basecamp 3, Part 2</span>
+      <span class="muted small">About 55 minutes · 4 hands-on experiments · 5 checkpoints · Textbook Silberschatz, Ch. 6–7 · Lab Basecamp 3, Part 2</span>
     </div>
   </div>
 </div>
@@ -117,7 +117,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
     <h3><span class="sec-no">0.1</span>Why a higher-level tool</h3>
     <div class="prose">
       <ul>
-        <li>Semaphores can deadlock or break mutual exclusion through simple programming errors: a missing P or V, a misordered pair, a duplicated call (Lecture 09, §2.3).</li>
+        <li>Semaphores can deadlock or break mutual exclusion through simple programming errors, such as a missing P or V, a misordered pair, or a duplicated call (Lecture 09, §2.3).</li>
         <li>A <strong>monitor</strong> is a higher-level synchronization construct that essentially automates the insertion of P and V.</li>
         <li>Underneath, the compiler or runtime may implement monitors using semaphores and mutex locks.</li>
       </ul>
@@ -129,7 +129,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li>A monitor is declared somewhat like a C++ class: shared variables, functions, and initialization code.</li>
+          <li>A monitor is declared somewhat like a C++ class, with shared variables, functions, and initialization code.</li>
           <li>It guarantees that <strong>only one thread at a time is active inside the monitor</strong>. You never write the locking yourself.</li>
           <li>Implicitly it defines a lock, <code>semaphore mutex = 1</code>, and wraps each function body in <code>P(mutex)</code> … <code>V(mutex)</code>.</li>
           <li>The monitor's variables can be accessed <strong>only by its own functions</strong>, and each function uses only those variables and its parameters. No one can reach the shared data without the lock.</li>
@@ -150,7 +150,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
   <div class="sec" id="s0-3">
     <h3><span class="sec-no">0.3</span>What got lost</h3>
     <div class="prose">
-      <p>So far a monitor gives mutual exclusion and hides P and V. But a semaphore could do one more thing: <strong>enforce order</strong>. One process can sleep in P until another calls V. A plain monitor has no way for a process to sleep waiting for a signal. Yet processes often need to wait until some condition holds, such as data being ready or a queue having space. So monitors are extended with <strong>condition variables</strong>.</p>
+      <p>So far a monitor gives mutual exclusion and hides P and V. But a semaphore could do one more thing, namely <strong>enforce order</strong>. One process can sleep in P until another calls V. A plain monitor has no way for a process to sleep waiting for a signal. Yet processes often need to wait until some condition holds, such as data being ready or a queue having space. So monitors are extended with <strong>condition variables</strong>.</p>
     </div>
   </div>
 
@@ -160,9 +160,9 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       <div class="quiz-body">
         <div class="q-text">Why must a monitor's variables be accessible only through its functions?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="Speed is not the point; the lock is.">So the compiler can optimize them.</button>
+          <button type="button" class="q-opt" data-why="Speed is not the point. The lock is.">So the compiler can optimize them.</button>
           <button type="button" class="q-opt" data-ok>Every access then happens inside a function, and so under the monitor's implicit lock.</button>
-          <button type="button" class="q-opt" data-why="Visibility and mutual exclusion are separate; the point is that no access can bypass the lock.">To hide them from other monitors.</button>
+          <button type="button" class="q-opt" data-why="Visibility and mutual exclusion are separate. The point is that no access can bypass the lock.">To hide them from other monitors.</button>
         </div>
         <div class="q-fb ok">Right. Encapsulation is what makes the automatic locking complete.</div>
         <div class="q-fb no">Not quite.</div>
@@ -187,7 +187,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
   <div class="sec" id="s1-1">
     <h3><span class="sec-no">1.1</span>wait, signal, queue</h3>
     <div class="prose">
-      <p>A condition variable adds an ordering mechanism to the monitor's mutual exclusion. One task waits until a condition is true; a second task makes it true and signals the waiter to proceed. A condition variable <code>y</code> has three operations:</p>
+      <p>A condition variable adds an ordering mechanism to the monitor's mutual exclusion. One task waits until a condition is true. A second task makes it true and signals the waiter to proceed. A condition variable <code>y</code> has the three operations below.</p>
       <ul>
         <li><code>y.wait()</code> <strong>blocks the caller</strong> and releases the monitor so others can enter. Many processes can be suspended on one condition, typically released in FIFO order.</li>
         <li><code>y.signal()</code> <strong>resumes exactly one</strong> suspended process. If no process is waiting, it has <strong>no effect</strong>.</li>
@@ -210,12 +210,12 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
   <div class="sec" id="s1-3">
     <h3><span class="sec-no">1.3</span>Who runs after a signal?</h3>
     <div class="prose">
-      <p>When P signals and Q was waiting, both could continue, but only one may be active in the monitor. There are two classic answers:</p>
+      <p>When P signals and Q was waiting, both could continue, but only one may be active in the monitor. There are two classic answers.</p>
       <ul>
-        <li><strong>Signal-and-wait (Hoare)</strong>: Q runs <em>immediately</em>, and P waits until Q leaves or waits. Q is guaranteed that the condition still holds.</li>
-        <li><strong>Signal-and-continue (Mesa)</strong>: P keeps running; Q goes back to the entry queue and competes to re-enter. By the time Q runs, <strong>another thread may have changed the condition</strong>. Java, C# and POSIX threads use this rule.</li>
+        <li><strong>Signal-and-wait (Hoare).</strong> Q runs <em>immediately</em>, and P waits until Q leaves or waits. Q is guaranteed that the condition still holds.</li>
+        <li><strong>Signal-and-continue (Mesa).</strong> P keeps running, and Q goes back to the entry queue and competes to re-enter. By the time Q runs, <strong>another thread may have changed the condition</strong>. Java, C# and POSIX threads use this rule.</li>
       </ul>
-      <p>Under Mesa semantics a woken thread must re-check its condition, so waits belong in a <code>while</code> loop, not an <code>if</code>. See it happen with two consumers and one producer on a monitor that counts items:</p>
+      <p>Under Mesa semantics a woken thread must re-check its condition, so waits belong in a <code>while</code> loop, not an <code>if</code>. See it happen with two consumers and one producer on a monitor that counts items.</p>
     </div>
     <div class="widget" id="mn-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">A monitor with one condition, <code>x</code> = "an item is available"</span><button class="w-reset" type="button" id="mn-reset">Reset</button></div>
@@ -230,7 +230,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       </div>
       <div class="readout" id="mn-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Step threads yourself, or run the scenario: C1 waits; P enters and adds an item; C2 arrives and queues; P signals. Under Hoare, the signaler waits in the "urgent" queue, which is admitted ahead of the entry queue.</p>
+    <p class="small muted prose read-only">Step threads yourself, or run the scenario. In it, C1 waits, P enters and adds an item, C2 arrives and queues, and P signals. Under Hoare, the signaler waits in the "urgent" queue, which is admitted ahead of the entry queue.</p>
   </div>
 
   <div class="sec" id="q1">
@@ -239,9 +239,9 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       <div class="quiz-body">
         <div class="q-text">Under Mesa semantics, why is <code>if (count == 0) x.wait();</code> wrong?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="wait works; the problem is what happens after it returns.">x.wait() never returns under Mesa.</button>
+          <button type="button" class="q-opt" data-why="wait works. The problem is what happens after it returns.">x.wait() never returns under Mesa.</button>
           <button type="button" class="q-opt" data-ok>Between the signal and the moment the waiter re-enters, another thread can take the item. The waiter must test again.</button>
-          <button type="button" class="q-opt" data-why="if and while test the condition the same way the first time; the difference is after waking.">if does not hold the monitor lock.</button>
+          <button type="button" class="q-opt" data-why="if and while test the condition the same way the first time. The difference is after waking.">if does not hold the monitor lock.</button>
         </div>
         <div class="q-fb ok">Right. The signal is a hint that the condition may be true, not a guarantee. (POSIX also allows spurious wakeups, one more reason for while.)</div>
         <div class="q-fb no">Not quite. Run the scenario with Mesa and if.</div>
@@ -254,11 +254,11 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
     <div class="pair">
       <div class="note note-key" style="margin:0">
         <span class="note-tag">signal</span>
-        <p><b>C.signal</b> has no effect if no thread is waiting. A condition variable is not really a variable: it has <strong>no value</strong>. <b>S.signal</b> (V) has an effect whether or not anyone waits, because the semaphore keeps a <strong>memory</strong> in its count.</p>
+        <p><b>C.signal</b> has no effect if no thread is waiting. A condition variable is not really a variable. It has <strong>no value</strong>. <b>S.signal</b> (V) has an effect whether or not anyone waits, because the semaphore keeps a <strong>memory</strong> in its count.</p>
       </div>
       <div class="note note-key" style="margin:0">
         <span class="note-tag">wait</span>
-        <p><b>S.wait</b> (P) checks its condition and blocks only if necessary. The condition is built in, but it is limited to a counter, and the caller need not re-check after P returns. <b>C.wait</b> checks nothing, ever: it always blocks. The condition is defined outside, by the programmer, and protected by the monitor's lock.</p>
+        <p><b>S.wait</b> (P) checks its condition and blocks only if necessary. The condition is built in, but it is limited to a counter, and the caller need not re-check after P returns. <b>C.wait</b> checks nothing, ever. It always blocks. The condition is defined outside, by the programmer, and protected by the monitor's lock.</p>
       </div>
     </div>
     <div class="widget" id="sw-w" style="margin-top:1.2em">
@@ -267,7 +267,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
         <span class="seg" aria-label="Tool" id="sw-k"><button type="button" data-k="cv">condition variable</button><button type="button" data-k="sem">semaphore = 0</button><button type="button" data-k="flag">CV + flag in a monitor</button></span>
       </div>
       <div class="widget-body">
-        <div class="pair" style="margin-bottom:12px"><div><div class="sub-lab">Task 1: wait until the queue is empty</div><div class="code" id="sw-c1"></div></div><div><div class="sub-lab">Task 2: empties the queue</div><div class="code" id="sw-c2"></div></div></div>
+        <div class="pair" style="margin-bottom:12px"><div><div class="sub-lab">Task 1 waits until the queue is empty</div><div class="code" id="sw-c1"></div></div><div><div class="sub-lab">Task 2 empties the queue</div><div class="code" id="sw-c2"></div></div></div>
         <div class="outcome" id="sw-o"></div>
       </div>
       <div class="readout" id="sw-out" style="font-family:var(--f-body);font-size:14.5px"></div>
@@ -280,9 +280,9 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       <div class="quiz-body">
         <div class="q-text">Task 2 calls <code>x.signal()</code> on a condition variable while no one is waiting. Later Task 1 calls <code>x.wait()</code>. What happens?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="That is what a semaphore would do; a condition variable keeps no count.">Task 1 returns immediately, using the saved signal.</button>
+          <button type="button" class="q-opt" data-why="That is what a semaphore would do. A condition variable keeps no count.">Task 1 returns immediately, using the saved signal.</button>
           <button type="button" class="q-opt" data-ok>Task 1 blocks, and without another signal it waits forever.</button>
-          <button type="button" class="q-opt" data-why="Signaling with no waiter is legal; it just does nothing.">Task 2's signal was an error.</button>
+          <button type="button" class="q-opt" data-why="Signaling with no waiter is legal. It just does nothing.">Task 2's signal was an error.</button>
         </div>
         <div class="q-fb ok">Right. That is why a condition wait always goes with a state variable that is checked first.</div>
         <div class="q-fb no">Not quite.</div>
@@ -313,7 +313,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       <div class="code"><span class="ln">semaphore mutex = 1;    <span class="c">// monitor entry</span></span><span class="ln">semaphore next = 0;     <span class="c">// suspended signalers</span></span><span class="ln"><span class="kw">int</span> next_count = 0;</span><span class="ln"> </span><span class="ln"><span class="c">// each monitor function F:</span></span><span class="ln">wait(mutex);</span><span class="ln">    <span class="c">// body of F</span></span><span class="ln"><span class="kw">if</span> (next_count &gt; 0)</span><span class="ln">    signal(next);       <span class="c">// let a signaler resume</span></span><span class="ln"><span class="kw">else</span></span><span class="ln">    signal(mutex);      <span class="c">// or admit a new entrant</span></span></div>
       <div class="code"><span class="ln">semaphore x_sem = 0;  <span class="kw">int</span> x_count = 0;</span><span class="ln"> </span><span class="ln"><span class="c">// x.wait()</span></span><span class="ln">x_count++;</span><span class="ln"><span class="kw">if</span> (next_count &gt; 0) signal(next);</span><span class="ln"><span class="kw">else</span> signal(mutex);</span><span class="ln">wait(x_sem);</span><span class="ln">x_count--;</span><span class="ln"> </span><span class="ln"><span class="c">// x.signal()</span></span><span class="ln"><span class="kw">if</span> (x_count &gt; 0) {</span><span class="ln">    next_count++;</span><span class="ln">    signal(x_sem);      <span class="c">// hand over to the waiter</span></span><span class="ln">    wait(next);         <span class="c">// and step aside</span></span><span class="ln">    next_count--;</span><span class="ln">}</span></div>
     </div>
-    <p class="prose">Note the <code>if (x_count &gt; 0)</code> in <code>x.signal()</code>: with no waiter, signal does nothing. That is the "no memory" property, built on top of semaphores that do have memory.</p>
+    <p class="prose">Note the <code>if (x_count &gt; 0)</code> in <code>x.signal()</code>. With no waiter, signal does nothing. That is the "no memory" property, built on top of semaphores that do have memory.</p>
   </div>
 
   <div class="sec" id="s2-2">
@@ -321,7 +321,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
     <div class="two-up">
       <div class="prose">
         <p>If several processes wait on <code>x</code>, which does <code>x.signal()</code> resume? With the <strong>conditional-wait</strong> construct <code>x.wait(c)</code>, the integer <code>c</code> is a <strong>priority number</strong>, and the waiter with the <em>lowest</em> number resumes first.</p>
-        <p>Example: allocate one resource, where each process passes the maximum time it plans to use it. The shortest request is served first: SJF from Lecture 06, with the same risk of starving long requests.</p>
+        <p>For example, allocate one resource, where each process passes the maximum time it plans to use it. The shortest request is served first. This is SJF from Lecture 06, with the same risk of starving long requests.</p>
         <p class="small muted">This code uses <code>if</code>, which is correct under the Hoare semantics these textbook monitors assume. Under Mesa it must be <code>while</code>.</p>
       </div>
       <div class="code"><span class="ln"><span class="kw">monitor</span> ResourceAllocator {</span><span class="ln">  <span class="kw">boolean</span> busy;</span><span class="ln">  <span class="kw">condition</span> x;</span><span class="ln">  <span class="kw">void</span> acquire(<span class="kw">int</span> time) {</span><span class="ln">    <span class="kw">if</span> (busy)</span><span class="ln">      x.wait(time);</span><span class="ln">    busy = TRUE;</span><span class="ln">  }</span><span class="ln">  <span class="kw">void</span> release() {</span><span class="ln">    busy = FALSE;</span><span class="ln">    x.signal();</span><span class="ln">  }</span><span class="ln">  initialization_code() { busy = FALSE; }</span><span class="ln">}</span></div>
@@ -344,11 +344,11 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       <div class="quiz-body">
         <div class="q-text">P2 waits with <code>x.wait(10)</code>, P3 with <code>x.wait(3)</code>, P4 with <code>x.wait(7)</code>. The holder calls <code>release()</code> three times, once per new holder. In what order do they get the resource?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="That is FIFO arrival order; x.wait(c) orders by c.">P2, P3, P4</button>
+          <button type="button" class="q-opt" data-why="That is FIFO arrival order. However, x.wait(c) orders by c.">P2, P3, P4</button>
           <button type="button" class="q-opt" data-ok>P3, P4, P2</button>
           <button type="button" class="q-opt" data-why="The lowest number has the highest priority.">P2, P4, P3</button>
         </div>
-        <div class="q-fb ok">Right: 3, then 7, then 10.</div>
+        <div class="q-fb ok">Right. They resume in the order 3, then 7, then 10.</div>
         <div class="q-fb no">Not quite. Try it in the widget.</div>
       </div>
     </div>
@@ -371,12 +371,12 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
   <div class="sec" id="s3-1">
     <h3><span class="sec-no">3.1</span>Waiting on a compound condition</h3>
     <div class="prose">
-      <p>Task 1 waits while <code>f != 7.0 &amp;&amp; count &lt;= 0</code>; that is, it proceeds once Task 2 has set <code>f</code> to 7.0 or made <code>count</code> positive. Task 2 does both, then signals. With plain threads there is no monitor, so the test must be protected by a mutex that you manage. There are four versions to compare:</p>
+      <p>Task 1 waits while <code>f != 7.0 &amp;&amp; count &lt;= 0</code>. That is, it proceeds once Task 2 has set <code>f</code> to 7.0 or made <code>count</code> positive. Task 2 does both, then signals. With plain threads there is no monitor, so the test must be protected by a mutex that you manage. There are four versions to compare.</p>
       <ul>
-        <li><b>no lock</b>: a race between testing the shared variables and setting them.</li>
-        <li><b>wait holding the lock</b>: surround the test with a mutex, as on the slide, but <code>x.wait()</code> does not release it.</li>
-        <li><b>release, then wait</b>: release the mutex by hand just before waiting.</li>
-        <li><b>pthread_cond_wait</b>: hand the mutex to the wait, which releases it and sleeps in one atomic step, then re-acquires it before returning.</li>
+        <li><b>no lock</b> leaves a race between testing the shared variables and setting them.</li>
+        <li><b>wait holding the lock</b> surrounds the test with a mutex, as on the slide, but <code>x.wait()</code> does not release it.</li>
+        <li><b>release, then wait</b> releases the mutex by hand just before waiting.</li>
+        <li><b>pthread_cond_wait</b> hands the mutex to the wait, which releases it and sleeps in one atomic step, then re-acquires it before returning.</li>
       </ul>
     </div>
     <div class="widget" id="cc-w">
@@ -406,16 +406,16 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
         <thead><tr><th>call</th><th>meaning</th></tr></thead>
         <tbody>
           <tr><td>pthread_cond_init(&amp;c, NULL)</td><td>Initialize (or use <code>PTHREAD_COND_INITIALIZER</code>).</td></tr>
-          <tr><td>pthread_cond_wait(&amp;c, &amp;m)</td><td>Caller must hold <code>m</code>. Atomically releases <code>m</code> and sleeps on <code>c</code>; re-acquires <code>m</code> before returning.</td></tr>
-          <tr><td>pthread_cond_signal(&amp;c)</td><td>Wake at least one waiter (Mesa semantics); no effect if none.</td></tr>
-          <tr><td>pthread_cond_broadcast(&amp;c)</td><td>Wake all waiters; each re-checks its own condition.</td></tr>
+          <tr><td>pthread_cond_wait(&amp;c, &amp;m)</td><td>Caller must hold <code>m</code>. Atomically releases <code>m</code> and sleeps on <code>c</code>. It re-acquires <code>m</code> before returning.</td></tr>
+          <tr><td>pthread_cond_signal(&amp;c)</td><td>Wake at least one waiter (Mesa semantics). It has no effect if there is none.</td></tr>
+          <tr><td>pthread_cond_broadcast(&amp;c)</td><td>Wake all waiters. Each re-checks its own condition.</td></tr>
           <tr><td>pthread_cond_destroy(&amp;c)</td><td>Done with it.</td></tr>
         </tbody>
       </table>
     </div>
     <div class="note note-key">
       <span class="note-tag">The three rules</span>
-      <p><b>1.</b> Keep the condition in shared variables, and read and write them only while holding the mutex. <b>2.</b> Always wait in a <code>while</code> loop that re-tests the condition: Mesa semantics, and POSIX permits spurious wakeups. <b>3.</b> Signal after changing the state. Signaling while still holding the mutex, as above, is always safe.</p>
+      <p><b>1.</b> Keep the condition in shared variables, and read and write them only while holding the mutex. <b>2.</b> Always wait in a <code>while</code> loop that re-tests the condition, because of Mesa semantics, and because POSIX permits spurious wakeups. <b>3.</b> Signal after changing the state. Signaling while still holding the mutex, as above, is always safe.</p>
     </div>
     <div class="note note-lab">
       <span class="note-tag">In the lab</span>
@@ -429,7 +429,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       <div class="quiz-body">
         <div class="q-text">Why does <code>pthread_cond_wait</code> take the mutex as an argument?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="Condition variables do not need a lock to exist; they need one to be waited on safely.">To initialize the condition variable.</button>
+          <button type="button" class="q-opt" data-why="Condition variables do not need a lock to exist. They need one to be waited on safely.">To initialize the condition variable.</button>
           <button type="button" class="q-opt" data-ok>So it can release the mutex and go to sleep as one atomic step. Otherwise a signal sent in between would be lost.</button>
           <button type="button" class="q-opt" data-why="Releasing then sleeping as two steps is exactly the broken version in §3.1.">So the caller doesn't have to hold it.</button>
         </div>
@@ -457,11 +457,11 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
     <div class="prose">
       <ul>
         <li>A monitor bundles shared data with the only functions that may touch it. One thread at a time is active inside, and the P and V are implicit.</li>
-        <li>Condition variables add waiting: <code>wait</code> always blocks and releases the monitor; <code>signal</code> wakes one waiter or does nothing.</li>
+        <li>Condition variables add waiting. <code>wait</code> always blocks and releases the monitor, and <code>signal</code> wakes one waiter or does nothing.</li>
         <li>Condition variables have no memory, so pair each wait with a state variable that you check first.</li>
-        <li>Hoare semantics run the woken thread immediately; Mesa semantics (POSIX, Java) let the signaler continue, so waiters must re-check in a <code>while</code> loop.</li>
+        <li>Hoare semantics run the woken thread immediately. Mesa semantics (POSIX, Java) let the signaler continue, so waiters must re-check in a <code>while</code> loop.</li>
         <li>Monitors can be built from semaphores (<code>mutex</code>, <code>next</code>, one semaphore per condition). <code>x.wait(c)</code> resumes the lowest c first.</li>
-        <li>POSIX: <code>pthread_cond_wait(&amp;c, &amp;m)</code> atomically releases the mutex and sleeps, closing the lost-wakeup window.</li>
+        <li>In POSIX, <code>pthread_cond_wait(&amp;c, &amp;m)</code> atomically releases the mutex and sleeps, closing the lost-wakeup window.</li>
       </ul>
     </div>
   </div>
@@ -471,12 +471,12 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
       <tbody>
         <tr><td>monitor</td><td>A module of shared data plus functions, with implicit mutual exclusion.</td></tr>
-        <tr><td>condition variable</td><td>A queue inside a monitor for waiting until a condition holds; no value.</td></tr>
+        <tr><td>condition variable</td><td>A queue inside a monitor for waiting until a condition holds. It has no value.</td></tr>
         <tr><td>wait / signal / queue</td><td>Block and release the monitor / wake one waiter, if any / are there waiters?</td></tr>
-        <tr><td>Hoare semantics</td><td>Signal-and-wait: the woken thread runs at once.</td></tr>
-        <tr><td>Mesa semantics</td><td>Signal-and-continue: the woken thread re-competes, so re-check.</td></tr>
-        <tr><td>spurious wakeup</td><td>A return from a condition wait with no matching signal; POSIX allows it.</td></tr>
-        <tr><td>conditional wait x.wait(c)</td><td>Wait with priority number c; the lowest resumes first.</td></tr>
+        <tr><td>Hoare semantics</td><td>Signal-and-wait, where the woken thread runs at once.</td></tr>
+        <tr><td>Mesa semantics</td><td>Signal-and-continue, where the woken thread re-competes, so re-check.</td></tr>
+        <tr><td>spurious wakeup</td><td>A return from a condition wait with no matching signal. POSIX allows it.</td></tr>
+        <tr><td>conditional wait x.wait(c)</td><td>Wait with priority number c. The lowest resumes first.</td></tr>
         <tr><td>broadcast</td><td>Wake every waiter on a condition.</td></tr>
       </tbody>
     </table>
@@ -557,10 +557,10 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       if (op.k === 'inc') { M.count++; t.pc++; return; }
       if (op.k === 'sig') {
         t.pc++;
-        if (!M.x.length) { log.push(`${t.n} signals: nobody waiting`); return; }
+        if (!M.x.length) { log.push(`${t.n} signals, but nobody is waiting`); return; }
         const w = M.x.shift();
-        if (sem === 'hoare') { t.blk = 'urgent'; t.resume = t.pc; M.urgent.push(t); M.active = null; admit(w); log.push(`${t.n} signals: ${w.n} runs now, ${t.n} waits (urgent)`); }
-        else { w.blk = 'entry'; M.entry.push(w); log.push(`${t.n} signals: ${w.n} moves to the entry queue`); }
+        if (sem === 'hoare') { t.blk = 'urgent'; t.resume = t.pc; M.urgent.push(t); M.active = null; admit(w); log.push(`${t.n} signals, so ${w.n} runs now and ${t.n} waits (urgent)`); }
+        else { w.blk = 'entry'; M.entry.push(w); log.push(`${t.n} signals, so ${w.n} moves to the entry queue`); }
         return;
       }
       if (op.k === 'exit') { t.pc = 0; log.push(`${t.n} leaves`); next(); }
@@ -602,12 +602,12 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       $('#sw-c1').innerHTML = K[k].c1.map((t) => `<span class="ln">${t}</span>`).join('');
       $('#sw-c2').innerHTML = K[k].c2.map((t) => `<span class="ln">${t}</span>`).join('');
       const R = {
-        cv: [[true, ['Task 1: wait() blocks', 'Task 2: signal() wakes Task 1', 'Task 1 proceeds']], [false, ['Task 2: signal(), nobody waiting: lost', 'Task 1: wait() blocks', '… forever']]],
-        sem: [[true, ['Task 1: P: value −1, sleeps', 'Task 2: V: value 0, wakes Task 1', 'Task 1 proceeds']], [true, ['Task 2: V: value 1 (remembered)', 'Task 1: P: value 0, passes', 'Task 1 proceeds']]],
-        flag: [[true, ['Task 1: empty is FALSE, wait()', 'Task 2: empty = TRUE, signal()', 'Task 1 proceeds']], [true, ['Task 2: empty = TRUE, signal() (lost, harmless)', 'Task 1: empty is TRUE: no wait', 'Task 1 proceeds']]],
+        cv: [[true, ['Task 1 calls wait() and blocks', 'Task 2 calls signal(), which wakes Task 1', 'Task 1 proceeds']], [false, ['Task 2 calls signal() with nobody waiting, so it is lost', 'Task 1 calls wait() and blocks', '… forever']]],
+        sem: [[true, ['Task 1 calls P, the value goes to −1, and it sleeps', 'Task 2 calls V, the value goes to 0, and it wakes Task 1', 'Task 1 proceeds']], [true, ['Task 2 calls V, and the value goes to 1 (remembered)', 'Task 1 calls P, the value goes to 0, and it passes', 'Task 1 proceeds']]],
+        flag: [[true, ['Task 1 sees empty is FALSE and calls wait()', 'Task 2 sets empty = TRUE and calls signal()', 'Task 1 proceeds']], [true, ['Task 2 sets empty = TRUE and calls signal() (lost, harmless)', 'Task 1 sees empty is TRUE and does not wait', 'Task 1 proceeds']]],
       }[k];
       $('#sw-o').innerHTML = R.map(([ok, steps], i) => `<div class="${ok ? 'ok' : 'no'}"><div class="hd">${i ? 'Task 2 signals first' : 'Task 1 waits first'} · ${ok ? 'works' : 'hangs'}</div><ol>${steps.map((s) => `<li>${s}</li>`).join('')}</ol></div>`).join('');
-      $('#sw-out').innerHTML = { cv: 'A condition variable has no state: <b class="bad">an early signal is simply lost</b>, and Task 1 waits forever.', sem: 'The semaphore remembers the early signal in its value, so Task 1 does not wait.', flag: 'The usual cure for condition variables: keep the state in a variable, and test it before waiting, inside the monitor. The lost signal no longer matters.' }[k];
+      $('#sw-out').innerHTML = { cv: 'A condition variable has no state, so <b class="bad">an early signal is simply lost</b>, and Task 1 waits forever.', sem: 'The semaphore remembers the early signal in its value, so Task 1 does not wait.', flag: 'The usual cure for condition variables is to keep the state in a variable, and test it before waiting, inside the monitor. The lost signal no longer matters.' }[k];
     }
     $('#sw-k').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (b) { k = b.dataset.k; render(); } });
     $('#sw-reset').addEventListener('click', () => { k = 'cv'; render(); });
@@ -621,7 +621,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
     function render() {
       const sorted = waiting.slice().sort((a, b) => a.t - b.t);
       $('#ra-mon').innerHTML = `<div class="box core"><div class="nm">busy / holder</div><div class="big">${busy ? holder : 'free'}</div></div><div class="box"><div class="nm">x queue, by priority number</div>${sorted.length ? sorted.map((w, i) => `<span class="chipt${i ? '' : ' act'}">${w.n} · ${w.t}</span>`).join(' ') : '—'}</div><div class="box"><div class="nm">served so far</div>${log.join(' → ') || '—'}</div>`;
-      $('#ra-out').innerHTML = busy ? `release() will wake <b>${sorted.length ? sorted[0].n : 'nobody'}</b>${sorted.length ? `, the smallest time (${sorted[0].t})` : ''}.${sorted.some((w) => w.t >= 10) && log.length >= 2 ? ' Keep adding short requests and the long one never gets its turn: starvation, as with SJF.' : ''}` : 'The resource is free. The next acquire() gets it immediately.';
+      $('#ra-out').innerHTML = busy ? `release() will wake <b>${sorted.length ? sorted[0].n : 'nobody'}</b>${sorted.length ? `, the smallest time (${sorted[0].t})` : ''}.${sorted.some((w) => w.t >= 10) && log.length >= 2 ? ' Keep adding short requests and the long one never gets its turn. This is starvation, as with SJF.' : ''}` : 'The resource is free. The next acquire() gets it immediately.';
     }
     $('#ra-add').addEventListener('click', () => { const t = Math.max(1, +$('#ra-t').value || 1), n = 'P' + nextId++; if (!busy) { busy = true; holder = `${n} (time ${t})`; log.push(n); } else waiting.push({ n, t }); render(); });
     $('#ra-rel').addEventListener('click', () => { if (!busy) return; if (waiting.length) { waiting.sort((a, b) => a.t - b.t); const w = waiting.shift(); holder = `${w.n} (time ${w.t})`; log.push(w.n); } else { busy = false; holder = null; } render(); });
@@ -685,13 +685,13 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
     function load(k) { cur = k; S = fresh(); hist = []; E = enumerate(); render(); }
     function render(note) {
       $$('#cc-v [data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === cur)));
-      $('#cc-stat').innerHTML = `Every interleaving: <b class="okc">${E.ok} finish</b>, <b class="${E.bad ? 'noc' : 'okc'}">${E.bad} hang</b>.`;
+      $('#cc-stat').innerHTML = `Over every interleaving, <b class="okc">${E.ok} finish</b> and <b class="${E.bad ? 'noc' : 'okc'}">${E.bad} hang</b>.`;
       $('#cc-bad').disabled = !E.bad;
-      $('#cc-mon').innerHTML = `<div class="box core"><div class="nm">mutex holder</div><div class="big">${cur === 'nolock' ? 'n/a' : S.owner < 0 ? 'free' : 'Task ' + (S.owner + 1)}</div>${S.mq.length ? 'waiting: ' + S.mq.map((i) => 'Task ' + (i + 1)).join(', ') : ''}</div><div class="box"><div class="nm">x waiters</div>${S.cq.length ? S.cq.map((i) => 'Task ' + (i + 1)).join(', ') : '—'}</div><div class="box"><div class="nm">f</div><div class="big">${S.f.toFixed(1)}</div></div><div class="box"><div class="nm">count</div><div class="big">${S.count}</div></div>`;
+      $('#cc-mon').innerHTML = `<div class="box core"><div class="nm">mutex holder</div><div class="big">${cur === 'nolock' ? 'n/a' : S.owner < 0 ? 'free' : 'Task ' + (S.owner + 1)}</div>${S.mq.length ? 'waiting ' + S.mq.map((i) => 'Task ' + (i + 1)).join(', ') : ''}</div><div class="box"><div class="nm">x waiters</div>${S.cq.length ? S.cq.map((i) => 'Task ' + (i + 1)).join(', ') : '—'}</div><div class="box"><div class="nm">f</div><div class="big">${S.f.toFixed(1)}</div></div><div class="box"><div class="nm">count</div><div class="big">${S.count}</div></div>`;
       $('#cc-act').innerHTML = [0, 1].map((i) => { const t = S.th[i], p = prog(i), end = p[t.pc].k === 'end'; const st = t.blk ? `<span class="chipt blk">asleep on ${t.blk === 'cond' ? 'x' : 'mutex'}</span>` : end ? '<span class="chipt done">finished</span>' : '<span class="chipt run">ready</span>'; return `<div class="actor"><div class="top"><b>Task ${i + 1}</b>${st}<button type="button" class="btn small" data-i="${i}"${canStep(S, i) ? '' : ' disabled'}>Step</button></div><div class="code">${p.map((o, k) => `<span class="ln${k === t.pc ? ' cur' : ''}${o.bad ? ' bad' : ''}">${o.t.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>`).join('')}</div></div>`; }).join('');
       const stuck = ![0, 1].some((i) => canStep(S, i)) && !done(S);
       const EXPL = { nolock: 'Task 1 tested the condition (true), then Task 2 set both variables and signaled nobody, then Task 1 waited for a signal that had already come.', hold: 'Task 1 sleeps on x while still holding the mutex, so Task 2 can never acquire it to change the variables or signal.', relwait: 'Between Task 1\'s release and its wait, Task 2 ran everything, including a signal to nobody. The window is only one step wide, but it exists.', pthread: '' };
-      $('#cc-out').innerHTML = note || (stuck ? `<b class="bad">Stuck forever.</b> ${EXPL[cur]}` : done(S) ? `<b>Both finished.</b> Steps: <span class="mono">${hist.map((i) => 'T' + (i + 1)).join(' ')}</span>` : `${cur === 'pthread' ? 'No interleaving hangs: the unlock-and-sleep happens as one step, so Task 2 cannot slip in between. ' : ''}Step the tasks, or show a failing interleaving.`);
+      $('#cc-out').innerHTML = note || (stuck ? `<b class="bad">Stuck forever.</b> ${EXPL[cur]}` : done(S) ? `<b>Both finished.</b> The steps were <span class="mono">${hist.map((i) => 'T' + (i + 1)).join(' ')}</span>` : `${cur === 'pthread' ? 'No interleaving hangs. The unlock-and-sleep happens as one step, so Task 2 cannot slip in between. ' : ''}Step the tasks, or show a failing interleaving.`);
     }
     $('#cc-v').addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) load(b.dataset.v); });
     $('#cc-act').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b && canStep(S, +b.dataset.i)) { S = step(S, +b.dataset.i); hist.push(+b.dataset.i); render(); } });

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Deadlocks · L12</title>
-<meta name="description" content="CSCI 3753 Lecture 12, interactive edition: the four deadlock conditions, resource-allocation graphs, prevention by lock ordering, avoidance with safe states and the Banker's algorithm, detection and recovery, and priority inversion.">
+<meta name="description" content="CSCI 3753 Lecture 12, interactive edition, covering the four deadlock conditions, resource-allocation graphs, prevention by lock ordering, avoidance with safe states and the Banker's algorithm, detection and recovery, and priority inversion.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -49,12 +49,12 @@ table.mx td.nm { font-weight: 600; text-align: left; }
 </svg>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><circle cx="6" cy="6" r="3"/><circle cx="16" cy="16" r="3"/><path d="M9 6h4.5a2.5 2.5 0 0 1 2.5 2.5V13M13 16H8.5A2.5 2.5 0 0 1 6 13.5V9"/></g><path d="M16 13l-1.6-2h3.2zM6 9l1.6 2H4.4z" fill="var(--cd)"/></svg>
-    <span>Lecture 12 · Deadlocks</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Lecture 12 · Deadlocks</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -63,13 +63,13 @@ table.mx td.nm { font-weight: 600; text-align: left; }
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 12 · Interactive notes</div>
     <h1>Everyone waits, <span class="accent">forever</span></h1>
-    <p class="lede">Lectures 09 and 11 kept running into the same failure: each thread holds something the next one needs, around a circle. This lecture treats deadlock systematically. It states the four conditions that together make it possible, then covers four responses: prevent it by breaking a condition, avoid it by checking each request (the Banker's algorithm), detect it and recover, or ignore it. It ends with a cousin of deadlock that nearly cost a Mars mission.</p>
+    <p class="lede">Lectures 09 and 11 kept running into the same failure, in which each thread holds something the next one needs, around a circle. This lecture treats deadlock systematically. It states the four conditions that together make it possible, then covers four responses. The system can prevent it by breaking a condition, avoid it by checking each request (the Banker's algorithm), detect it and recover, or ignore it. It ends with a cousin of deadlock that nearly cost a Mars mission.</p>
     <div class="promise">
-      <span>Before you start:</span><span class="mono">semaphores, dining philosophers</span><span>from Lectures 09–11.</span>
+      <span>Before you start, review</span><span class="mono">semaphores, dining philosophers</span><span>from Lectures 09–11.</span>
     </div>
     <div class="cta-row">
       <a class="btn primary" href="#ch0">Begin ↓</a>
-      <span class="muted small">About 60 minutes · 4 hands-on experiments · 6 checkpoints · Textbook: Silberschatz, Ch. 8</span>
+      <span class="muted small">About 60 minutes · 4 hands-on experiments · 6 checkpoints · Textbook Silberschatz, Ch. 8</span>
     </div>
   </div>
 </div>
@@ -80,7 +80,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
     <a href="#ch0"><span class="n">0</span>Characterization</a>
     <a href="#ch1"><span class="n">1</span>Resource-allocation graphs</a>
     <a href="#ch2"><span class="n">2</span>Prevention</a>
-    <a href="#ch3"><span class="n">3</span>Avoidance: Banker's</a>
+    <a href="#ch3"><span class="n">3</span>Avoidance, Banker's</a>
     <a href="#ch4"><span class="n">4</span>Detection and recovery</a>
     <a href="#ch5"><span class="n">5</span>Priority inversion</a>
     <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
@@ -92,7 +92,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
         <a href="#ch0"><span class="n">0</span>Characterization</a>
         <a href="#ch1"><span class="n">1</span>Resource-allocation graphs</a>
         <a href="#ch2"><span class="n">2</span>Prevention</a>
-        <a href="#ch3"><span class="n">3</span>Avoidance: Banker's</a>
+        <a href="#ch3"><span class="n">3</span>Avoidance, Banker's</a>
         <a href="#ch4"><span class="n">4</span>Detection and recovery</a>
         <a href="#ch5"><span class="n">5</span>Priority inversion</a>
         <a href="#tail"><span class="n">∎</span>Summary · Glossary</a>
@@ -112,8 +112,8 @@ table.mx td.nm { font-weight: 600; text-align: left; }
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li>A system has resource types R<sub>1</sub>, …, R<sub>m</sub>: CPU cycles, memory space, I/O devices, locks. Type R<sub>i</sub> has W<sub>i</sub> identical <strong>instances</strong>.</li>
-          <li>Each thread uses a resource in three steps: <strong>request</strong> (wait if it is unavailable), <strong>use</strong>, <strong>release</strong>.</li>
+          <li>A system has resource types R<sub>1</sub>, …, R<sub>m</sub>, such as CPU cycles, memory space, I/O devices, and locks. Type R<sub>i</sub> has W<sub>i</sub> identical <strong>instances</strong>.</li>
+          <li>Each thread uses a resource in three steps, namely <strong>request</strong> (wait if it is unavailable), <strong>use</strong>, and <strong>release</strong>.</li>
           <li>The simplest deadlock takes two binary semaphores and two threads that lock them in opposite orders (Lecture 09, §2.1).</li>
         </ul>
       </div>
@@ -126,14 +126,14 @@ table.mx td.nm { font-weight: 600; text-align: left; }
 
   <div class="sec" id="s0-2">
     <h3><span class="sec-no">0.2</span>The four necessary conditions</h3>
-    <div class="prose"><p>Deadlock can arise only if all four hold <strong>simultaneously</strong>:</p></div>
+    <div class="prose"><p>Deadlock can arise only if all four hold <strong>simultaneously</strong>.</p></div>
     <div class="pair">
       <div class="note note-key" style="margin:0"><span class="note-tag">1 · Mutual exclusion</span><p>Only one thread at a time can use a resource.</p></div>
       <div class="note note-key" style="margin:0"><span class="note-tag">2 · Hold and wait</span><p>A thread holding at least one resource waits to acquire more resources held by others.</p></div>
       <div class="note note-key" style="margin:0"><span class="note-tag">3 · No preemption</span><p>A resource is released only voluntarily, by the thread holding it, when it is done.</p></div>
       <div class="note note-key" style="margin:0"><span class="note-tag">4 · Circular wait</span><p>There is a set {T<sub>0</sub>, …, T<sub>n</sub>} of waiting threads where T<sub>0</sub> waits for T<sub>1</sub>, T<sub>1</sub> for T<sub>2</sub>, …, and T<sub>n</sub> waits for T<sub>0</sub>.</p></div>
     </div>
-    <p class="prose" style="margin-top:1em">They are <em>necessary</em>: break any one and deadlock is impossible. That is the whole idea of prevention (§2).</p>
+    <p class="prose" style="margin-top:1em">They are <em>necessary</em>. Break any one and deadlock is impossible. That is the whole idea of prevention (§2).</p>
   </div>
 
   <div class="ch-nav">
@@ -147,7 +147,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
   <div class="ch-head">
     <div class="ch-no">Chapter 1</div>
     <h2>Resource-allocation graphs</h2>
-    <p class="ch-lede">Draw who holds what and who wants what; deadlock shows up as a cycle.</p>
+    <p class="ch-lede">Draw who holds what and who wants what. Deadlock shows up as a cycle.</p>
   </div>
 
   <div class="sec" id="s1-1">
@@ -187,7 +187,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
       <ul>
         <li>No cycle → no deadlock.</li>
         <li>A cycle, and only <strong>one instance</strong> per resource type → deadlock.</li>
-        <li>A cycle, with <strong>several instances</strong> per type → deadlock is <em>possible</em>, but not certain. In the third graph, T2 and T4 are not in the cycle; when either finishes, it frees an instance that breaks the cycle.</li>
+        <li>A cycle, with <strong>several instances</strong> per type → deadlock is <em>possible</em>, but not certain. In the third graph, T2 and T4 are not in the cycle. When either finishes, it frees an instance that breaks the cycle.</li>
       </ul>
       <p>A cycle is a <strong>necessary but not sufficient</strong> condition for deadlock.</p>
     </div>
@@ -199,9 +199,9 @@ table.mx td.nm { font-weight: 600; text-align: left; }
       <div class="quiz-body">
         <div class="q-text">A resource-allocation graph has a cycle, and every resource type in it has exactly one instance. Is the system deadlocked?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-ok>Yes: each thread in the cycle waits for the single instance held by the next.</button>
-          <button type="button" class="q-opt" data-why="With multiple instances that would be the right answer; with single instances there is no one else to release.">Only possibly; it depends on other threads.</button>
-          <button type="button" class="q-opt" data-why="A cycle is exactly circular wait.">No: cycles are normal.</button>
+          <button type="button" class="q-opt" data-ok>Yes. Each thread in the cycle waits for the single instance held by the next.</button>
+          <button type="button" class="q-opt" data-why="With multiple instances that would be the right answer. However, with single instances there is no one else to release.">Only possibly. It depends on other threads.</button>
+          <button type="button" class="q-opt" data-why="A cycle is exactly circular wait.">No. Cycles are normal.</button>
         </div>
         <div class="q-fb ok">Right. With single instances, cycle ⇔ deadlock.</div>
         <div class="q-fb no">Not quite.</div>
@@ -219,18 +219,18 @@ table.mx td.nm { font-weight: 600; text-align: left; }
 <section class="chapter" id="ch2">
   <div class="ch-head">
     <div class="ch-no">Chapter 2</div>
-    <h2>Handling deadlocks: prevention</h2>
-    <p class="ch-lede">Four strategies; the first breaks one of the four conditions.</p>
+    <h2>Handling deadlocks by prevention</h2>
+    <p class="ch-lede">There are four strategies, and the first breaks one of the four conditions.</p>
   </div>
 
   <div class="sec" id="s2-1">
     <h3><span class="sec-no">2.1</span>Four ways to handle deadlock</h3>
     <div class="prose">
       <ul>
-        <li><strong>Prevention</strong>: make sure at least one of the four necessary conditions can never hold.</li>
-        <li><strong>Avoidance</strong>: using advance information, decide at each request whether granting it could lead to deadlock (§3).</li>
-        <li><strong>Detection and recovery</strong>: let deadlocks happen, find them, and break them (§4).</li>
-        <li><strong>Ignore the problem</strong> and pretend deadlocks never occur, the "ostrich algorithm". This is what most general-purpose operating systems, Linux and Windows included, do for application-level deadlocks: preventing them is left to the programmer. (Inside its own code, the Linux kernel checks its lock ordering with a debugging validator called <em>lockdep</em>.)</li>
+        <li><strong>Prevention</strong>. Make sure at least one of the four necessary conditions can never hold.</li>
+        <li><strong>Avoidance</strong>. Using advance information, decide at each request whether granting it could lead to deadlock (§3).</li>
+        <li><strong>Detection and recovery</strong>. Let deadlocks happen, find them, and break them (§4).</li>
+        <li><strong>Ignore the problem</strong> and pretend deadlocks never occur, the "ostrich algorithm". This is what most general-purpose operating systems, Linux and Windows included, do for application-level deadlocks. Preventing them is left to the programmer. (Inside its own code, the Linux kernel checks its lock ordering with a debugging validator called <em>lockdep</em>.)</li>
       </ul>
     </div>
   </div>
@@ -242,9 +242,9 @@ table.mx td.nm { font-weight: 600; text-align: left; }
         <thead><tr><th>condition</th><th>how to break it</th><th>cost</th></tr></thead>
         <tbody>
           <tr><td>mutual exclusion</td><td>Not needed for sharable resources, such as read-only files.</td><td>Non-sharable resources, such as a mutex or a printer, must keep it.</td></tr>
-          <tr><td>hold and wait</td><td>A thread may request resources only when it holds none. Either it gets everything before it starts, or it acquires all or nothing, like the monitor philosophers of Lecture 11.</td><td>Low resource utilization; starvation is possible.</td></tr>
+          <tr><td>hold and wait</td><td>A thread may request resources only when it holds none. Either it gets everything before it starts, or it acquires all or nothing, like the monitor philosophers of Lecture 11.</td><td>Low resource utilization, and starvation is possible.</td></tr>
           <tr><td>no preemption</td><td>If a thread holding resources requests one it cannot get now, it releases everything it holds. The released resources join its wait list, and it restarts only when it can regain all of them plus the new one.</td><td>Only for resources whose state can be saved and restored, such as CPU registers and memory. A printer cannot be taken away halfway through a job.</td></tr>
-          <tr><td>circular wait</td><td>Number every resource type and require each thread to request resources in <strong>increasing order</strong>.</td><td>Needs discipline: every lock gets a unique number, and every code path must acquire in order.</td></tr>
+          <tr><td>circular wait</td><td>Number every resource type and require each thread to request resources in <strong>increasing order</strong>.</td><td>Needs discipline. Every lock gets a unique number, and every code path must acquire in order.</td></tr>
         </tbody>
       </table>
     </div>
@@ -254,7 +254,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
     <h3><span class="sec-no">2.3</span>Lock ordering in practice</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Breaking circular wait is by far the most common technique: give each lock a number and always acquire locks in increasing order. A cycle would need some thread to hold a higher-numbered lock while waiting for a lower one, and the rule forbids that.</p>
+        <p>Breaking circular wait is by far the most common technique. Give each lock a number and always acquire locks in increasing order. A cycle would need some thread to hold a higher-numbered lock while waiting for a lower one, and the rule forbids that.</p>
         <p>For the dining philosophers, number the chopsticks 1 &lt; 2 &lt; 3 &lt; 4 &lt; 5. Philosopher P<sub>i</sub> uses chopsticks i and i+1, so P1–P4 pick up chopstick i first. P5 uses chopsticks 5 and 1, and the ordering makes it pick up <strong>1 before 5</strong>, the opposite side from everyone else. P5 then blocks on 1, not on 5, and the circle cannot close. This is the asymmetric solution of Lecture 11, derived from a general rule.</p>
       </div>
       <figure class="fig">
@@ -286,7 +286,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
 
   <div class="ch-nav">
     <a href="#ch1">Back<b>1 · Resource-allocation graphs</b></a>
-    <a href="#ch3">Next<b>3 · Avoidance: Banker's</b></a>
+    <a href="#ch3">Next<b>3 · Avoidance, Banker's</b></a>
   </div>
 </section>
 
@@ -321,7 +321,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
   </div>
 
   <div class="sec" id="s3-2">
-    <h3><span class="sec-no">3.2</span>Single instances: claim edges</h3>
+    <h3><span class="sec-no">3.2</span>Claim edges for single instances</h3>
     <div class="prose">
       <ul>
         <li>When every resource type has one instance, use the resource-allocation graph with <strong>claim edges</strong>. A dashed T<sub>i</sub> ⇢ R<sub>j</sub> means T<sub>i</sub> <em>may</em> request R<sub>j</sub> someday. All claims must be declared in advance.</li>
@@ -332,25 +332,25 @@ table.mx td.nm { font-weight: 600; text-align: left; }
   </div>
 
   <div class="sec" id="s3-3">
-    <h3><span class="sec-no">3.3</span>Multiple instances: the Banker's algorithm</h3>
+    <h3><span class="sec-no">3.3</span>The Banker's algorithm for multiple instances</h3>
     <div class="prose">
-      <p>Like a banker who never lends out cash in a way that could leave some customers unable to finish, the OS grants a request only if the resulting state is safe. Each thread declares its maximum; when it has everything, it returns the resources in finite time. With n threads and m resource types:</p>
+      <p>Like a banker who never lends out cash in a way that could leave some customers unable to finish, the OS grants a request only if the resulting state is safe. Each thread declares its maximum. When it has everything, it returns the resources in finite time. It keeps the data below for n threads and m resource types.</p>
       <ul>
-        <li><b>Available</b>[m]: free instances of each type.</li>
-        <li><b>Max</b>[n][m]: the most T<sub>i</sub> may ever request.</li>
-        <li><b>Allocation</b>[n][m]: what T<sub>i</sub> holds now.</li>
-        <li><b>Need</b>[n][m] = Max − Allocation: what T<sub>i</sub> may still ask for.</li>
+        <li><b>Available</b>[m] holds the free instances of each type.</li>
+        <li><b>Max</b>[n][m] is the most T<sub>i</sub> may ever request.</li>
+        <li><b>Allocation</b>[n][m] is what T<sub>i</sub> holds now.</li>
+        <li><b>Need</b>[n][m] = Max − Allocation is what T<sub>i</sub> may still ask for.</li>
       </ul>
     </div>
     <div class="pair">
       <div class="code"><span class="ln"><span class="c">// safety algorithm</span></span><span class="ln">Work = Available;  Finish[i] = false for all i;</span><span class="ln"><span class="kw">repeat</span>:</span><span class="ln">  find i with Finish[i] == false</span><span class="ln">              and Need[i] ≤ Work;</span><span class="ln">  <span class="kw">if</span> none: <span class="kw">break</span>;</span><span class="ln">  Work += Allocation[i];  Finish[i] = true;</span><span class="ln">safe ⇔ Finish[i] == true for all i</span></div>
       <div class="code"><span class="ln"><span class="c">// resource-request algorithm for Ti</span></span><span class="ln">1. Request ≤ Need[i]?  else error: over max</span><span class="ln">2. Request ≤ Available? else Ti waits</span><span class="ln">3. pretend:  Available −= Request;</span><span class="ln">            Allocation[i] += Request;</span><span class="ln">            Need[i] −= Request;</span><span class="ln">   safe?   → grant</span><span class="ln">   unsafe? → Ti waits; restore old state</span></div>
     </div>
-    <p class="prose small muted">Vectors compare element by element: X ≤ Y means X[j] ≤ Y[j] for every j.</p>
+    <p class="prose small muted">Vectors compare element by element, so X ≤ Y means X[j] ≤ Y[j] for every j.</p>
     <div class="widget" id="bk-w">
-      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Five threads; A = 10, B = 5, C = 7 instances</span><button class="w-reset" type="button" id="bk-reset">Reset</button></div>
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Five threads, with A = 10, B = 5, C = 7 instances</span><button class="w-reset" type="button" id="bk-reset">Reset</button></div>
       <div class="controls">
-        <button type="button" class="btn primary" id="bk-auto">Safety: next step</button>
+        <button type="button" class="btn primary" id="bk-auto">Safety check, next step</button>
         <button type="button" class="btn" id="bk-full">Run to the end</button>
         <button type="button" class="btn" id="bk-clear">Restart safety check</button>
       </div>
@@ -362,7 +362,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
           <select id="bk-who" aria-label="thread"></select>
           <span class="mono">requests</span> A <input id="bk-a" type="number" min="0" value="1" aria-label="A"> B <input id="bk-b" type="number" min="0" value="0" aria-label="B"> C <input id="bk-c" type="number" min="0" value="2" aria-label="C">
           <button type="button" class="btn" id="bk-req">Request</button>
-          <span class="muted small">presets:</span>
+          <span class="muted small">presets</span>
           <button type="button" class="btn small" data-pre="1,1,0,2">T1 (1,0,2)</button>
           <button type="button" class="btn small" data-pre="4,3,3,0">T4 (3,3,0)</button>
           <button type="button" class="btn small" data-pre="0,0,2,0">T0 (0,2,0)</button>
@@ -371,7 +371,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
       </div>
       <div class="readout" id="bk-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Rows shaded blue are <em>eligible</em>: Need ≤ Work. Click one to choose it yourself, or let "next step" pick. A safe sequence is not unique. The slides' ⟨T1, T3, T4, T2, T0⟩ and the widget's ⟨T1, T3, T4, T0, T2⟩ are both valid. A granted request changes the state; Reset restores the snapshot.</p>
+    <p class="small muted prose read-only">Rows shaded blue are <em>eligible</em>, meaning Need ≤ Work. Click one to choose it yourself, or let "next step" pick. A safe sequence is not unique. The slides' ⟨T1, T3, T4, T2, T0⟩ and the widget's ⟨T1, T3, T4, T0, T2⟩ are both valid. A granted request changes the state, and Reset restores the snapshot.</p>
   </div>
 
   <div class="sec" id="q2">
@@ -381,7 +381,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
         <div class="q-text">After T1's request (1,0,2) is granted, Available is (2,3,0). T0 requests (0,2,0), which is available. Why must it wait?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="(0,2,0) ≤ T0's Need (7,4,3), so it is within its maximum.">It exceeds T0's declared maximum.</button>
-          <button type="button" class="q-opt" data-ok>Granting it leaves Available = (2,1,0), and no thread's Need fits in that: the state would be unsafe.</button>
+          <button type="button" class="q-opt" data-ok>Granting it leaves Available = (2,1,0), and no thread's Need fits in that, so the state would be unsafe.</button>
           <button type="button" class="q-opt" data-why="Available (2,3,0) covers (0,2,0).">The resources are not available.</button>
         </div>
         <div class="q-fb ok">Right. Unsafe is not yet deadlock, but avoidance refuses to take the risk.</div>
@@ -405,10 +405,10 @@ table.mx td.nm { font-weight: 600; text-align: left; }
   </div>
 
   <div class="sec" id="s4-1">
-    <h3><span class="sec-no">4.1</span>Single instances: the wait-for graph</h3>
+    <h3><span class="sec-no">4.1</span>The wait-for graph for single instances</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Collapse the resource-allocation graph. The nodes are threads only, and T<sub>i</sub> → T<sub>j</sub> means T<sub>i</sub> waits for a resource that T<sub>j</sub> holds. Periodically search it for a cycle; a cycle means deadlock. Cycle detection takes on the order of n² operations for n vertices.</p>
+        <p>Collapse the resource-allocation graph. The nodes are threads only, and T<sub>i</sub> → T<sub>j</sub> means T<sub>i</sub> waits for a resource that T<sub>j</sub> holds. Periodically search it for a cycle. A cycle means deadlock. Cycle detection takes on the order of n² operations for n vertices.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -422,12 +422,12 @@ table.mx td.nm { font-weight: 600; text-align: left; }
   </div>
 
   <div class="sec" id="s4-2">
-    <h3><span class="sec-no">4.2</span>Several instances: the detection algorithm</h3>
+    <h3><span class="sec-no">4.2</span>The detection algorithm for several instances</h3>
     <div class="prose">
-      <p>This is the safety algorithm with <b>Request</b> (what each thread is waiting for <em>now</em>) in place of Need, the reduction of §1.2 in matrix form. A thread holding nothing cannot be part of a deadlock, so its Finish starts true. Threads with Finish still false at the end are deadlocked. The cost is O(m × n²). (The widget's order may differ from the slides' ⟨T0, T2, T3, T1, T4⟩; any complete order proves there is no deadlock.)</p>
+      <p>This is the safety algorithm with <b>Request</b> (what each thread is waiting for <em>now</em>) in place of Need, the reduction of §1.2 in matrix form. A thread holding nothing cannot be part of a deadlock, so its Finish starts true. Threads with Finish still false at the end are deadlocked. The cost is O(m × n²). (The widget's order may differ from the slides' ⟨T0, T2, T3, T1, T4⟩, and any complete order proves there is no deadlock.)</p>
     </div>
     <div class="widget" id="dt-w">
-      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Five threads; A = 7, B = 2, C = 6 instances</span><button class="w-reset" type="button" id="dt-reset">Reset</button></div>
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Five threads, with A = 7, B = 2, C = 6 instances</span><button class="w-reset" type="button" id="dt-reset">Reset</button></div>
       <div class="controls">
         <label class="ctl-label"><input type="checkbox" id="dt-more"> T2 requests one more C</label>
         <button type="button" class="btn primary" id="dt-auto">Next step</button>
@@ -446,8 +446,8 @@ table.mx td.nm { font-weight: 600; text-align: left; }
     <div class="prose">
       <ul>
         <li>How often to invoke detection depends on how often deadlocks occur and how many threads must be rolled back, at least one per disjoint cycle. Running it at every blocked request finds the culprit immediately but costs the most. Running it rarely, or when CPU utilization drops, means many cycles may have formed, and it can no longer tell which thread "caused" the deadlock.</li>
-        <li><strong>Recovery by termination</strong>: abort all deadlocked threads, or abort one at a time until the cycle breaks. To choose the victim, weigh its priority, how long it has computed and how much remains, the resources it holds and still needs, how many threads must go, and whether it is interactive or batch.</li>
-        <li><strong>Recovery by preemption</strong>: pick a victim to minimize cost, <strong>roll it back</strong> to a safe state and restart it from there, and guard against <strong>starvation</strong> by counting rollbacks in the cost, so the same thread is not always chosen.</li>
+        <li><strong>Recovery by termination</strong>. Abort all deadlocked threads, or abort one at a time until the cycle breaks. To choose the victim, weigh its priority, how long it has computed and how much remains, the resources it holds and still needs, how many threads must go, and whether it is interactive or batch.</li>
+        <li><strong>Recovery by preemption</strong>. Pick a victim to minimize cost, <strong>roll it back</strong> to a safe state and restart it from there, and guard against <strong>starvation</strong> by counting rollbacks in the cost, so the same thread is not always chosen.</li>
       </ul>
     </div>
   </div>
@@ -458,18 +458,18 @@ table.mx td.nm { font-weight: 600; text-align: left; }
       <div class="quiz-body">
         <div class="q-text">The detection algorithm looks like the safety algorithm. What is the essential difference?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-ok>Detection uses each thread's current Request; safety uses Need, the worst case it might still ask for.</button>
+          <button type="button" class="q-opt" data-ok>Detection uses each thread's current Request, while safety uses Need, the worst case it might still ask for.</button>
           <button type="button" class="q-opt" data-why="Both use the same Work/Finish loop.">Detection does not use Work.</button>
-          <button type="button" class="q-opt" data-why="Both handle many instances; the difference is which demand they test.">Detection only works for single instances.</button>
+          <button type="button" class="q-opt" data-why="Both handle many instances. The difference is which demand they test.">Detection only works for single instances.</button>
         </div>
-        <div class="q-fb ok">Right. Detection asks "is anyone stuck now?"; avoidance asks "could anyone get stuck later?".</div>
+        <div class="q-fb ok">Right. Detection asks "is anyone stuck now?", and avoidance asks "could anyone get stuck later?".</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
   </div>
 
   <div class="ch-nav">
-    <a href="#ch3">Back<b>3 · Avoidance: Banker's</b></a>
+    <a href="#ch3">Back<b>3 · Avoidance, Banker's</b></a>
     <a href="#ch5">Next<b>5 · Priority inversion</b></a>
   </div>
 </section>
@@ -485,7 +485,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
   <div class="sec" id="s5-1">
     <h3><span class="sec-no">5.1</span>A hazard with mutexes</h3>
     <div class="prose">
-      <p>There are three tasks under preemptive priority scheduling. Task 1 has the highest priority and task 3 the lowest. Task 3 locks a shared object and enters its critical section. Task 1 arrives, preempts it, tries the same lock, and blocks. So far that is expected: task 1 waits for a short critical section. Then task 2, of medium priority and not needing the lock, arrives and preempts task 3. Now task 1 waits for task 2, which can keep it waiting <strong>arbitrarily long</strong>. In effect, the priorities of tasks 1 and 2 are inverted.</p>
+      <p>There are three tasks under preemptive priority scheduling. Task 1 has the highest priority and task 3 the lowest. Task 3 locks a shared object and enters its critical section. Task 1 arrives, preempts it, tries the same lock, and blocks. So far that is expected, since task 1 waits for a short critical section. Then task 2, of medium priority and not needing the lock, arrives and preempts task 3. Now task 1 waits for task 2, which can keep it waiting <strong>arbitrarily long</strong>. In effect, the priorities of tasks 1 and 2 are inverted.</p>
     </div>
     <div class="widget" id="pi-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Three tasks, one lock</span><button class="w-reset" type="button" id="pi-reset">Reset</button></div>
@@ -496,7 +496,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
       <div class="widget-body"><div class="canvas-wrap"><svg class="dia" id="pi-svg" viewBox="0 0 640 170" width="640" style="min-width:460px" role="img" aria-label="Timeline of three tasks"></svg></div></div>
       <div class="readout" id="pi-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">The shaded parts of a bar are critical-section time, holding the lock. Arrows mark arrivals. The default timeline matches the slide: task 1 arrives at 2 and blocks at 3, and task 2 arrives at 4.</p>
+    <p class="small muted prose read-only">The shaded parts of a bar are critical-section time, holding the lock. Arrows mark arrivals. The default timeline matches the slide. Task 1 arrives at 2 and blocks at 3, and task 2 arrives at 4.</p>
   </div>
 
   <div class="sec" id="s5-2">
@@ -507,9 +507,9 @@ table.mx td.nm { font-weight: 600; text-align: left; }
     </div>
     <div class="pc">
       <div class="pro"><span class="tag">Priority inheritance</span>A task holding a lock temporarily runs at the highest priority of any task waiting for that lock, and drops back when it releases. Medium tasks can no longer cut in.</div>
-      <div class="pro"><span class="tag">Priority ceiling</span>Each lock has a ceiling: the highest priority of any task that ever uses it. A task holding the lock runs at the ceiling from the moment it locks, so the inversion cannot start.</div>
+      <div class="pro"><span class="tag">Priority ceiling</span>Each lock has a ceiling, namely the highest priority of any task that ever uses it. A task holding the lock runs at the ceiling from the moment it locks, so the inversion cannot start.</div>
     </div>
-    <p class="prose small muted">POSIX exposes both through mutex attributes: <code>pthread_mutexattr_setprotocol()</code> with <code>PTHREAD_PRIO_INHERIT</code> or <code>PTHREAD_PRIO_PROTECT</code>.</p>
+    <p class="prose small muted">POSIX exposes both through mutex attributes, namely <code>pthread_mutexattr_setprotocol()</code> with <code>PTHREAD_PRIO_INHERIT</code> or <code>PTHREAD_PRIO_PROTECT</code>.</p>
   </div>
 
   <div class="sec" id="q4">
@@ -518,7 +518,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
       <div class="quiz-body">
         <div class="q-text">Why is priority inversion not a deadlock?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-ok>There is no cycle of waiting: task 1 will get the lock once the tasks ahead of it finish, but that delay is unbounded.</button>
+          <button type="button" class="q-opt" data-ok>There is no cycle of waiting. Task 1 will get the lock once the tasks ahead of it finish, but that delay is unbounded.</button>
           <button type="button" class="q-opt" data-why="The lock is exclusive in both cases.">Because the lock is not exclusive.</button>
           <button type="button" class="q-opt" data-why="Task 1 really does block on the lock.">Because task 1 never blocks.</button>
         </div>
@@ -536,7 +536,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="Preemption does not release a lock.">Task 3 is forced to release the lock.</button>
           <button type="button" class="q-opt" data-ok>Task 3 runs at task 1's priority until it releases the lock, so task 2 cannot preempt it.</button>
-          <button type="button" class="q-opt" data-why="Task 1's priority is not lowered; task 3's is raised.">Task 1 drops to task 3's priority.</button>
+          <button type="button" class="q-opt" data-why="Task 1's priority is not lowered. Task 3's is raised.">Task 1 drops to task 3's priority.</button>
         </div>
         <div class="q-fb ok">Right. Try the checkbox with task 2 running for 10.</div>
         <div class="q-fb no">Not quite.</div>
@@ -562,9 +562,9 @@ table.mx td.nm { font-weight: 600; text-align: left; }
     <div class="prose">
       <ul>
         <li>Deadlock needs mutual exclusion, hold and wait, no preemption, and circular wait, all at once.</li>
-        <li>In a resource-allocation graph, no cycle means no deadlock; a cycle with single-instance resources means deadlock; with multiple instances it means a possible deadlock.</li>
-        <li>Prevention breaks a condition; in practice, lock ordering breaks circular wait.</li>
-        <li>Avoidance grants only requests that keep the state safe: claim edges for single instances, the Banker's algorithm for many.</li>
+        <li>In a resource-allocation graph, no cycle means no deadlock. A cycle with single-instance resources means deadlock, and with multiple instances it means a possible deadlock.</li>
+        <li>Prevention breaks a condition. In practice, lock ordering breaks circular wait.</li>
+        <li>Avoidance grants only requests that keep the state safe, using claim edges for single instances and the Banker's algorithm for many.</li>
         <li>Detection runs the reduction on current requests (or looks for wait-for cycles), then recovers by termination or by preemption with rollback.</li>
         <li>Priority inversion is unbounded blocking of a high-priority task through a medium one. It is fixed by priority inheritance or priority ceilings.</li>
       </ul>
@@ -577,10 +577,10 @@ table.mx td.nm { font-weight: 600; text-align: left; }
       <tbody>
         <tr><td>deadlock</td><td>A set of threads each waiting for an event only another in the set can cause.</td></tr>
         <tr><td>request / assignment / claim edge</td><td>T waits for R / R is held by T / T may request R.</td></tr>
-        <tr><td>wait-for graph</td><td>Threads only; T<sub>i</sub> → T<sub>j</sub> if T<sub>i</sub> waits for T<sub>j</sub>.</td></tr>
+        <tr><td>wait-for graph</td><td>Threads only, with T<sub>i</sub> → T<sub>j</sub> if T<sub>i</sub> waits for T<sub>j</sub>.</td></tr>
         <tr><td>prevention / avoidance</td><td>Break a necessary condition / refuse requests that lead to unsafe states.</td></tr>
         <tr><td>safe state, safe sequence</td><td>An order in which every thread can obtain its maximum and finish.</td></tr>
-        <tr><td>Available / Max / Allocation / Need</td><td>The Banker's data; Need = Max − Allocation.</td></tr>
+        <tr><td>Available / Max / Allocation / Need</td><td>The Banker's data, where Need = Max − Allocation.</td></tr>
         <tr><td>ostrich algorithm</td><td>Ignore deadlocks.</td></tr>
         <tr><td>rollback</td><td>Return a preempted thread to an earlier safe state.</td></tr>
         <tr><td>priority inversion</td><td>A high-priority task waits on a low one that is preempted by a medium one.</td></tr>
@@ -675,15 +675,15 @@ table.mx td.nm { font-weight: 600; text-align: left; }
       $$('#rg-p [data-p]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.p === key)));
       draw();
       const cyc = cycles(), { avail, can } = state();
-      $('#rg-info').innerHTML = `<div class="sub-lab">cycles</div>${cyc.length ? cyc.map((c) => [...c, c[0]].join(' → ')).join('<br>') : 'none'}<div class="sub-lab" style="margin-top:10px">free instances</div>${Object.entries(avail).map(([r, v]) => `${r}: ${v}`).join(' · ')}<div class="sub-lab" style="margin-top:10px">finished</div>${[...done].join(', ') || '—'}`;
+      $('#rg-info').innerHTML = `<div class="sub-lab">cycles</div>${cyc.length ? cyc.map((c) => [...c, c[0]].join(' → ')).join('<br>') : 'none'}<div class="sub-lab" style="margin-top:10px">free instances</div>${Object.entries(avail).map(([r, v]) => `${r} has ${v}`).join(' · ')}<div class="sub-lab" style="margin-top:10px">finished</div>${[...done].join(', ') || '—'}`;
       $('#rg-step').disabled = $('#rg-all').disabled = !can.length && !!last;
-      const EXPL = { a: 'No cycle, so no deadlock. Reduce it: T3 can finish first, then T2, then T1.', b: 'Two cycles, and R1 and R3 have one instance each. Reduction gets nowhere: T1, T2 and T3 are deadlocked.', c: 'There is a cycle, T1 → R1 → T3 → R2 → T1, yet no deadlock. T2 and T4 are outside the cycle and can finish, returning instances of R1 and R2.' };
+      const EXPL = { a: 'No cycle, so no deadlock. Reduce it. T3 can finish first, then T2, then T1.', b: 'Two cycles, and R1 and R3 have one instance each. Reduction gets nowhere, and T1, T2 and T3 are deadlocked.', c: 'There is a cycle, T1 → R1 → T3 → R2 → T1, yet no deadlock. T2 and T4 are outside the cycle and can finish, returning instances of R1 and R2.' };
       $('#rg-out').innerHTML = msg || EXPL[key];
     }
     function step() {
       const { can } = state();
-      if (!can.length) { const left = Object.keys(G().T).filter((t) => !done.has(t)); last = { dead: left }; render(left.length ? `<b class="bad">No thread can proceed.</b> ${left.join(', ')} ${left.length > 1 ? 'are' : 'is'} deadlocked.` : '<b>All threads finished: no deadlock.</b>'); return false; }
-      done.add(can[0]); const s2 = state(); if (!s2.can.length) { const left = Object.keys(G().T).filter((t) => !done.has(t)); last = { dead: left }; render(left.length ? `${can[0]} finished and returned its resources, but <b class="bad">${left.join(', ')} still cannot proceed: deadlocked.</b>` : `${can[0]} finished. <b>All threads finished: no deadlock.</b>`); return false; }
+      if (!can.length) { const left = Object.keys(G().T).filter((t) => !done.has(t)); last = { dead: left }; render(left.length ? `<b class="bad">No thread can proceed.</b> ${left.join(', ')} ${left.length > 1 ? 'are' : 'is'} deadlocked.` : '<b>All threads finished, so there is no deadlock.</b>'); return false; }
+      done.add(can[0]); const s2 = state(); if (!s2.can.length) { const left = Object.keys(G().T).filter((t) => !done.has(t)); last = { dead: left }; render(left.length ? `${can[0]} finished and returned its resources, but <b class="bad">${left.join(', ')} still cannot proceed, which is a deadlock.</b>` : `${can[0]} finished. <b>All threads finished, so there is no deadlock.</b>`); return false; }
       render(`${can[0]}'s requests can be met, so it finishes and returns what it holds.`); return true;
     }
     $('#rg-p').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) { key = b.dataset.p; done = new Set(); last = null; render(); } });
@@ -736,22 +736,22 @@ table.mx td.nm { font-weight: 600; text-align: left; }
       const el2 = eligible();
       $('#bk-t').innerHTML = `<thead><tr><th></th><th class="grp sep" colspan="3">Allocation</th><th class="grp sep" colspan="3">Max</th><th class="grp sep" colspan="3">Need</th></tr><tr><th></th>${['A', 'B', 'C'].map((c, j) => `<th class="${j ? '' : 'sep'}">${c}</th>`).join('').repeat(3)}</tr></thead><tbody>` + N.map((n, i) => `<tr data-i="${i}" class="${finish[i] ? 'done' : el2[i] ? 'elig' : ''}${i === lastPick ? ' pick' : ''}"><td class="nm">${n}</td>${[alloc[i], max[i], need(i)].map((v) => v.map((x, j) => `<td class="${j ? '' : 'sep'}">${x}</td>`).join('')).join('')}</tr>`).join('') + '</tbody>';
       const all = finish.every(Boolean), stuck = !all && !el2.some(Boolean);
-      $('#bk-work').innerHTML = `Available ${vec(avail)} &nbsp; Work ${vec(work)} &nbsp; sequence so far: <span class="mono">⟨${seq.map((i) => N[i]).join(', ')}⟩</span>`;
-      $('#bk-out').innerHTML = msg || (all ? `<b>Safe.</b> ⟨${seq.map((i) => N[i]).join(', ')}⟩ lets every thread finish.` : stuck ? `<b class="bad">Unsafe.</b> No unfinished thread's Need fits in Work ${vec(work)}.` : seq.length ? `${N[lastPick]} can finish; Work grows by its Allocation.` : 'Blue rows can finish with the current Work. Pick one, or press "next step".');
+      $('#bk-work').innerHTML = `Available ${vec(avail)} &nbsp; Work ${vec(work)} &nbsp; sequence so far <span class="mono">⟨${seq.map((i) => N[i]).join(', ')}⟩</span>`;
+      $('#bk-out').innerHTML = msg || (all ? `<b>Safe.</b> ⟨${seq.map((i) => N[i]).join(', ')}⟩ lets every thread finish.` : stuck ? `<b class="bad">Unsafe.</b> No unfinished thread's Need fits in Work ${vec(work)}.` : seq.length ? `${N[lastPick]} can finish, so Work grows by its Allocation.` : 'Blue rows can finish with the current Work. Pick one, or press "next step".');
       $('#bk-auto').disabled = $('#bk-full').disabled = all || stuck;
     }
     function safe(av, al, mx) { let w = av.slice(); const f = al.map(() => false), s = []; let moved = true; while (moved) { moved = false; for (let i = 0; i < al.length; i++) { if (!f[i] && le(sub(mx[i], al[i]), w)) { w = add(w, al[i]); f[i] = true; s.push(i); moved = true; } } } return { ok: f.every(Boolean), s }; }
     function request(i, r) {
       const L = [], nd = need(i);
-      if (!le(r, nd)) { L.push(['no', `Request ${vec(r)} ≤ Need ${vec(nd)}? No: ${N[i]} would exceed its declared maximum. Error.`]); return show(L); }
+      if (!le(r, nd)) { L.push(['no', `Request ${vec(r)} ≤ Need ${vec(nd)}? No. ${N[i]} would exceed its declared maximum. Error.`]); return show(L); }
       L.push(['ok', `Request ${vec(r)} ≤ Need ${vec(nd)}`]);
-      if (!le(r, avail)) { L.push(['no', `Request ≤ Available ${vec(avail)}? No: ${N[i]} must wait until the resources are free.`]); return show(L); }
+      if (!le(r, avail)) { L.push(['no', `Request ≤ Available ${vec(avail)}? No. ${N[i]} must wait until the resources are free.`]); return show(L); }
       L.push(['ok', `Request ≤ Available ${vec(avail)}`]);
       const av2 = sub(avail, r), al2 = alloc.map((row, k) => (k === i ? add(row, r) : row.slice()));
-      L.push(['ok', `Pretend: Available → ${vec(av2)}, Allocation[${N[i]}] → ${vec(al2[i])}, Need[${N[i]}] → ${vec(sub(max[i], al2[i]))}`]);
+      L.push(['ok', `Pretend to grant it. Available → ${vec(av2)}, Allocation[${N[i]}] → ${vec(al2[i])}, Need[${N[i]}] → ${vec(sub(max[i], al2[i]))}`]);
       const s = safe(av2, al2, max);
-      if (s.ok) { L.push(['ok', `Safety: safe (e.g. ⟨${s.s.map((k) => N[k]).join(', ')}⟩). <b>Granted.</b>`]); avail = av2; alloc = al2; startSafety(); }
-      else L.push(['no', `Safety: <b>unsafe</b>; ${s.s.length ? 'only ⟨' + s.s.map((k) => N[k]).join(', ') + '⟩ could finish' : 'no thread\'s Need fits in the new Available'}. ${N[i]} must wait; the old state is restored.`]);
+      if (s.ok) { L.push(['ok', `The new state is safe (e.g. ⟨${s.s.map((k) => N[k]).join(', ')}⟩). <b>Granted.</b>`]); avail = av2; alloc = al2; startSafety(); }
+      else L.push(['no', `The new state is <b>unsafe</b>, because ${s.s.length ? 'only ⟨' + s.s.map((k) => N[k]).join(', ') + '⟩ could finish' : 'no thread\'s Need fits in the new Available'}. ${N[i]} must wait, and the old state is restored.`]);
       show(L);
     }
     function show(L) { $('#bk-steps').innerHTML = L.map(([k, t]) => `<li class="${k}">${t}</li>`).join(''); render(); }
@@ -786,9 +786,9 @@ table.mx td.nm { font-weight: 600; text-align: left; }
     function render() {
       const e = elig(), stuck = !finish.every(Boolean) && !e.some(Boolean);
       $('#dt-t').innerHTML = `<thead><tr><th></th><th class="grp sep" colspan="3">Allocation</th><th class="grp sep" colspan="3">Request</th></tr><tr><th></th>${['A', 'B', 'C'].map((c, j) => `<th class="${j ? '' : 'sep'}">${c}</th>`).join('').repeat(2)}</tr></thead><tbody>` + N.map((n, i) => `<tr class="${finish[i] ? 'done' : stuck ? 'dead' : e[i] ? 'elig' : ''}${i === lastPick ? ' pick' : ''}"><td class="nm">${n}</td>${[AL[i], rq[i]].map((v, m) => v.map((x, j) => `<td class="${j ? '' : 'sep'}${m === 1 && i === 2 && j === 2 && $('#dt-more').checked ? ' ' : ''}">${x}</td>`).join('')).join('')}</tr>`).join('') + '</tbody>';
-      $('#dt-work').innerHTML = `Available ${vec([0, 0, 0])} &nbsp; Work ${vec(work)} &nbsp; order: <span class="mono">⟨${seq.map((i) => N[i]).join(', ')}⟩</span>`;
+      $('#dt-work').innerHTML = `Available ${vec([0, 0, 0])} &nbsp; Work ${vec(work)} &nbsp; order <span class="mono">⟨${seq.map((i) => N[i]).join(', ')}⟩</span>`;
       const dead = N.filter((_, i) => !finish[i]);
-      $('#dt-out').innerHTML = finish.every(Boolean) ? `<b>No deadlock.</b> ⟨${seq.map((i) => N[i]).join(', ')}⟩ reduces every thread.` : stuck ? `<b class="bad">Deadlock:</b> ${dead.join(', ')} can never proceed. ${seq.length ? `Only ${seq.map((i) => N[i]).join(', ')} could finish` : ''}${$('#dt-more').checked ? '; reclaiming T0\'s resources is not enough for anyone else.' : '.'}` : 'Available is (0,0,0), yet some requests are zero. Step through.';
+      $('#dt-out').innerHTML = finish.every(Boolean) ? `<b>No deadlock.</b> ⟨${seq.map((i) => N[i]).join(', ')}⟩ reduces every thread.` : stuck ? `<b class="bad">Deadlock.</b> ${dead.join(', ')} can never proceed. ${seq.length ? `Only ${seq.map((i) => N[i]).join(', ')} could finish` : ''}${$('#dt-more').checked ? ', and reclaiming T0\'s resources is not enough for anyone else.' : '.'}` : 'Available is (0,0,0), yet some requests are zero. Step through.';
       $('#dt-auto').disabled = $('#dt-full').disabled = finish.every(Boolean) || stuck;
     }
     $('#dt-more').addEventListener('change', () => { init(); render(); });
@@ -834,7 +834,7 @@ table.mx td.nm { font-weight: 600; text-align: left; }
       if (got) { svg.appendChild(el('path', { d: `M${X(blockedFrom)} ${Y(0) + 18} H${X(got[0])}`, class: 'wire m', style: 'stroke-dasharray:4 3' })); svg.appendChild(el('text', { x: (X(blockedFrom) + X(got[0])) / 2, y: Y(0) + 14, 'text-anchor': 'middle', class: 'lbl t-m', style: 'font-size:10px' }, 'blocked ' + (got[0] - blockedFrom))); }
       for (let u = 0; u <= Math.max(end, 10); u += 2) svg.appendChild(el('text', { x: X(u), y: 160, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, u));
       const wait = got ? got[0] - blockedFrom : 0;
-      $('#pi-out').innerHTML = inh ? `With inheritance, task 3 runs at task 1's priority from t = 3 until it unlocks, so task 2 cannot cut in. Task 1 is blocked for <b>${wait}</b> units and finishes at <b>${t1.fin}</b>, whatever task 2's length.` : `Task 1 is blocked for <b class="bad">${wait}</b> units and finishes at <b>${t1.fin}</b>. Task 2 does not even use the lock, yet every unit it runs delays task 1. Drag the slider: the delay grows without bound.`;
+      $('#pi-out').innerHTML = inh ? `With inheritance, task 3 runs at task 1's priority from t = 3 until it unlocks, so task 2 cannot cut in. Task 1 is blocked for <b>${wait}</b> units and finishes at <b>${t1.fin}</b>, whatever task 2's length.` : `Task 1 is blocked for <b class="bad">${wait}</b> units and finishes at <b>${t1.fin}</b>. Task 2 does not even use the lock, yet every unit it runs delays task 1. Drag the slider, and the delay grows without bound.`;
     }
     $('#pi-len').addEventListener('input', render); $('#pi-inh').addEventListener('change', render);
     $('#pi-reset').addEventListener('click', () => { $('#pi-len').value = 2; $('#pi-inh').checked = false; render(); });

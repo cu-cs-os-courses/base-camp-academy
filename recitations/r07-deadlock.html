@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Deadlock by Hand · R07</title>
-<meta name="description" content="CSCI 3753 Recitation 07: the Banker's safety and request algorithms on a new state, a request that must wait although the resources are free, deciding whether a cycle in a resource-allocation graph is a deadlock, and Lab03 help.">
+<meta name="description" content="CSCI 3753 Recitation 07, covering the Banker's safety and request algorithms on a new state, a request that must wait although the resources are free, deciding whether a cycle in a resource-allocation graph is a deadlock, and Lab03 help.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -34,12 +34,12 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
 </svg>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><circle cx="6" cy="6" r="3"/><circle cx="16" cy="16" r="3"/><path d="M9 6h4.5a2.5 2.5 0 0 1 2.5 2.5V13M13 16H8.5A2.5 2.5 0 0 1 6 13.5V9"/></g></svg>
-    <span>Recitation 07 · Deadlock and classic problems</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Recitation 07 · Deadlock and classic problems</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -47,10 +47,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 07 · Week 7</div>
     <h1>Free, and still <span class="accent">refused</span></h1>
-    <p class="lede">Lecture 12 gave two ways to reason about deadlock: the Banker's algorithm, which keeps the system safe, and resource-allocation graphs, which show where the waiting goes. Today you run both by hand on new examples, including a request the Banker's algorithm turns down although the resource is free. Then Lab03 help: it is due Feb 28.</p>
+    <p class="lede">Lecture 12 gave two ways to reason about deadlock, namely the Banker's algorithm, which keeps the system safe, and resource-allocation graphs, which show where the waiting goes. Today you run both by hand on new examples, including a request the Banker's algorithm turns down although the resource is free. Then there is Lab03 help, because it is due Feb 28.</p>
     <div class="agenda">
-      <div><b>0–5</b>Recap: classic problems, four conditions, safe states</div>
-      <div><b>5–25</b>Worked example: Banker's; two graphs</div>
+      <div><b>0–5</b>Recap of classic problems, four conditions, safe states</div>
+      <div><b>5–25</b>Worked example on the Banker's algorithm, then two graphs</div>
       <div><b>25–45</b>Lab03 help (due Sun Feb 28)</div>
       <div><b>45–50</b>Exit ticket</div>
     </div>
@@ -82,7 +82,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="ch-head">
     <div class="ch-no">Part 1 · follow along</div>
     <h2>Banker's algorithm on a fresh state</h2>
-    <p class="ch-lede">Total instances: A = 8, B = 6, C = 7.</p>
+    <p class="ch-lede">The total instances are A = 8, B = 6, C = 7.</p>
   </div>
   <div class="sec">
     <table class="t">
@@ -91,7 +91,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     </table>
     <div class="prose" style="margin-top:1em"><p>First compute Available and each thread's Need, then run the safety algorithm. Which thread can finish first?</p></div>
     <details class="fold"><summary>Available, Need, and the safe sequence</summary><div class="prose">
-      <p><b>Available</b> = (8 6 7) − (6 5 6) = <b>(2 1 1)</b>. <b>Need</b> = Max − Allocation: T0 (4 2 3), T1 (1 1 1), T2 (3 4 1), T3 (1 1 2).</p>
+      <p><b>Available</b> = (8 6 7) − (6 5 6) = <b>(2 1 1)</b>. <b>Need</b> = Max − Allocation, which gives T0 (4 2 3), T1 (1 1 1), T2 (3 4 1), T3 (1 1 2).</p>
       <table class="t">
         <thead><tr><th>step</th><th>pick</th><th>Need ≤ Work?</th><th>Work after</th></tr></thead>
         <tbody>
@@ -102,7 +102,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <tr><td>4</td><td>T2</td><td>(3 4 1) ≤ (6 6 5)</td><td>8 6 7 = the total ✓</td></tr>
         </tbody>
       </table>
-      <p>Safe: <b>⟨T1, T3, T0, T2⟩</b>.</p>
+      <p>The state is safe, with the sequence <b>⟨T1, T3, T0, T2⟩</b>.</p>
     </div></details>
     <div class="prose" style="margin-top:1em"><p>Now four requests, each against the original state. Decide each one.</p></div>
     <details class="fold"><summary>The four verdicts</summary><div class="prose">
@@ -110,10 +110,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <table class="t">
           <thead><tr><th>request</th><th>≤ Need?</th><th>≤ Available (2 1 1)?</th><th>pretend, then safe?</th><th>result</th></tr></thead>
           <tbody>
-            <tr><td>T1 (0 1 0)</td><td>yes</td><td>yes</td><td>Available → (2 0 1); ⟨T1, T3, T0, T2⟩ still works</td><td class="ok">granted</td></tr>
-            <tr class="hot"><td>T0 (0 0 1)</td><td>yes</td><td>yes</td><td>Available → (2 1 0); every Need needs at least one C, and none is left</td><td class="no">wait: unsafe</td></tr>
-            <tr><td>T2 (3 0 0)</td><td>yes</td><td>no: A 3 &gt; 2</td><td>—</td><td class="no">wait: not available</td></tr>
-            <tr><td>T3 (2 0 0)</td><td>no: Need is (1 1 2)</td><td>—</td><td>—</td><td class="no">error: over its max</td></tr>
+            <tr><td>T1 (0 1 0)</td><td>yes</td><td>yes</td><td>Available → (2 0 1), and ⟨T1, T3, T0, T2⟩ still works</td><td class="ok">granted</td></tr>
+            <tr class="hot"><td>T0 (0 0 1)</td><td>yes</td><td>yes</td><td>Available → (2 1 0), but every Need needs at least one C, and none is left</td><td class="no">wait (unsafe)</td></tr>
+            <tr><td>T2 (3 0 0)</td><td>yes</td><td>no, A 3 &gt; 2</td><td>—</td><td class="no">wait (not available)</td></tr>
+            <tr><td>T3 (2 0 0)</td><td>no, Need is (1 1 2)</td><td>—</td><td>—</td><td class="no">error (over its max)</td></tr>
           </tbody>
         </table>
       </div>
@@ -143,17 +143,17 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <figcaption><span class="fno">Fig. 1</span><span id="g-cap">Graph 1.</span> <button type="button" class="btn small" id="g-tog">Show graph 2</button></figcaption>
       </figure>
     </div>
-    <details class="fold"><summary>Graph 1: find the cycles, then reduce</summary><div class="prose">
-      <p>Cycles: T1 → R2 → T2 → R3 → T3 → R1 → T1, and T1 → R2 → T3 → R1 → T1. Free instances: R1 0, R2 0, R3 0. Nobody's request can be met, so <b>T1, T2 and T3 are deadlocked</b>.</p>
+    <details class="fold"><summary>Graph 1. Find the cycles, then reduce</summary><div class="prose">
+      <p>The cycles are T1 → R2 → T2 → R3 → T3 → R1 → T1 and T1 → R2 → T3 → R1 → T1. The free instances are R1 0, R2 0, R3 0. Nobody's request can be met, so <b>T1, T2 and T3 are deadlocked</b>.</p>
     </div></details>
-    <details class="fold"><summary>Graph 2: same cycles; reduce</summary><div class="prose">
+    <details class="fold"><summary>Graph 2. Same cycles, so reduce</summary><div class="prose">
       <ol>
         <li>T4 requests nothing, so it finishes and frees an R2.</li>
         <li>T1 gets that R2, finishes, and frees R1 and R2.</li>
         <li>T3 gets R1, finishes, and frees R2 and R3.</li>
         <li>T2 gets R3 and finishes.</li>
       </ol>
-      <p><b>No deadlock.</b> With several instances per resource, a cycle is necessary but not sufficient: reduce the graph to decide. With one instance per resource, a cycle is a deadlock.</p>
+      <p><b>No deadlock.</b> With several instances per resource, a cycle is necessary but not sufficient. Reduce the graph to decide. With one instance per resource, a cycle is a deadlock.</p>
     </div></details>
   </div>
 </section>
@@ -167,10 +167,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="prose">
       <ul>
-        <li>If your stress test hangs, it is a deadlock or a lost wakeup: today's topic and R06's. For each sleeping thread, say what it waits for and who could wake it.</li>
+        <li>If your stress test hangs, it is a deadlock or a lost wakeup, which are today's topic and R06's. For each sleeping thread, say what it waits for and who could wake it.</li>
         <li>Build the harness with ThreadSanitizer as in R06, and read the first report carefully.</li>
         <li><b>PS2</b> is due Sunday, Feb 21. TAs explain rules and definitions only.</li>
-        <li><b>Midterm</b>, Tue Mar 2, 60 minutes: Lectures 01–12 and the matching textbook chapters. Practice with the lecture checkpoints and the quizzes.</li>
+        <li><b>Midterm</b>, Tue Mar 2, 60 minutes. It covers Lectures 01–12 and the matching textbook chapters. Practice with the lecture checkpoints and the quizzes.</li>
       </ul>
     </div>
   </div>
@@ -190,9 +190,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="Unsafe is not yet deadlock, but avoidance does not take the risk.">Grants it, because the resources are free.</button>
           <button type="button" class="q-opt" data-ok>Makes the thread wait and keeps the old state.</button>
-          <button type="button" class="q-opt" data-why="The request is within the thread's maximum; nothing is wrong with it.">Reports an error.</button>
+          <button type="button" class="q-opt" data-why="The request is within the thread's maximum, so nothing is wrong with it.">Reports an error.</button>
         </div>
-        <div class="q-fb ok">Right: the T0 (0 0 1) case.</div>
+        <div class="q-fb ok">Right. It is the T0 (0 0 1) case.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -202,10 +202,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <div class="q-text">A resource-allocation graph with several instances per resource type has a cycle. Is the system deadlocked?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="That is true only when every resource has a single instance.">Yes, always.</button>
-          <button type="button" class="q-opt" data-ok>Not necessarily; reduce the graph to find out.</button>
-          <button type="button" class="q-opt" data-why="A cycle is exactly what a deadlock needs; it can be one.">No, never.</button>
+          <button type="button" class="q-opt" data-ok>Not necessarily. Reduce the graph to find out.</button>
+          <button type="button" class="q-opt" data-why="A cycle is exactly what a deadlock needs, so it can be one.">No, never.</button>
         </div>
-        <div class="q-fb ok">Right: graph 2.</div>
+        <div class="q-fb ok">Right. It is graph 2.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -221,13 +221,13 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="table-wrap">
       <table class="cs">
         <tbody>
-          <tr><td>four conditions</td><td>Mutual exclusion, hold and wait, no preemption, circular wait: all at once.</td></tr>
+          <tr><td>four conditions</td><td>Mutual exclusion, hold and wait, no preemption, and circular wait, all at once.</td></tr>
           <tr><td>Available</td><td>Total − sum of Allocation.</td></tr>
           <tr><td>Need</td><td>Max − Allocation.</td></tr>
-          <tr><td>safety algorithm</td><td>Repeatedly pick an unfinished thread with Need ≤ Work; Work += its Allocation. Safe if all finish.</td></tr>
-          <tr><td>request algorithm</td><td>≤ Need, else error; ≤ Available, else wait; pretend and run safety; unsafe → wait.</td></tr>
-          <tr><td>graph reduction</td><td>Let any thread whose requests can be met finish and free its resources; whoever is left is deadlocked.</td></tr>
-          <tr><td>cycle</td><td>One instance per type: deadlock. Several: maybe; reduce.</td></tr>
+          <tr><td>safety algorithm</td><td>Repeatedly pick an unfinished thread with Need ≤ Work, and set Work += its Allocation. Safe if all finish.</td></tr>
+          <tr><td>request algorithm</td><td>Request ≤ Need, else error. Request ≤ Available, else wait. Pretend and run safety. Unsafe → wait.</td></tr>
+          <tr><td>graph reduction</td><td>Let any thread whose requests can be met finish and free its resources. Whoever is left is deadlocked.</td></tr>
+          <tr><td>cycle</td><td>With one instance per type, it is a deadlock. With several, maybe, so reduce.</td></tr>
         </tbody>
       </table>
     </div>
@@ -260,8 +260,8 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     req.forEach(([t, r]) => { const [tx, ty] = T[t], [rx, ry] = R[r], [sx, sy] = trim(rx, ry, tx, ty, 20), [ex, ey] = trim(tx, ty, rx, ry, 26); add('path', { d: `M${sx} ${sy} L${ex} ${ey}`, class: 'wire', style: 'stroke-dasharray:5 3', 'marker-end': 'url(#ah)' }); });
     Object.entries(R).forEach(([r, [x, y, n]]) => { const w = 24 + n * 16; add('rect', { x: x - w / 2, y: y - 16, width: w, height: 32, rx: 4, class: 'box2' }); add('text', { x, y: r === 'R3' ? y + 30 : y - 21, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:11px' }, r); dots[r].forEach(([dx, dy]) => add('circle', { cx: dx, cy: dy, r: 4, style: 'fill:var(--ink)' })); });
     Object.entries(T).forEach(([t, [x, y]]) => { add('circle', { cx: x, cy: y, r: 19, class: t === 'T4' ? 'fbox' : 'pbox' }); add('text', { x, y: y + 4, 'text-anchor': 'middle', class: 'mono', style: 'font-size:12px' }, t); });
-    add('text', { x: 6, y: 14, class: 'lbl', style: 'font-size:10.5px' }, 'solid: held  ·  dashed: requested');
-    document.getElementById('g-cap').textContent = two ? 'Graph 2: R2 has 3 instances; T4 holds one.' : 'Graph 1.';
+    add('text', { x: 6, y: 14, class: 'lbl', style: 'font-size:10.5px' }, 'held (solid)  ·  requested (dashed)');
+    document.getElementById('g-cap').textContent = two ? 'Graph 2. R2 has 3 instances, and T4 holds one.' : 'Graph 1.';
     document.getElementById('g-tog').textContent = two ? 'Show graph 1' : 'Show graph 2';
   }
   document.getElementById('g-tog').addEventListener('click', () => { two = !two; draw(); });

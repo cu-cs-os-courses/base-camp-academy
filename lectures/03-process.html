@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Process · L03</title>
-<meta name="description" content="CSCI 3753 Lecture 03, interactive edition: programs and processes, memory layout, fork/exec/wait, zombies and orphans, process state, the PCB, scheduling queues, and context switches.">
+<meta name="description" content="CSCI 3753 Lecture 03, interactive edition, covering programs and processes, memory layout, fork/exec/wait, zombies and orphans, process state, the PCB, scheduling queues, and context switches.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -71,12 +71,12 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
 </svg>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><circle cx="11" cy="5" r="2.6"/><circle cx="5.5" cy="16" r="2.6"/><circle cx="16.5" cy="16" r="2.6"/><path d="M9.6 7.2L6.8 13.6M12.4 7.2l2.8 6.4"/></g><circle cx="16.5" cy="16" r="1.2" fill="var(--cz)"/></svg>
-    <span>Lecture 03 · Process</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Lecture 03 · Process</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -85,13 +85,13 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 03 · Interactive notes</div>
     <h1>One call returns<br><span class="accent">twice</span></h1>
-    <p class="lede">A program on disk does nothing. The OS turns it into a process: memory for its code, data, heap and stack, a program counter, and a record the kernel keeps about it. This lecture follows a process from birth by <code>fork()</code> through <code>exec()</code>, <code>wait()</code> and <code>exit()</code>, the states it passes through, the queues it waits in, and the context switch that lets many of them share one CPU.</p>
+    <p class="lede">A program on disk does nothing. The OS turns it into a process, which has memory for its code, data, heap and stack, a program counter, and a record the kernel keeps about it. This lecture follows a process from birth by <code>fork()</code> through <code>exec()</code>, <code>wait()</code> and <code>exit()</code>, the states it passes through, the queues it waits in, and the context switch that lets many of them share one CPU.</p>
     <div class="promise">
-      <span>Before you start:</span><span class="mono">system calls and the mode bit</span><span>from Lectures 01–02.</span>
+      <span>Before you start, review</span><span class="mono">system calls and the mode bit</span><span>from Lectures 01–02.</span>
     </div>
     <div class="cta-row">
       <a class="btn primary" href="#ch0">Begin ↓</a>
-      <span class="muted small">About 55 minutes · 5 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 3 · Continues in Lecture 04, IPC</span>
+      <span class="muted small">About 55 minutes · 5 hands-on experiments · 4 checkpoints · Textbook Silberschatz, Ch. 3 · Continues in Lecture 04, IPC</span>
     </div>
   </div>
 </div>
@@ -123,7 +123,7 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
       <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 03</div>
       <h1>Process</h1>
       <p class="lede">Creation and termination, state and the PCB, scheduling, context switches.</p>
-      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 3</div>
+      <div class="meta">Instructor Yueqi Chen · Textbook Silberschatz, Ch. 3</div>
     </div>
 
 <!-- ============================================================ -->
@@ -142,7 +142,7 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
           <li>Source code is compiled into <strong>relocatable object files</strong>, designed to be loaded at any physical memory location.</li>
           <li data-step="1">The <strong>linker</strong> combines them, and libraries, into one binary executable, which lives on secondary storage.</li>
           <li data-step="2">The <strong>loader</strong> brings it into memory to run. <strong>Relocation</strong> assigns final addresses to the program's parts and adjusts code and data to match.</li>
-          <li data-step="3">Modern systems don't link libraries into every executable: <strong>dynamically linked libraries</strong> (DLLs, <code>.so</code> files) are loaded as needed and shared by everyone using the same version. Object and executable files use standard formats (ELF on Linux) so the OS knows how to load them.</li>
+          <li data-step="3">Modern systems don't link libraries into every executable. Instead, <strong>dynamically linked libraries</strong> (DLLs, <code>.so</code> files) are loaded as needed and shared by everyone using the same version. Object and executable files use standard formats (ELF on Linux) so the OS knows how to load them.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -180,13 +180,13 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
     <h3><span class="sec-no">0.2</span>The process concept</h3>
     <div class="prose">
       <ul>
-        <li>A <strong>process</strong> is a program in execution. Its execution progresses sequentially: one instruction at a time (for a single-threaded process).</li>
-        <li data-step="1">A <strong>program</strong> is passive, an executable file on disk; a process is active. A program becomes a process when it is loaded into memory, by a mouse click or a command line. One program can become several processes, for example several users running the same editor.</li>
-        <li data-step="2">A process has several parts:
+        <li>A <strong>process</strong> is a program in execution. Its execution progresses sequentially, one instruction at a time (for a single-threaded process).</li>
+        <li data-step="1">A <strong>program</strong> is passive, an executable file on disk, while a process is active. A program becomes a process when it is loaded into memory, by a mouse click or a command line. One program can become several processes, for example several users running the same editor.</li>
+        <li data-step="2">A process has several parts.
           <ul>
-            <li>the program code, or <strong>text</strong> section, loaded from the binary;</li>
-            <li>the <strong>data</strong> section with global variables, also from the binary;</li>
-            <li>its current activity: the <strong>program counter</strong> and processor registers;</li>
+            <li>the program code, or <strong>text</strong> section, loaded from the binary,</li>
+            <li>the <strong>data</strong> section with global variables, also from the binary,</li>
+            <li>its current activity, namely the <strong>program counter</strong> and processor registers, and</li>
             <li>a <strong>stack</strong> of temporary data (function parameters, return addresses, local variables) and a <strong>heap</strong> of memory allocated at run time, both set up by the OS.</li>
           </ul>
         </li>
@@ -228,10 +228,10 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li>A <strong>parent</strong> process creates <strong>children</strong>, which create others: a <strong>tree</strong> of processes, each identified by a <strong>process identifier (pid)</strong>.</li>
-          <li data-step="1">Resource sharing: parent and children share all resources, or a subset, or none.</li>
-          <li data-step="1">Execution: parent and children run concurrently, or the parent waits for the children to terminate.</li>
-          <li data-step="2">Address space: the child is a duplicate of the parent, or has a new program loaded into it.</li>
+          <li>A <strong>parent</strong> process creates <strong>children</strong>, which create others, forming a <strong>tree</strong> of processes, each identified by a <strong>process identifier (pid)</strong>.</li>
+          <li data-step="1">Resource sharing. Parent and children share all resources, or a subset, or none.</li>
+          <li data-step="1">Execution. Parent and children run concurrently, or the parent waits for the children to terminate.</li>
+          <li data-step="2">Address space. The child is a duplicate of the parent, or has a new program loaded into it.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -250,10 +250,10 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
     <div class="two-up" style="align-items:start">
       <div class="prose">
         <ul>
-          <li><code>fork()</code> creates a new process, an <strong>exact copy</strong> of the parent: all code and data are the same, all addresses mapped to match.</li>
-          <li data-step="1">The child starts executing at the same point as the parent: <strong>just after returning from <code>fork()</code></strong>.</li>
-          <li data-step="2"><code>fork()</code> returns an int: <strong>0 in the child</strong>, the <strong>child's pid in the parent</strong> (−1 on failure). The code tells them apart by that value.</li>
-          <li data-step="3">Copying the whole address space is expensive, so the kernel copies lazily: pages are shared until one side writes (copy-on-write, Lectures 14–15).</li>
+          <li><code>fork()</code> creates a new process, an <strong>exact copy</strong> of the parent. All code and data are the same, and all addresses are mapped to match.</li>
+          <li data-step="1">The child starts executing at the same point as the parent, namely <strong>just after returning from <code>fork()</code></strong>.</li>
+          <li data-step="2"><code>fork()</code> returns an int, which is <strong>0 in the child</strong> and the <strong>child's pid in the parent</strong> (−1 on failure). The code tells them apart by that value.</li>
+          <li data-step="3">Copying the whole address space is expensive, so the kernel copies lazily. Pages are shared until one side writes (copy-on-write, Lectures 14–15).</li>
         </ul>
       </div>
       <div class="code" aria-label="fork example"><span class="ln"><span class="kw">int</span> main(<span class="kw">void</span>) {</span><span class="ln">    pid_t pid = fork();</span><span class="ln">    <span class="kw">if</span> (pid &lt; 0) {            <span class="c">/* error */</span></span><span class="ln">        perror("fork"); <span class="kw">return</span> 1;</span><span class="ln">    } <span class="kw">else if</span> (pid == 0) {   <span class="c">/* child */</span></span><span class="ln">        execlp("/bin/ls", "ls", NULL);</span><span class="ln">    } <span class="kw">else</span> {                  <span class="c">/* parent */</span></span><span class="ln">        wait(NULL);</span><span class="ln">        printf("Child Complete\n");</span><span class="ln">    }</span><span class="ln">    <span class="kw">return</span> 0;</span><span class="ln">}</span></div>
@@ -281,7 +281,7 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
     <h3><span class="sec-no">1.4</span><code>exec()</code> and <code>wait()</code></h3>
     <div class="prose">
       <ul>
-        <li>The <code>execlp()</code> / <code>exec*()</code> library calls invoke the <code>execve()</code> system call, which loads a <strong>new program</strong> into the calling process's memory. The calling code is erased; <code>exec</code> returns only if it fails.</li>
+        <li>The <code>execlp()</code> / <code>exec*()</code> library calls invoke the <code>execve()</code> system call, which loads a <strong>new program</strong> into the calling process's memory. The calling code is erased, and <code>exec</code> returns only if it fails.</li>
         <li data-step="1"><code>fork()</code> then <code>execve()</code> is how UNIX creates a new process running a new program in a new address space. The shell does exactly this for every command you type.</li>
         <li data-step="2">The parent calls <code>wait()</code> to wait for the child to terminate.</li>
         <li data-step="3">Windows instead creates a process and loads its program in one call, <code>CreateProcess()</code>, with ten parameters.</li>
@@ -311,9 +311,9 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
     <h3><span class="sec-no">1.6</span>Why applications are OS specific</h3>
     <div class="prose">
       <ul>
-        <li>An application compiled on one system usually won't run on another: each OS has its own system calls, file formats, and so on.</li>
+        <li>An application compiled on one system usually won't run on another, because each OS has its own system calls, file formats, and so on.</li>
         <li data-step="1">Apps can be multi-OS if written in an interpreted language (Python, Ruby) whose interpreter exists everywhere, in a language with its own VM (Java), or in a standard language (C) compiled separately for each OS.</li>
-        <li data-step="2">The <strong>application binary interface (ABI)</strong> is the architecture-level equivalent of an API: how compiled code interfaces on a given OS and CPU (register use, calling convention, system-call numbers).</li>
+        <li data-step="2">The <strong>application binary interface (ABI)</strong> is the architecture-level equivalent of an API. It defines how compiled code interfaces on a given OS and CPU (register use, calling convention, system-call numbers).</li>
       </ul>
     </div>
   </div>
@@ -324,12 +324,12 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
       <div class="quiz-body">
         <div class="q-text">In the child, right after <code>pid = fork()</code> returns, what is <code>pid</code>?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="That is what the parent sees: the child's pid.">The child's own pid.</button>
+          <button type="button" class="q-opt" data-why="That is what the parent sees, namely the child's pid.">The child's own pid.</button>
           <button type="button" class="q-opt" data-ok>0</button>
           <button type="button" class="q-opt" data-why="−1 means fork failed, and then there is no child at all.">−1</button>
           <button type="button" class="q-opt" data-why="The child can get its parent's pid with getppid(), but fork returns 0 to it.">The parent's pid.</button>
         </div>
-        <div class="q-fb ok">Right. Same code, same point, different return value: that is how the two processes go their separate ways.</div>
+        <div class="q-fb ok">Right. Same code, same point, different return value. That is how the two processes go their separate ways.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -354,9 +354,9 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
     <div class="prose">
       <ul>
         <li>A process executes its last statement and asks the OS to delete it with <code>exit()</code>. Its status goes to the parent through <code>wait()</code>, and the OS frees its resources, such as memory.</li>
-        <li data-step="1">A parent can also terminate a child (on UNIX with <code>kill()</code>; the slides' <code>abort()</code> is what a process calls to end <em>itself</em> abnormally): the child exceeded its resources, its task is no longer needed, or the parent is exiting and the OS does not let children outlive their parent.</li>
-        <li data-step="2">Some OSes do exactly that: <strong>cascading termination</strong>, where the OS terminates all children, grandchildren, and so on.</li>
-        <li data-step="3"><code>pid = wait(&amp;status)</code> returns the status and pid of a terminated child; <code>waitpid()</code> waits for a particular one.</li>
+        <li data-step="1">A parent can also terminate a child (on UNIX with <code>kill()</code>, while the slides' <code>abort()</code> is what a process calls to end <em>itself</em> abnormally). This happens when the child exceeded its resources, its task is no longer needed, or the parent is exiting and the OS does not let children outlive their parent.</li>
+        <li data-step="2">Some OSes do exactly that, which is called <strong>cascading termination</strong>, where the OS terminates all children, grandchildren, and so on.</li>
+        <li data-step="3"><code>pid = wait(&amp;status)</code> returns the status and pid of a terminated child, and <code>waitpid()</code> waits for a particular one.</li>
       </ul>
     </div>
   </div>
@@ -367,7 +367,7 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
       <div><span class="tag">Zombie</span>A child that has <strong>terminated</strong> but whose parent has <strong>not yet called <code>wait()</code></strong>. Its memory is freed, but its PCB entry stays so the exit status can be collected. <code>ps</code> shows it as <code>Z</code> or <code>&lt;defunct&gt;</code>.</div>
       <div data-step="1"><span class="tag">Orphan</span>A child whose parent <strong>terminated without waiting</strong> for it. On Linux it is re-parented to <code>init</code>/<code>systemd</code> (pid 1), which calls <code>wait()</code> for it when it ends, so orphans do not stay zombies forever.</div>
     </div>
-    <p class="prose small muted" data-step="1">Step through both in §1.5: choose "parent never waits" or "parent exits first".</p>
+    <p class="prose small muted" data-step="1">Step through both in §1.5 by choosing "parent never waits" or "parent exits first".</p>
   </div>
 
   <div class="sec" id="q2">
@@ -376,11 +376,11 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
       <div class="quiz-body">
         <div class="q-text">A server forks a child for every request and never calls <code>wait()</code>. The children finish quickly. What accumulates?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-ok>Zombies: each finished child keeps its process-table entry until someone waits for it.</button>
+          <button type="button" class="q-opt" data-ok>Zombies, because each finished child keeps its process-table entry until someone waits for it.</button>
           <button type="button" class="q-opt" data-why="The parent is still alive, so the children are not orphans.">Orphans.</button>
-          <button type="button" class="q-opt" data-why="The children's memory is freed when they exit; what stays is the PCB entry.">The children's full memory.</button>
+          <button type="button" class="q-opt" data-why="The children's memory is freed when they exit. What stays is the PCB entry.">The children's full memory.</button>
         </div>
-        <div class="q-fb ok">Right. Enough of them and the system runs out of pids. The fix: call <code>wait()</code>/<code>waitpid()</code>, or handle SIGCHLD.</div>
+        <div class="q-fb ok">Right. Enough of them and the system runs out of pids. The fix is to call <code>wait()</code>/<code>waitpid()</code>, or handle SIGCHLD.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -405,13 +405,13 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li><strong>new</strong>: being created;</li>
-          <li><strong>ready</strong>: waiting to be assigned a processor;</li>
-          <li><strong>running</strong>: instructions are being executed;</li>
-          <li><strong>waiting</strong>: waiting for some event, such as I/O completion;</li>
-          <li><strong>terminated</strong>: finished execution.</li>
+          <li><strong>new</strong> means being created.</li>
+          <li><strong>ready</strong> means waiting to be assigned a processor.</li>
+          <li><strong>running</strong> means instructions are being executed.</li>
+          <li><strong>waiting</strong> means waiting for some event, such as I/O completion.</li>
+          <li><strong>terminated</strong> means finished execution.</li>
         </ul>
-        <p data-step="1">Only one process per core is <em>running</em> at a time; many can be ready or waiting.</p>
+        <p data-step="1">Only one process per core is <em>running</em> at a time, but many can be ready or waiting.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -428,15 +428,15 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
     <h3><span class="sec-no">3.2</span>The process control block</h3>
     <div class="two-up" style="align-items:start">
       <div class="prose">
-        <p>The kernel keeps a <strong>process control block (PCB)</strong>, also called a task control block or process descriptor, for every process:</p>
+        <p>The kernel keeps a <strong>process control block (PCB)</strong>, also called a task control block or process descriptor, for every process. The PCB holds the items below.</p>
         <ul class="small">
-          <li><strong>process state</strong>: running, waiting, …</li>
-          <li><strong>program counter</strong>: the next instruction to execute;</li>
-          <li><strong>CPU registers</strong>: the contents of all process-centric registers;</li>
-          <li><strong>scheduling information</strong>: priority, scheduling-queue pointers;</li>
-          <li><strong>memory-management information</strong>: the memory allocated to the process;</li>
-          <li><strong>accounting information</strong>: CPU used, time since start, limits;</li>
-          <li><strong>I/O status</strong>: devices allocated, list of open files.</li>
+          <li><strong>process state</strong>. Running, waiting, …</li>
+          <li><strong>program counter</strong>. The next instruction to execute.</li>
+          <li><strong>CPU registers</strong>. The contents of all process-centric registers.</li>
+          <li><strong>scheduling information</strong>. Priority, scheduling-queue pointers.</li>
+          <li><strong>memory-management information</strong>. The memory allocated to the process.</li>
+          <li><strong>accounting information</strong>. CPU used, time since start, limits.</li>
+          <li><strong>I/O status</strong>. Devices allocated, list of open files.</li>
         </ul>
         <p data-step="1">PCBs live in kernel memory, managed by the process manager, next to (not inside) each process's own code, data, heap and stack.</p>
       </div>
@@ -446,7 +446,7 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
             <g id="ts-g"></g>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 3.2</span>In Linux the PCB is <code>struct task_struct</code>; it points to separate structures for memory (<code>mm</code>), open files, signals and the owning user.</figcaption>
+        <figcaption><span class="fno">Fig. 3.2</span>In Linux the PCB is <code>struct task_struct</code>, which points to separate structures for memory (<code>mm</code>), open files, signals and the owning user.</figcaption>
       </figure>
     </div>
     <p class="prose small muted" data-step="2">With threads (Lecture 05), a process has several program counters, and the PCB needs room for each thread's details.</p>
@@ -463,15 +463,15 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
   <div class="ch-head">
     <div class="ch-no">Chapter 4</div>
     <h2>Scheduling and context switches</h2>
-    <p class="ch-lede">Many ready processes, one core: queues decide who waits where, and a context switch hands the core over.</p>
+    <p class="ch-lede">With many ready processes and one core, queues decide who waits where, and a context switch hands the core over.</p>
   </div>
 
   <div class="sec" id="s4-1">
     <h3><span class="sec-no">4.1</span>Scheduling queues</h3>
     <div class="prose">
       <ul>
-        <li>The <strong>process scheduler</strong> selects among available processes for the next run on a CPU core. Goal: maximize CPU use and switch quickly.</li>
-        <li data-step="1">Mechanism: the kernel keeps <strong>scheduling queues</strong>. The <strong>ready queue</strong> holds processes in memory, ready to run. <strong>Wait queues</strong> hold processes waiting for an event, such as I/O. Processes migrate among the queues.</li>
+        <li>The <strong>process scheduler</strong> selects among available processes for the next run on a CPU core. The goal is to maximize CPU use and switch quickly.</li>
+        <li data-step="1">As its mechanism, the kernel keeps <strong>scheduling queues</strong>. The <strong>ready queue</strong> holds processes in memory, ready to run. <strong>Wait queues</strong> hold processes waiting for an event, such as I/O. Processes migrate among the queues.</li>
         <li data-step="2">Policy (which ready process runs next) is the subject of Lectures 06–07.</li>
       </ul>
     </div>
@@ -494,13 +494,13 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
     <h3><span class="sec-no">4.3</span>The context switch</h3>
     <div class="prose">
       <ul>
-        <li>When the CPU switches to another process, the kernel <strong>saves</strong> the state of the old process in its PCB and <strong>loads</strong> the saved state of the new one: a <strong>context switch</strong>.</li>
-        <li data-step="1">Context-switch time is <strong>pure overhead</strong>: no useful work is done while switching. The more complex the OS and the PCB, the longer it takes (typically a few microseconds).</li>
-        <li data-step="2">It depends on hardware support: some CPUs have several register sets, so several contexts can be loaded at once.</li>
+        <li>When the CPU switches to another process, the kernel <strong>saves</strong> the state of the old process in its PCB and <strong>loads</strong> the saved state of the new one. This is a <strong>context switch</strong>.</li>
+        <li data-step="1">Context-switch time is <strong>pure overhead</strong>, because no useful work is done while switching. The more complex the OS and the PCB, the longer it takes (typically a few microseconds).</li>
+        <li data-step="2">It depends on hardware support. Some CPUs have several register sets, so several contexts can be loaded at once.</li>
       </ul>
     </div>
     <div class="widget" id="cs-w">
-      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">P0 is interrupted; P1 runs</span><button class="w-reset" type="button" id="cs-reset">Reset</button></div>
+      <div class="widget-head"><span class="chip">Step through</span><span class="w-title">P0 is interrupted and P1 runs</span><button class="w-reset" type="button" id="cs-reset">Reset</button></div>
       <div class="controls">
         <button type="button" class="btn" id="cs-prev">‹ Back</button>
         <button type="button" class="btn primary" id="cs-next">Next ›</button>
@@ -514,11 +514,11 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
   </div>
 
   <div class="sec" id="s4-4">
-    <h3><span class="sec-no">4.4</span>A multiprocess application: Chrome</h3>
+    <h3><span class="sec-no">4.4</span>Chrome, a multiprocess application</h3>
     <div class="prose">
       <ul>
-        <li>Many web browsers ran as a single process: if one site causes trouble, the whole browser hangs or crashes.</li>
-        <li data-step="1">Chrome is multiprocess: a <strong>browser</strong> process manages the UI and disk and network I/O; a <strong>renderer</strong> process per site renders HTML and runs JavaScript, <strong>sandboxed</strong> away from disk and network (Lecture 22); a process per <strong>plug-in</strong> type.</li>
+        <li>Many web browsers ran as a single process. If one site causes trouble, the whole browser hangs or crashes.</li>
+        <li data-step="1">Chrome is multiprocess. A <strong>browser</strong> process manages the UI and disk and network I/O. A <strong>renderer</strong> process per site renders HTML and runs JavaScript, <strong>sandboxed</strong> away from disk and network (Lecture 22). There is also a process per <strong>plug-in</strong> type.</li>
         <li data-step="2">The OS's process isolation becomes the application's fault isolation and security boundary.</li>
       </ul>
     </div>
@@ -530,9 +530,9 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
       <div class="quiz-body">
         <div class="q-text">A running process calls <code>read()</code> on a disk file whose data is not in memory. Which state does it move to?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="Ready means it could run right now; but it cannot proceed until the disk delivers the data.">ready</button>
-          <button type="button" class="q-opt" data-ok>waiting, on the disk's wait queue, until the I/O completes; then ready.</button>
-          <button type="button" class="q-opt" data-why="Nothing is wrong with the process; it just has to wait.">terminated</button>
+          <button type="button" class="q-opt" data-why="Ready means it could run right now. However, it cannot proceed until the disk delivers the data.">ready</button>
+          <button type="button" class="q-opt" data-ok>waiting, on the disk's wait queue, until the I/O completes, then ready.</button>
+          <button type="button" class="q-opt" data-why="Nothing is wrong with the process. It just has to wait.">terminated</button>
         </div>
         <div class="q-fb ok">Right. The core goes to another ready process meanwhile (Lecture 01's multiprogramming).</div>
         <div class="q-fb no">Not quite.</div>
@@ -548,7 +548,7 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="The CPU's registers now hold P1's values.">Still in the CPU's registers.</button>
           <button type="button" class="q-opt" data-ok>In P0's PCB, in kernel memory.</button>
-          <button type="button" class="q-opt" data-why="P0's stack is in user memory; saving kernel-managed context there would let P0 tamper with it.">On P0's own user stack.</button>
+          <button type="button" class="q-opt" data-why="P0's stack is in user memory, so saving kernel-managed context there would let P0 tamper with it.">On P0's own user stack.</button>
         </div>
         <div class="q-fb ok">Right. The PCB is exactly the place that makes a process resumable.</div>
         <div class="q-fb no">Not quite.</div>
@@ -574,15 +574,15 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
     <div class="prose">
       <ul>
         <li>Compilers, linkers and loaders turn source into an executable and an executable into a process with text, data, heap and stack.</li>
-        <li><code>fork()</code> copies the caller; it returns 0 in the child and the child's pid in the parent. <code>exec()</code> replaces the program; <code>wait()</code> collects a child's exit status.</li>
-        <li>A terminated child not yet waited for is a zombie; a child whose parent died is an orphan, adopted by pid 1.</li>
-        <li>Processes move among new, ready, running, waiting and terminated; the kernel records everything about each in its PCB (<code>task_struct</code>).</li>
-        <li>The scheduler moves processes between the ready queue, the CPU and wait queues; a context switch saves one PCB's worth of state and loads another's, as pure overhead.</li>
+        <li><code>fork()</code> copies the caller, and it returns 0 in the child and the child's pid in the parent. <code>exec()</code> replaces the program, and <code>wait()</code> collects a child's exit status.</li>
+        <li>A terminated child not yet waited for is a zombie, and a child whose parent died is an orphan, adopted by pid 1.</li>
+        <li>Processes move among new, ready, running, waiting and terminated, and the kernel records everything about each in its PCB (<code>task_struct</code>).</li>
+        <li>The scheduler moves processes between the ready queue, the CPU and wait queues. A context switch saves one PCB's worth of state and loads another's, as pure overhead.</li>
       </ul>
     </div>
     <div class="note note-lab" data-step="1">
       <span class="note-tag">In the lab</span>
-      <p>Basecamp 1, <em>The Life and Times of a Process</em>: <code>ptree.sh</code> walks a process's ancestry through <code>/proc</code>, <code>spawn.c</code> does fork, exec and wait, and <code>undead.c</code> makes a zombie and an orphan on purpose.</p>
+      <p>In Basecamp 1, <em>The Life and Times of a Process</em>, <code>ptree.sh</code> walks a process's ancestry through <code>/proc</code>, <code>spawn.c</code> does fork, exec and wait, and <code>undead.c</code> makes a zombie and an orphan on purpose.</p>
     </div>
   </div>
 
@@ -591,12 +591,12 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
       <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
       <tbody>
         <tr><td>linker / loader</td><td>Combines object files into an executable / brings it into memory to run.</td></tr>
-        <tr><td>process</td><td>A program in execution: text, data, heap, stack, and CPU state.</td></tr>
+        <tr><td>process</td><td>A program in execution, with text, data, heap, stack, and CPU state.</td></tr>
         <tr><td>pid</td><td>Process identifier.</td></tr>
         <tr><td>fork / exec / wait / exit</td><td>Copy the caller / replace its program / collect a child's status / terminate.</td></tr>
         <tr><td>zombie</td><td>A terminated child whose parent has not yet called wait().</td></tr>
-        <tr><td>orphan</td><td>A child whose parent terminated; adopted by init/systemd.</td></tr>
-        <tr><td>ABI</td><td>Application binary interface: how compiled code interfaces on one OS and CPU.</td></tr>
+        <tr><td>orphan</td><td>A child whose parent terminated, adopted by init/systemd.</td></tr>
+        <tr><td>ABI</td><td>Application binary interface, which defines how compiled code interfaces on one OS and CPU.</td></tr>
         <tr><td>PCB, task_struct</td><td>The kernel's record of a process / its name in Linux.</td></tr>
         <tr><td>ready / wait queue</td><td>Processes ready to run / waiting for an event.</td></tr>
         <tr><td>context switch</td><td>Saving one process's CPU state to its PCB and loading another's.</td></tr>
@@ -684,7 +684,7 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
       ['    <span class="kw">return</span> helper(count);', ''],
       ['}', ''],
     ];
-    const SEG = [['stack', 'high addresses · grows down ↓'], ['gap', '(unused: room to grow)'], ['heap', 'grows up ↑'], ['bss', 'uninitialized data'], ['data', 'initialized data'], ['text', 'low addresses · code']];
+    const SEG = [['stack', 'high addresses · grows down ↓'], ['gap', '(unused, room to grow)'], ['heap', 'grows up ↑'], ['bss', 'uninitialized data'], ['data', 'initialized data'], ['text', 'low addresses · code']];
     let sel = 'count';
     $('#ml-code').innerHTML = CODE.map(([c]) => `<span class="ln">${c || ' '}</span>`).join('');
     function render() {
@@ -695,13 +695,13 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
         return `<div class="seg${n === 'gap' ? ' gap' : ''}${n === seg ? ' hit' : ''}"><span>${n === 'gap' ? '' : n}<span class="a"> ${d}</span></span><span class="vars">${here.join(', ')}</span></div>`;
       }).join('');
       const why = {
-        text: 'Code is loaded from the executable and is read-only; every process running this program could share it.',
+        text: 'Code is loaded from the executable and is read-only. Every process running this program could share it.',
         data: 'Globals and statics with an initial value are stored in the executable and loaded into the data section.',
-        bss: 'Globals without an initial value take no space in the file; the loader reserves zero-filled memory for them.',
-        heap: 'malloc() takes memory from the heap at run time; it lives until free(), wherever the pointer to it is kept.',
+        bss: 'Globals without an initial value take no space in the file. The loader reserves zero-filled memory for them.',
+        heap: 'malloc() takes memory from the heap at run time. It lives until free(), wherever the pointer to it is kept.',
         stack: 'Parameters and locals live in the current function\'s stack frame and disappear when it returns.',
       };
-      $('#ml-out').innerHTML = `<b class="mono">${V[sel][0]}</b>: ${V[sel][1]} → <b>${seg}</b>. ${why[seg]}`;
+      $('#ml-out').innerHTML = `<b class="mono">${V[sel][0]}</b>, ${V[sel][1]} → <b>${seg}</b>. ${why[seg]}`;
     }
     $('#ml-code').addEventListener('click', (e) => { const x = e.target.closest('.v'); if (x) { sel = x.dataset.v; render(); } });
     $('#ml-reset').addEventListener('click', () => { sel = 'count'; render(); });
@@ -742,7 +742,7 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
       const X = (k) => 30 + pos[k] * (400 / Math.max(1, leaf - 1 || 1)), Y = (k) => 28 + nodes[k].d * (190 / Math.max(1, maxD));
       nodes.forEach((x, k) => { if (x.p >= 0) svg.appendChild(el('path', { d: `M${X(x.p)} ${Y(x.p)} L${X(k)} ${Y(k)}`, class: 'wire thin' })); });
       nodes.forEach((x, k) => { const r = total <= 8 ? 16 : 11; svg.appendChild(el('circle', { cx: X(k), cy: Y(k), r, class: k === 0 ? 'obox' : 'pbox' })); svg.appendChild(el('text', { x: X(k), y: Y(k) + 4, 'text-anchor': 'middle', class: 'mono', style: 'font-size:' + (total <= 8 ? 12 : 9) + 'px' }, k === 0 ? 'orig' : 'P' + k)); });
-      $('#fk-out').innerHTML = `<b>${total} processes</b> (2<sup>${n}</sup>), so "hello" prints <b>${total} times</b>. Every process, parent or child, continues the loop from where fork() returned: a child created in iteration i still runs iterations i+1 … ${n - 1}. Try it for real in the VM, and pipe through <code>wc -l</code>.`;
+      $('#fk-out').innerHTML = `<b>${total} processes</b> (2<sup>${n}</sup>), so "hello" prints <b>${total} times</b>. Every process, parent or child, continues the loop from where fork() returned. A child created in iteration i still runs iterations i+1 … ${n - 1}. Try it for real in the VM, and pipe through <code>wc -l</code>.`;
     }
     $('#fk-n').addEventListener('change', render);
     $('#fk-reset').addEventListener('click', () => { $('#fk-n').value = '2'; render(); });
@@ -751,20 +751,20 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
 
   /* ---------- §1.5 fork/exec/wait ---------- */
   (function () {
-    const MEM0 = ['code: main()', 'data', 'heap', 'stack'], MEMLS = ['code: /bin/ls', 'data for ls', 'new heap', 'new stack'];
+    const MEM0 = ['code of main()', 'data', 'heap', 'stack'], MEMLS = ['code of /bin/ls', 'data for ls', 'new heap', 'new stack'];
     const V = [
       { n: 'normal', steps: [
         [['P', 1001, 'running', MEM0, 'fork()'], null, [], 'The parent, pid 1001, is about to call fork().'],
-        [['P', 1001, 'running', MEM0, 'after fork: pid = 1002'], ['C', 1002, 'ready', MEM0, 'after fork: pid = 0'], [], 'fork() duplicated the address space. Both processes continue just after fork(); the parent got 1002, the child 0.'],
+        [['P', 1001, 'running', MEM0, 'after fork, pid = 1002'], ['C', 1002, 'ready', MEM0, 'after fork, pid = 0'], [], 'fork() duplicated the address space. Both processes continue just after fork(). The parent got 1002, the child 0.'],
         [['P', 1001, 'waiting', MEM0, 'wait(NULL)'], ['C', 1002, 'running', MEM0, 'execlp("/bin/ls")'], [], 'The parent calls wait() and blocks. The child calls execlp().'],
-        [['P', 1001, 'waiting', MEM0, 'wait(NULL)'], ['C', 1002, 'running', MEMLS, 'ls: main()'], ['<span class="p2">a.out  notes.txt  spawn.c</span>'], 'execve() replaced the child\'s memory with /bin/ls: new code, data, heap and stack. Same pid 1002. The old code is gone, so the lines after execlp never run in the child.'],
-        [['P', 1001, 'ready', MEM0, 'wait returns 1002'], ['C', 1002, 'zombie', null, 'exit(0)'], ['<span class="p2">a.out  notes.txt  spawn.c</span>'], 'ls exits. For an instant the child is a zombie: memory freed, status kept for the parent. The parent is woken.'],
-        [['P', 1001, 'running', MEM0, 'printf'], ['C', 1002, 'gone', null, 'reaped'], ['<span class="p2">a.out  notes.txt  spawn.c</span>', '<span class="p1">Child Complete</span>'], 'wait() collected the status; the kernel removes the child\'s PCB. The parent prints and exits.'],
+        [['P', 1001, 'waiting', MEM0, 'wait(NULL)'], ['C', 1002, 'running', MEMLS, 'main() of ls'], ['<span class="p2">a.out  notes.txt  spawn.c</span>'], 'execve() replaced the child\'s memory with /bin/ls, namely new code, data, heap and stack. Same pid 1002. The old code is gone, so the lines after execlp never run in the child.'],
+        [['P', 1001, 'ready', MEM0, 'wait returns 1002'], ['C', 1002, 'zombie', null, 'exit(0)'], ['<span class="p2">a.out  notes.txt  spawn.c</span>'], 'ls exits. For an instant the child is a zombie, with memory freed and status kept for the parent. The parent is woken.'],
+        [['P', 1001, 'running', MEM0, 'printf'], ['C', 1002, 'gone', null, 'reaped'], ['<span class="p2">a.out  notes.txt  spawn.c</span>', '<span class="p1">Child Complete</span>'], 'wait() collected the status, and the kernel removes the child\'s PCB. The parent prints and exits.'],
       ] },
       { n: 'parent never waits', steps: [
         [['P', 1001, 'running', MEM0, 'fork()'], null, [], 'Same program, but the parent forgets to call wait() and keeps running its own work.'],
         [['P', 1001, 'running', MEM0, 'busy…'], ['C', 1002, 'running', MEMLS, 'ls'], ['<span class="p2">a.out  notes.txt  spawn.c</span>'], 'The child execs ls and finishes quickly.'],
-        [['P', 1001, 'running', MEM0, 'busy…'], ['C', 1002, 'zombie', null, 'exit(0)'], ['<span class="p2">a.out  notes.txt  spawn.c</span>', '<span class="dim">$ ps -o pid,stat,cmd --ppid 1001</span>', '<span class="dim">1002 Z   [ls] &lt;defunct&gt;</span>'], 'The child has terminated, but nobody waited: it is a <b class="bad">zombie</b>. Its memory is freed; its PCB and exit status stay until the parent calls wait() or exits.'],
+        [['P', 1001, 'running', MEM0, 'busy…'], ['C', 1002, 'zombie', null, 'exit(0)'], ['<span class="p2">a.out  notes.txt  spawn.c</span>', '<span class="dim">$ ps -o pid,stat,cmd --ppid 1001</span>', '<span class="dim">1002 Z   [ls] &lt;defunct&gt;</span>'], 'The child has terminated, but nobody waited, so it is a <b class="bad">zombie</b>. Its memory is freed, but its PCB and exit status stay until the parent calls wait() or exits.'],
       ] },
       { n: 'parent exits first', steps: [
         [['P', 1001, 'running', MEM0, 'fork()'], null, [], 'This time the child runs something slow (say, sleep 60) and the parent does not wait.'],
@@ -831,24 +831,24 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
   /* ---------- §4.2 queues ---------- */
   (function () {
     let S;
-    function fresh() { return { run: 'P1', ready: ['P2', 'P3'], wait: [], done: [], log: 'P1 is running; P2 and P3 are in the ready queue.', pcb: { P1: { st: 'running', pc: '0x401a20' }, P2: { st: 'ready', pc: '0x401000' }, P3: { st: 'ready', pc: '0x402f10' } }, cs: 0, hot: null }; }
+    function fresh() { return { run: 'P1', ready: ['P2', 'P3'], wait: [], done: [], log: 'P1 is running, and P2 and P3 are in the ready queue.', pcb: { P1: { st: 'running', pc: '0x401a20' }, P2: { st: 'ready', pc: '0x401000' }, P3: { st: 'ready', pc: '0x402f10' } }, cs: 0, hot: null }; }
     const ACT = [
       ['timer', 'Timer interrupt'], ['io', 'Running process reads the disk'], ['done', 'Disk I/O completes'], ['exit', 'Running process exits'], ['disp', 'Dispatch next ready'],
     ];
     function setst(p, st) { S.pcb[p].st = st; S.hot = p; }
     function act(a) {
       S.hot = null;
-      if (a === 'timer') { if (!S.run) { S.log = 'No process is running.'; return; } const p = S.run; S.ready.push(p); setst(p, 'ready'); S.run = null; S.log = `Timer interrupt: ${p}'s context is saved in its PCB and it goes to the back of the ready queue. Now dispatch someone.`; }
-      else if (a === 'io') { if (!S.run) { S.log = 'No process is running.'; return; } const p = S.run; S.wait.push(p); setst(p, 'waiting'); S.run = null; S.log = `${p} asks for disk data that is not in memory: it moves to the disk's wait queue.`; }
-      else if (a === 'done') { if (!S.wait.length) { S.log = 'Nobody is waiting for I/O.'; return; } const p = S.wait.shift(); S.ready.push(p); setst(p, 'ready'); S.log = `The disk interrupts: ${p}'s I/O is done, so it moves from the wait queue to the ready queue. It does not run yet.`; }
-      else if (a === 'exit') { if (!S.run) { S.log = 'No process is running.'; return; } const p = S.run; S.done.push(p); setst(p, 'terminated'); S.run = null; S.log = `${p} exits: its PCB is marked terminated (a zombie until its parent waits).`; }
-      else if (a === 'disp') { if (S.run) { S.log = `${S.run} is already running. Something must take it off the CPU first.`; return; } if (!S.ready.length) { S.log = 'The ready queue is empty: the CPU idles until an I/O completes.'; return; } const p = S.ready.shift(); S.run = p; setst(p, 'running'); S.cs++; S.log = `Dispatch: the scheduler picks ${p} from the head of the ready queue and a context switch loads its PCB into the CPU.`; }
+      if (a === 'timer') { if (!S.run) { S.log = 'No process is running.'; return; } const p = S.run; S.ready.push(p); setst(p, 'ready'); S.run = null; S.log = `On a timer interrupt, ${p}'s context is saved in its PCB and it goes to the back of the ready queue. Now dispatch someone.`; }
+      else if (a === 'io') { if (!S.run) { S.log = 'No process is running.'; return; } const p = S.run; S.wait.push(p); setst(p, 'waiting'); S.run = null; S.log = `${p} asks for disk data that is not in memory, so it moves to the disk's wait queue.`; }
+      else if (a === 'done') { if (!S.wait.length) { S.log = 'Nobody is waiting for I/O.'; return; } const p = S.wait.shift(); S.ready.push(p); setst(p, 'ready'); S.log = `The disk interrupts. ${p}'s I/O is done, so it moves from the wait queue to the ready queue. It does not run yet.`; }
+      else if (a === 'exit') { if (!S.run) { S.log = 'No process is running.'; return; } const p = S.run; S.done.push(p); setst(p, 'terminated'); S.run = null; S.log = `${p} exits, and its PCB is marked terminated (a zombie until its parent waits).`; }
+      else if (a === 'disp') { if (S.run) { S.log = `${S.run} is already running. Something must take it off the CPU first.`; return; } if (!S.ready.length) { S.log = 'The ready queue is empty, so the CPU idles until an I/O completes.'; return; } const p = S.ready.shift(); S.run = p; setst(p, 'running'); S.cs++; S.log = `On dispatch, the scheduler picks ${p} from the head of the ready queue and a context switch loads its PCB into the CPU.`; }
     }
     function render() {
       const chip = (p, c) => `<span class="chipP ${c}">${p}</span>`;
       $('#qq-q').innerHTML = `<div class="q"><div class="hd">ready queue</div><div class="items">${S.ready.map((p) => chip(p, 'r')).join('') || '<span class="muted small">empty</span>'}</div></div><div class="cpu"><span class="sub-lab">CPU core</span>${S.run ? chip(S.run, '') : '<span class="muted small">idle</span>'}</div><div class="q"><div class="hd">disk wait queue</div><div class="items">${S.wait.map((p) => chip(p, 'w')).join('') || '<span class="muted small">empty</span>'}</div></div>`;
       $('#qq-pcb').innerHTML = '<thead><tr><th>PCB</th><th>state</th><th>saved PC</th></tr></thead><tbody>' + Object.entries(S.pcb).map(([p, x]) => `<tr><td>${p}</td><td class="${S.hot === p ? 'hot' : ''}">${x.st}</td><td>${x.st === 'running' ? '(in the CPU)' : x.pc}</td></tr>`).join('') + '</tbody>';
-      $('#qq-out').innerHTML = S.log + ` <span class="muted small">Context switches so far: ${S.cs}.</span>`;
+      $('#qq-out').innerHTML = S.log + ` <span class="muted small">Context switches so far, ${S.cs}.</span>`;
     }
     $('#qq-a').innerHTML = ACT.map(([k, n]) => `<button type="button" class="btn small" data-a="${k}">${n}</button>`).join('');
     $('#qq-a').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) { act(b.dataset.a); render(); } });
@@ -861,11 +861,11 @@ table.pcb td.hot { background: var(--cx-soft2); font-weight: 600; }
     const svg = $('#cs-svg');
     const R0 = { PC: '0x401a20', SP: '0x7ffe…c0', RAX: '42', RBX: '7' }, R1 = { PC: '0x5520b8', SP: '0x7ffc…18', RAX: '0', RBX: '1024' };
     const S = [
-      ['P0', R0, {}, R1, 'P0 is running; its register values are in the CPU. P1\'s were saved in PCB1 the last time it stopped.'],
-      ['kernel', R0, {}, R1, 'An interrupt or system call enters the kernel. P0 is no longer executing its own instructions: idle time for both processes begins.'],
-      ['kernel', R0, R0, R1, '<b>Save</b>: the kernel copies the CPU\'s registers, including PC and SP, into PCB0.'],
-      ['kernel', R1, R0, R1, '<b>Reload</b>: the kernel copies PCB1\'s saved registers into the CPU (and switches page tables, Lecture 14).'],
-      ['P1', R1, R0, R1, 'Return to user mode: P1 continues exactly where it left off. Everything between the interrupt and this moment was overhead.'],
+      ['P0', R0, {}, R1, 'P0 is running, and its register values are in the CPU. P1\'s were saved in PCB1 the last time it stopped.'],
+      ['kernel', R0, {}, R1, 'An interrupt or system call enters the kernel. P0 is no longer executing its own instructions, and idle time for both processes begins.'],
+      ['kernel', R0, R0, R1, '<b>Save.</b> The kernel copies the CPU\'s registers, including PC and SP, into PCB0.'],
+      ['kernel', R1, R0, R1, '<b>Reload.</b> The kernel copies PCB1\'s saved registers into the CPU (and switches page tables, Lecture 14).'],
+      ['P1', R1, R0, R1, 'Return to user mode. P1 continues exactly where it left off. Everything between the interrupt and this moment was overhead.'],
     ];
     let i = 0;
     function box(x, y, title, R, cls, hi) {

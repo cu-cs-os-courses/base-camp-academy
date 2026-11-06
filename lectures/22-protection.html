@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Protection · L22</title>
-<meta name="description" content="CSCI 3753 Lecture 22, interactive edition: principles of protection, rings and domains, the access matrix and its implementations, revocation, RBAC, MAC, POSIX capabilities, sandboxing, and language-based protection.">
+<meta name="description" content="CSCI 3753 Lecture 22, interactive edition, covering the principles of protection, rings and domains, the access matrix and its implementations, revocation, RBAC, MAC, POSIX capabilities, sandboxing, and language-based protection.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -85,12 +85,12 @@ table.am td.dcol { color: var(--co); }
 </svg>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><rect x="4" y="10" width="14" height="10" rx="1.5"/><path d="M7 10V7a4 4 0 0 1 8 0v3"/></g><circle cx="11" cy="15" r="1.8" fill="var(--co)"/></svg>
-    <span>Lecture 22 · Protection</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Lecture 22 · Protection</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -99,13 +99,13 @@ table.am td.dcol { color: var(--co); }
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 22 · Interactive notes</div>
     <h1>Who may do what,<br>to <span class="accent">which</span> object?</h1>
-    <p class="lede">Every mechanism in this course so far, from the mode bit to page tables to file permissions, answers one question on every access: is this allowed? This lecture turns that question into a model: processes run in domains, a matrix says what each domain may do to each object, and the OS stores and enforces that matrix. Then it looks at how real systems slice up power: setuid, roles, labels the owner cannot override, capabilities that split root into pieces, sandboxes, and the stack inspection of the Java VM.</p>
+    <p class="lede">Every mechanism in this course so far, from the mode bit to page tables to file permissions, answers one question on every access, namely whether it is allowed. This lecture turns that question into a model. Processes run in domains, a matrix says what each domain may do to each object, and the OS stores and enforces that matrix. Then it looks at how real systems slice up power, with setuid, roles, labels the owner cannot override, capabilities that split root into pieces, sandboxes, and the stack inspection of the Java VM.</p>
     <div class="promise">
-      <span>Before you start:</span><span class="mono">kernel mode, rings, and file permissions</span><span>from Lectures 2, 20 and 21.</span>
+      <span>Before you start, review</span><span class="mono">kernel mode, rings, and file permissions</span><span>from Lectures 2, 20 and 21.</span>
     </div>
     <div class="cta-row">
       <a class="btn primary" href="#ch0">Begin ↓</a>
-      <span class="muted small">About 55 minutes · 5 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 17 · Continues in Lecture 23, Security</span>
+      <span class="muted small">About 55 minutes · 5 hands-on experiments · 4 checkpoints · Textbook Silberschatz, Ch. 17 · Continues in Lecture 23, Security</span>
     </div>
   </div>
 </div>
@@ -139,7 +139,7 @@ table.am td.dcol { color: var(--co); }
       <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 22</div>
       <h1>Protection</h1>
       <p class="lede">Domains, the access matrix, and how real systems enforce it.</p>
-      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 17</div>
+      <div class="meta">Instructor Yueqi Chen · Textbook Silberschatz, Ch. 17</div>
     </div>
 
 <!-- ============================================================ -->
@@ -147,7 +147,7 @@ table.am td.dcol { color: var(--co); }
   <div class="ch-head">
     <div class="ch-no">Chapter 0</div>
     <h2>Goals and principles</h2>
-    <p class="ch-lede">Protection is about mechanisms inside the system: making sure each object is used correctly, and only by those allowed to. (Lecture 23, Security, is about attackers from outside.)</p>
+    <p class="ch-lede">Protection is about mechanisms inside the system that make sure each object is used correctly, and only by those allowed to. (Lecture 23, Security, is about attackers from outside.)</p>
   </div>
 
   <div class="sec" id="s0-1">
@@ -155,8 +155,8 @@ table.am td.dcol { color: var(--co); }
     <div class="prose">
       <ul>
         <li>In one protection model, a computer is a collection of <strong>objects</strong>, hardware (CPU, memory, printers, disks) or software (files, programs, semaphores).</li>
-        <li data-step="1">Each object has a unique name and is accessed through a well-defined set of <strong>operations</strong>: a file is read, written, executed; a semaphore gets wait and signal.</li>
-        <li data-step="2">The <strong>protection problem</strong>: ensure that each object is accessed correctly, and only by those processes that are allowed to do so.</li>
+        <li data-step="1">Each object has a unique name and is accessed through a well-defined set of <strong>operations</strong>. For example, a file is read, written, and executed, and a semaphore gets wait and signal.</li>
+        <li data-step="2">The <strong>protection problem</strong> is to ensure that each object is accessed correctly, and only by those processes that are allowed to do so.</li>
       </ul>
     </div>
   </div>
@@ -164,11 +164,11 @@ table.am td.dcol { color: var(--co); }
   <div class="sec" id="s0-2">
     <h3><span class="sec-no">0.2</span>The principle of least privilege</h3>
     <div class="prose">
-      <p>The guiding principle: programs, users and systems get <strong>just enough privilege</strong> to do their tasks.</p>
+      <p>The guiding principle is that programs, users and systems get <strong>just enough privilege</strong> to do their tasks.</p>
       <ul>
         <li data-step="1">Properly set permissions limit the damage when an entity has a bug or is abused.</li>
-        <li data-step="1">Privilege can be <strong>static</strong> (for the life of the system or the process) or <strong>dynamic</strong>, changed by the process as needed: domain switching, privilege escalation.</li>
-        <li data-step="2"><strong>Compartmentalization</strong> is a derivative idea: protect each individual system component with its own specific permissions and access restrictions.</li>
+        <li data-step="1">Privilege can be <strong>static</strong> (for the life of the system or the process) or <strong>dynamic</strong>, changed by the process as needed, as in domain switching and privilege escalation.</li>
+        <li data-step="2"><strong>Compartmentalization</strong> is a derivative idea. It protects each individual system component with its own specific permissions and access restrictions.</li>
       </ul>
     </div>
     <div class="note note-key" data-step="2">
@@ -181,10 +181,10 @@ table.am td.dcol { color: var(--co); }
     <h3><span class="sec-no">0.3</span>Grain, audit, defense in depth</h3>
     <div class="prose">
       <ul>
-        <li><strong>Grain.</strong> Coarse-grained privilege management is simpler, but least privilege then comes in large chunks: a traditional UNIX process has either its user's powers or root's. Fine-grained management (file ACLs, role-based access control) is more complex and has more overhead, but protects more.</li>
+        <li><strong>Grain.</strong> Coarse-grained privilege management is simpler, but least privilege then comes in large chunks. For example, a traditional UNIX process has either its user's powers or root's. Fine-grained management (file ACLs, role-based access control) is more complex and has more overhead, but protects more.</li>
         <li data-step="1">A protection <strong>domain</strong> can be a user, a process, or even a procedure.</li>
         <li data-step="2">An <strong>audit trail</strong> records all protection-related activity, to understand what happened and why, and to catch what should not have.</li>
-        <li data-step="3">No single principle is a cure-all: we need <strong>defense in depth</strong>, several independent layers.</li>
+        <li data-step="3">No single principle is a cure-all. Therefore, we need <strong>defense in depth</strong>, several independent layers.</li>
       </ul>
     </div>
   </div>
@@ -200,7 +200,7 @@ table.am td.dcol { color: var(--co); }
   <div class="ch-head">
     <div class="ch-no">Chapter 1</div>
     <h2>Rings and domains</h2>
-    <p class="ch-lede">Hardware rings order privilege in a few big steps; protection domains describe it object by object.</p>
+    <p class="ch-lede">Hardware rings order privilege in a few big steps. Protection domains describe it object by object.</p>
   </div>
 
   <div class="sec" id="s1-1">
@@ -208,8 +208,8 @@ table.am td.dcol { color: var(--co); }
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li>Components are ordered by privilege and protected from each other: the kernel in one ring, applications in another. This separation needs <strong>hardware support</strong> (Lecture 21, §3.3).</li>
-          <li data-step="1"><strong>Gates</strong> transfer control between rings: the <code>syscall</code> instruction, and also traps and interrupts.</li>
+          <li>Components are ordered by privilege and protected from each other. The kernel runs in one ring, and applications run in another. This separation needs <strong>hardware support</strong> (Lecture 21, §3.3).</li>
+          <li data-step="1"><strong>Gates</strong> transfer control between rings. They include the <code>syscall</code> instruction, and also traps and interrupts.</li>
           <li data-step="2">Hypervisors needed yet another level. ARM added <strong>TrustZone</strong>, a secure world entered only through the <code>SMC</code> (Secure Monitor Call) instruction, to protect crypto keys and the NFC secure element even from the kernel. Android uses it for its keystore.</li>
         </ul>
       </div>
@@ -219,7 +219,7 @@ table.am td.dcol { color: var(--co); }
             <g id="rings-g"></g>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 1.1</span>MULTICS rings. For rings i and j with j &lt; i, D<sub>i</sub> ⊆ D<sub>j</sub>: an inner ring can do everything an outer one can.</figcaption>
+        <figcaption><span class="fno">Fig. 1.1</span>MULTICS rings. For rings i and j with j &lt; i, D<sub>i</sub> ⊆ D<sub>j</sub>, which means an inner ring can do everything an outer one can.</figcaption>
       </figure>
     </div>
   </div>
@@ -228,9 +228,9 @@ table.am td.dcol { color: var(--co); }
     <h3><span class="sec-no">1.2</span>Protection domains</h3>
     <div class="two-up">
       <div class="prose">
-        <p>A process operates inside a <strong>protection domain</strong>, which specifies the resources it may access: a set of objects and the operations allowed on each.</p>
-        <p data-step="1">The ability to execute an operation on an object is an <strong>access right</strong>: <code>&lt;object-name, rights-set&gt;</code>, where the rights-set is a subset of the object's valid operations. A domain is a set of access rights.</p>
-        <p data-step="2">Domains may share rights (O<sub>4</sub> in Fig. 1.2). The association between a process and a domain can be <strong>static</strong>, or <strong>dynamic</strong>, in which case the process can <em>switch</em> domains. A process should have access only to the objects it currently needs: the <strong>need-to-know</strong> principle.</p>
+        <p>A process operates inside a <strong>protection domain</strong>, which specifies the resources it may access, namely a set of objects and the operations allowed on each.</p>
+        <p data-step="1">The ability to execute an operation on an object is an <strong>access right</strong>, written <code>&lt;object-name, rights-set&gt;</code>, where the rights-set is a subset of the object's valid operations. A domain is a set of access rights.</p>
+        <p data-step="2">Domains may share rights (O<sub>4</sub> in Fig. 1.2). The association between a process and a domain can be <strong>static</strong>, or <strong>dynamic</strong>, in which case the process can <em>switch</em> domains. A process should have access only to the objects it currently needs. This is the <strong>need-to-know</strong> principle.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -255,11 +255,11 @@ table.am td.dcol { color: var(--co); }
   <div class="sec" id="s1-3">
     <h3><span class="sec-no">1.3</span>Domains in UNIX</h3>
     <div class="prose">
-      <p>In UNIX, a <strong>domain is a user ID</strong>. There are three ways to switch domains:</p>
+      <p>In UNIX, a <strong>domain is a user ID</strong>. There are three ways to switch domains.</p>
       <ul>
-        <li data-step="1"><strong>Through the file system</strong>: each file has a domain bit, the <strong>setuid</strong> bit. When a file with setuid on is executed, the process's effective user ID becomes the file's <em>owner</em>; when it finishes, the ID is reset.</li>
-        <li data-step="2"><strong>Through passwords</strong>: <code>su</code> switches to another user's domain when that user's password is given.</li>
-        <li data-step="3"><strong>Through commands</strong>: <code>sudo cmd</code> runs one command in another domain, if the original domain is allowed to (the sudoers file) or a password is given.</li>
+        <li data-step="1"><strong>Through the file system</strong>. Each file has a domain bit, the <strong>setuid</strong> bit. When a file with setuid on is executed, the process's effective user ID becomes the file's <em>owner</em>. When it finishes, the ID is reset.</li>
+        <li data-step="2"><strong>Through passwords</strong>. The command <code>su</code> switches to another user's domain when that user's password is given.</li>
+        <li data-step="3"><strong>Through commands</strong>. The command <code>sudo cmd</code> runs one command in another domain, if the original domain is allowed to (the sudoers file) or a password is given.</li>
       </ul>
     </div>
   </div>
@@ -282,12 +282,12 @@ table.am td.dcol { color: var(--co); }
   </div>
 
   <div class="sec" id="s1-5">
-    <h3><span class="sec-no">1.5</span>Domains in Android: one user ID per app</h3>
+    <h3><span class="sec-no">1.5</span>Domains in Android, one user ID per app</h3>
     <div class="prose">
       <ul>
         <li>Android gives every <strong>application</strong> its own user ID. At install time the <code>installd</code> daemon assigns the app a distinct UID and GID and a private data directory, <code>/data/data/&lt;appname&gt;</code>, owned by that UID/GID alone.</li>
-        <li data-step="1">Apps then enjoy the same separation UNIX gives separate users: a quick, simple way to get isolation, security and privacy, reusing a mechanism that already existed.</li>
-        <li data-step="2">Android extends it: a modified kernel allows some operations, such as opening network sockets, only to members of a particular group (<code>AID_INET</code>, GID 3003). And some UIDs are marked <strong>isolated</strong>, which blocks them from making RPC requests to all but a bare minimum of services.</li>
+        <li data-step="1">Apps then enjoy the same separation UNIX gives separate users. This is a quick, simple way to get isolation, security and privacy, reusing a mechanism that already existed.</li>
+        <li data-step="2">Android extends it. A modified kernel allows some operations, such as opening network sockets, only to members of a particular group (<code>AID_INET</code>, GID 3003). And some UIDs are marked <strong>isolated</strong>, which blocks them from making RPC requests to all but a bare minimum of services.</li>
       </ul>
     </div>
   </div>
@@ -299,10 +299,10 @@ table.am td.dcol { color: var(--co); }
         <div class="q-text"><code>/usr/bin/passwd</code> is owned by root and has the setuid bit set. alice runs it. Which statement is true while it runs?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="Only the effective UID changes. The real UID stays alice, which is how passwd knows whose password to change.">The process's real and effective UIDs are both root.</button>
-          <button type="button" class="q-opt" data-ok>Its effective UID is root, so it may write /etc/shadow; its real UID is still alice.</button>
+          <button type="button" class="q-opt" data-ok>Its effective UID is root, so it may write /etc/shadow, but its real UID is still alice.</button>
           <button type="button" class="q-opt" data-why="Setuid changes the rights of this one process for as long as it runs. alice's shell never becomes root.">alice's shell becomes root until she logs out.</button>
         </div>
-        <div class="q-fb ok">Right. The permission check uses the effective UID; the program uses the real UID to decide what alice is allowed to ask for.</div>
+        <div class="q-fb ok">Right. The permission check uses the effective UID, and the program uses the real UID to decide what alice is allowed to ask for.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -326,7 +326,7 @@ table.am td.dcol { color: var(--co); }
     <h3><span class="sec-no">2.1</span>Rows are domains, columns are objects</h3>
     <div class="two-up">
       <div class="prose">
-        <p>View protection as a matrix: <strong>rows</strong> are domains, <strong>columns</strong> are objects, and Access(i, j) is the set of operations a process in domain D<sub>i</sub> may invoke on object O<sub>j</sub>.</p>
+        <p>View protection as a matrix, in which <strong>rows</strong> are domains, <strong>columns</strong> are objects, and Access(i, j) is the set of operations a process in domain D<sub>i</sub> may invoke on object O<sub>j</sub>.</p>
         <p data-step="1">If a process in D<sub>i</sub> tries operation <em>op</em> on O<sub>j</sub>, then <em>op</em> must be in Access(i, j). The user who creates an object can define its column.</p>
       </div>
       <div class="table-wrap" style="margin:0">
@@ -339,13 +339,13 @@ table.am td.dcol { color: var(--co); }
   <div class="sec" id="s2-2">
     <h3><span class="sec-no">2.2</span>Changing the matrix itself</h3>
     <div class="prose">
-      <p>For dynamic protection, the matrix needs operations that add and remove rights, controlled by special rights of their own:</p>
+      <p>For dynamic protection, the matrix needs operations that add and remove rights, controlled by special rights of their own.</p>
     </div>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">switch</span>Put <strong>domains in the columns</strong> too: <em>switch</em> in (D<sub>i</sub>, D<sub>j</sub>) lets a process move from D<sub>i</sub> to D<sub>j</sub>.</div>
+      <div><span class="tag">switch</span>Put <strong>domains in the columns</strong> too. Then <em>switch</em> in (D<sub>i</sub>, D<sub>j</sub>) lets a process move from D<sub>i</sub> to D<sub>j</sub>.</div>
       <div data-step="1"><span class="tag">copy ( * )</span><code>read*</code> in (D<sub>i</sub>, O<sub>j</sub>) lets D<sub>i</sub> copy <code>read</code> into any other domain's entry in the same column.</div>
       <div data-step="2"><span class="tag">owner</span><em>owner</em> of O<sub>j</sub> lets D<sub>i</sub> add or remove any right anywhere in column j.</div>
-      <div data-step="3"><span class="tag">control</span><em>control</em> in (D<sub>i</sub>, D<sub>j</sub>) lets D<sub>i</sub> remove rights from row D<sub>j</sub>. Copy and owner apply to objects; control applies to domain objects.</div>
+      <div data-step="3"><span class="tag">control</span><em>control</em> in (D<sub>i</sub>, D<sub>j</sub>) lets D<sub>i</sub> remove rights from row D<sub>j</sub>. Copy and owner apply to objects, and control applies to domain objects.</div>
     </div>
   </div>
 
@@ -369,12 +369,12 @@ table.am td.dcol { color: var(--co); }
   <div class="sec" id="s2-4">
     <h3><span class="sec-no">2.4</span>Mechanism vs. policy</h3>
     <div class="prose">
-      <p>The access matrix separates <strong>mechanism</strong> from <strong>policy</strong>:</p>
+      <p>The access matrix separates <strong>mechanism</strong> from <strong>policy</strong>.</p>
       <ul>
-        <li data-step="1"><em>Mechanism</em>: the OS provides the matrix and its rules, and ensures the matrix is changed only by authorized agents and that the rules are strictly enforced.</li>
-        <li data-step="2"><em>Policy</em>: users decide who may access which object, in which mode.</li>
+        <li data-step="1"><em>Mechanism</em>. The OS provides the matrix and its rules, and ensures the matrix is changed only by authorized agents and that the rules are strictly enforced.</li>
+        <li data-step="2"><em>Policy</em>. Users decide who may access which object, in which mode.</li>
       </ul>
-      <p data-step="3">But the matrix does not solve the general <strong>confinement problem</strong>: guaranteeing that no information held in an object ever leaks out of its execution environment. A domain allowed to read a file can always copy what it read somewhere else.</p>
+      <p data-step="3">But the matrix does not solve the general <strong>confinement problem</strong>, that is, guaranteeing that no information held in an object ever leaks out of its execution environment. A domain allowed to read a file can always copy what it read somewhere else.</p>
     </div>
   </div>
 
@@ -395,10 +395,10 @@ table.am td.dcol { color: var(--co); }
   <div class="sec" id="s3-1">
     <h3><span class="sec-no">3.1</span>Four representations</h3>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">1 · Global table</span>Store triples <code>&lt;domain, object, rights-set&gt;</code>. For operation M on O<sub>j</sub> in D<sub>i</sub>, search for <code>&lt;D<sub>i</sub>, O<sub>j</sub>, R<sub>k</sub>&gt;</code> with M ∈ R<sub>k</sub>. Simple, but the table can be too big for memory, and grouping is hard: an object every domain can read needs an entry per domain.</div>
-      <div data-step="1"><span class="tag">2 · Access lists (per object)</span>Each <strong>column</strong> becomes the object's access-control list (ACL): pairs <code>&lt;domain, rights-set&gt;</code> for every domain with non-empty rights. Easily extended with a default set: if M is in the default set, allow it too.</div>
-      <div data-step="2"><span class="tag">3 · Capability lists (per domain)</span>Each <strong>row</strong> becomes the domain's capability list: objects with the operations allowed on them. An object's name or address in that list is a <strong>capability</strong>; holding it means access is allowed. The list belongs to the domain but the domain can never touch it directly: the OS keeps it, like a "secure pointer".</div>
-      <div data-step="3"><span class="tag">4 · Lock-key</span>A compromise: each object has a list of unique bit patterns, its <strong>locks</strong>; each domain has a list of <strong>keys</strong>. A process may access the object only if its domain holds a key matching one of the locks.</div>
+      <div><span class="tag">1 · Global table</span>Store triples <code>&lt;domain, object, rights-set&gt;</code>. For operation M on O<sub>j</sub> in D<sub>i</sub>, search for <code>&lt;D<sub>i</sub>, O<sub>j</sub>, R<sub>k</sub>&gt;</code> with M ∈ R<sub>k</sub>. Simple, but the table can be too big for memory, and grouping is hard. For example, an object every domain can read needs an entry per domain.</div>
+      <div data-step="1"><span class="tag">2 · Access lists (per object)</span>Each <strong>column</strong> becomes the object's access-control list (ACL), which holds pairs <code>&lt;domain, rights-set&gt;</code> for every domain with non-empty rights. Easily extended with a default set, so that if M is in the default set, it is allowed too.</div>
+      <div data-step="2"><span class="tag">3 · Capability lists (per domain)</span>Each <strong>row</strong> becomes the domain's capability list, namely objects with the operations allowed on them. An object's name or address in that list is a <strong>capability</strong>, and holding it means access is allowed. The list belongs to the domain but the domain can never touch it directly, because the OS keeps it, like a "secure pointer".</div>
+      <div data-step="3"><span class="tag">4 · Lock-key</span>A compromise. Each object has a list of unique bit patterns, its <strong>locks</strong>, and each domain has a list of <strong>keys</strong>. A process may access the object only if its domain holds a key matching one of the locks.</div>
     </div>
   </div>
 
@@ -425,11 +425,11 @@ table.am td.dcol { color: var(--co); }
     <div class="prose">
       <ul>
         <li>The <strong>global table</strong> is simple but can be large.</li>
-        <li data-step="1"><strong>Access lists</strong> match how users think ("who may use my file?"), but the rights of one domain are scattered over many lists, and every access must be checked: with many objects and rights, slow.</li>
+        <li data-step="1"><strong>Access lists</strong> match how users think ("who may use my file?"), but the rights of one domain are scattered over many lists, and every access must be checked, which is slow with many objects and rights.</li>
         <li data-step="2"><strong>Capability lists</strong> keep one process's rights together, but <strong>revoking</strong> a right to an object can be inefficient.</li>
-        <li data-step="3"><strong>Lock-key</strong> is effective and flexible: keys pass freely between domains, and revocation is easy.</li>
+        <li data-step="3"><strong>Lock-key</strong> is effective and flexible. Keys pass freely between domains, and revocation is easy.</li>
       </ul>
-      <p data-step="4">Most systems <strong>combine</strong> access lists and capabilities. The first access to an object searches its access list; if allowed, a capability is created and attached to the process, and later accesses are not checked again; after the last access, the capability is destroyed. That is exactly UNIX files: <code>open()</code> checks the permission bits once, and the <strong>file descriptor</strong> it returns is the capability (Lecture 20).</p>
+      <p data-step="4">Most systems <strong>combine</strong> access lists and capabilities. The first access to an object searches its access list. If access is allowed, a capability is created and attached to the process, and later accesses are not checked again. After the last access, the capability is destroyed. That is exactly how UNIX files work. The call <code>open()</code> checks the permission bits once, and the <strong>file descriptor</strong> it returns is the capability (Lecture 20).</p>
     </div>
   </div>
 
@@ -437,13 +437,13 @@ table.am td.dcol { color: var(--co); }
     <h3><span class="sec-no">3.4</span>Revoking access rights</h3>
     <div class="prose">
       <p>Revocation can be <strong>immediate</strong> or delayed, <strong>selective</strong> (some users) or general, <strong>partial</strong> (some rights) or total, <strong>temporary</strong> or permanent.</p>
-      <p data-step="1"><strong>With access lists</strong> it is simple: search the object's list and delete the entry. Every kind of revocation above is easy.</p>
-      <p data-step="2"><strong>With capabilities</strong> the capabilities must first be found, since they are spread over the domains that hold them:</p>
+      <p data-step="1"><strong>With access lists</strong> it is simple. Search the object's list and delete the entry. Every kind of revocation above is easy.</p>
+      <p data-step="2"><strong>With capabilities</strong> the capabilities must first be found, since they are spread over the domains that hold them.</p>
       <ul data-step="2">
-        <li><em>reacquisition</em>: delete capabilities periodically; a process must reacquire them, and is refused if its right was revoked;</li>
-        <li><em>back-pointers</em>: each object keeps pointers to all its capabilities (MULTICS);</li>
-        <li><em>indirection</em>: capabilities point to a global table entry that points to the object; delete the entry (CAL). Not selective;</li>
-        <li><em>keys</em>: each capability carries a key that must match the object's master key; revoke by changing the master key. Who may create and change keys, the owner or others, is a policy decision.</li>
+        <li><em>Reacquisition</em>. Delete capabilities periodically. A process must reacquire them, and is refused if its right was revoked.</li>
+        <li><em>Back-pointers</em>. Each object keeps pointers to all its capabilities (MULTICS).</li>
+        <li><em>Indirection</em>. Capabilities point to a global table entry that points to the object. Delete the entry (CAL). Not selective.</li>
+        <li><em>Keys</em>. Each capability carries a key that must match the object's master key. Revoke by changing the master key. Who may create and change keys, the owner or others, is a policy decision.</li>
       </ul>
     </div>
   </div>
@@ -455,8 +455,8 @@ table.am td.dcol { color: var(--co); }
         <div class="q-text">The owner of <code>grades.csv</code> wants to stop everyone else from reading it, right now. Which representation makes that one quick edit?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-ok>An access list on grades.csv</button>
-          <button type="button" class="q-opt" data-why="The capabilities for grades.csv are scattered over every domain's list; each must be found first.">Capability lists on the domains</button>
-          <button type="button" class="q-opt" data-why="A global table works, but it holds every triple in the system; finding the ones for this object means searching it all, unless it is indexed by object, which makes it an access list.">A global table</button>
+          <button type="button" class="q-opt" data-why="The capabilities for grades.csv are scattered over every domain's list, so each must be found first.">Capability lists on the domains</button>
+          <button type="button" class="q-opt" data-why="A global table works, but it holds every triple in the system. Finding the ones for this object means searching it all, unless it is indexed by object, which makes it an access list.">A global table</button>
         </div>
         <div class="q-fb ok">Right. The column is stored in one place, so revoking by object is one edit (try "revoke all access to F3" in §3.2).</div>
         <div class="q-fb no">Not quite.</div>
@@ -484,7 +484,7 @@ table.am td.dcol { color: var(--co); }
       <ul>
         <li>Protection can apply to non-file resources too. Oracle Solaris 10 uses <strong>RBAC</strong> to implement least privilege.</li>
         <li data-step="1">A <strong>privilege</strong> is the right to execute a system call, or to use an option within one. Privileges can be assigned to processes.</li>
-        <li data-step="2">Users are assigned <strong>roles</strong>, which grant privileges and programs; a user enables a role (with a password) to gain its privileges. It resembles the access matrix, with roles in the rows.</li>
+        <li data-step="2">Users are assigned <strong>roles</strong>, which grant privileges and programs. A user enables a role (with a password) to gain its privileges. It resembles the access matrix, with roles in the rows.</li>
       </ul>
     </div>
   </div>
@@ -493,22 +493,22 @@ table.am td.dcol { color: var(--co); }
     <h3><span class="sec-no">4.2</span>Discretionary vs. mandatory access control</h3>
     <div class="prose">
       <ul>
-        <li>Traditionally, operating systems used <strong>discretionary access control (DAC)</strong>: UNIX file permissions, Windows ACLs. It is "discretionary" because owners decide, and that is a weakness: users and admins must act to increase protection.</li>
-        <li data-step="1"><strong>Mandatory access control (MAC)</strong> is stronger: a policy that <em>even root cannot circumvent</em> makes resources inaccessible except to their intended owners.</li>
+        <li>Traditionally, operating systems used <strong>discretionary access control (DAC)</strong>, such as UNIX file permissions and Windows ACLs. It is "discretionary" because owners decide, and that is a weakness, because users and admins must act to increase protection.</li>
+        <li data-step="1"><strong>Mandatory access control (MAC)</strong> is stronger, because a policy that <em>even root cannot circumvent</em> makes resources inaccessible except to their intended owners.</li>
         <li data-step="2">At its heart are <strong>labels</strong> on objects and on subjects (including processes). When a subject requests an access, the policy decides whether that label may perform that action on that label.</li>
-        <li data-step="3">Modern systems implement both, with MAC as a stronger, optional configuration: SELinux, TrustedBSD (used in macOS), Trusted Solaris, Windows integrity levels (since Vista).</li>
+        <li data-step="3">Modern systems implement both, with MAC as a stronger, optional configuration, such as SELinux, TrustedBSD (used in macOS), Trusted Solaris, and Windows integrity levels (since Vista).</li>
       </ul>
     </div>
   </div>
 
   <div class="sec" id="s4-3">
-    <h3><span class="sec-no">4.3</span>Capabilities: slicing up root</h3>
+    <h3><span class="sec-no">4.3</span>Capabilities, slicing up root</h3>
     <div class="prose">
       <ul>
         <li>Hydra and CAP were the first capability-based systems. Linux and Android include a version based on POSIX.1e (a draft that never became a standard).</li>
         <li data-step="1">It <strong>slices root's powers into distinct areas</strong>, each one a bit in a bitmap. Setting or masking bits gives fine-grained control over privileged operations.</li>
-        <li data-step="2">There are three bitmaps, <em>permitted</em>, <em>effective</em> and <em>inheritable</em>, per process or per thread. A process can start with privileges and voluntarily drop them during execution; once dropped from the permitted set, they cannot be regained. A direct implementation of least privilege.</li>
-        <li data-step="3">An improvement over all-powerful root, but inflexible: adding a new privilege is hard.</li>
+        <li data-step="2">There are three bitmaps, <em>permitted</em>, <em>effective</em> and <em>inheritable</em>, per process or per thread. A process can start with privileges and voluntarily drop them during execution. Once dropped from the permitted set, they cannot be regained. A direct implementation of least privilege.</li>
+        <li data-step="3">An improvement over all-powerful root, but inflexible, because adding a new privilege is hard.</li>
       </ul>
     </div>
   </div>
@@ -533,9 +533,9 @@ table.am td.dcol { color: var(--co); }
   <div class="sec" id="s4-5">
     <h3><span class="sec-no">4.5</span>More protection mechanisms</h3>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">System integrity protection</span>Apple, macOS 10.11: system files and resources are off limits even to root. Extended file attributes mark binaries to prevent changes and block debugging; only code-signed kernel extensions load, and optionally only code-signed apps.</div>
-      <div data-step="1"><span class="tag">System-call filtering</span>A firewall for system calls, possibly inspecting their arguments too. Linux implements it with <strong>seccomp-BPF</strong>: a process installs a filter program that allows, denies or kills on each system call.</div>
-      <div data-step="2"><span class="tag">Sandboxing</span>Impose irremovable restrictions early in a process's startup, before <code>main()</code>; afterwards it cannot reach anything outside its allowed set. Java and .NET do it in the VM; others use MAC. Apple's "seatbelt" (macOS 10.5) wrote dynamic profiles in Scheme, down to system-call arguments.</div>
+      <div><span class="tag">System integrity protection</span>In Apple's macOS 10.11, system files and resources are off limits even to root. Extended file attributes mark binaries to prevent changes and block debugging. Only code-signed kernel extensions load, and optionally only code-signed apps.</div>
+      <div data-step="1"><span class="tag">System-call filtering</span>A firewall for system calls, possibly inspecting their arguments too. Linux implements it with <strong>seccomp-BPF</strong>, in which a process installs a filter program that allows, denies or kills on each system call.</div>
+      <div data-step="2"><span class="tag">Sandboxing</span>Impose irremovable restrictions early in a process's startup, before <code>main()</code>. Afterwards it cannot reach anything outside its allowed set. Java and .NET do it in the VM, and others use MAC. Apple's "seatbelt" (macOS 10.5) wrote dynamic profiles in Scheme, down to system-call arguments.</div>
       <div data-step="3"><span class="tag">Code signing</span>The developer signs the executable with a cryptographic hash, so the system can trust the code is exactly as compiled. If it changes, the signature is invalid and some systems refuse to run it. A vendor can also revoke signatures to stop old programs running.</div>
     </div>
   </div>
@@ -546,7 +546,7 @@ table.am td.dcol { color: var(--co); }
       <div class="quiz-body">
         <div class="q-text"><code>ping</code> must open a raw ICMP socket. What is the least-privilege way to allow that?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="Setuid root gives ping every power root has; a bug in ping then means full compromise.">Make ping setuid root.</button>
+          <button type="button" class="q-opt" data-why="Setuid root gives ping every power root has. A bug in ping then means full compromise.">Make ping setuid root.</button>
           <button type="button" class="q-opt" data-ok>Give the ping binary only CAP_NET_RAW.</button>
           <button type="button" class="q-opt" data-why="CAP_NET_ADMIN is far broader (routing tables, interfaces, firewall) than one raw socket needs.">Give it CAP_NET_ADMIN.</button>
         </div>
@@ -587,7 +587,7 @@ table.am td.dcol { color: var(--co); }
       <ul>
         <li>The JVM handles protection. When the JVM loads a class, it assigns the class a <strong>protection domain</strong> that says which operations it may and may not perform.</li>
         <li data-step="1">When a library method performs a privileged operation, the JVM <strong>inspects the stack</strong> to make sure the operation is allowed for everyone who led to it.</li>
-        <li data-step="2">A method can take responsibility with <code>doPrivileged</code>: stack inspection stops at that frame, so trusted code can do a specific privileged thing on behalf of untrusted callers.</li>
+        <li data-step="2">A method can take responsibility with <code>doPrivileged</code>. Stack inspection stops at that frame, so trusted code can do a specific privileged thing on behalf of untrusted callers.</li>
         <li data-step="3">More generally, Java's load-time and run-time checks enforce <strong>type safety</strong>, and classes encapsulate and protect their data and methods from other classes.</li>
       </ul>
     </div>
@@ -604,7 +604,7 @@ table.am td.dcol { color: var(--co); }
       <div class="widget-body"><div class="frames" id="st-frames"></div></div>
       <div class="readout" id="st-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">After Silberschatz Fig. 17.12. Domains: an untrusted applet (no socket permission), a trusted URL loader (may connect to <code>*.lucent.com:80</code>), and the networking library (any).</p>
+    <p class="small muted prose read-only">After Silberschatz Fig. 17.12. The domains are an untrusted applet (no socket permission), a trusted URL loader (may connect to <code>*.lucent.com:80</code>), and the networking library (any).</p>
   </div>
 
   <div class="sec" id="q4">
@@ -613,9 +613,9 @@ table.am td.dcol { color: var(--co); }
       <div class="quiz-body">
         <div class="q-text">On an SELinux system, root runs <code>chmod 777</code> on a file, yet a web-server process still cannot read it. Why?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="chmod 777 succeeded; the permission bits now allow everyone.">chmod silently failed.</button>
-          <button type="button" class="q-opt" data-ok>The permission bits are discretionary; SELinux's mandatory policy on the file's label still denies the web server's label.</button>
-          <button type="button" class="q-opt" data-why="Nothing needs refreshing: the check happens on every open.">The web server must restart to see new permissions.</button>
+          <button type="button" class="q-opt" data-why="chmod 777 succeeded, and the permission bits now allow everyone.">chmod silently failed.</button>
+          <button type="button" class="q-opt" data-ok>The permission bits are discretionary, but SELinux's mandatory policy on the file's label still denies the web server's label.</button>
+          <button type="button" class="q-opt" data-why="Nothing needs refreshing, because the check happens on every open.">The web server must restart to see new permissions.</button>
         </div>
         <div class="q-fb ok">Right. Both checks must pass. The owner, even root, controls only the discretionary one.</div>
         <div class="q-fb no">Not quite.</div>
@@ -641,15 +641,15 @@ table.am td.dcol { color: var(--co); }
     <div class="prose">
       <ul>
         <li>Protection makes sure each object is used correctly and only by those allowed to. Guided by least privilege, compartmentalization, audit trails and defense in depth.</li>
-        <li>Hardware rings order privilege coarsely; protection domains (a UNIX user ID, an Android app's UID) describe it per object. Setuid, su and sudo switch domains.</li>
-        <li>The access matrix (domains × objects) is the model; switch, copy, owner and control rights let it change safely.</li>
-        <li>It is stored as a global table, access lists (columns), capability lists (rows) or locks and keys. Access lists make revocation easy; capabilities make repeated access fast; real systems combine them (open → file descriptor).</li>
-        <li>RBAC, MAC, POSIX capabilities, SIP, seccomp, sandboxes and code signing give finer or non-overridable control; the JVM adds stack inspection.</li>
+        <li>Hardware rings order privilege coarsely. Protection domains (a UNIX user ID, an Android app's UID) describe it per object. Setuid, su and sudo switch domains.</li>
+        <li>The access matrix (domains × objects) is the model. Switch, copy, owner and control rights let it change safely.</li>
+        <li>It is stored as a global table, access lists (columns), capability lists (rows) or locks and keys. Access lists make revocation easy, and capabilities make repeated access fast. Real systems combine them (open → file descriptor).</li>
+        <li>RBAC, MAC, POSIX capabilities, SIP, seccomp, sandboxes and code signing give finer or non-overridable control, and the JVM adds stack inspection.</li>
       </ul>
     </div>
     <div class="note note-lab" data-step="1">
       <span class="note-tag">In the lab</span>
-      <p>Basecamp 5 shows both layers. Loading your module takes root inside the VM (in capability terms, <code>CAP_SYS_MODULE</code>); after that, whether <code>filetest</code> may open your device is decided only by the <code>/dev</code> node's permission bits, a discretionary access list.</p>
+      <p>Basecamp 5 shows both layers. Loading your module takes root inside the VM (in capability terms, <code>CAP_SYS_MODULE</code>). After that, whether <code>filetest</code> may open your device is decided only by the <code>/dev</code> node's permission bits, a discretionary access list.</p>
     </div>
   </div>
 
@@ -659,13 +659,13 @@ table.am td.dcol { color: var(--co); }
       <tbody>
         <tr><td>least privilege</td><td>Give each entity just the rights its task needs.</td></tr>
         <tr><td>protection domain</td><td>A set of access rights <code>&lt;object, rights-set&gt;</code> a process runs with.</td></tr>
-        <tr><td>setuid</td><td>A file bit: running the file sets the process's effective UID to the file's owner.</td></tr>
+        <tr><td>setuid</td><td>A file bit. Running the file sets the process's effective UID to the file's owner.</td></tr>
         <tr><td>access matrix</td><td>Rows = domains, columns = objects, entries = allowed operations.</td></tr>
-        <tr><td>copy / owner / control / switch</td><td>Rights over the matrix itself: copy a right in a column / edit a column / edit a row / change domain.</td></tr>
-        <tr><td>ACL</td><td>Access-control list: one object's column.</td></tr>
-        <tr><td>capability</td><td>An unforgeable token naming an object and rights; holding it grants access.</td></tr>
-        <tr><td>lock-key</td><td>Objects hold locks, domains hold keys; access if a key matches a lock.</td></tr>
-        <tr><td>RBAC</td><td>Role-based access control: privileges come with roles users enable.</td></tr>
+        <tr><td>copy / owner / control / switch</td><td>Rights over the matrix itself, namely copy a right in a column / edit a column / edit a row / change domain.</td></tr>
+        <tr><td>ACL</td><td>Access-control list, which is one object's column.</td></tr>
+        <tr><td>capability</td><td>An unforgeable token naming an object and rights. Holding it grants access.</td></tr>
+        <tr><td>lock-key</td><td>Objects hold locks and domains hold keys. Access is granted if a key matches a lock.</td></tr>
+        <tr><td>RBAC</td><td>Role-based access control, in which privileges come with roles users enable.</td></tr>
         <tr><td>DAC / MAC</td><td>Owners decide / a system-wide label policy decides, even over root.</td></tr>
         <tr><td>POSIX capabilities</td><td>Root's powers split into bits (CAP_NET_RAW, CAP_SYS_MODULE, …).</td></tr>
         <tr><td>seccomp-BPF</td><td>Linux system-call filtering.</td></tr>
@@ -801,23 +801,23 @@ table.am td.dcol { color: var(--co); }
       if (a[0] === 'op' || a[0] === 'opd') {
         const d = a[0] === 'op' ? me : a[1], op = a[0] === 'op' ? a[1] : a[2], o = a[0] === 'op' ? a[2] : a[3];
         hit = d + '|' + o; ok = has(d, o, op) || has(d, o, op + '*');
-        msg = ok ? `"${op}" is in Access(${d}, ${o}): allowed.` : `Access(${d}, ${o}) does not contain "${op}": <b class="bad">denied</b>.`;
+        msg = ok ? `"${op}" is in Access(${d}, ${o}), so it is allowed.` : `Access(${d}, ${o}) does not contain "${op}", so it is <b class="bad">denied</b>.`;
       } else if (a[0] === 'sw') {
         hit = me + '|' + a[1]; ok = has(me, a[1], 'switch');
-        msg = ok ? `(${me}, ${a[1]}) holds "switch": the process now runs in ${a[1]}, with ${a[1]}'s row of rights.` : `(${me}, ${a[1]}) has no "switch": <b class="bad">denied</b>.`;
+        msg = ok ? `(${me}, ${a[1]}) holds "switch", so the process now runs in ${a[1]}, with ${a[1]}'s row of rights.` : `(${me}, ${a[1]}) has no "switch", so it is <b class="bad">denied</b>.`;
         if (ok) me = a[1];
       } else if (a[0] === 'cp') {
         hit = a[1] + '|' + a[3]; ok = has(a[1], a[3], a[2] + '*');
-        if (ok) { add(a[4], a[3], a[2]); chg = a[4] + '|' + a[3]; msg = `${a[1]} holds ${a[2]}* on ${a[3]}, so it may copy "${a[2]}" within column ${a[3]}. ${a[4]} gets plain "${a[2]}" (no star): it cannot pass it on.`; }
-        else msg = `${a[1]} has "${((S[a[1]] || {})[a[3]] || []).join(', ') || 'nothing'}" on ${a[3]}, without the copy star: <b class="bad">denied</b>.`;
+        if (ok) { add(a[4], a[3], a[2]); chg = a[4] + '|' + a[3]; msg = `${a[1]} holds ${a[2]}* on ${a[3]}, so it may copy "${a[2]}" within column ${a[3]}. ${a[4]} gets plain "${a[2]}" (no star), so it cannot pass it on.`; }
+        else msg = `${a[1]} has "${((S[a[1]] || {})[a[3]] || []).join(', ') || 'nothing'}" on ${a[3]}, without the copy star, so the copy is <b class="bad">denied</b>.`;
       } else if (a[0] === 'own' || a[0] === 'ownrm') {
         hit = a[1] + '|' + a[2]; ok = has(a[1], a[2], 'owner');
         if (ok) { if (a[0] === 'own') { add(a[3], a[2], a[4]); chg = a[3] + '|' + a[2]; } else { del(a[3], a[2], a[4]); rm = a[3] + '|' + a[2]; } msg = `${a[1]} owns ${a[2]}, so it may add or remove any right in column ${a[2]}.`; }
-        else msg = `${a[1]} is not the owner of ${a[2]}: <b class="bad">denied</b>.`;
+        else msg = `${a[1]} is not the owner of ${a[2]}, so the change is <b class="bad">denied</b>.`;
       } else if (a[0] === 'ctl') {
         hit = a[1] + '|' + a[2]; ok = has(a[1], a[2], 'control');
         if (ok) { del(a[2], a[3], a[4]); rm = a[2] + '|' + a[3]; msg = `${a[1]} holds "control" over ${a[2]}, so it may remove rights from row ${a[2]}.`; }
-        else msg = `(${a[1]}, ${a[2]}) has no "control": <b class="bad">denied</b>.`;
+        else msg = `(${a[1]}, ${a[2]}) has no "control", so the change is <b class="bad">denied</b>.`;
       }
       done[i] = ok; last = { hit, chg, rm, msg };
       render();
@@ -827,7 +827,7 @@ table.am td.dcol { color: var(--co); }
       $$('#am-sc [data-k]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.k === k)));
       $('#am-t').innerHTML = matrixHTML(S, sc.cols, sc.doms, Object.assign({ me }, last || {}));
       $('#am-acts').innerHTML = sc.acts.map((a, i) => `<button type="button" data-a="${i}" class="${i in done ? (done[i] ? 'ok' : 'no') : ''}">${label(a)}</button>`).join('');
-      $('#am-out').innerHTML = last ? last.msg : ['A process starts in D1 (◀). Try the operations in order: a domain switch changes which row applies.', 'An asterisk is the copy right. Try each copy, then see whether D3 can use what it got.', 'The owner of an object controls its whole column; others cannot touch it.', 'D2 holds control over D4 (Fig. 17.9), so it can trim D4\'s row.'][k];
+      $('#am-out').innerHTML = last ? last.msg : ['A process starts in D1 (◀). Try the operations in order. A domain switch changes which row applies.', 'An asterisk is the copy right. Try each copy, then see whether D3 can use what it got.', 'The owner of an object controls its whole column, and others cannot touch it.', 'D2 holds control over D4 (Fig. 17.9), so it can trim D4\'s row.'][k];
     }
     function load(i) { k = i; S = clone(SC[i].M); me = SC[i].me || null; done = {}; last = null; render(); }
     const ctl = Academy.register('s2-3', { steps: 3, readStep: 0, show: load });
@@ -866,7 +866,7 @@ table.am td.dcol { color: var(--co); }
         });
       }
       $('#im-lists').innerHTML = lines.map(([k2, entries, vis]) => `<div class="ln${vis ? ' visit' : ''}"><span class="k">${k2}</span>${entries.map((t) => {
-        const txt = R === 'table' ? `&lt;${t[0]}, ${t[1]}, ${t[2]}&gt;` : R === 'acl' ? `${t[0]}: ${t[2]}` : `${t[1]}: ${t[2]}`;
+        const txt = R === 'table' ? `&lt;${t[0]}, ${t[1]}, ${t[2]}&gt;` : R === 'acl' ? `${t[0]} ${t[2]}` : `${t[1]} ${t[2]}`;
         return `<span class="e${vis && match(t) ? ' ' + effect(t) : ''}">${txt}</span>`;
       }).join('') || '<span class="muted">(empty)</span>'}</div>`).join('');
       if (Q[0] === 'chk') {
@@ -877,9 +877,9 @@ table.am td.dcol { color: var(--co); }
       const cost = `${visited} list${visited === 1 ? '' : 's'} visited · ${scanned} entries scanned`;
       $('#im-stats').innerHTML = `<div class="${visited > 1 ? 'warn' : ''}"><div class="lab">lists touched</div><div class="big">${visited}</div></div><div><div class="lab">entries scanned</div><div class="big">${scanned}</div></div>` + (verdict ? `<div><div class="lab">answer</div><div class="big" style="font-size:20px">${verdict}</div></div>` : '');
       const why = {
-        table: 'One big table: every request scans it (or needs an index on both domain and object).',
-        acl: Q[0] === 'revD' ? 'D4\'s rights are scattered over every object\'s list: each must be visited.' : 'The object\'s own list answers it: go straight to that column.',
-        cap: Q[0] === 'revO' ? 'Capabilities for F3 may sit in any domain\'s list: every list must be searched (unless there are back-pointers or indirection).' : 'The domain\'s own list answers it: the process already holds its capabilities.',
+        table: 'One big table, so every request scans it (or needs an index on both domain and object).',
+        acl: Q[0] === 'revD' ? 'D4\'s rights are scattered over every object\'s list, so each must be visited.' : 'The object\'s own list answers it, so go straight to that column.',
+        cap: Q[0] === 'revO' ? 'Capabilities for F3 may sit in any domain\'s list, so every list must be searched (unless there are back-pointers or indirection).' : 'The domain\'s own list answers it, because the process already holds its capabilities.',
       };
       $('#im-out').innerHTML = `${cost}. ${why[R]}`;
     }
@@ -893,11 +893,11 @@ table.am td.dcol { color: var(--co); }
   /* ---------- §1.4 setuid ---------- */
   (function () {
     const S = [
-      { p: 'bash', r: 'alice', e: 'alice', l: ['<span class="pr">alice$</span> ls -l /etc/shadow /usr/bin/passwd', '-rw-r----- 1 root shadow  1402 /etc/shadow', '-rw<b>s</b>r-xr-x 1 root root  68208 /usr/bin/passwd'], t: 'alice\'s shell runs in alice\'s domain. <code>/etc/shadow</code>, which holds password hashes, is writable only by root. <code>passwd</code> is owned by root and has the <b>setuid</b> bit: the <code>s</code> in place of the owner\'s <code>x</code>.' },
-      { p: 'cat', r: 'alice', e: 'alice', l: ['<span class="pr">alice$</span> cat /etc/shadow', '<span class="er">cat: /etc/shadow: Permission denied</span>'], t: 'An ordinary program started by alice runs as alice. Neither the owner (root) nor the group (shadow) permissions apply to her, and "other" has none: denied.' },
-      { p: 'passwd', r: 'alice', e: 'root', root: true, l: ['<span class="pr">alice$</span> passwd', 'Changing password for alice.', 'Current password: ········'], t: '<code>exec</code> of a setuid file: the kernel sets the <b>effective UID</b> to the file\'s owner, root. The <b>real UID</b> stays alice: that is how passwd knows whose password to change, and it will refuse to change anyone else\'s.' },
-      { p: 'passwd', r: 'alice', e: 'root', root: true, l: ['New password: ········', 'passwd: password updated successfully', '<span class="dim">(passwd opened /etc/shadow for writing: checked against euid root → allowed)</span>'], t: 'Permission checks use the effective UID, so passwd may rewrite <code>/etc/shadow</code>. alice gains this power only through passwd\'s own carefully written code: a controlled domain switch.' },
-      { p: 'bash', r: 'alice', e: 'alice', l: ['<span class="pr">alice$</span> cat /etc/shadow', '<span class="er">cat: /etc/shadow: Permission denied</span>'], t: 'passwd exited; alice\'s shell was never root. Back in alice\'s domain, the file is closed to her again.' },
+      { p: 'bash', r: 'alice', e: 'alice', l: ['<span class="pr">alice$</span> ls -l /etc/shadow /usr/bin/passwd', '-rw-r----- 1 root shadow  1402 /etc/shadow', '-rw<b>s</b>r-xr-x 1 root root  68208 /usr/bin/passwd'], t: 'alice\'s shell runs in alice\'s domain. <code>/etc/shadow</code>, which holds password hashes, is writable only by root. <code>passwd</code> is owned by root and has the <b>setuid</b> bit, which is the <code>s</code> in place of the owner\'s <code>x</code>.' },
+      { p: 'cat', r: 'alice', e: 'alice', l: ['<span class="pr">alice$</span> cat /etc/shadow', '<span class="er">cat: /etc/shadow: Permission denied</span>'], t: 'An ordinary program started by alice runs as alice. Neither the owner (root) nor the group (shadow) permissions apply to her, and "other" has none, so access is denied.' },
+      { p: 'passwd', r: 'alice', e: 'root', root: true, l: ['<span class="pr">alice$</span> passwd', 'Changing password for alice.', 'Current password: ········'], t: 'On <code>exec</code> of a setuid file, the kernel sets the <b>effective UID</b> to the file\'s owner, root. The <b>real UID</b> stays alice, and that is how passwd knows whose password to change, and it will refuse to change anyone else\'s.' },
+      { p: 'passwd', r: 'alice', e: 'root', root: true, l: ['New password: ········', 'passwd: password updated successfully', '<span class="dim">(passwd opened /etc/shadow for writing, checked against euid root → allowed)</span>'], t: 'Permission checks use the effective UID, so passwd may rewrite <code>/etc/shadow</code>. alice gains this power only through passwd\'s own carefully written code, which is a controlled domain switch.' },
+      { p: 'bash', r: 'alice', e: 'alice', l: ['<span class="pr">alice$</span> cat /etc/shadow', '<span class="er">cat: /etc/shadow: Permission denied</span>'], t: 'passwd exited, and alice\'s shell was never root. Back in alice\'s domain, the file is closed to her again.' },
       { p: 'sudo → cat', r: 'root', e: 'root', root: true, l: ['<span class="pr">alice$</span> sudo cat /etc/shadow', '[sudo] password for alice: ········', 'root:$y$j9T$…:19000:0:99999:7:::'], t: 'sudo is itself a setuid-root program. It checks the sudoers file (is alice allowed?), asks for <em>her</em> password, then runs one command as root. Everything this command does is now root\'s power, which is why sudoers should grant as little as possible.' },
     ];
     let i = 0;
@@ -935,7 +935,7 @@ table.am td.dcol { color: var(--co); }
       $$('#cp-pre [data-p]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.p === preset)));
       $('#cp-ops').innerHTML = OPS.map(([n, c]) => { const ok = !c || on.has(c); return `<div class="op ${ok ? 'ok' : 'no'}"><span>${ok ? '✓' : '✕'}</span><span>${n}</span><span class="need">${c || 'no capability needed'}</span></div>`; }).join('');
       const n = on.size;
-      $('#cp-out').innerHTML = n === CAPS.length ? '<b class="bad">All of root.</b> Any bug in this process can do everything on the list.' : n === 0 ? 'An ordinary process: only what the permission bits allow.' : `${n} of ${CAPS.length} slices of root. If this process is compromised, the attacker gets exactly the green rows, nothing more.`;
+      $('#cp-out').innerHTML = n === CAPS.length ? '<b class="bad">All of root.</b> Any bug in this process can do everything on the list.' : n === 0 ? 'An ordinary process, limited to what the permission bits allow.' : `${n} of ${CAPS.length} slices of root. If this process is compromised, the attacker gets exactly the green rows, nothing more.`;
     }
     $('#cp-caps').addEventListener('change', (e) => { const x = e.target.closest('[data-c]'); if (x) { x.checked ? on.add(x.dataset.c) : on.delete(x.dataset.c); render(); } });
     $('#cp-pre').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) { on = new Set(PRE[+b.dataset.p][1]); render(); } });
@@ -966,13 +966,13 @@ table.am td.dcol { color: var(--co); }
       if (!verdict) verdict = 'allow';
       $('#st-frames').innerHTML = '<div class="sub-lab">call stack · top first · checkPermission walks downward</div>' + F.map(([cls, name, code, perm], k) => {
         const r = res[k];
-        const note = r === 'scan' ? 'permits: continue down' : r === 'stop' ? 'doPrivileged: stop here, permitted' : r === 'deny' ? 'no permission: <b>deny</b>' : 'not inspected';
-        return `<div class="frame ${r}"><span class="dm ${cls}">${name}<br><span class="muted" style="font-weight:400">socket: ${perm}</span></span><code>${code}</code><span class="ck">${note}</span></div>`;
+        const note = r === 'scan' ? 'permits, so continue down' : r === 'stop' ? 'doPrivileged, so stop here, permitted' : r === 'deny' ? 'no permission, so <b>deny</b>' : 'not inspected';
+        return `<div class="frame ${r}"><span class="dm ${cls}">${name}<br><span class="muted" style="font-weight:400">socket permission ${perm}</span></span><code>${code}</code><span class="ck">${note}</span></div>`;
       }).join('');
       $('#st-out').innerHTML = verdict === 'allow'
         ? '<span class="ok">Connection allowed.</span> The trusted URL loader vouched for this one request with doPrivileged, and it has permission for the proxy. The applet never gains the permission itself.'
         : call === 'open'
-          ? '<span class="no">SecurityException.</span> The applet asked the networking library directly; inspection reaches the applet\'s frame, which has no socket permission.'
+          ? '<span class="no">SecurityException.</span> The applet asked the networking library directly, so inspection reaches the applet\'s frame, which has no socket permission.'
           : '<span class="no">SecurityException.</span> Without doPrivileged, inspection continues past the URL loader down to the applet. Every caller must be permitted, so the untrusted one spoils it.';
     }
     $('#st-call').addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (b) { call = b.dataset.c; render(); } });

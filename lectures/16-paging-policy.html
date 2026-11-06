@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Paging Policy · L16</title>
-<meta name="description" content="CSCI 3753 Lecture 16, interactive edition: page-replacement algorithms FIFO, optimal and LRU on reference strings, Belady's anomaly, implementing LRU, and approximating it with reference bits and the clock algorithm.">
+<meta name="description" content="CSCI 3753 Lecture 16, interactive edition, on page-replacement algorithms FIFO, optimal and LRU on reference strings, Belady's anomaly, implementing LRU, and approximating it with reference bits and the clock algorithm.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -46,12 +46,12 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
 </svg>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M11 11L11 4.5" stroke="var(--cx)" stroke-width="2" stroke-linecap="round"/><g fill="currentColor"><circle cx="11" cy="3" r="1.2"/><circle cx="18.6" cy="8.5" r="1.2"/><circle cx="15.7" cy="17.5" r="1.2"/><circle cx="6.3" cy="17.5" r="1.2"/><circle cx="3.4" cy="8.5" r="1.2"/></g></svg>
-    <span>Lecture 16 · Paging Policy</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Lecture 16 · Paging Policy</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -60,13 +60,13 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 16 · Interactive notes</div>
     <h1>Which page <span class="accent">goes</span>?</h1>
-    <p class="lede">Lecture 15 ended at step 2(b): no frame is free, so pick a victim. This lecture compares the answers. First-in first-out is simple and sometimes perverse. The optimal policy needs to see the future. Least-recently-used is the practical ideal, but too costly to track exactly, so real systems approximate it with a single hardware bit and a clock hand.</p>
+    <p class="lede">Lecture 15 ended at step 2(b). No frame is free, so pick a victim. This lecture compares the answers. First-in first-out is simple and sometimes perverse. The optimal policy needs to see the future. Least-recently-used is the practical ideal, but too costly to track exactly, so real systems approximate it with a single hardware bit and a clock hand.</p>
     <div class="promise">
-      <span>Before you start:</span><span class="mono">page faults, victims, reference and dirty bits</span><span>from Lecture 15.</span>
+      <span>Before you start, review</span><span class="mono">page faults, victims, reference and dirty bits</span><span>from Lecture 15.</span>
     </div>
     <div class="cta-row">
       <a class="btn primary" href="#ch0">Begin ↓</a>
-      <span class="muted small">About 40 minutes · 2 simulators · 4 checkpoints · Textbook: Silberschatz, Ch. 10.4</span>
+      <span class="muted small">About 40 minutes · 2 simulators · 4 checkpoints · Textbook Silberschatz, Ch. 10.4</span>
     </div>
   </div>
 </div>
@@ -104,9 +104,9 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
     <h3><span class="sec-no">0.1</span>Reference strings</h3>
     <div class="prose">
       <ul>
-        <li>An algorithm is judged by three variables: the <strong>algorithm</strong> itself, the <strong>page reference sequence</strong>, and the <strong>number of frames</strong>. The best algorithm has the <strong>fewest page faults</strong>.</li>
+        <li>An algorithm is judged by three variables, namely the <strong>algorithm</strong> itself, the <strong>page reference sequence</strong>, and the <strong>number of frames</strong>. The best algorithm has the <strong>fewest page faults</strong>.</li>
         <li>A <strong>reference string</strong> lists just the page numbers a process touches, in order. Consecutive references to the same page are collapsed, because the second cannot fault.</li>
-        <li>The running example is the textbook's string, with 3 frames per process:</li>
+        <li>The running example is the textbook's string, with 3 frames per process, as shown below.</li>
       </ul>
       <p class="mono" style="font-size:14px">7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 0, 3, 2, 1, 2, 0, 1, 7, 0, 1</p>
     </div>
@@ -130,11 +130,11 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
     <h3><span class="sec-no">1.1</span>Three policies</h3>
     <div class="opts3">
       <div><span class="tag">FIFO</span>Replace the page that has been in memory <strong>longest</strong>. Track ages with a simple FIFO queue. 15 faults on the example.</div>
-      <div><span class="tag">Optimal (OPT)</span>Replace the page that will not be used for the <strong>longest time in the future</strong>. It has the fewest faults possible: 9. It cannot be implemented, because the OS cannot read the future, but it is the yardstick for measuring the others.</div>
-      <div><span class="tag">LRU</span>Use the past as a guess about the future: replace the page that has gone <strong>unused the longest</strong>. That requires a time of last use for each page. 12 faults: better than FIFO, worse than OPT. It is generally good and widely used, but how do you implement it?</div>
+      <div><span class="tag">Optimal (OPT)</span>Replace the page that will not be used for the <strong>longest time in the future</strong>. It has the fewest faults possible, which is 9. It cannot be implemented, because the OS cannot read the future, but it is the yardstick for measuring the others.</div>
+      <div><span class="tag">LRU</span>Use the past as a guess about the future. Replace the page that has gone <strong>unused the longest</strong>. That requires a time of last use for each page. It takes 12 faults, which is better than FIFO and worse than OPT. It is generally good and widely used, but how do you implement it?</div>
     </div>
     <div class="prose" style="margin-top:1em">
-      <p>FIFO can perform very poorly. Age says nothing about use: if page 7 is referenced often, FIFO still throws it out once it is the oldest, and it faults back in again and again. In the worst case, every page paged out is the very next one needed. Ideally, keep the pages about to be used.</p>
+      <p>FIFO can perform very poorly. Age says nothing about use. If page 7 is referenced often, FIFO still throws it out once it is the oldest, and it faults back in again and again. In the worst case, every page paged out is the very next one needed. Ideally, keep the pages about to be used.</p>
     </div>
   </div>
 
@@ -157,7 +157,7 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
       </div>
       <div class="readout" id="rp-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Each column is one reference; F marks a fault, and the orange cell is the page just loaded. Hit columns are faded. For LRU the page stack is shown, most recent first; for Clock, each frame's reference bit is in its corner and the blue underline is the hand. The bars compare all four policies on the same string and frame count.</p>
+    <p class="small muted prose read-only">Each column is one reference. F marks a fault, and the orange cell is the page just loaded. Hit columns are faded. For LRU the page stack is shown, most recent first. For Clock, each frame's reference bit is in its corner and the blue underline is the hand. The bars compare all four policies on the same string and frame count.</p>
   </div>
 
   <div class="sec" id="q0">
@@ -166,7 +166,7 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
       <div class="quiz-body">
         <div class="q-text">Why can't an OS implement the optimal algorithm, and what is it good for?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="The bookkeeping is simple; the missing input is the future.">It needs too much memory; it is used on small systems.</button>
+          <button type="button" class="q-opt" data-why="The bookkeeping is simple. The missing input is the future.">It needs too much memory, so it is used only on small systems.</button>
           <button type="button" class="q-opt" data-ok>It needs to know future references. It is used as the lower bound to compare real algorithms against.</button>
           <button type="button" class="q-opt" data-why="OPT never has more faults than any other algorithm.">It suffers Belady's anomaly, so it is only of historical interest.</button>
         </div>
@@ -187,13 +187,13 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
   <div class="ch-head">
     <div class="ch-no">Chapter 2</div>
     <h2>Belady's anomaly</h2>
-    <p class="ch-lede">More memory, more faults: only with some algorithms.</p>
+    <p class="ch-lede">More memory can mean more faults, but only with some algorithms.</p>
   </div>
 
   <div class="sec" id="s2-1">
     <h3><span class="sec-no">2.1</span>Faults vs. frames</h3>
     <div class="prose">
-      <p>You would expect more frames to mean fewer faults. For FIFO, that is not guaranteed. On the string 1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5, FIFO takes <strong>9 faults with 3 frames but 10 with 4</strong>. That is <strong>Belady's anomaly</strong>. LRU and OPT are <em>stack algorithms</em>: the pages in memory with n frames are always a subset of those with n + 1, so adding frames can never add a fault. Clock is built on FIFO order and is not a stack algorithm, so it can show the anomaly too.</p>
+      <p>You would expect more frames to mean fewer faults. For FIFO, that is not guaranteed. On the string 1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5, FIFO takes <strong>9 faults with 3 frames but 10 with 4</strong>. That is <strong>Belady's anomaly</strong>. LRU and OPT are <em>stack algorithms</em>. The pages in memory with n frames are always a subset of those with n + 1, so adding frames can never add a fault. Clock is built on FIFO order and is not a stack algorithm, so it can show the anomaly too.</p>
     </div>
     <div class="widget" id="bl-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Faults for 1 to 7 frames</span><button class="w-reset" type="button" id="bl-reset">Reset</button></div>
@@ -232,15 +232,15 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
   <div class="ch-head">
     <div class="ch-no">Chapter 3</div>
     <h2>Implementing LRU</h2>
-    <p class="ch-lede">Exact LRU is expensive; one hardware bit gets surprisingly close.</p>
+    <p class="ch-lede">Exact LRU is expensive. However, one hardware bit gets surprisingly close.</p>
   </div>
 
   <div class="sec" id="s3-1">
     <h3><span class="sec-no">3.1</span>Exact LRU</h3>
     <div class="pc">
-      <div class="con"><span class="tag">Keep a history</span>Record past page accesses: the entire history, which takes lots of memory, or a sliding window. Either way it is complicated and slow.</div>
+      <div class="con"><span class="tag">Keep a history</span>Record past page accesses, either the entire history, which takes lots of memory, or a sliding window. Either way it is complicated and slow.</div>
       <div class="con"><span class="tag">Timestamps</span>Store the time of last use in each page-table entry. That is expensive in <em>delay</em> (read the clock on every memory reference), in <em>storage</em> (at least 64 bits per timestamp), and in <em>search</em> (find the oldest at replacement time).</div>
-      <div class="con"><span class="tag">A stack of page numbers</span>On each reference, move the page to the top of a doubly linked list; the LRU page is always at the bottom, so there is no search. But every memory reference updates several pointers.</div>
+      <div class="con"><span class="tag">A stack of page numbers</span>On each reference, move the page to the top of a doubly linked list. The LRU page is always at the bottom, so there is no search. But every memory reference updates several pointers.</div>
       <div class="con"><span class="tag">The real obstacle</span>All of these do work on <em>every</em> memory reference, billions per second, which would need special hardware. So variations of LRU, which approximate it cheaply, are what systems actually use.</div>
     </div>
   </div>
@@ -250,8 +250,8 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
     <div class="prose">
       <ul>
         <li>The hardware sets a page's <strong>reference bit</strong> to 1 whenever the page is accessed (Lecture 15, §3.3). The OS can clear it. It does not say <em>when</em> a page was used, only <em>whether</em> it was used since the bit was last cleared.</li>
-        <li><strong>Second chance</strong> is FIFO, but a page whose reference bit is 1 is spared: its bit is cleared and it goes to the back of the queue.</li>
-        <li>The <strong>clock</strong> algorithm implements it with the frames in a circle and a hand. On a fault, the hand sweeps: a frame with bit 1 is cleared and skipped, and the first frame with bit 0 is the victim. A page used since the last sweep survives one more round. If every bit is 1, the hand goes all the way around and it degenerates to FIFO.</li>
+        <li><strong>Second chance</strong> is FIFO, but a page whose reference bit is 1 is spared. Its bit is cleared and it goes to the back of the queue.</li>
+        <li>The <strong>clock</strong> algorithm implements it with the frames in a circle and a hand. On a fault, the hand sweeps. A frame with bit 1 is cleared and skipped, and the first frame with bit 0 is the victim. A page used since the last sweep survives one more round. If every bit is 1, the hand goes all the way around and it degenerates to FIFO.</li>
         <li>It costs one bit per page and no work on hits. Variants of clock are what Linux, BSD and Windows use in practice, often combined with the dirty bit to prefer clean victims.</li>
       </ul>
       <p>Pick "Clock" in the §1.2 simulator and step through it.</p>
@@ -264,7 +264,7 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
       <div class="quiz-body">
         <div class="q-text">What makes exact LRU impractical?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="LRU does well; its problem is cost, not quality.">It has more faults than FIFO.</button>
+          <button type="button" class="q-opt" data-why="LRU does well. Its problem is cost, not quality.">It has more faults than FIFO.</button>
           <button type="button" class="q-opt" data-ok>It must record something on every memory reference, not just on faults.</button>
           <button type="button" class="q-opt" data-why="LRU needs only the past, which is known.">It needs future references.</button>
         </div>
@@ -280,9 +280,9 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
       <div class="quiz-body">
         <div class="q-text">Three frames hold pages with reference bits 1, 1, 1, and the hand is at frame 0. A fault occurs. Which frame is replaced?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-ok>Frame 0: the hand clears all three bits in a full sweep, comes back to frame 0, now 0, and replaces it (FIFO order).</button>
+          <button type="button" class="q-opt" data-ok>Frame 0. The hand clears all three bits in a full sweep, comes back to frame 0, now 0, and replaces it (FIFO order).</button>
           <button type="button" class="q-opt" data-why="The hand starts at frame 0 and sweeps forward.">Frame 2.</button>
-          <button type="button" class="q-opt" data-why="The clock always finds a victim; at worst it goes once around.">None: all pages are protected.</button>
+          <button type="button" class="q-opt" data-why="The clock always finds a victim. At worst it goes once around.">None, because all pages are protected.</button>
         </div>
         <div class="q-fb ok">Right. With every bit set, clock is FIFO.</div>
         <div class="q-fb no">Not quite.</div>
@@ -308,7 +308,7 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
     <div class="prose">
       <ul>
         <li>A replacement policy is evaluated by counting faults on a reference string for a given number of frames.</li>
-        <li>On the textbook string with 3 frames: FIFO 15, LRU 12, OPT 9.</li>
+        <li>On the textbook string with 3 frames, FIFO takes 15 faults, LRU 12, and OPT 9.</li>
         <li>FIFO ignores use and can suffer Belady's anomaly. LRU and OPT are stack algorithms and cannot.</li>
         <li>OPT is unimplementable but defines the lower bound. LRU approximates it from the past.</li>
         <li>Exact LRU (history, timestamps, stack) costs work on every reference. Reference bits and the clock (second-chance) algorithm approximate it cheaply.</li>
@@ -325,8 +325,8 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
         <tr><td>optimal (OPT, MIN)</td><td>Evict the page whose next use is farthest in the future.</td></tr>
         <tr><td>LRU</td><td>Evict the page unused for the longest time.</td></tr>
         <tr><td>Belady's anomaly</td><td>More frames causing more faults (possible with FIFO).</td></tr>
-        <tr><td>stack algorithm</td><td>Contents with n frames ⊆ contents with n + 1; no anomaly.</td></tr>
-        <tr><td>reference bit</td><td>Set by hardware on access; cleared by the OS.</td></tr>
+        <tr><td>stack algorithm</td><td>Contents with n frames ⊆ contents with n + 1, so there is no anomaly.</td></tr>
+        <tr><td>reference bit</td><td>Set by hardware on access and cleared by the OS.</td></tr>
         <tr><td>second chance / clock</td><td>FIFO that spares pages with reference bit 1, clearing it.</td></tr>
       </tbody>
     </table>
@@ -376,21 +376,21 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
     const fr = Array(n).fill(null), last = {}, loaded = {}, rb = Array(n).fill(0); let hand = 0, faults = 0; const steps = [];
     ref.forEach((p, t) => {
       let slot = fr.indexOf(p), fault = slot < 0, victim = null, why = '';
-      if (!fault) { rb[slot] = 1; why = `${p} is in frame ${slot}: hit.${alg === 'clock' ? ' Its reference bit is set.' : ''}`; }
+      if (!fault) { rb[slot] = 1; why = `${p} is in frame ${slot}, a hit.${alg === 'clock' ? ' Its reference bit is set.' : ''}`; }
       else {
         faults++;
         const free = fr.indexOf(null);
-        if (free >= 0) { slot = free; why = `${p}: fault; frame ${slot} is free.`; if (alg === 'clock') hand = (slot + 1) % n; }
-        else if (alg === 'fifo') { slot = fr.reduce((a, q, i) => (loaded[q] < loaded[fr[a]] ? i : a), 0); victim = fr[slot]; why = `${p}: fault. ${victim} has been in memory longest (loaded at reference ${loaded[victim] + 1}), so it goes.`; }
-        else if (alg === 'lru') { slot = fr.reduce((a, q, i) => (last[q] < last[fr[a]] ? i : a), 0); victim = fr[slot]; why = `${p}: fault. ${victim} was used least recently (at reference ${last[victim] + 1}), so it goes.`; }
+        if (free >= 0) { slot = free; why = `${p} faults. Frame ${slot} is free.`; if (alg === 'clock') hand = (slot + 1) % n; }
+        else if (alg === 'fifo') { slot = fr.reduce((a, q, i) => (loaded[q] < loaded[fr[a]] ? i : a), 0); victim = fr[slot]; why = `${p} faults. ${victim} has been in memory longest (loaded at reference ${loaded[victim] + 1}), so it goes.`; }
+        else if (alg === 'lru') { slot = fr.reduce((a, q, i) => (last[q] < last[fr[a]] ? i : a), 0); victim = fr[slot]; why = `${p} faults. ${victim} was used least recently (at reference ${last[victim] + 1}), so it goes.`; }
         else if (alg === 'opt') {
           const nxt = (q) => { const k = ref.indexOf(q, t + 1); return k < 0 ? Infinity : k; };
           slot = fr.reduce((a, q, i) => (nxt(q) > nxt(fr[a]) ? i : a), 0); victim = fr[slot];
-          why = `${p}: fault. Next uses: ${fr.map((q) => `${q}→${nxt(q) === Infinity ? 'never' : nxt(q) + 1}`).join(', ')}. ${victim} is needed farthest in the future, so it goes.`;
+          why = `${p} faults. The next uses are ${fr.map((q) => `${q}→${nxt(q) === Infinity ? 'never' : nxt(q) + 1}`).join(', ')}. ${victim} is needed farthest in the future, so it goes.`;
         } else {
           const cleared = []; while (rb[hand]) { rb[hand] = 0; cleared.push(fr[hand]); hand = (hand + 1) % n; }
           slot = hand; victim = fr[slot]; hand = (hand + 1) % n;
-          why = `${p}: fault. ${cleared.length ? `The hand clears the bits of ${cleared.join(', ')} (second chances), then` : 'The hand'} finds ${victim} with bit 0 and replaces it.`;
+          why = `${p} faults. ${cleared.length ? `The hand clears the bits of ${cleared.join(', ')} (second chances), then` : 'The hand'} finds ${victim} with bit 0 and replaces it.`;
         }
         fr[slot] = p; loaded[p] = t; rb[slot] = 1;
       }
@@ -415,10 +415,10 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
       h += '<tr class="f">' + steps.map((s, j) => `<td>${(t < 0 || j <= t) && s.fault ? 'F' : ''}</td>`).join('') + '</tr></tbody>';
       $('#rp-g').innerHTML = h;
       const cur = steps[shown], sofar = steps.slice(0, shown + 1).filter((s) => s.fault).length;
-      $('#rp-extra').innerHTML = alg === 'lru' ? `<div class="stackv"><span class="sub-lab" style="margin:0 6px 0 0">LRU stack</span>${cur.stack.map((q) => `<span class="s">${q}</span>`).join('')}<span class="muted small">← least recent: the next victim</span></div>` : alg === 'clock' ? `<div class="stackv"><span class="sub-lab" style="margin:0 6px 0 0">reference bits</span>${cur.fr.map((q, i) => `<span class="s" style="${i === cur.hand ? 'border-color:var(--cz)' : ''}">${q == null ? '·' : q}:${cur.rb[i]}</span>`).join('')}<span class="muted small">hand at frame ${cur.hand}</span></div>` : '';
+      $('#rp-extra').innerHTML = alg === 'lru' ? `<div class="stackv"><span class="sub-lab" style="margin:0 6px 0 0">LRU stack</span>${cur.stack.map((q) => `<span class="s">${q}</span>`).join('')}<span class="muted small">← least recent, the next victim</span></div>` : alg === 'clock' ? `<div class="stackv"><span class="sub-lab" style="margin:0 6px 0 0">reference bits</span>${cur.fr.map((q, i) => `<span class="s" style="${i === cur.hand ? 'border-color:var(--cz)' : ''}">${q == null ? '·' : q}:${cur.rb[i]}</span>`).join('')}<span class="muted small">hand at frame ${cur.hand}</span></div>` : '';
       const all = ALGS.map(([k, nm]) => [k, nm, sim(R, n, k).faults]), mx = Math.max(...all.map((a) => a[2]), 1);
       $('#rp-cmp').innerHTML = all.map(([k, nm, f]) => `<div class="b${k === alg ? ' on' : ''}"><span>${nm}</span><span class="track"><span class="fill" style="width:${(f / mx * 100).toFixed(1)}%"></span></span><span class="v">${f}</span></div>`).join('');
-      $('#rp-out').innerHTML = t < 0 ? `<b>${ALGS.find((a) => a[0] === alg)[1]}: ${faults} page faults</b> on ${R.length} references with ${n} frame${n > 1 ? 's' : ''}. Press "Step" to replay one reference at a time.` : `Reference ${t + 1} of ${R.length}. ${cur.why} Faults so far: <b>${sofar}</b>.`;
+      $('#rp-out').innerHTML = t < 0 ? `<b>${ALGS.find((a) => a[0] === alg)[1]} takes ${faults} page faults</b> on ${R.length} references with ${n} frame${n > 1 ? 's' : ''}. Press "Step" to replay one reference at a time.` : `Reference ${t + 1} of ${R.length}. ${cur.why} <b>${sofar}</b> faults so far.`;
       $('#rp-prev').disabled = t <= 0; $('#rp-next').disabled = t === R.length - 1;
     }
     $('#rp-a').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) { alg = b.dataset.a; render(); } });
@@ -450,8 +450,8 @@ table.rg tr.f td { border: 0; background: none; color: var(--cd); font-weight: 7
         fs.forEach((f, i) => { const up = i > 0 && f > fs[i - 1]; svg.appendChild(el('circle', { cx: X(i + 1), cy: Y(f) + (di - 1.5) * 1.5, r: up ? 6 : 3.5, style: `fill:var(${COL[k]})${up ? ';stroke:var(--ink);stroke-width:1.5' : ''}` })); });
         svg.appendChild(el('text', { x: 548, y: 30 + di * 16, class: 'lbl', style: `font-size:11px;fill:var(${COL[k]})` }, nm));
       });
-      const ups = data.flatMap(([k, nm, fs]) => fs.map((f, i) => (i && f > fs[i - 1] ? `${nm}: ${fs[i - 1]} faults with ${i} frames but ${f} with ${i + 1}` : null)).filter(Boolean));
-      $('#bl-out').innerHTML = ups.length ? `<b class="bad">Anomaly:</b> ${ups.join('; ')}. The big dots mark it. LRU and OPT never rise.` : 'No anomaly on this string: every curve is non-increasing. The anomaly needs a special string; LRU and OPT can never show it.';
+      const ups = data.flatMap(([k, nm, fs]) => fs.map((f, i) => (i && f > fs[i - 1] ? `${nm} takes ${fs[i - 1]} faults with ${i} frames but ${f} with ${i + 1}` : null)).filter(Boolean));
+      $('#bl-out').innerHTML = ups.length ? `<b class="bad">Anomaly.</b> ${ups.join('. ')}. The big dots mark it. LRU and OPT never rise.` : 'No anomaly on this string. Every curve is non-increasing. The anomaly needs a special string, and LRU and OPT can never show it.';
     }
     $('#bl-s').addEventListener('click', (e) => { const b = e.target.closest('[data-s]'); if (b) { which = b.dataset.s; render(); } });
     $('#bl-reset').addEventListener('click', () => { which = 'bel'; render(); });

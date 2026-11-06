@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Syllabus · L00</title>
-<meta name="description" content="CSCI 3753 Lecture 00, interactive edition: why we study operating systems when an LLM can write the code, what this course covers, and how to learn it, including the weekly rhythm, the six Basecamp labs, grading, and the AI policy.">
+<meta name="description" content="CSCI 3753 Lecture 00, interactive edition. It covers why we study operating systems when an LLM can write the code, what this course covers, and how to learn it, including the weekly rhythm, the six Basecamp labs, grading, and the AI policy.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -68,12 +68,12 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 </svg>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><path d="M2 19 L8 9 L12 14 L15 10 L20 19 Z"/></g><rect x="7" y="16.4" width="4" height="2.6" fill="var(--co)"/></svg>
-    <span>Lecture 00 · Syllabus</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Lecture 00 · Syllabus</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -84,7 +84,7 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
     <h1>Why learn the machine<br>when a model <span class="accent">writes the code?</span></h1>
     <p class="lede">An LLM can write a working <code>fork()</code> in seconds. However, this course is still worth sixteen weeks, for two reasons. First, a model cannot ask the right question or check its own answer. Second, AI systems themselves are built on operating-system ideas. In this lecture, we discuss why we study operating systems, what you will learn, and how to learn it.</p>
     <div class="promise">
-      <span>Three questions:</span><span class="mono">why · what · how</span><span>Then the pre-exam.</span>
+      <span>We ask three questions,</span><span class="mono">why · what · how</span><span>Then the pre-exam.</span>
     </div>
     <div class="cta-row">
       <a class="btn primary" href="#ch0">Begin ↓</a>
@@ -116,7 +116,7 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <div class="eyebrow">CSCI 3753 Operating Systems · Spring 2027 · Lecture 00</div>
       <h1>Syllabus</h1>
       <p class="lede">Why study operating systems in the LLM era, what this course covers, and how to learn it.</p>
-      <div class="meta">Instructor: Yueqi Chen · University of Colorado Boulder</div>
+      <div class="meta">Instructor Yueqi Chen · University of Colorado Boulder</div>
     </div>
 
 <!-- ============================================================ -->
@@ -140,18 +140,18 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   </div>
 
   <div class="sec" id="s0-2">
-    <h3><span class="sec-no">0.2</span>Reason 1: the right question, and the right check</h3>
+    <h3><span class="sec-no">0.2</span>Reason 1. The right question, and the right check</h3>
     <div class="prose"><p>In September 2026, OpenAI announced that its AI system had resolved a Millennium Prize Problem. Specifically, it showed that the 3D Navier–Stokes equations of fluid flow can blow up in finite time. Note who did what.</p></div>
     <div class="opts3">
-      <div><span class="tag">Mathematicians · the question</span>Chose the problem and the approach. The approach built on human work: the "infinite cascade" constructions of Córdoba and Martínez-Zoroa, which use no computers at all.</div>
+      <div><span class="tag">Mathematicians · the question</span>Chose the problem and the approach. The approach built on human work, namely the "infinite cascade" constructions of Córdoba and Martínez-Zoroa, which use no computers at all.</div>
       <div data-step="1"><span class="tag">AI agents · the search</span>Under the researchers' direction, about 10,000 agents ran for roughly 88 hours and produced the proof.</div>
       <div data-step="2"><span class="tag">Mathematicians · the check</span>The proof was checked formally in Lean. However, humans still have to confirm that the statement Lean proved is the problem they set out to solve.</div>
     </div>
     <div class="note note-key" data-step="2">
       <span class="note-tag">The lesson</span>
-      <p>The model did the work that nobody could do by hand. However, it did not choose the question, and it could not certify its own answer. Experts did both. The same holds for operating systems: the model writes the code, and you decide what to ask for and whether to trust what comes back.</p>
+      <p>The model did the work that nobody could do by hand. However, it did not choose the question, and it could not certify its own answer. Experts did both. The same holds for operating systems. The model writes the code, and you decide what to ask for and whether to trust what comes back.</p>
     </div>
-    <p class="prose small muted" data-step="2">Sources: Quanta Magazine, "AI Has Solved One of Math's $1 Million Millennium Prize Problems," Sept 8, 2026; OpenAI, "On the Navier–Stokes Millennium Prize Problem."</p>
+    <p class="prose small muted" data-step="2">The sources are Quanta Magazine, "AI Has Solved One of Math's $1 Million Millennium Prize Problems," Sept 8, 2026, and OpenAI, "On the Navier–Stokes Millennium Prize Problem."</p>
   </div>
 
   <div class="sec" id="s0-3">
@@ -160,7 +160,7 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <div class="prose">
         <p>When you hand a broken program to an agent, what comes back depends on what you know to ask for.</p>
         <ul>
-          <li data-step="1">"It's slow" gets guesses. "It spends 90% of its time blocked in <code>read</code>; is it the disk or the pipe?" gets an answer you can verify.</li>
+          <li data-step="1">"It's slow" gets guesses. "It spends 90% of its time blocked in <code>read</code>. Is it the disk or the pipe?" gets an answer you can verify.</li>
           <li data-step="2">"It sometimes crashes" gets a rewrite. "Two threads update this list without a lock" gets a fix.</li>
           <li data-step="3">"It ran out of memory" gets a bigger machine. "Resident memory grows by one page per request and never shrinks" gets the leak found.</li>
         </ul>
@@ -175,7 +175,7 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   </div>
 
   <div class="sec" id="s0-4">
-    <h3><span class="sec-no">0.4</span>Checking the answer: would you accept this code?</h3>
+    <h3><span class="sec-no">0.4</span>Checking the answer. Would you accept this code?</h3>
     <div class="widget" id="sn-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Four snippets that compile, run, and pass a quick test</span><button class="w-reset" type="button" id="sn-reset">Reset</button></div>
       <div class="controls">
@@ -189,11 +189,11 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       </div>
       <div class="readout" id="sn-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="prose small muted">We do not expect you to spot these bugs today. However, by the lecture named under each snippet, you should spot them in seconds. This is the skill a model cannot supply: knowing which of its answers to distrust.</p>
+    <p class="prose small muted">We do not expect you to spot these bugs today. However, by the lecture named under each snippet, you should spot them in seconds. This is the skill a model cannot supply, namely knowing which of its answers to distrust.</p>
   </div>
 
   <div class="sec" id="s0-5">
-    <h3><span class="sec-no">0.5</span>Reason 2: LLMs make systems more important</h3>
+    <h3><span class="sec-no">0.5</span>Reason 2. LLMs make systems more important</h3>
     <div class="note note-key">
       <span class="note-tag">vLLM, the paper's own words</span>
       <p>"We propose PagedAttention, an attention algorithm <strong>inspired by the classical virtual memory and paging techniques in operating systems</strong>." <span class="muted">Kwon et al., <em>Efficient Memory Management for Large Language Model Serving with PagedAttention</em>, SOSP 2023.</span></p>
@@ -202,10 +202,10 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <table class="plain">
         <thead><tr><th>In an AI system</th><th>The OS idea underneath</th><th>Where</th></tr></thead>
         <tbody>
-          <tr><td><strong>PagedAttention</strong> (vLLM): the attention cache is divided into fixed-size blocks, and a per-request block table maps these blocks to non-contiguous GPU memory</td><td>Paging and page tables</td><td class="num">L14–L15</td></tr>
-          <tr><td>Serving many prompts at once: which request gets the GPU for the next step, and what happens to the requests that wait</td><td>CPU scheduling: throughput, latency, fairness, preemption</td><td class="num">L06–L07</td></tr>
+          <tr><td><strong>PagedAttention</strong> (vLLM), in which the attention cache is divided into fixed-size blocks, and a per-request block table maps these blocks to non-contiguous GPU memory</td><td>Paging and page tables</td><td class="num">L14–L15</td></tr>
+          <tr><td>Serving many prompts at once, deciding which request gets the GPU for the next step and what happens to the requests that wait</td><td>CPU scheduling, with throughput, latency, fairness, and preemption</td><td class="num">L06–L07</td></tr>
           <tr><td>When GPU memory fills up, a request's cache is evicted or swapped out to CPU memory</td><td>Swapping and page replacement</td><td class="num">L15–L16</td></tr>
-          <tr><td>Training data loaders: worker processes feed data to the GPU through shared memory</td><td>Processes, IPC, shared memory</td><td class="num">L03–L04</td></tr>
+          <tr><td>Training data loaders, in which worker processes feed data to the GPU through shared memory</td><td>Processes, IPC, shared memory</td><td class="num">L03–L04</td></tr>
           <tr><td>Coding agents run the commands they choose inside a sandbox</td><td>Dual mode, protection domains, access control</td><td class="num">L01, L22–L23</td></tr>
         </tbody>
       </table>
@@ -234,21 +234,21 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
     <h3><span class="sec-no">1.1</span>Will I be able to write an OS?</h3>
     <div class="prose">
       <ul>
-        <li><strong>In principle, yes.</strong> This course covers every important part of a simple operating system: processes, scheduling, synchronization, memory, devices, files, and protection.</li>
+        <li><strong>In principle, yes.</strong> This course covers every important part of a simple operating system, namely processes, scheduling, synchronization, memory, devices, files, and protection.</li>
         <li data-step="1"><strong>In practice, slides and a textbook alone are not enough.</strong> Writing an OS requires reading hardware manuals and Linux source code, and writing and debugging a large amount of code.</li>
-        <li data-step="2">Therefore, the labs do not ask you to build an OS from scratch. Instead, they put you inside a <strong>real one</strong>, Linux 6.6, and ask you to observe it, predict its behavior, and build small pieces that run on it: a process tree walker, a bounded buffer, a page-replacement policy, and a device driver.</li>
+        <li data-step="2">Therefore, the labs do not ask you to build an OS from scratch. Instead, they put you inside a <strong>real one</strong>, Linux 6.6, and ask you to observe it, predict its behavior, and build small pieces that run on it, namely a process tree walker, a bounded buffer, a page-replacement policy, and a device driver.</li>
       </ul>
     </div>
     <div class="note note-key" data-step="2">
       <span class="note-tag">Textbook</span>
-      <p>Silberschatz, Galvin, and Gagne, <em>Operating System Concepts</em>, 10th edition. Each lecture lists its chapters. Arpaci-Dusseau, <em>Operating Systems: Three Easy Pieces</em> (free online), is a good second reading. The Linux source is browsable at <a href="https://elixir.bootlin.com/linux/v6.6/source" target="_blank" rel="noopener">elixir.bootlin.com</a>.</p>
+      <p>Silberschatz, Galvin, and Gagne, <em>Operating System Concepts</em>, 10th edition. Each lecture lists its chapters. Arpaci-Dusseau, <em>Operating Systems, Three Easy Pieces</em> (free online), is a good second reading. The Linux source is browsable at <a href="https://elixir.bootlin.com/linux/v6.6/source" target="_blank" rel="noopener">elixir.bootlin.com</a>.</p>
     </div>
   </div>
 
   <div class="sec" id="s1-2">
     <h3><span class="sec-no">1.2</span>The course map</h3>
     <div class="widget" id="mp-w">
-      <div class="widget-head"><span class="chip">Explore</span><span class="w-title">Pick a part: the question it answers, and where you meet it</span><button class="w-reset" type="button" id="mp-reset">Reset</button></div>
+      <div class="widget-head"><span class="chip">Explore</span><span class="w-title">Pick a part to see the question it answers, and where you meet it</span><button class="w-reset" type="button" id="mp-reset">Reset</button></div>
       <div class="widget-body">
         <div class="map" id="mp-grid"></div>
         <div class="legend" style="padding:10px 0 0">
@@ -265,7 +265,7 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
   <div class="sec" id="s1-3">
     <h3><span class="sec-no">1.3</span>Six Basecamps</h3>
-    <div class="prose"><p>A basecamp is where climbers build their skills before the real climb. In this course, each lab is a camp. All labs run in the same <strong>course VM</strong> on your own laptop: QEMU, a pinned Linux 6.6 kernel, and a Debian root file system. As such, the VM behaves identically on every machine, including yours and the graders'.</p></div>
+    <div class="prose"><p>A basecamp is where climbers build their skills before the real climb. In this course, each lab is a camp. All labs run in the same <strong>course VM</strong> on your own laptop. The VM consists of QEMU, a pinned Linux 6.6 kernel, and a Debian root file system. As such, the VM behaves identically on every machine, including yours and the graders'.</p></div>
     <div class="camps">
       <div><span class="cn">Lab00 · Part I</span><span class="ct">Learning to See a Running System</span>Build the VM, then read the kernel's own view of processes, memory, and devices from <code>/proc</code>.</div>
       <div data-step="1"><span class="cn">Lab01 · Part II</span><span class="ct">The Life and Times of a Process</span>Walk a process's ancestry, create children with fork, exec, and wait, and create zombies and orphans on purpose.</div>
@@ -315,9 +315,9 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
         <thead><tr><th>Work</th><th>Where</th><th>Format</th></tr></thead>
         <tbody>
           <tr><td><strong>Quizzes</strong> Q1–Q10</td><td>Canvas</td><td>10 questions, 20 minutes, 2 attempts (the higher score counts), open for two weeks</td></tr>
-          <tr><td><strong>Problem sets</strong> PS1–PS4</td><td>Canvas</td><td>Multi-step worked problems on a block of lectures; 2 attempts; PS1–PS2 serve as practice for the midterm</td></tr>
-          <tr><td><strong>Labs</strong> Lab00–Lab05</td><td>Your private GitHub repo</td><td>2 to 4 weeks each; run <code>make check</code> before you push</td></tr>
-          <tr><td><strong>Exams</strong></td><td>In class</td><td>Pre-exam today (45 min, not graded); midterm in week 9 (L01–L12, 60 min); final in finals week (L13–L23, 60 min, not cumulative)</td></tr>
+          <tr><td><strong>Problem sets</strong> PS1–PS4</td><td>Canvas</td><td>Multi-step worked problems on a block of lectures, with 2 attempts. PS1–PS2 serve as practice for the midterm</td></tr>
+          <tr><td><strong>Labs</strong> Lab00–Lab05</td><td>Your private GitHub repo</td><td>2 to 4 weeks each. Run <code>make check</code> before you push</td></tr>
+          <tr><td><strong>Exams</strong></td><td>In class</td><td>Pre-exam today (45 min, not graded), midterm in week 9 (L01–L12, 60 min), and final in finals week (L13–L23, 60 min, not cumulative)</td></tr>
         </tbody>
       </table>
     </div>
@@ -351,7 +351,7 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   </div>
 
   <div class="sec" id="s2-3">
-    <h3><span class="sec-no">2.3</span>AI in this course: as little as possible</h3>
+    <h3><span class="sec-no">2.3</span>AI in this course, as little as possible</h3>
     <div class="two-up">
       <div class="prose">
         <p>Chapter 0 argued that an AI is only as good as the person who directs it and checks its work. This course is where you become that person. Therefore, <strong>please use AI as little as you can here</strong>.</p>
@@ -367,7 +367,7 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
           <p>The lecture notes and the textbook chapter, the man page (<code>man 2 fork</code>), the Linux source on elixir.bootlin.com, Friday recitation, office hours, and Piazza.</p>
         </div>
         <div class="note note-honest" data-step="3">
-          <span class="note-tag">Later: CSCI 4573</span>
+          <span class="note-tag">Later, CSCI 4573</span>
           <p>Once you have mastered the foundations, you can use AI as much as you like. In CSCI 4573, you will work with AI agents freely, as the expert who directs them and checks their output.</p>
         </div>
       </div>
@@ -406,7 +406,7 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
             </tbody>
           </table>
         </div>
-        <p class="small muted" data-step="2">Office hours and recitation rooms: <span class="tbd">staff and times</span>, on Canvas.</p>
+        <p class="small muted" data-step="2">For office hours and recitation rooms, see <span class="tbd">staff and times</span> on Canvas.</p>
       </div>
     </div>
   </div>
@@ -429,18 +429,18 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li><strong>Why:</strong> An LLM cannot do everything. Asking the right question and checking the answer still require an expert, as the Navier–Stokes proof shows. Further, AI infrastructure keeps borrowing from computer systems: vLLM applies virtual memory to the GPU.</li>
-          <li><strong>What:</strong> Eight parts, from processes to security, and six Basecamps inside a real Linux kernel.</li>
-          <li><strong>How:</strong> Sunday deadlines, an early start, small steps, and as little AI as possible. This course is where you build the judgment you will later apply with AI in CSCI 4573.</li>
+          <li><strong>Why.</strong> An LLM cannot do everything. Asking the right question and checking the answer still require an expert, as the Navier–Stokes proof shows. Further, AI infrastructure keeps borrowing from computer systems. For instance, vLLM applies virtual memory to the GPU.</li>
+          <li><strong>What.</strong> Eight parts, from processes to security, and six Basecamps inside a real Linux kernel.</li>
+          <li><strong>How.</strong> Sunday deadlines, an early start, small steps, and as little AI as possible. This course is where you build the judgment you will later apply with AI in CSCI 4573.</li>
         </ul>
       </div>
       <div class="prose">
         <div class="note note-lab">
           <span class="note-tag">Before next Tuesday</span>
-          <p><strong>Now:</strong> Take the pre-exam on Canvas (45 minutes, C and systems background). It is not graded. It tells you, and us, where you start.</p>
-          <p><strong>Friday:</strong> Recitation R01, C and the Linux command line.</p>
-          <p><strong>This week:</strong> Start Lab00, which opened on Sunday. Build the course VM early, because the first build downloads and compiles a large amount of code. Quiz 1 is also open and covers L01–L02.</p>
-          <p><strong>Read:</strong> Silberschatz Ch. 1, for Lecture 01.</p>
+          <p><strong>Now.</strong> Take the pre-exam on Canvas (45 minutes, C and systems background). It is not graded. It tells you, and us, where you start.</p>
+          <p><strong>Friday.</strong> Recitation R01, C and the Linux command line.</p>
+          <p><strong>This week.</strong> Start Lab00, which opened on Sunday. Build the course VM early, because the first build downloads and compiles a large amount of code. Quiz 1 is also open and covers L01–L02.</p>
+          <p><strong>Read.</strong> Silberschatz Ch. 1, for Lecture 01.</p>
         </div>
       </div>
     </div>
@@ -518,12 +518,12 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
         test: 'Prints 4000 for 4 × 1000 requests.',
         code: ['long hits = 0;', '', 'void *worker(void *arg) {', '    for (int i = 0; i < N; i++)', '        hits++;', '    return NULL;', '}'],
         bad: [4], where: 'L05 Thread, L08 Synchronization · Lab03',
-        why: '<code>hits++</code> is three steps: a load, an add, and a store. Two threads can load the same value, and both store value + 1. This is a <b>lost update</b>. With N = 1000, the threads rarely overlap, so the test passes. With N = 1,000,000 on several cores, the total comes up short, by a different amount on each run.' },
+        why: '<code>hits++</code> is three steps, namely a load, an add, and a store. Two threads can load the same value, and both store value + 1. This is a <b>lost update</b>. With N = 1000, the threads rarely overlap, so the test passes. With N = 1,000,000 on several cores, the total comes up short, by a different amount on each run.' },
       { n: 'A queue', ask: '"A thread-safe queue whose take() blocks until an item arrives."',
-        test: 'One producer, one consumer: works every time.',
+        test: 'Works every time with one producer and one consumer.',
         code: ['pthread_mutex_lock(&m);', 'if (count == 0)', '    pthread_cond_wait(&nonempty, &m);', 'item = buf[out];', 'out = (out + 1) % SIZE;', 'count--;', 'pthread_mutex_unlock(&m);'],
         bad: [1], where: 'L10 Monitors and Condition Variables · Lab03',
-        why: 'The check must be <code>while</code>, not <code>if</code>. A woken thread does not run immediately: another consumer can take the item first, and wakeups can also be spurious. In either case, the thread removes an item from an empty buffer. One consumer never triggers this, and two consumers trigger it only rarely.' },
+        why: 'The check must be <code>while</code>, not <code>if</code>. A woken thread does not run immediately, so another consumer can take the item first, and wakeups can also be spurious. In either case, the thread removes an item from an empty buffer. One consumer never triggers this, and two consumers trigger it only rarely.' },
       { n: 'Copying a file', ask: '"Read a 4 KB record from a file descriptor."',
         test: 'Works on a regular file on your laptop.',
         code: ['char buf[4096];', 'if (read(fd, buf, sizeof buf) < 0) {', '    perror("read");', '    return -1;', '}', 'process(buf, sizeof buf);'],
@@ -536,7 +536,7 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       k = Math.floor(i / 2); shown = i % 2 === 1;
       const s = SN[k];
       $$('#sn-tabs [data-k]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.k === k)));
-      $('#sn-meta').innerHTML = `<span>Asked for: ${s.ask}</span><span class="${shown ? 'no' : 'ok'}">${shown ? 'bug' : 'test passed'}</span><span class="muted">${s.test}</span>`;
+      $('#sn-meta').innerHTML = `<span>Asked for ${s.ask}</span><span class="${shown ? 'no' : 'ok'}">${shown ? 'bug' : 'test passed'}</span><span class="muted">${s.test}</span>`;
       $('#sn-code').innerHTML = s.code.map((l, j) => `<span class="ln${shown && s.bad.includes(j) ? ' bad' : ''}">${esc(l) || ' '}</span>`).join('');
       $('#sn-out').innerHTML = shown ? `${s.why} <span class="muted">· You will learn to spot it in ${s.where}.</span>` : 'It compiles without warnings, and the quick test passes. Would you merge it? Decide first, then press <b>Show the bug</b>.';
       $('#sn-show').textContent = shown ? 'Hide' : 'Show the bug';
@@ -551,13 +551,13 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* ---------- §1.2 course map ---------- */
   (function () {
     const P = [
-      ['I', 'Foundations', 'v', 'What is the one program that is always running, and how does every other program ask it for anything?', 'L01 Overview, L02 OS Services', 'Lab00: Learning to See a Running System'],
-      ['II', 'Processes and threads', 'v', 'How does one machine run hundreds of programs, each of which behaves as if it had the machine to itself?', 'L03 Process, L04 IPC, L05 Thread', 'Lab01: The Life and Times of a Process'],
-      ['III', 'CPU scheduling', 'v', 'Three hundred threads want to run and there are eight cores. Who runs next, and for how long?', 'L06 Scheduling, L07 More Scheduling', 'Lab02: Sharing the CPU'],
-      ['IV', 'Synchronization and deadlock', 'c', 'Two threads add to one counter a million times each. Why is the total not two million, and how do you fix it without making everyone wait forever?', 'L08 Synchronization, L09 Semaphores, L10 Monitors, L11 Synchronization Examples, L12 Deadlocks', 'Lab03: The Trouble with Threads'],
-      ['V', 'Memory', 'v', 'Every process thinks its memory starts at the same addresses. How, and what happens when memory runs out?', 'L13 Memory Management, L14 Paging, L15 Virtual Memory, L16 Paging Policy', 'Lab04: Pages, Faults, and the Art of Eviction'],
-      ['VI', 'I/O and storage', 'p', 'What happens between your write() and the bits landing on a disk, and why is a keyboard a "file"?', 'L17 Device Manager, L18 Device Strategies, L19 Storage Management, L20 File System Implementation', 'Lab05: Everything Is a File'],
-      ['VII', 'Networks and virtualization', 'p', 'How can your laptop run a whole second computer, the course VM, that does not know it is not real?', 'L21 Network and VMs', 'You use it in every lab: the course VM'],
+      ['I', 'Foundations', 'v', 'What is the one program that is always running, and how does every other program ask it for anything?', 'L01 Overview, L02 OS Services', 'Lab00 · Learning to See a Running System'],
+      ['II', 'Processes and threads', 'v', 'How does one machine run hundreds of programs, each of which behaves as if it had the machine to itself?', 'L03 Process, L04 IPC, L05 Thread', 'Lab01 · The Life and Times of a Process'],
+      ['III', 'CPU scheduling', 'v', 'Three hundred threads want to run and there are eight cores. Who runs next, and for how long?', 'L06 Scheduling, L07 More Scheduling', 'Lab02 · Sharing the CPU'],
+      ['IV', 'Synchronization and deadlock', 'c', 'Two threads add to one counter a million times each. Why is the total not two million, and how do you fix it without making everyone wait forever?', 'L08 Synchronization, L09 Semaphores, L10 Monitors, L11 Synchronization Examples, L12 Deadlocks', 'Lab03 · The Trouble with Threads'],
+      ['V', 'Memory', 'v', 'Every process thinks its memory starts at the same addresses. How, and what happens when memory runs out?', 'L13 Memory Management, L14 Paging, L15 Virtual Memory, L16 Paging Policy', 'Lab04 · Pages, Faults, and the Art of Eviction'],
+      ['VI', 'I/O and storage', 'p', 'What happens between your write() and the bits landing on a disk, and why is a keyboard a "file"?', 'L17 Device Manager, L18 Device Strategies, L19 Storage Management, L20 File System Implementation', 'Lab05 · Everything Is a File'],
+      ['VII', 'Networks and virtualization', 'p', 'How can your laptop run a whole second computer, the course VM, that does not know it is not real?', 'L21 Network and VMs', 'The course VM, which you use in every lab'],
       ['VIII', 'Protection and security', 's', 'Who may do what to which resource, and how does the kernel enforce it when a program tries anyway?', 'L22 Protection, L23 Security', 'Recitation R13'],
     ];
     const PIECE = { v: 'virtualization', c: 'concurrency', p: 'persistence', s: 'protection' };
@@ -567,7 +567,7 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       sel = i;
       $$('#mp-grid [data-i]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.i === sel)));
       const [n, t, , q, l, lab] = P[sel];
-      $('#mp-out').innerHTML = `<b>Part ${n} · ${t}.</b> ${q}<br><span class="muted">Lectures:</span> ${l}<br><span class="muted">Hands on:</span> ${lab}`;
+      $('#mp-out').innerHTML = `<b>Part ${n} · ${t}.</b> ${q}<br><span class="muted">Lectures</span> ${l}<br><span class="muted">Hands on</span> ${lab}`;
     }
     const ctl = Academy.register('s1-2', { steps: P.length - 1, readStep: 0, show });
     $('#mp-grid').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b) ctl.go(+b.dataset.i); });
@@ -627,8 +627,8 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       svg.appendChild(el('text', { x: X(11) + (CW - 4) / 2, y: 200, 'text-anchor': 'middle', class: 'lbl', style: 'font-size:11px' }, 'break'));
       const w = WK[sel];
       const parts = [w[2]];
-      if (w[3]) parts.push(`<span class="muted">opens:</span> ${w[3]}`);
-      if (w[4]) parts.push(`<span class="muted">due:</span> ${w[4]}`);
+      if (w[3]) parts.push(`<span class="muted">opens</span> ${w[3]}`);
+      if (w[4]) parts.push(`<span class="muted">due</span> ${w[4]}`);
       $('#tl-out').innerHTML = `<b>${w[0] === 'F' ? 'Finals week' : 'Week ' + w[0]}</b> <span class="muted">(Sunday ${w[1]})</span> · ${parts.join(' · ')}`;
     }
     svg.addEventListener('click', (e) => {
@@ -647,7 +647,7 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       ['Post your failing <code>make check</code> output on Piazza and ask what the error means.', true, 'Allowed. Include the full error, but leave out large chunks of your code.'],
       ['Have a model write your lab\'s C file, then rename the variables so it looks like yours.', false, 'Not allowed. Code under <code>submit/</code> must be your own, whether or not the variables are renamed.'],
       ['Give a model your measurements and let it draft the answers in <code>report.md</code>.', false, 'Not allowed. The report is part of the submission, and its reasoning is what we grade.'],
-      ['Ask a classmate to explain condition variables at a whiteboard.', true, 'Allowed. Discussing ideas is fine; sharing code is not.'],
+      ['Ask a classmate to explain condition variables at a whiteboard.', true, 'Allowed. Discussing ideas is fine, but sharing code is not.'],
       ['Paste a quiz question into a chatbot while the quiz is open.', false, 'Not allowed. Quizzes, problem sets, and exams are your own work.'],
     ];
     const pick = C.map(() => null);
@@ -657,7 +657,7 @@ table.plain td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
         return `<div class="row${cls}"><span>${t}</span><span class="seg"><button type="button" data-i="${i}" data-v="1" aria-pressed="${p === true}">Allowed</button><button type="button" data-i="${i}" data-v="0" aria-pressed="${p === false}">Not allowed</button></span><span class="why">${why}</span></div>`;
       }).join('');
       const done = pick.filter((p) => p != null).length, right = pick.filter((p, i) => p === C[i][1]).length;
-      $('#ai-out').innerHTML = done < C.length ? `${done} of ${C.length} decided.` : right === C.length ? 'All six are correct. Learn from the course, from people, and from your own experiments. However, what you hand in must be yours alone.' : `${right} of ${C.length} are correct. Review the red ones: what you hand in must be yours alone.`;
+      $('#ai-out').innerHTML = done < C.length ? `${done} of ${C.length} decided.` : right === C.length ? 'All six are correct. Learn from the course, from people, and from your own experiments. However, what you hand in must be yours alone.' : `${right} of ${C.length} are correct. Review the red ones. What you hand in must be yours alone.`;
     }
     $('#ai-list').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b) { pick[+b.dataset.i] = b.dataset.v === '1'; render(); } });
     $('#ai-reset').addEventListener('click', () => { pick.fill(null); render(); });

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lab02 Walkthrough · Basecamp 2</title>
-<meta name="description" content="Step-by-step walkthrough for Basecamp 2, Sharing the CPU: a CPU-bound spinner, watching preemption in /proc, building and validating fairshare.sh, measuring nice weights, SCHED_FIFO and real-time throttling, reading make check, and submitting.">
+<meta name="description" content="Step-by-step walkthrough for Basecamp 2, Sharing the CPU, covering a CPU-bound spinner, watching preemption in /proc, building and validating fairshare.sh, measuring nice weights, SCHED_FIFO and real-time throttling, reading make check, and submitting.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -31,12 +31,12 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 <body>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M2 18L8 8l4 6 3-4 5 8z" stroke="currentColor" stroke-width="1.4" fill="none"/><circle cx="16" cy="5" r="2" fill="var(--co)"/></svg>
-    <span>Lab02 walkthrough · Sharing the CPU</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Lab02 walkthrough · Sharing the CPU</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -44,9 +44,9 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="hero-inner">
     <div class="eyebrow"><span class="chip-t">walkthrough</span> &nbsp;Basecamp 2 · Weeks 4–7 · due Sun Feb 14</div>
     <h1>Make load, then <span class="accent">measure</span> the scheduler</h1>
-    <p class="lede">This lab is an experiment more than a program: a spinner that burns CPU, an instrument (<code>fairshare.sh</code>) that measures how the scheduler divides one CPU between two spinners, and a real-time spinner that breaks the rules. This page says what each piece must do and print, and how to tell whether your measurement can be trusted. It never shows code for the lab files. This page and the file headers in <code>labs/02-scheduling/submit/</code> are the specification.</p>
+    <p class="lede">This lab is an experiment more than a program. It has a spinner that burns CPU, an instrument (<code>fairshare.sh</code>) that measures how the scheduler divides one CPU between two spinners, and a real-time spinner that breaks the rules. This page says what each piece must do and print, and how to tell whether your measurement can be trusted. It never shows code for the lab files. This page and the file headers in <code>labs/02-scheduling/submit/</code> are the specification.</p>
     <div class="steps-map">
-      <div><b>Step 0–2</b>The loop; spin.c; watch preemption</div>
+      <div><b>Step 0–2</b>The loop, spin.c, and watching preemption</div>
       <div><b>Step 3–4</b>Build and trust fairshare.sh</div>
       <div><b>Step 5</b>Policy beats weight</div>
       <div><b>Step 6–7</b>make check, report, submit</div>
@@ -92,8 +92,8 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       <ul>
         <li>The VM has 2 CPUs. Every experiment in this lab pins its spinners to <strong>CPU 0</strong> with <code>taskset -c 0</code>, which leaves CPU 1 free for your shell. That is why the VM stays usable while two spinners fight.</li>
         <li>Spinners never stop on their own. Before every new experiment, make sure none is left over from the last one (<code>jobs</code>, or <code>ps -C spin</code> in the terminal), because a leftover spinner on CPU 0 silently changes every number you measure.</li>
-        <li>This is the live-VM flow from Lab00 and Lab01: start the VM with <code>SHARE</code> pointing at your <code>submit</code> directory, then work in <code>/share</code>.</li>
-        <li>You submit three files from <code>labs/02-scheduling/submit/</code>: <code>spin.c</code> (Step 1), <code>fairshare.sh</code> (Step 3), and <code>report.md</code> (Step 7).</li>
+        <li>This is the live-VM flow from Lab00 and Lab01. Start the VM with <code>SHARE</code> pointing at your <code>submit</code> directory, then work in <code>/share</code>.</li>
+        <li>You submit three files from <code>labs/02-scheduling/submit/</code>, namely <code>spin.c</code> (Step 1), <code>fairshare.sh</code> (Step 3), and <code>report.md</code> (Step 7).</li>
       </ul>
     </div>
     <div class="note note-key"><span class="note-tag">CFS and EEVDF</span><p>Lecture teaches CFS. However, your 6.6 kernel runs CFS's successor, <strong>EEVDF</strong>, inside the same fair scheduling class. Everything you measure in this lab (the nice weight table, vruntime accounting, and CPU shares) is identical under both. What EEVDF changed is how the next task is picked. Report question 2 asks you to make exactly this distinction, with your own data.</p></div>
@@ -103,24 +103,24 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 <section class="chapter" id="s1">
   <div class="ch-head">
     <div class="ch-no">Step 1</div>
-    <h2>spin.c: burn one CPU</h2>
-    <p class="ch-lede">Goal: a program that runs in user space forever, never sleeps, and is not optimized away.</p>
+    <h2>spin.c, burning one CPU</h2>
+    <p class="ch-lede">The goal is a program that runs in user space forever, never sleeps, and is not optimized away.</p>
   </div>
   <div class="sec">
     <div class="prose">
-      <p>The program is a loop and nothing else. The one trap is the compiler: at <code>-O2</code> it may remove a loop whose work has no visible effect. The file's hint names the keyword that makes a variable's accesses count as visible. Look it up and decide which variable needs it.</p>
+      <p>The program is a loop and nothing else. The one trap is the compiler. At <code>-O2</code> it may remove a loop whose work has no visible effect. The file's hint names the keyword that makes a variable's accesses count as visible. Look it up and decide which variable needs it.</p>
     </div>
-    <div class="prose"><p><b>How to check it yourself.</b> Run it alone on CPU 0 and measure its user time growth, the same measurement fairshare.sh will make:</p></div>
+    <div class="prose"><p><b>How to check it yourself.</b> Run it alone on CPU 0 and measure its user time growth, the same measurement fairshare.sh will make.</p></div>
     <div class="code"><span class="ln">taskset -c 0 /tmp/spin &amp;</span><span class="ln">awk '{print $3, $14}' /proc/$!/stat     <span class="c"># state, utime in ticks</span></span><span class="ln">sleep 5</span><span class="ln">awk '{print $3, $14}' /proc/$!/stat     <span class="c"># utime grew by about 500</span></span><span class="ln">kill %1</span></div>
-    <div class="note"><span class="note-tag">Reading the number</span><p>utime counts in clock ticks, 100 per second. A spinner that owns a CPU for 5 seconds gains about 500. <code>make check</code> demands at least 300 and state <code>R</code>. If the growth is near 0, the loop is not running: either it was optimized away and the program exited, or it is sleeping.</p></div>
+    <div class="note"><span class="note-tag">Reading the number</span><p>utime counts in clock ticks, 100 per second. A spinner that owns a CPU for 5 seconds gains about 500. <code>make check</code> demands at least 300 and state <code>R</code>. If the growth is near 0, the loop is not running. Either it was optimized away and the program exited, or it is sleeping.</p></div>
   </div>
 </section>
 
 <section class="chapter" id="s2">
   <div class="ch-head">
     <div class="ch-no">Step 2</div>
-    <h2>Two spinners, one CPU: watch preemption</h2>
-    <p class="ch-lede">No code in this step. Run two spinners pinned to the same CPU, observe them from the outside with Lab01 skills, and write down what you see: you will need it for the report.</p>
+    <h2>Two spinners on one CPU, watching preemption</h2>
+    <p class="ch-lede">No code in this step. Run two spinners pinned to the same CPU, observe them from the outside with Lab01 skills, and write down what you see, because you will need it for the report.</p>
   </div>
   <div class="sec">
     <div class="code"><span class="ln"><span class="c"># VM, after compiling /tmp/spin in Step 0</span></span><span class="ln">taskset -c 0 /tmp/spin &amp;</span><span class="ln">taskset -c 0 /tmp/spin &amp;</span><span class="ln">cat /proc/&lt;pid&gt;/stat                    <span class="c"># field 3: the state</span></span><span class="ln">grep nr_involuntary /proc/&lt;pid&gt;/sched   <span class="c"># times forced off the CPU</span></span><span class="ln">grep se.load.weight /proc/&lt;pid&gt;/sched   <span class="c"># the weight behind "fairness"</span></span><span class="ln">kill %1 %2</span></div>
@@ -128,15 +128,15 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       <table class="t">
         <thead><tr><th>look at</th><th>what to record</th></tr></thead>
         <tbody>
-          <tr><td>/proc/&lt;pid&gt;/stat field 3</td><td>The state of each spinner. Both are on one CPU; what state is each in?</td></tr>
+          <tr><td>/proc/&lt;pid&gt;/stat field 3</td><td>The state of each spinner. Both are on one CPU. What state is each in?</td></tr>
           <tr><td>nr_involuntary_switches</td><td>Read it twice, a few seconds apart, in <code>/proc/&lt;pid&gt;/sched</code>. How fast does it grow?</td></tr>
-          <tr><td>se.load.weight</td><td>The weight of a nice-0 task. Note the value; Step 4 uses it.</td></tr>
+          <tr><td>se.load.weight</td><td>The weight of a nice-0 task. Note the value, because Step 4 uses it.</td></tr>
           <tr><td>se.vruntime</td><td>Read it for both spinners, twice. How do the two values move relative to each other?</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="prose"><p>Record all four before the final <code>kill %1 %2</code>. Two processes share one CPU and neither starves: you are watching timeslicing. <code>make check</code> repeats this experiment and requires at least 5 involuntary switches in 5 seconds.</p></div>
-    <div class="prose"><p><b>Look deeper (ungraded).</b> The kernel can narrate every context switch it makes. The commands below let you watch your two spinners take turns, timestamped at microsecond resolution. Every line that <code>trace-cmd report</code> prints is one decision by the scheduler you measure in this lab. <code>/sys/kernel/tracing/</code> is the raw interface underneath; the graduate course, KernelLens, works at that level.</p></div>
+    <div class="prose"><p>Record all four before the final <code>kill %1 %2</code>. Two processes share one CPU and neither starves. You are watching timeslicing. <code>make check</code> repeats this experiment and requires at least 5 involuntary switches in 5 seconds.</p></div>
+    <div class="prose"><p><b>Look deeper (ungraded).</b> The kernel can narrate every context switch it makes. The commands below let you watch your two spinners take turns, timestamped at microsecond resolution. Every line that <code>trace-cmd report</code> prints is one decision by the scheduler you measure in this lab. <code>/sys/kernel/tracing/</code> is the raw interface underneath, and the graduate course, KernelLens, works at that level.</p></div>
     <div class="code"><span class="ln">taskset -c 0 /tmp/spin &amp;  taskset -c 0 /tmp/spin &amp;</span><span class="ln">trace-cmd record -e sched_switch -- sleep 2</span><span class="ln">trace-cmd report | grep spin | head -20</span><span class="ln">kill %1 %2</span></div>
   </div>
 </section>
@@ -144,27 +144,27 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 <section class="chapter" id="s3">
   <div class="ch-head">
     <div class="ch-no">Step 3</div>
-    <h2>fairshare.sh: build the instrument</h2>
-    <p class="ch-lede">Goal: <code>fairshare.sh &lt;niceA&gt; &lt;niceB&gt; &lt;seconds&gt;</code> prints exactly one line, <code>A=&lt;ticks&gt; B=&lt;ticks&gt; RATIO=&lt;A/B, two decimals&gt;</code>, where the ticks are each spinner's utime <em>growth</em> during the window.</p>
+    <h2>fairshare.sh, building the instrument</h2>
+    <p class="ch-lede">The goal is that <code>fairshare.sh &lt;niceA&gt; &lt;niceB&gt; &lt;seconds&gt;</code> prints exactly one line, <code>A=&lt;ticks&gt; B=&lt;ticks&gt; RATIO=&lt;A/B, two decimals&gt;</code>, where the ticks are each spinner's utime <em>growth</em> during the window.</p>
   </div>
   <div class="sec">
-    <div class="prose"><p>The script is a timeline. Write it in this order, and run it after each stage:</p></div>
+    <div class="prose"><p>The script is a timeline. Write it in this order, and run it after each stage.</p></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>stage</th><th>what happens</th><th>what the file header gives you</th></tr></thead>
         <tbody>
           <tr><td>1 start</td><td>Start spinner A at nice <code>$na</code> and spinner B at nice <code>$nb</code>, both on CPU 0, both in the background. Keep each PID.</td><td>The exact start command, and where the PID comes from.</td></tr>
           <tr><td>2 cleanup</td><td>Arrange for both spinners to be killed when the script exits, however it exits.</td><td>The <code>trap … EXIT</code> hint. Do this right after starting them, not at the end.</td></tr>
-          <tr><td>3 warm up</td><td>Wait 2–3 seconds before measuring anything.</td><td>Why: startup cost should not pollute the window.</td></tr>
-          <tr><td>4 sample</td><td>Read field 14 of each spinner's stat file.</td><td>Field 14; you read fields with awk in Step 1.</td></tr>
+          <tr><td>3 warm up</td><td>Wait 2–3 seconds before measuring anything.</td><td>Why? Startup cost should not pollute the window.</td></tr>
+          <tr><td>4 sample</td><td>Read field 14 of each spinner's stat file.</td><td>Field 14. You read fields with awk in Step 1.</td></tr>
           <tr><td>5 window</td><td>Sleep <code>$secs</code>.</td><td></td></tr>
-          <tr><td>6 sample again</td><td>Read both again; each growth is "after minus before".</td><td></td></tr>
+          <tr><td>6 sample again</td><td>Read both again. Each growth is "after minus before".</td><td></td></tr>
           <tr><td>7 print</td><td>Print the line, with the ratio to two decimals.</td><td>awk does floating point, and its <code>printf</code> controls the number of decimals.</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="prose"><p>A good intermediate test: after stage 4, print the raw samples and compare them with a <code>cat</code> of the same stat files. After stage 2, run the script, let it finish, and check that no spinner is left (<code>ps -C spin</code> prints only its header).</p></div>
-    <div class="note note-warn"><span class="note-tag">Format details the check enforces</span><p>A and B are whole numbers; RATIO has exactly two digits after the point (<code>9.30</code>, not <code>9.3</code>). The script may read only <code>/proc</code>: the words <code>top</code> and <code>ps</code> must not appear in it outside comments. The checker runs it with <code>SPIN=/tmp/spin</code>, so start the binary through <code>$SPIN</code>, as the header does.</p></div>
+    <div class="prose"><p>A good intermediate test is this. After stage 4, print the raw samples and compare them with a <code>cat</code> of the same stat files. After stage 2, run the script, let it finish, and check that no spinner is left (<code>ps -C spin</code> prints only its header).</p></div>
+    <div class="note note-warn"><span class="note-tag">Format details the check enforces</span><p>A and B are whole numbers, and RATIO has exactly two digits after the point (<code>9.30</code>, not <code>9.3</code>). The script may read only <code>/proc</code>, so the words <code>top</code> and <code>ps</code> must not appear in it outside comments. The checker runs it with <code>SPIN=/tmp/spin</code>, so start the binary through <code>$SPIN</code>, as the header does.</p></div>
   </div>
 </section>
 
@@ -175,18 +175,18 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     <p class="ch-lede">An instrument is only useful once you have checked it against a case whose answer you know.</p>
   </div>
   <div class="sec">
-    <div class="prose"><p><code>nice</code> is not a polite suggestion. It indexes a weight table, and the scheduler divides the CPU in proportion to weight. The weight for nice 0 is 1024; for nice 10 it is 110. Each nice level is a factor of about 1.25: geometric, not linear. Therefore, before you trust your number, predict it.</p></div>
+    <div class="prose"><p><code>nice</code> is not a polite suggestion. It indexes a weight table, and the scheduler divides the CPU in proportion to weight. The weight for nice 0 is 1024, and for nice 10 it is 110. Each nice level is a factor of about 1.25, which is geometric, not linear. Therefore, before you trust your number, predict it.</p></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>run</th><th>prediction</th><th>make check accepts</th></tr></thead>
         <tbody>
-          <tr><td>bash fairshare.sh 0 0 10</td><td>Equal weights: RATIO near 1.</td><td>0.60 – 1.60</td></tr>
-          <tr><td>bash fairshare.sh 0 10 15</td><td>The ratio of the two weights: 1024/110 ≈ 9.3.</td><td>6.0 – 13.0</td></tr>
-          <tr><td>a pair of your choice</td><td>Predict it from "each nice level is a factor of about 1.25" <em>before</em> you run it.</td><td>not checked; good for the report</td></tr>
+          <tr><td>bash fairshare.sh 0 0 10</td><td>Equal weights, so RATIO is near 1.</td><td>0.60 – 1.60</td></tr>
+          <tr><td>bash fairshare.sh 0 10 15</td><td>The ratio of the two weights, 1024/110 ≈ 9.3.</td><td>6.0 – 13.0</td></tr>
+          <tr><td>a pair of your choice</td><td>Predict it from "each nice level is a factor of about 1.25" <em>before</em> you run it.</td><td>not checked, but good for the report</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>RATIO near 1 for nice 0 vs 10</b>: the two spinners are not competing. Either they are not both on CPU 0, or the nice value never reached the spinner. Check with <code>taskset -p &lt;pid&gt;</code> and field 19 of each stat file. <b>RATIO wildly off, or a division error</b>: a sample came from the wrong PID or was empty; print the four raw samples. <b>Results drift between runs</b>: look for a leftover spinner from an earlier run.</p></div>
+    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>RATIO near 1 for nice 0 vs 10.</b> The two spinners are not competing. Either they are not both on CPU 0, or the nice value never reached the spinner. Check with <code>taskset -p &lt;pid&gt;</code> and field 19 of each stat file. <b>RATIO wildly off, or a division error.</b> A sample came from the wrong PID or was empty. Print the four raw samples. <b>Results drift between runs.</b> Look for a leftover spinner from an earlier run.</p></div>
   </div>
 </section>
 
@@ -194,18 +194,18 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 5</div>
     <h2>Policy beats weight</h2>
-    <p class="ch-lede">Goal: measure the share a normal spinner gets next to a <code>SCHED_FIFO</code> spinner, then find the setting that explains it. No code to submit here.</p>
+    <p class="ch-lede">The goal is to measure the share a normal spinner gets next to a <code>SCHED_FIFO</code> spinner, then find the setting that explains it. No code to submit here.</p>
   </div>
   <div class="sec">
-    <div class="prose"><p>Weights share; <strong>policies rank</strong>. A <code>SCHED_FIFO</code> task outranks every fair-class task, categorically. These are the two spinners for this step:</p></div>
+    <div class="prose"><p>Weights share, but <strong>policies rank</strong>. A <code>SCHED_FIFO</code> task outranks every fair-class task, categorically. These are the two spinners for this step.</p></div>
     <div class="code"><span class="ln">taskset -c 0 /tmp/spin &amp;                 <span class="c"># a normal citizen</span></span><span class="ln">taskset -c 0 chrt -f 50 /tmp/spin &amp;      <span class="c"># a real-time task, priority 50</span></span></div>
     <ol class="prose">
-      <li><b>Predict first</b>, from lecture: a real-time task outranks every fair-class task. What share should the normal one get?</li>
-      <li><b>Measure by hand.</b> Start the two spinners above, then use the fairshare method manually: two samples of each utime, some seconds apart. Compute the normal spinner's share, its growth divided by the total. The answer is not 0%: the normal spinner clings to a small, suspiciously round share.</li>
-      <li><b>Find the setting.</b> It lives in <code>/proc/sys/kernel/</code>. List that directory and look at the names about real-time scheduling. <code>man 7 sched</code> has a section on limiting the CPU usage of real-time processes; read it and match its numbers with your measured share.</li>
+      <li><b>Predict first</b>, from lecture. A real-time task outranks every fair-class task. What share should the normal one get?</li>
+      <li><b>Measure by hand.</b> Start the two spinners above, then use the fairshare method manually, with two samples of each utime, some seconds apart. Compute the normal spinner's share, its growth divided by the total. The answer is not 0%. The normal spinner clings to a small, suspiciously round share.</li>
+      <li><b>Find the setting.</b> It lives in <code>/proc/sys/kernel/</code>. List that directory and look at the names about real-time scheduling. <code>man 7 sched</code> has a section on limiting the CPU usage of real-time processes. Read it and match its numbers with your measured share.</li>
       <li><b>Clean up</b> both spinners at once. A stray FIFO-50 spinner makes the VM miserable.</li>
     </ol>
-    <div class="note"><span class="note-tag">What make check expects</span><p>The checker repeats this itself (your code is not involved) and expects the normal spinner's share between 2% and 10%. Your hand measurement should land in the same range. If the console becomes sluggish, remember the FIFO spinner is pinned to CPU 0 and your shell can still run on CPU 1: <code>kill %2</code> works.</p></div>
+    <div class="note"><span class="note-tag">What make check expects</span><p>The checker repeats this itself (your code is not involved) and expects the normal spinner's share between 2% and 10%. Your hand measurement should land in the same range. If the console becomes sluggish, remember the FIFO spinner is pinned to CPU 0 and your shell can still run on CPU 1, so <code>kill %2</code> works.</p></div>
   </div>
 </section>
 
@@ -220,19 +220,19 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       <table class="t">
         <thead><tr><th>check</th><th>what it tests</th><th>go back to</th></tr></thead>
         <tbody>
-          <tr><td>missing-spin.c, missing-fairshare.sh</td><td>the file exists in <code>submit/</code>; if one is missing, the checker stops there</td><td>Step 0</td></tr>
+          <tr><td>missing-spin.c, missing-fairshare.sh</td><td>the file exists in <code>submit/</code>, and if one is missing, the checker stops there</td><td>Step 0</td></tr>
           <tr><td>report-present</td><td><code>report.md</code> is not empty</td><td>Step 7</td></tr>
           <tr><td>no-top, no-ps, uses-proc</td><td>with comments removed, fairshare.sh contains neither word and reads <code>/proc</code></td><td>Step 3</td></tr>
           <tr><td>spin-compiles</td><td><code>gcc -Wall -Werror -O2</code> succeeds</td><td>Step 1</td></tr>
-          <tr><td>spin-pegs-cpu, spin-state-R</td><td>alone on CPU 0: at least 300 ticks in 5 s, and state R</td><td>Step 1</td></tr>
-          <tr><td>preemption-visible</td><td>two spinners on CPU 0: at least 5 involuntary switches in 5 s</td><td>Step 2</td></tr>
+          <tr><td>spin-pegs-cpu, spin-state-R</td><td>alone on CPU 0, at least 300 ticks in 5 s, and state R</td><td>Step 1</td></tr>
+          <tr><td>preemption-visible</td><td>two spinners on CPU 0, at least 5 involuntary switches in 5 s</td><td>Step 2</td></tr>
           <tr><td>fair-format</td><td>the last line matches <code>A=… B=… RATIO=x.xx</code></td><td>Step 3</td></tr>
           <tr><td>fair-equal, fair-nice10</td><td>the two ratios fall in their bands</td><td>Step 4</td></tr>
           <tr><td>fifo-throttle</td><td>the normal spinner keeps 2–10%</td><td>Step 5</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="prose"><p>The bands are wide on purpose; a correct implementation passes with margin. The checks take about a minute, most of it inside your fairshare windows. If <code>fair-format</code> fails, every other fairshare check is meaningless: fix the format first.</p></div>
+    <div class="prose"><p>The bands are wide on purpose, and a correct implementation passes with margin. The checks take about a minute, most of it inside your fairshare windows. If <code>fair-format</code> fails, every other fairshare check is meaningless. Fix the format first.</p></div>
   </div>
 </section>
 
@@ -243,11 +243,11 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   </div>
   <div class="sec">
     <div class="prose">
-      <p>The three questions in <code>submit/report.md</code> ask you to argue from your own numbers. How to investigate, not the answers:</p>
+      <p>The three questions in <code>submit/report.md</code> ask you to argue from your own numbers. Below is how to investigate, not the answers.</p>
       <ol>
-        <li><b>The geometry of nice.</b> Quote your measured ratio and how far it is from 9.3. For the "why geometric" part, take the hint in <code>report.md</code> literally: with 100 runnable tasks already on the system, compute what share one task gains or loses from one nice step under a table that <em>adds</em> a fixed amount per level, and under one that <em>multiplies</em>. Which keeps its meaning?</li>
-        <li><b>CFS vs EEVDF.</b> Use the <code>se.load.weight</code> and <code>se.vruntime</code> values you recorded in Step 2. Lecture tells you what CFS does with them. Then connect them to the CFS and EEVDF note in Step 0: your ratio measures how much CPU each task gets over 15 seconds, not which task runs next. Explain, from your data, why that makes your ratio the same under both.</li>
-        <li><b>The safety valve.</b> Name the setting from Step 5, quote its value (and the value it is measured against), and show that it matches your measured share. For the "why", imagine the FIFO spinner with no limit on a machine with one CPU: what could no longer run, including anything you would use to stop it?</li>
+        <li><b>The geometry of nice.</b> Quote your measured ratio and how far it is from 9.3. For the "why geometric" part, take the hint in <code>report.md</code> literally. With 100 runnable tasks already on the system, compute what share one task gains or loses from one nice step under a table that <em>adds</em> a fixed amount per level, and under one that <em>multiplies</em>. Which keeps its meaning?</li>
+        <li><b>CFS vs EEVDF.</b> Use the <code>se.load.weight</code> and <code>se.vruntime</code> values you recorded in Step 2. Lecture tells you what CFS does with them. Then connect them to the CFS and EEVDF note in Step 0. Your ratio measures how much CPU each task gets over 15 seconds, not which task runs next. Explain, from your data, why that makes your ratio the same under both.</li>
+        <li><b>The safety valve.</b> Name the setting from Step 5, quote its value (and the value it is measured against), and show that it matches your measured share. For the "why", imagine the FIFO spinner with no limit on a machine with one CPU. What could no longer run, including anything you would use to stop it?</li>
       </ol>
     </div>
     <div class="code"><span class="ln">cd labs/02-scheduling/submit</span><span class="ln">git add spin.c fairshare.sh report.md</span><span class="ln">git commit -m "Lab02"</span><span class="ln">git push</span></div>

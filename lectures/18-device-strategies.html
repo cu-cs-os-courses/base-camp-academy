@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Device Strategies · L18</title>
-<meta name="description" content="CSCI 3753 Lecture 18, interactive edition: polling, interrupt-driven I/O, DMA, port-mapped and memory-mapped I/O.">
+<meta name="description" content="CSCI 3753 Lecture 18, interactive edition. It covers polling, interrupt-driven I/O, DMA, port-mapped and memory-mapped I/O.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -61,12 +61,12 @@
 </svg>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><path d="M2 15h4l2-6 3 10 2-7 2 3h5"/></g><circle cx="17" cy="5" r="2.4" fill="var(--cd)" stroke="none"/></svg>
-    <span>Lecture 18 · Device Strategies</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Lecture 18 · Device Strategies</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -75,13 +75,13 @@
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 18 · Interactive notes</div>
     <h1>Stop asking the device.<br>Let it <span class="accent">tell you</span></h1>
-    <p class="lede">Lecture 17 ended with a driver spinning on a status register while the device worked. This lecture removes the spinning twice over: first with interrupts, so the CPU runs something else until the device calls back, then with DMA, so the device moves the data itself and calls back only once. It closes with the two ways a driver reaches a controller's registers at all: I/O ports and memory-mapped I/O.</p>
+    <p class="lede">Lecture 17 ended with a driver spinning on a status register while the device worked. This lecture removes the spinning twice over. It does so first with interrupts, so the CPU runs something else until the device calls back, then with DMA, so the device moves the data itself and calls back only once. It closes with the two ways a driver reaches a controller's registers at all, namely I/O ports and memory-mapped I/O.</p>
     <div class="promise">
-      <span>Before you start:</span><span class="mono">controllers, BUSY/DONE, polling</span><span>from Lecture 17, and interrupts as an exception class.</span>
+      <span>Before you start, review</span><span class="mono">controllers, BUSY/DONE, polling</span><span>from Lecture 17, and interrupts as an exception class.</span>
     </div>
     <div class="cta-row">
       <a class="btn primary" href="#ch0">Begin ↓</a>
-      <span class="muted small">About 45 minutes · 4 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 12 · Continues in Lecture 19, Storage Management</span>
+      <span class="muted small">About 45 minutes · 4 hands-on experiments · 4 checkpoints · Textbook Silberschatz, Ch. 12 · Continues in Lecture 19, Storage Management</span>
     </div>
   </div>
 </div>
@@ -89,7 +89,7 @@
 <div class="layout">
   <nav class="rail" aria-label="chapters">
     <p class="rail-title">Contents</p>
-    <a href="#ch0"><span class="n">0</span>Recall: polling</a>
+    <a href="#ch0"><span class="n">0</span>A recap of polling</a>
     <a href="#ch1"><span class="n">1</span>Interrupt-driven I/O</a>
     <a href="#ch2"><span class="n">2</span>Direct memory access</a>
     <a href="#ch3"><span class="n">3</span>Ports and memory-mapped I/O</a>
@@ -99,7 +99,7 @@
     <details class="toc-mobile">
       <summary>Contents</summary>
       <nav>
-        <a href="#ch0"><span class="n">0</span>Recall: polling</a>
+        <a href="#ch0"><span class="n">0</span>A recap of polling</a>
         <a href="#ch1"><span class="n">1</span>Interrupt-driven I/O</a>
         <a href="#ch2"><span class="n">2</span>Direct memory access</a>
         <a href="#ch3"><span class="n">3</span>Ports and memory-mapped I/O</a>
@@ -111,14 +111,14 @@
       <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 18</div>
       <h1>Device Strategies</h1>
       <p class="lede">Polling, interrupts, DMA, and how a driver reaches a device's registers.</p>
-      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 12</div>
+      <div class="meta">Instructor Yueqi Chen · Textbook Silberschatz, Ch. 12</div>
     </div>
 
 <!-- ============================================================ -->
 <section class="chapter" id="ch0">
   <div class="ch-head">
     <div class="ch-no">Chapter 0</div>
-    <h2>Recall: polling, and three strategies</h2>
+    <h2>A recap of polling, and three strategies</h2>
     <p class="ch-lede">Where Lecture 17 stopped, and the map for today.</p>
   </div>
 
@@ -134,7 +134,7 @@
           <span class="ln"><span class="c">/* finished: read status bits … */</span></span>
           <span class="ln">dev.done = FALSE;</span>
         </div>
-        <p class="prose" style="margin-top:12px" data-step="1">The OS spins twice: once until the device is idle, once until it finishes. Every spin is a CPU cycle an application could have used. We want to <strong>overlap CPU and I/O</strong>.</p>
+        <p class="prose" style="margin-top:12px" data-step="1">The OS spins twice, once until the device is idle and once until it finishes. Every spin is a CPU cycle an application could have used. We want to <strong>overlap CPU and I/O</strong>.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -151,14 +151,14 @@
             <path d="M360 258 V234" class="wire" marker-end="url(#ah)"/><text x="360" y="268" text-anchor="middle" class="lbl" dy="-2">done</text>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 0.1</span>Polling: the CPU and the device are never both doing useful work.</figcaption>
+        <figcaption><span class="fno">Fig. 0.1</span>With polling, the CPU and the device are never both doing useful work.</figcaption>
       </figure>
     </div>
   </div>
 
   <div class="sec" id="s0-2">
     <h3><span class="sec-no">0.2</span>Three strategies</h3>
-    <p class="prose">Underneath the blocking, non-blocking, synchronous and asynchronous system calls, the device manager can move data in three ways:</p>
+    <p class="prose">Underneath the blocking, non-blocking, synchronous and asynchronous system calls, the device manager can move data in the three ways below.</p>
     <div class="opts3">
       <div><span class="tag">Direct I/O with polling</span>The device manager busy-waits. We have seen this.</div>
       <div data-step="1"><span class="tag">Direct I/O with interrupts</span>No busy waiting, but the CPU still takes an interrupt and copies data for every transfer. <a href="#ch1">Chapter 1</a>.</div>
@@ -214,7 +214,7 @@
         <li>The CPU has a hardware <strong>interrupt flag</strong>.</li>
         <li data-step="1">Whenever a device finishes a read or write, it signals the CPU and raises the flag. The CPU is free to run other tasks instead of polling devices.</li>
         <li data-step="2">On an interrupt, the CPU suspends normal execution and invokes the OS's <strong>interrupt handler</strong>.</li>
-        <li data-step="3">After the interrupt is handled and the I/O results processed, the OS resumes normal execution. In Lecture 17's terms, this is the asynchronous exception class: it returns to the next instruction.</li>
+        <li data-step="3">After the interrupt is handled and the I/O results processed, the OS resumes normal execution. In Lecture 17's terms, this is the asynchronous exception class, which returns to the next instruction.</li>
       </ul>
     </div>
   </div>
@@ -223,10 +223,10 @@
     <h3><span class="sec-no">1.3</span>Inside the interrupt handler</h3>
     <div class="two-up" style="align-items:start">
       <ol class="steps-list prose">
-        <li class="prep"><strong>Prep: disable interrupts</strong>, so a second interrupt cannot land in the middle of the first.</li>
-        <li data-step="1"><strong>Save the processor state</strong>: the running app's program counter (PC) and register contents.</li>
-        <li data-step="2"><strong>Find the device</strong> that interrupted: ask the interrupt controller for the interrupt offset, or poll the devices.</li>
-        <li data-step="3"><strong>Jump to the device's handler</strong>: index into the <span class="term">interrupt vector<span class="tip">The table that maps an interrupt number to its handler's address; on x86, the IDT from Lecture 17.</span></span> with that offset. The code that runs is the <strong>interrupt service routine (ISR)</strong>.</li>
+        <li class="prep"><strong>Prep. Disable interrupts</strong>, so a second interrupt cannot land in the middle of the first.</li>
+        <li data-step="1"><strong>Save the processor state</strong>, namely the running app's program counter (PC) and register contents.</li>
+        <li data-step="2"><strong>Find the device</strong> that interrupted. Ask the interrupt controller for the interrupt offset, or poll the devices.</li>
+        <li data-step="3"><strong>Jump to the device's handler</strong> by indexing into the <span class="term">interrupt vector<span class="tip">The table that maps an interrupt number to its handler's address. On x86, it is the IDT from Lecture 17.</span></span> with that offset. The code that runs is the <strong>interrupt service routine (ISR)</strong>.</li>
         <li data-step="4"><strong>Re-enable interrupts</strong>, restore the saved state, and return to the interrupted program.</li>
       </ol>
       <figure class="fig" data-step="1">
@@ -256,9 +256,9 @@
       </figure>
     </div>
     <details class="fold">
-      <summary>Going further: top halves and bottom halves</summary>
+      <summary>Going further with top halves and bottom halves</summary>
       <div class="fold-body">
-        <p>Interrupts are off while the handler runs, so a slow handler delays every other device. Linux therefore splits the work. The <strong>top half</strong> (the hard-IRQ handler) does the minimum: acknowledge the device, grab the data, schedule the rest. The <strong>bottom half</strong> (a softirq, tasklet or workqueue item) finishes the job later, with interrupts enabled.</p>
+        <p>Interrupts are off while the handler runs, so a slow handler delays every other device. Linux therefore splits the work. The <strong>top half</strong> (the hard-IRQ handler) does the minimum. It acknowledges the device, grabs the data, and schedules the rest. The <strong>bottom half</strong> (a softirq, tasklet or workqueue item) finishes the job later, with interrupts enabled.</p>
       </div>
     </details>
   </div>
@@ -268,14 +268,14 @@
     <div class="two-up" style="align-items:start">
       <div class="prose small">
         <ol>
-          <li>The program calls <code>read(device, …)</code>; the call reaches the <strong>read driver</strong>.</li>
+          <li>The program calls <code>read(device, …)</code>, and the call reaches the <strong>read driver</strong>.</li>
           <li data-step="2">The driver checks the device's <strong>status</strong>.</li>
           <li data-step="3">If the device is idle, the driver writes the <strong>command</strong>.</li>
           <li data-step="4">The driver puts the request on the <strong>request queue</strong>. The process blocks and the CPU runs something else.</li>
           <li data-step="5">The device finishes and raises an <strong>interrupt</strong>, which lands in the interrupt handler.</li>
           <li data-step="6">The interrupt handler calls the right <strong>device handler</strong>.</li>
           <li data-step="7">The device handler takes the pending request off the queue.</li>
-          <li data-step="8"><strong>8a</strong> it reads the <strong>data</strong> register; <strong>8b</strong> it copies the data into the program's buffer.</li>
+          <li data-step="8"><strong>8a</strong> It reads the <strong>data</strong> register. <strong>8b</strong> It copies the data into the program's buffer.</li>
           <li data-step="9">It wakes the program, and <code>read()</code> returns.</li>
         </ol>
       </div>
@@ -310,12 +310,12 @@
             <g data-step="9"><path d="M540 150 V30 H474" class="wire p" marker-end="url(#ah-p)"/><g class="badge"><circle cx="540" cy="96" r="12"/><text x="540" y="96">9</text></g></g>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 1.3</span>An interrupt-driven read, after Nutt, <i>Operating Systems: A Modern Perspective</i>.</figcaption>
+        <figcaption><span class="fno">Fig. 1.3</span>An interrupt-driven read, after Nutt, <i>Operating Systems, A Modern Perspective</i>.</figcaption>
       </figure>
     </div>
     <div class="note note-key" data-step="9">
       <span class="note-tag">Two interrupts</span>
-      <p>If the device was busy at step 2, the request waits in the queue. The device then interrupts <strong>twice</strong>: once when it finishes the earlier request, so the handler can issue ours, and once when ours is done.</p>
+      <p>If the device was busy at step 2, the request waits in the queue. The device then interrupts <strong>twice</strong>, once when it finishes the earlier request, so the handler can issue ours, and once when ours is done.</p>
     </div>
   </div>
 
@@ -329,7 +329,7 @@
           <button type="button" class="q-opt" data-ok>Blocked. The CPU runs other processes until the device's interrupt leads to the wake-up at step 9.</button>
           <button type="button" class="q-opt" data-why="The data is not ready until the device finishes, so the process cannot have it yet. It is waiting, not running.">Running, and already reading its data.</button>
         </div>
-        <div class="q-fb ok">Right. The read is blocking for the process, but the CPU is not wasted: that is the overlap of CPU and I/O.</div>
+        <div class="q-fb ok">Right. The read is blocking for the process, but the CPU is not wasted. That is the overlap of CPU and I/O.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -338,11 +338,11 @@
   <div class="sec" id="s1-5">
     <h3><span class="sec-no">1.5</span>When is polling better than interrupts?</h3>
     <div class="prose">
-      <p>Interrupts are not free:</p>
+      <p>Interrupts are not free, for the three reasons below.</p>
       <ul>
-        <li>setting up the interrupt takes overhead;</li>
-        <li>handling the interrupt takes overhead;</li>
-        <li>blocking the process and scheduling another one takes overhead.</li>
+        <li>Setting up the interrupt takes overhead.</li>
+        <li>Handling the interrupt takes overhead.</li>
+        <li>Blocking the process and scheduling another one takes overhead.</li>
       </ul>
       <p data-step="1">So if the wait for the I/O is always short, or predictable, <strong>polling is better</strong>.</p>
     </div>
@@ -363,7 +363,7 @@
   </div>
 
   <div class="ch-nav">
-    <a href="#ch0">Back<b>0 · Recall: polling</b></a>
+    <a href="#ch0">Back<b>0 · A recap of polling</b></a>
     <a href="#ch2">Next<b>2 · Direct memory access</b></a>
   </div>
 </section>
@@ -380,13 +380,13 @@
     <h3><span class="sec-no">2.1</span>The problem with interrupt-driven I/O</h3>
     <div class="prose">
       <p>Moving data between memory and devices can become the bottleneck when there is a lot of it.</p>
-      <p data-step="1">Example: read a <strong>1 MB file</strong> from a disk that delivers <strong>1 KB blocks</strong>. Every time a block is ready, the disk raises an interrupt and the CPU copies 1 KB: <strong>1024 interrupts</strong>, each one slowing down the running programs and the OS.</p>
-      <p data-step="2">Worst case: an interrupt after every byte or character, or after every packet from the network card.</p>
+      <p data-step="1">For example, read a <strong>1 MB file</strong> from a disk that delivers <strong>1 KB blocks</strong>. Every time a block is ready, the disk raises an interrupt and the CPU copies 1 KB. That makes <strong>1024 interrupts</strong>, each one slowing down the running programs and the OS.</p>
+      <p data-step="2">The worst case is an interrupt after every byte or character, or after every packet from the network card.</p>
     </div>
   </div>
 
   <div class="sec" id="s2-2">
-    <h3><span class="sec-no">2.2</span>Polling, interrupts, DMA: where the CPU's time goes</h3>
+    <h3><span class="sec-no">2.2</span>Where the CPU's time goes with polling, interrupts, and DMA</h3>
     <div class="widget" id="cmp-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Read a file from a disk that delivers 1 KB blocks</span><button class="w-reset" type="button" id="cmp-reset">Reset</button></div>
       <div class="controls">
@@ -411,7 +411,7 @@
       </div>
       <div class="readout" id="cmp-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Model: the disk takes 100 µs per 1 KB block; taking an interrupt costs the CPU 5 µs; copying 1 KB costs 10 µs; setting up a DMA transfer costs 10 µs. The timeline shows the first 16 blocks; the numbers cover the whole file.</p>
+    <p class="small muted prose read-only">In this model, the disk takes 100 µs per 1 KB block. Taking an interrupt costs the CPU 5 µs, copying 1 KB costs 10 µs, and setting up a DMA transfer costs 10 µs. The timeline shows the first 16 blocks, and the numbers cover the whole file.</p>
   </div>
 
   <div class="sec" id="s2-3">
@@ -420,7 +420,7 @@
       <ul>
         <li><strong>Bypass the CPU</strong> for large data copies, and raise an interrupt only at the very end of the transfer instead of after every block.</li>
         <li data-step="1">Modern systems offload this work to a special-purpose processor, the <strong>direct-memory-access (DMA) controller</strong>.</li>
-        <li data-step="2">The DMA controller operates the memory bus directly: it places addresses on the bus and performs the transfers without the main CPU.</li>
+        <li data-step="2">The DMA controller operates the memory bus directly. It places addresses on the bus and performs the transfers without the main CPU.</li>
       </ul>
     </div>
   </div>
@@ -450,7 +450,7 @@
             <path d="M80 175 V250" class="wire" style="stroke-width:4;opacity:.45"/>
             <rect x="300" y="285" width="160" height="56" class="fbox"/><text x="380" y="318" text-anchor="middle">disk controller</text>
             <path d="M380 250 V285" class="wire" style="stroke-width:4;opacity:.45"/>
-            <g data-step="1"><g class="badge"><circle cx="450" cy="36" r="13"/><text x="450" y="36">1</text></g><text x="468" y="41" class="lbl">driver: read to X</text></g>
+            <g data-step="1"><g class="badge"><circle cx="450" cy="36" r="13"/><text x="450" y="36">1</text></g><text x="468" y="41" class="lbl">driver reads to X</text></g>
             <g data-step="2"><path d="M290 64 H250 V305 H296" class="wire o" marker-end="url(#ah-o)"/><g class="badge"><circle cx="250" cy="210" r="13"/><text x="250" y="210">2</text></g></g>
             <g data-step="3"><path d="M330 285 V268 H130 V179" class="wire o dashed" marker-end="url(#ah-o)"/><g class="badge"><circle cx="170" cy="268" r="13"/><text x="170" y="268">3</text></g></g>
             <g data-step="4"><path d="M420 285 V222 H160 V179" class="wire d" marker-end="url(#ah-d)"/><g class="badge"><circle cx="300" cy="222" r="13"/><text x="300" y="222">4</text></g></g>
@@ -468,7 +468,7 @@
     <p class="prose">The CPU and the DMA controller both need main memory. Who gets the bus?</p>
     <div class="opts3">
       <div><span class="tag">Burst mode</span>While DMA transfers, the CPU is blocked from accessing memory.</div>
-      <div data-step="1"><span class="tag">Cycle stealing</span>Interleaved: DMA moves one word, then the CPU gets a memory access, then DMA, then the CPU…</div>
+      <div data-step="1"><span class="tag">Cycle stealing</span>DMA and the CPU interleave. DMA moves one word, then the CPU gets a memory access, then DMA, then the CPU…</div>
       <div data-step="2"><span class="tag">Transparent mode</span>DMA transfers only when the CPU is not using the bus. Most efficient, but hard to detect when that is.</div>
     </div>
     <div class="widget" id="bus-w">
@@ -500,7 +500,7 @@
           <button type="button" class="q-opt" data-why="DMA moves all 1024 blocks itself and interrupts only when the whole transfer is done.">1024 and 1024</button>
           <button type="button" class="q-opt" data-why="That would be an interrupt per byte, the worst case, not per 1 KB block.">1,048,576 and 1</button>
         </div>
-        <div class="q-fb ok">Right: one interrupt per block without DMA, one per transfer with it. Check with the widget in §2.2.</div>
+        <div class="q-fb ok">Right. There is one interrupt per block without DMA, and one per transfer with it. Check with the widget in §2.2.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -516,7 +516,7 @@
 <section class="chapter" id="ch3">
   <div class="ch-head">
     <div class="ch-no">Chapter 3</div>
-    <h2>Reaching the registers: ports and memory-mapped I/O</h2>
+    <h2>Reaching the registers with ports and memory-mapped I/O</h2>
     <p class="ch-lede">Every strategy above ends with a driver reading or writing a controller register. There are two ways to name one.</p>
   </div>
 
@@ -524,9 +524,9 @@
     <h3><span class="sec-no">3.1</span>Port-mapped I/O</h3>
     <div class="two-up" style="align-items:start">
       <div class="prose">
-        <p>Controller registers live in a separate <strong>I/O port</strong> address space, reached by special machine instructions. On Intel x86 these are <code>IN</code> and <code>OUT</code>:</p>
+        <p>Controller registers live in a separate <strong>I/O port</strong> address space, reached by special machine instructions. On Intel x86 these are <code>IN</code> and <code>OUT</code>.</p>
         <ul>
-          <li><code>OUT dest, src</code> writes CPU register <code>src</code> to device port <code>dest</code>;</li>
+          <li><code>OUT dest, src</code> writes CPU register <code>src</code> to device port <code>dest</code>.</li>
           <li><code>IN dest, src</code> reads device port <code>src</code> into CPU register <code>dest</code>.</li>
         </ul>
         <p data-step="1">Only the OS, in kernel mode, may execute them. Later Intel added string versions (<code>INS</code>, <code>OUTS</code>) and width variants (<code>INSB</code>, <code>INSW</code>, <code>INSD</code>).</p>
@@ -566,8 +566,8 @@
         </table>
       </div>
       <div class="prose" data-step="1">
-        <p>A partial map of the classic PC's port space (Silberschatz, Fig. 12.3). Each range is a small block of registers: the primary serial port's data register is port <code>0x3F8</code>, and the next seven ports are its status and control registers.</p>
-        <p>Notice who sits at the very bottom: the DMA controller of Chapter 2 and the interrupt controller of Chapter 1 are devices too, programmed through ports like any other.</p>
+        <p>A partial map of the classic PC's port space (Silberschatz, Fig. 12.3). Each range is a small block of registers. The primary serial port's data register is port <code>0x3F8</code>, and the next seven ports are its status and control registers.</p>
+        <p>Notice who sits at the very bottom. The DMA controller of Chapter 2 and the interrupt controller of Chapter 1 are devices too, programmed through ports like any other.</p>
       </div>
     </div>
   </div>
@@ -577,8 +577,8 @@
     <div class="prose">
       <ul>
         <li><code>IN</code> and <code>OUT</code> can only load and store. The CPU's full set of memory operations is not available.</li>
-        <li data-step="1">Example: to increment a device's data register, copy it into a CPU register, add one, and copy it back: three instructions and two bus trips.</li>
-        <li data-step="2">When AMD defined x86-64, it did not extend the port I/O instructions: there is no 64-bit <code>IN</code> or <code>OUT</code>.</li>
+        <li data-step="1">For example, to increment a device's data register, copy it into a CPU register, add one, and copy it back. That takes three instructions and two bus trips.</li>
+        <li data-step="2">When AMD defined x86-64, it did not extend the port I/O instructions, so there is no 64-bit <code>IN</code> or <code>OUT</code>.</li>
       </ul>
     </div>
   </div>
@@ -587,10 +587,10 @@
     <h3><span class="sec-no">3.4</span>Memory-mapped I/O</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Device registers and device memory are mapped into the <strong>system's memory address space</strong>. Ordinary instructions reach them:</p>
+        <p>Device registers and device memory are mapped into the <strong>system's memory address space</strong>. Ordinary instructions reach them, as the example below shows.</p>
         <p><code>load R3, 0xC0FF01</code> reads a device register, because address <code>0xC0FF01</code> is assigned to that controller's command register.</p>
         <p data-step="1">Each controller's registers get a block of addresses. When a value is written there, the device sees it, loads it, and carries out the command.</p>
-        <p data-step="2">Devices are typically mapped into lower memory. Display frame buffers take the most space; even a large display needs only 10–100 MB, which is modest in an address space of gigabytes. So memory-mapped I/O costs little address space.</p>
+        <p data-step="2">Devices are typically mapped into lower memory. Display frame buffers take the most space. Even a large display needs only 10–100 MB, which is modest in an address space of gigabytes. So memory-mapped I/O costs little address space.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -653,9 +653,9 @@
         <thead><tr><th></th><th>Port-mapped I/O</th><th>Memory-mapped I/O</th></tr></thead>
         <tbody>
           <tr><td>address space</td><td>a separate, dedicated I/O address space</td><td>the same address space as program and user memory</td></tr>
-          <tr data-step="1"><td>instructions</td><td>a dedicated set: <code>IN</code>, <code>OUT</code>, and variants</td><td>ordinary loads, stores, and any instruction that touches memory</td></tr>
-          <tr data-step="2"><td>who may use it</td><td>the OS in kernel mode</td><td>whoever has the addresses mapped; normally the kernel, but a driver can map a device's registers into a process</td></tr>
-          <tr data-step="2"><td>today</td><td>legacy PC devices (serial port, timer, PS/2 keyboard)</td><td>almost everything else: PCIe devices, NVMe, GPUs, network cards</td></tr>
+          <tr data-step="1"><td>instructions</td><td>a dedicated set, namely <code>IN</code>, <code>OUT</code>, and variants</td><td>ordinary loads, stores, and any instruction that touches memory</td></tr>
+          <tr data-step="2"><td>who may use it</td><td>the OS in kernel mode</td><td>whoever has the addresses mapped, which is normally the kernel, but a driver can map a device's registers into a process</td></tr>
+          <tr data-step="2"><td>today</td><td>legacy PC devices (serial port, timer, PS/2 keyboard)</td><td>almost everything else, such as PCIe devices, NVMe, GPUs, and network cards</td></tr>
         </tbody>
       </table>
     </div>
@@ -667,7 +667,7 @@
       <div class="quiz-body">
         <div class="q-text">A driver wants to increment a device's data register with a single <code>inc</code> instruction. Which kind of I/O makes that possible?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="IN and OUT only load and store. Port I/O needs three instructions: IN, INC, OUT.">Port-mapped I/O</button>
+          <button type="button" class="q-opt" data-why="IN and OUT only load and store. Port I/O needs three instructions, namely IN, INC, and OUT.">Port-mapped I/O</button>
           <button type="button" class="q-opt" data-ok>Memory-mapped I/O</button>
           <button type="button" class="q-opt" data-why="The difference between the two is exactly which instructions can reach the register.">Both work the same way</button>
         </div>
@@ -684,7 +684,7 @@
         <div class="q-text">A device always answers within 200 ns. Taking an interrupt and rescheduling costs about 5 µs. Which strategy wastes the least CPU time for a small request?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-ok>Polling</button>
-          <button type="button" class="q-opt" data-why="The interrupt costs 5 µs of CPU to save 0.2 µs of spinning: 25 times more than it saves.">Interrupt-driven I/O</button>
+          <button type="button" class="q-opt" data-why="The interrupt costs 5 µs of CPU to save 0.2 µs of spinning, which is 25 times more than it saves.">Interrupt-driven I/O</button>
           <button type="button" class="q-opt" data-why="DMA pays off for large transfers. For one small request, setting it up plus the final interrupt costs more than the wait.">DMA</button>
         </div>
         <div class="q-fb ok">Right. When the wait is short and predictable, spinning for it is cheaper than the machinery of an interrupt (§1.5).</div>
@@ -710,15 +710,15 @@
     <h3><span class="sec-no">∎</span>Recap</h3>
     <div class="prose">
       <ul>
-        <li><strong>The three device controller states:</strong> idle, working, finished.</li>
-        <li><strong>The three I/O strategies:</strong>
+        <li><strong>The three device controller states</strong> are idle, working, and finished.</li>
+        <li><strong>The three I/O strategies</strong> are listed below.
           <ul>
-            <li><em>direct I/O with polling</em>: the CPU waits for the device to become idle, issues the I/O command, and waits for the device to finish;</li>
-            <li><em>direct I/O with interrupts</em>: no busy waiting, but an interrupt and a CPU copy for every transfer;</li>
-            <li><em>DMA with interrupts</em>: large transfers without the CPU, one interrupt at the end.</li>
+            <li><em>Direct I/O with polling.</em> The CPU waits for the device to become idle, issues the I/O command, and waits for the device to finish.</li>
+            <li><em>Direct I/O with interrupts.</em> There is no busy waiting, but there is an interrupt and a CPU copy for every transfer.</li>
+            <li><em>DMA with interrupts.</em> Large transfers happen without the CPU, with one interrupt at the end.</li>
           </ul>
         </li>
-        <li><strong>Port vs. memory-mapped I/O:</strong> port registers live in a separate I/O address space that only the OS reaches, with <code>IN</code>/<code>OUT</code>; memory-mapped registers sit at memory addresses, mapped into kernel (or user) space, and are accessed like any other memory.</li>
+        <li><strong>Port vs. memory-mapped I/O.</strong> Port registers live in a separate I/O address space that only the OS reaches, with <code>IN</code>/<code>OUT</code>. Memory-mapped registers sit at memory addresses, mapped into kernel (or user) space, and are accessed like any other memory.</li>
       </ul>
     </div>
     <div class="note note-lab" data-step="1">
@@ -733,7 +733,7 @@
       <tbody>
         <tr><td>polling</td><td>Repeatedly reading a status register until the device is ready.</td></tr>
         <tr><td>interrupt flag</td><td>The CPU input a device raises to request attention.</td></tr>
-        <tr><td>interrupt handler / ISR</td><td>Kernel code that runs on an interrupt: save state, identify the device, run its service routine.</td></tr>
+        <tr><td>interrupt handler / ISR</td><td>Kernel code that runs on an interrupt. It saves state, identifies the device, and runs its service routine.</td></tr>
         <tr><td>interrupt controller</td><td>Hardware that collects device interrupt lines and tells the CPU which one fired.</td></tr>
         <tr><td>request queue</td><td>Pending I/O requests waiting for a busy device.</td></tr>
         <tr><td>DMA controller</td><td>A processor that moves data between a device and memory by itself, then interrupts once.</td></tr>
@@ -960,13 +960,13 @@
     const PORT = [['0x000–0x00F', 'DMA controller'], ['0x020–0x021', 'interrupt controller'], ['0x040–0x043', 'timer'], ['0x378–0x37F', 'parallel port'], ['0x3F8–0x3FF', 'serial port (primary)']];
     const INS = [
       { t: 'load R3, 0x004000', s: 'ordinary load', sp: 'mem', hit: 0, out: 'An ordinary load from RAM. Nothing special about it.' },
-      { t: 'load R3, 0xC0FF02', s: 'ordinary load', sp: 'mem', hit: 2, out: 'The same instruction as the RAM load, but <b>0xC0FF02</b> is device 1\'s status register: this is how a memory-mapped driver polls. The bus routes the access to the controller, not RAM.' },
+      { t: 'load R3, 0xC0FF02', s: 'ordinary load', sp: 'mem', hit: 2, out: 'The same instruction as the RAM load, but <b>0xC0FF02</b> is device 1\'s status register. This is how a memory-mapped driver polls. The bus routes the access to the controller, not RAM.' },
       { t: 'store R3, 0xD00400', s: 'ordinary store', sp: 'mem', hit: 5, out: 'A store into the frame buffer. The display controller shows the new pixel value on the next refresh.' },
-      { t: 'inc [0xC0FF03]', s: 'one instruction', sp: 'mem', hit: 3, out: 'Read-modify-write on device 1\'s data register in <b>one</b> instruction. With port I/O this takes three: <code>in al, dx</code> · <code>inc al</code> · <code>out dx, al</code>.' },
-      { t: 'out dx, al', s: 'dx = 0x3F8', sp: 'port', hit: 4, out: 'A write to I/O port <b>0x3F8</b>, the primary serial port\'s data register. The same number as a memory address would mean something else entirely: port space is separate.' },
+      { t: 'inc [0xC0FF03]', s: 'one instruction', sp: 'mem', hit: 3, out: 'Read-modify-write on device 1\'s data register in <b>one</b> instruction. With port I/O this takes three, namely <code>in al, dx</code> · <code>inc al</code> · <code>out dx, al</code>.' },
+      { t: 'out dx, al', s: 'dx = 0x3F8', sp: 'port', hit: 4, out: 'A write to I/O port <b>0x3F8</b>, the primary serial port\'s data register. The same number as a memory address would mean something else entirely, because port space is separate.' },
       { t: 'in al, 0x40', s: 'port 0x40', sp: 'port', hit: 2, out: 'Reads the timer\'s counter from port <b>0x40</b>. Only kernel mode may execute <code>IN</code> and <code>OUT</code>.' },
-      { t: 'out 0x21, al', s: 'port 0x21', sp: 'port', hit: 1, out: 'Writes the interrupt controller\'s mask register at port <b>0x21</b>: this is how the kernel turns individual device interrupts on and off (Chapter 1).' },
-      { t: 'in al, dx', s: 'dx = 0x004000', sp: 'port', hit: -1, out: 'There is no port 0x4000 on this map: port numbers are small, and this is <b>not</b> the RAM address 0x004000. The two address spaces do not overlap even when the numbers do.' },
+      { t: 'out 0x21, al', s: 'port 0x21', sp: 'port', hit: 1, out: 'Writes the interrupt controller\'s mask register at port <b>0x21</b>. This is how the kernel turns individual device interrupts on and off (Chapter 1).' },
+      { t: 'in al, dx', s: 'dx = 0x004000', sp: 'port', hit: -1, out: 'There is no port 0x4000 on this map. Port numbers are small, and this is <b>not</b> the RAM address 0x004000. The two address spaces do not overlap even when the numbers do.' },
     ];
     function render(k) {
       const ins = INS[k];

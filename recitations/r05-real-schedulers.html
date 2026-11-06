@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Real Schedulers · R05</title>
-<meta name="description" content="CSCI 3753 Recitation 05: tracing a multilevel feedback queue by hand, computing CFS vruntime with nice weights, a lost update from counter++ on paper, and Lab02/Lab03 help.">
+<meta name="description" content="CSCI 3753 Recitation 05, covering tracing a multilevel feedback queue by hand, computing CFS vruntime with nice weights, a lost update from counter++ on paper, and Lab02/Lab03 help.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -31,12 +31,12 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
 <body>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.3" fill="none"><rect x="2.5" y="3" width="17" height="4.5" rx="1"/><rect x="2.5" y="9" width="17" height="4.5" rx="1"/><rect x="2.5" y="15" width="17" height="4.5" rx="1"/></g><rect x="3.3" y="3.8" width="4" height="3" fill="var(--cz)"/><rect x="3.3" y="9.8" width="8" height="3" fill="var(--cx)"/><rect x="3.3" y="15.8" width="12" height="3" fill="var(--cf)"/></svg>
-    <span>Recitation 05 · Real schedulers; seeing a race</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Recitation 05 · Real schedulers and seeing a race</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -44,10 +44,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 05 · Week 5</div>
     <h1>Queues that <span class="accent">learn</span>, a clock that is fair</h1>
-    <p class="lede">Lecture 07 went past the textbook algorithms to the ones real kernels use; Lecture 08 started synchronization. Today you trace a multilevel feedback queue step by step, compute CFS's vruntime for two nice levels, and watch <code>counter++</code> lose an update on paper. Then Lab02 and Lab03 help.</p>
+    <p class="lede">Lecture 07 went past the textbook algorithms to the ones real kernels use, and Lecture 08 started synchronization. Today you trace a multilevel feedback queue step by step, compute CFS's vruntime for two nice levels, and watch <code>counter++</code> lose an update on paper. Then Lab02 and Lab03 help.</p>
     <div class="agenda">
-      <div><b>0–5</b>Recap: MLFQ, CFS, races</div>
-      <div><b>5–25</b>Worked example: MLFQ, vruntime, a lost update</div>
+      <div><b>0–5</b>Recap of MLFQ, CFS, and races</div>
+      <div><b>5–25</b>Worked example on MLFQ, vruntime, and a lost update</div>
       <div><b>25–45</b>Lab02 (due Sun Feb 14) and Lab03 help</div>
       <div><b>45–50</b>Exit ticket</div>
     </div>
@@ -86,7 +86,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li><b>Q0</b>: RR, q = 4. <b>Q1</b>: RR, q = 8. <b>Q2</b>: FCFS. New jobs enter Q0.</li>
+          <li><b>Q0</b> uses RR with q = 4, <b>Q1</b> uses RR with q = 8, and <b>Q2</b> uses FCFS. New jobs enter Q0.</li>
           <li>Using a whole quantum <strong>demotes</strong> the job one level.</li>
           <li>A job arriving in a higher queue <strong>preempts</strong> a job running from a lower one. The preempted job stays at the head of its queue and keeps the part of its quantum it has used.</li>
         </ul>
@@ -102,20 +102,20 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <thead><tr><th>t</th><th>event</th><th>runs</th></tr></thead>
           <tbody>
             <tr><td>0</td><td>A arrives → Q0</td><td>A (Q0) 0–4</td></tr>
-            <tr><td>2</td><td>B arrives → Q0 (same level: no preemption)</td><td></td></tr>
+            <tr><td>2</td><td>B arrives → Q0 (same level, so no preemption)</td><td></td></tr>
             <tr><td>4</td><td>A used its 4 → <b>demoted to Q1</b></td><td>B (Q0) 4–7</td></tr>
             <tr><td>5</td><td>C arrives → Q0</td><td></td></tr>
             <tr><td>7</td><td>B done</td><td>C (Q0) 7–11</td></tr>
             <tr><td>11</td><td>C used its 4 → Q1, behind A</td><td>A (Q1) 11–13</td></tr>
-            <tr><td>13</td><td>D arrives → Q0: <b>preempts A</b>, which has used 2 of its 8</td><td>D (Q0) 13–15</td></tr>
-            <tr><td>15</td><td>D done</td><td>A (Q1) 15–21: the other 6</td></tr>
+            <tr><td>13</td><td>D arrives → Q0 and <b>preempts A</b>, which has used 2 of its 8</td><td>D (Q0) 13–15</td></tr>
+            <tr><td>15</td><td>D done</td><td>A (Q1) 15–21, the other 6</td></tr>
             <tr><td>21</td><td>A used its 8 → <b>demoted to Q2</b></td><td>C (Q1) 21–23</td></tr>
             <tr><td>23</td><td>C done</td><td>A (Q2) 23–25</td></tr>
           </tbody>
         </table>
       </div>
       <div class="canvas-wrap"><svg class="dia" id="mq-svg" viewBox="0 0 640 140" width="640" style="min-width:460px" role="img" aria-label="MLFQ timeline with one lane per queue"></svg></div>
-      <p>Turnaround: A 25, B 5, C 18, D 2. The short jobs B and D finished from Q0 almost as if SJF had picked them, yet the scheduler never knew a burst length. The long job sank to the bottom.</p>
+      <p>The turnaround times are A 25, B 5, C 18, and D 2. The short jobs B and D finished from Q0 almost as if SJF had picked them, yet the scheduler never knew a burst length. The long job sank to the bottom.</p>
     </div></details>
   </div>
 </section>
@@ -127,7 +127,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   </div>
   <div class="sec">
     <div class="prose">
-      <p>Two CPU-bound tasks share one CPU: T0 at nice 0 (weight 1024) and T5 at nice 5 (weight 335). Each pick runs 4 ms. CFS runs the task with the <strong>smallest vruntime</strong>, and after it runs Δ ms, vruntime += Δ × 1024 / weight. So T0 gains 4 per run and T5 gains 12.23. Ties go to T0.</p>
+      <p>Two CPU-bound tasks share one CPU, namely T0 at nice 0 (weight 1024) and T5 at nice 5 (weight 335). Each pick runs 4 ms. CFS runs the task with the <strong>smallest vruntime</strong>, and after it runs Δ ms, vruntime += Δ × 1024 / weight. So T0 gains 4 per run and T5 gains 12.23. Ties go to T0.</p>
     </div>
     <details class="fold"><summary>Eight picks</summary><div class="prose">
       <table class="t">
@@ -144,7 +144,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <tr><td>8</td><td>T0</td><td>24</td><td>24.45</td></tr>
         </tbody>
       </table>
-      <p>T0 ran 24 ms and T5 8 ms: 75%, the same as 1024 / (1024 + 335) ≈ 0.753. CFS never counts shares. It only keeps the vruntimes level, and the shares follow from the weights.</p>
+      <p>T0 ran 24 ms and T5 8 ms, so T0 got 75%, the same as 1024 / (1024 + 335) ≈ 0.753. CFS never counts shares. It only keeps the vruntimes level, and the shares follow from the weights.</p>
     </div></details>
   </div>
 </section>
@@ -155,7 +155,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <h2>A lost update, on paper</h2>
   </div>
   <div class="sec">
-    <div class="prose"><p><code>counter++</code> is three machine steps: load, add, store. Two threads, starting from <code>counter = 5</code>:</p></div>
+    <div class="prose"><p><code>counter++</code> is three machine steps, namely load, add, and store. Below are two threads, starting from <code>counter = 5</code>.</p></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>step</th><th>thread 1</th><th>thread 2</th><th>counter</th></tr></thead>
@@ -182,9 +182,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="prose">
       <ul>
-        <li><b>Lab03</b>: <code>man 3 pthread_create</code> and <code>man 3 pthread_join</code>; compile with <code>-pthread</code>. If <code>racy</code> never loses anything, think about what <code>-O2</code> is allowed to do to a loop, as in Lab02's <code>spin.c</code> hint.</li>
-        <li><b>Lab02</b>: kill leftover spinners before you leave the VM; a stray real-time spinner makes it unusable.</li>
-        <li><b>PS2</b>: TAs explain rules and definitions; they do not work PS2's problems.</li>
+        <li><b>Lab03.</b> Read <code>man 3 pthread_create</code> and <code>man 3 pthread_join</code>, and compile with <code>-pthread</code>. If <code>racy</code> never loses anything, think about what <code>-O2</code> is allowed to do to a loop, as in Lab02's <code>spin.c</code> hint.</li>
+        <li><b>Lab02.</b> Kill leftover spinners before you leave the VM, because a stray real-time spinner makes it unusable.</li>
+        <li><b>PS2.</b> TAs explain rules and definitions, but they do not work PS2's problems.</li>
       </ul>
     </div>
     <div class="code"><span class="ln">SHARE=$PWD/labs/03-concurrency/submit env/run.sh</span><span class="ln"><span class="c"># in the VM</span></span><span class="ln">cd /share &amp;&amp; gcc -Wall -Werror -O2 -pthread -o /tmp/race race.c</span><span class="ln">time /tmp/race racy ; time /tmp/race locked</span></div>
@@ -207,7 +207,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <button type="button" class="q-opt" data-why="Demotion happens only when a whole quantum is used.">It drifts down to Q2 over time</button>
           <button type="button" class="q-opt" data-why="Nothing promotes it or demotes it to Q1 here.">Q1</button>
         </div>
-        <div class="q-fb ok">Right: it never uses a full 4 ms quantum, so it is never demoted. That is how MLFQ favors interactive jobs.</div>
+        <div class="q-fb ok">Right. It never uses a full 4 ms quantum, so it is never demoted. That is how MLFQ favors interactive jobs.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -218,7 +218,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="Weight only changes how fast vruntime grows.">The one with the largest weight</button>
           <button type="button" class="q-opt" data-ok>The one with the smallest vruntime</button>
-          <button type="button" class="q-opt" data-why="CFS has no fixed rotation; it picks by vruntime every time.">The next one in round-robin order</button>
+          <button type="button" class="q-opt" data-why="CFS has no fixed rotation. It picks by vruntime every time.">The next one in round-robin order</button>
         </div>
         <div class="q-fb ok">Right. The leftmost node of the red-black tree.</div>
         <div class="q-fb no">Not quite.</div>

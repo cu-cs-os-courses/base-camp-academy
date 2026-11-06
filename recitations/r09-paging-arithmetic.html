@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Paging Arithmetic · R09</title>
-<meta name="description" content="CSCI 3753 Recitation 09: translating addresses with 2 KB pages, why two-level page tables save memory, effective access time with a TLB, a second table level and page faults, and Lab04 help.">
+<meta name="description" content="CSCI 3753 Recitation 09, covering translating addresses with 2 KB pages, why two-level page tables save memory, effective access time with a TLB, a second table level and page faults, and Lab04 help.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -27,12 +27,12 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
 <body>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="2" y="7" width="18" height="8" rx="1" stroke="currentColor" stroke-width="1.3" fill="none"/><rect x="2.8" y="7.8" width="6" height="6.4" fill="var(--cz)"/><rect x="8.8" y="7.8" width="10.4" height="6.4" fill="var(--cx)" opacity=".7"/></svg>
-    <span>Recitation 09 · Paging arithmetic</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Recitation 09 · Paging arithmetic</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -40,10 +40,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 09 · Week 10</div>
     <h1>Cut the address, <span class="accent">count</span> the cost</h1>
-    <p class="lede">Lectures 14 and 15 turned memory into pages and made some of them live on disk. Today is the arithmetic behind that: splitting an address for a page size that does not fall on a hex digit, why a two-level page table is thousands of times smaller, and how a TLB, an extra table level and a rare page fault each change the average access time. Then Lab04 help, the last session before spring break.</p>
+    <p class="lede">Lectures 14 and 15 turned memory into pages and made some of them live on disk. Today is the arithmetic behind that, namely splitting an address for a page size that does not fall on a hex digit, why a two-level page table is thousands of times smaller, and how a TLB, an extra table level and a rare page fault each change the average access time. Then Lab04 help, the last session before spring break.</p>
     <div class="agenda">
-      <div><b>0–5</b>Recap: pages, frames, TLB, faults</div>
-      <div><b>5–25</b>Worked example: translate; two levels; EAT</div>
+      <div><b>0–5</b>Recap of pages, frames, TLB, faults</div>
+      <div><b>5–25</b>Worked example on translation, two levels, and EAT</div>
       <div><b>25–45</b>Lab04 help (due Sun Mar 28)</div>
       <div><b>45–50</b>Exit ticket</div>
     </div>
@@ -77,7 +77,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="ch-head">
     <div class="ch-no">Part 1 · follow along</div>
     <h2>Translate three addresses</h2>
-    <p class="ch-lede">16-bit logical addresses, 2 KB (2<sup>11</sup>-byte) pages: 11 offset bits, 5 page-number bits.</p>
+    <p class="ch-lede">16-bit logical addresses and 2 KB (2<sup>11</sup>-byte) pages give 11 offset bits and 5 page-number bits.</p>
   </div>
   <div class="sec">
     <div class="two-up">
@@ -87,16 +87,16 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <tbody><tr><td>frame</td><td>5</td><td>2</td><td class="no">invalid</td><td>7</td><td>0</td></tr></tbody>
         </table>
         <div class="prose" style="margin-top:1em">
-          <p>Two ways to split an address:</p>
+          <p>There are two ways to split an address.</p>
           <ul>
-            <li><b>Arithmetic</b>: page = address ÷ 2048, offset = address mod 2048.</li>
-            <li><b>Bits</b>: write it in binary and cut 11 bits from the right. With 2 KB pages the cut falls <em>inside</em> a hex digit.</li>
+            <li><b>Arithmetic</b> gives page = address ÷ 2048 and offset = address mod 2048.</li>
+            <li><b>Bits.</b> Write it in binary and cut 11 bits from the right. With 2 KB pages the cut falls <em>inside</em> a hex digit.</li>
           </ul>
         </div>
       </div>
       <figure class="fig">
         <div class="fig-frame"><svg class="dia" id="split-svg" viewBox="0 0 360 130" width="340" role="img" aria-label="0x0A3F in binary, split into 5 page bits and 11 offset bits"></svg></div>
-        <figcaption><span class="fno">Fig. 1</span><code>0x0A3F</code>: page 1, offset <code>0x23F</code>.</figcaption>
+        <figcaption><span class="fno">Fig. 1</span><code>0x0A3F</code> is page 1, offset <code>0x23F</code>.</figcaption>
       </figure>
     </div>
     <div class="prose"><p>Translate <code>0x0A3F</code>, <code>0x1C05</code> and <code>0x1234</code>.</p></div>
@@ -106,7 +106,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <thead><tr><th>logical</th><th>decimal</th><th>page, offset</th><th>frame</th><th>physical</th></tr></thead>
           <tbody>
             <tr><td>0x0A3F</td><td>2623</td><td>1, 575 (0x23F)</td><td>2</td><td>2 × 2048 + 575 = 4671 = <b>0x123F</b></td></tr>
-            <tr><td>0x1C05</td><td>7173</td><td>3, 1029 (0x405)</td><td>7</td><td>7 &lt;&lt; 11 = 0x3800; + 0x405 = <b>0x3C05</b></td></tr>
+            <tr><td>0x1C05</td><td>7173</td><td>3, 1029 (0x405)</td><td>7</td><td>7 &lt;&lt; 11 = 0x3800, and 0x3800 + 0x405 = <b>0x3C05</b></td></tr>
             <tr><td>0x1234</td><td>4660</td><td>2, 564</td><td>—</td><td class="no">invalid → trap</td></tr>
           </tbody>
         </table>
@@ -126,14 +126,14 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="prose">
       <ol>
         <li>A flat table has 2<sup>20</sup> entries × 4 B = <b>4 MB per process</b>, even for a tiny program.</li>
-        <li>Split the address <b>10 | 10 | 12</b>. The outer table has 1024 entries: 4 KB. Each inner table also has 1024 entries, 4 KB, and maps 1024 pages, <b>4 MB</b> of address space. Inner tables exist only where memory is used.</li>
+        <li>Split the address <b>10 | 10 | 12</b>. The outer table has 1024 entries, or 4 KB. Each inner table also has 1024 entries, 4 KB, and maps 1024 pages, <b>4 MB</b> of address space. Inner tables exist only where memory is used.</li>
       </ol>
-      <p>A process with 8 MB of code and data at the bottom and a 4 MB stack at the top: how much page table? And how does <code>0x00805123</code> split?</p>
+      <p>A process has 8 MB of code and data at the bottom and a 4 MB stack at the top. How much page table does it need? And how does <code>0x00805123</code> split?</p>
     </div>
     <details class="fold"><summary>Answers</summary><div class="prose">
-      <p>2 + 1 inner tables plus the outer one: 4 KB + 3 × 4 KB = <b>16 KB</b>, instead of 4 MB.</p>
-      <p><code>0x00805123</code>: outer index = top 10 bits = <b>2</b>, inner index = next 10 bits = <b>5</b>, offset = <b>0x123</b>.</p>
-      <p>The cost: without a TLB, one translation now takes <b>two</b> table reads before the data read. x86-64 uses four levels.</p>
+      <p>2 + 1 inner tables plus the outer one give 4 KB + 3 × 4 KB = <b>16 KB</b>, instead of 4 MB.</p>
+      <p><code>0x00805123</code> splits as outer index = top 10 bits = <b>2</b>, inner index = next 10 bits = <b>5</b>, offset = <b>0x123</b>.</p>
+      <p>The cost is that without a TLB, one translation now takes <b>two</b> table reads before the data read. x86-64 uses four levels.</p>
     </div></details>
   </div>
 </section>
@@ -148,9 +148,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="prose"><p>Compute the EAT for a one-level table, then a two-level table, then two levels plus demand paging with 1 fault per million accesses at 5 ms each.</p></div>
     <details class="fold"><summary>Answers</summary><div class="prose">
       <ol>
-        <li>One level: a hit is 1 access, a miss is 2. EAT = 0.95 × 50 + 0.05 × 100 = <b>52.5 ns</b>.</li>
-        <li>Two levels: a miss is 3 accesses. EAT = 0.95 × 50 + 0.05 × 150 = <b>55 ns</b>.</li>
-        <li>With faults: EAT ≈ (1 − 10<sup>−6</sup>) × 55 + 10<sup>−6</sup> × 5,000,000 ≈ 55 + 5 = <b>60 ns</b>.</li>
+        <li>With one level, a hit is 1 access and a miss is 2. EAT = 0.95 × 50 + 0.05 × 100 = <b>52.5 ns</b>.</li>
+        <li>With two levels, a miss is 3 accesses. EAT = 0.95 × 50 + 0.05 × 150 = <b>55 ns</b>.</li>
+        <li>With faults, EAT ≈ (1 − 10<sup>−6</sup>) × 55 + 10<sup>−6</sup> × 5,000,000 ≈ 55 + 5 = <b>60 ns</b>.</li>
       </ol>
       <p>One fault in a <em>million</em> accesses costs as much as all the TLB misses together. That is why the fault rate must be tiny, and why replacement policy (Lecture 16, after the break) matters. Try other values in the <a href="../lectures/14-paging.html">Lecture 14</a> and <a href="../lectures/15-virtual-memory.html#s1-3">Lecture 15</a> calculators.</p>
     </div></details>
@@ -166,9 +166,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="prose">
       <ul>
-        <li><b>Part 1</b>: see R08's tips. Finish it before the break.</li>
-        <li><b>Part 2</b>, the pager: start by reading the interface reference in Step 3 of the Lab04 walkthrough. Each swap costs 100 ticks, so ask yourself how many pages you move per tick. LRU itself is Lecture 16 (Mar 23).</li>
-        <li><b>PS3</b>: TAs explain rules and definitions; they do not work its problems.</li>
+        <li><b>Part 1.</b> See R08's tips. Finish it before the break.</li>
+        <li><b>Part 2</b>, the pager. Start by reading the interface reference in Step 3 of the Lab04 walkthrough. Each swap costs 100 ticks, so ask yourself how many pages you move per tick. LRU itself is Lecture 16 (Mar 23).</li>
+        <li><b>PS3.</b> TAs explain rules and definitions, but they do not work its problems.</li>
       </ul>
     </div>
   </div>
@@ -190,7 +190,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <button type="button" class="q-opt" data-ok>11</button>
           <button type="button" class="q-opt" data-why="That would be 4 KB pages.">12</button>
         </div>
-        <div class="q-fb ok">Right: 2 KB = 2<sup>11</sup>, leaving 5 bits of page number.</div>
+        <div class="q-fb ok">Right. 2 KB = 2<sup>11</sup>, leaving 5 bits of page number.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -203,7 +203,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <button type="button" class="q-opt" data-ok>110 ns</button>
           <button type="button" class="q-opt" data-why="A hit needs only one access.">200 ns</button>
         </div>
-        <div class="q-fb ok">Right: 0.9 × 100 + 0.1 × 200.</div>
+        <div class="q-fb ok">Right. It is 0.9 × 100 + 0.1 × 200.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -219,10 +219,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="table-wrap">
       <table class="cs">
         <tbody>
-          <tr><td>page size 2ⁿ</td><td>Offset = low n bits; page number = the rest.</td></tr>
+          <tr><td>page size 2ⁿ</td><td>Offset = low n bits, and page number = the rest.</td></tr>
           <tr><td>physical address</td><td>frame × page size + offset = (frame &lt;&lt; n) | offset.</td></tr>
           <tr><td>flat table size</td><td>(number of pages) × (entry size).</td></tr>
-          <tr><td>two-level</td><td>outer index | inner index | offset; inner tables only where memory is used.</td></tr>
+          <tr><td>two-level</td><td>outer index | inner index | offset, with inner tables only where memory is used.</td></tr>
           <tr><td>EAT with a TLB</td><td>h × (1 access) + (1 − h) × (1 + levels) accesses.</td></tr>
           <tr><td>EAT with faults</td><td>(1 − p) × EAT + p × fault service time.</td></tr>
         </tbody>

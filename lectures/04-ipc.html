@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>IPC · L04</title>
-<meta name="description" content="CSCI 3753 Lecture 04, interactive edition: signals, shared memory, message passing, pipes, sockets and remote procedure calls.">
+<meta name="description" content="CSCI 3753 Lecture 04, interactive edition, covering signals, shared memory, message passing, pipes, sockets and remote procedure calls.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -69,12 +69,12 @@ table.disp tr.fire td { background: var(--cx-soft2); }
 </svg>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g stroke="currentColor" stroke-width="1.4" fill="none"><rect x="2.5" y="6" width="6" height="10" rx="1.5"/><rect x="13.5" y="6" width="6" height="10" rx="1.5"/><path d="M8.5 11h5"/></g><circle cx="11" cy="11" r="1.6" fill="var(--co)"/></svg>
-    <span>Lecture 04 · IPC</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Lecture 04 · IPC</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -83,13 +83,13 @@ table.disp tr.fire td { background: var(--cx-soft2); }
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 04 · Interactive notes</div>
     <h1>Isolated by design,<br>talking <span class="accent">on purpose</span></h1>
-    <p class="lede">Lecture 03 gave every process its own address space, so one cannot read or break another. But cooperating processes need to exchange information. This lecture covers the ways the OS lets them do it: a signal that says only "something happened", a region of memory both can see, and messages passed through the kernel by pipes, sockets and remote procedure calls.</p>
+    <p class="lede">Lecture 03 gave every process its own address space, so one cannot read or break another. But cooperating processes need to exchange information. This lecture covers the ways the OS lets them do it, namely a signal that says only "something happened", a region of memory both can see, and messages passed through the kernel by pipes, sockets and remote procedure calls.</p>
     <div class="promise">
-      <span>Before you start:</span><span class="mono">fork, the PCB, and system calls</span><span>from Lectures 02–03.</span>
+      <span>Before you start, review</span><span class="mono">fork, the PCB, and system calls</span><span>from Lectures 02–03.</span>
     </div>
     <div class="cta-row">
       <a class="btn primary" href="#ch0">Begin ↓</a>
-      <span class="muted small">About 50 minutes · 5 hands-on experiments · 4 checkpoints · Textbook: Silberschatz, Ch. 3 · Continues in Lecture 05, Thread</span>
+      <span class="muted small">About 50 minutes · 5 hands-on experiments · 4 checkpoints · Textbook Silberschatz, Ch. 3 · Continues in Lecture 05, Thread</span>
     </div>
   </div>
 </div>
@@ -121,7 +121,7 @@ table.disp tr.fire td { background: var(--cx-soft2); }
       <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 04</div>
       <h1>Inter-Process Communication</h1>
       <p class="lede">Signals, shared memory, and message passing.</p>
-      <div class="meta">Instructor: Yueqi Chen · Textbook: Silberschatz, Ch. 3</div>
+      <div class="meta">Instructor Yueqi Chen · Textbook Silberschatz, Ch. 3</div>
     </div>
 
 <!-- ============================================================ -->
@@ -137,7 +137,7 @@ table.disp tr.fire td { background: var(--cx-soft2); }
     <div class="prose">
       <ul>
         <li>Processes may be <strong>independent</strong> or <strong>cooperating</strong>. A cooperating process can affect or be affected by others, including by sharing data.</li>
-        <li data-step="1">Reasons to cooperate: <strong>information sharing</strong>, <strong>computation speedup</strong> (split work across cores), <strong>modularity</strong>, <strong>convenience</strong>.</li>
+        <li data-step="1">Reasons to cooperate are <strong>information sharing</strong>, <strong>computation speedup</strong> (split work across cores), <strong>modularity</strong>, and <strong>convenience</strong>.</li>
         <li data-step="2">Cooperating processes need <strong>interprocess communication (IPC)</strong>.</li>
       </ul>
     </div>
@@ -157,8 +157,8 @@ table.disp tr.fire td { background: var(--cx-soft2); }
 <section class="chapter" id="ch1">
   <div class="ch-head">
     <div class="ch-no">Chapter 1</div>
-    <h2>Signals: a limited IPC</h2>
-    <p class="ch-lede">A signal carries one small number: which event happened. Nothing else.</p>
+    <h2>Signals, a limited IPC</h2>
+    <p class="ch-lede">A signal carries one small number that says which event happened. Nothing else.</p>
   </div>
 
   <div class="sec" id="s1-1">
@@ -166,9 +166,9 @@ table.disp tr.fire td { background: var(--cx-soft2); }
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li><strong>Kernel to process</strong>: the kernel records a signal number for the process, then makes it run its <strong>handler</strong>. Example: you press Ctrl-C; the terminal driver makes the kernel send <code>SIGINT</code> to the foreground process.</li>
-          <li data-step="1"><strong>Process to process</strong>: <code>kill(pid, sig)</code>, e.g. <code>kill(X, SIGUSR1)</code>. It still goes through the kernel; no process writes into another directly.</li>
-          <li data-step="2">A process can signal itself: <code>alarm(3)</code> asks the kernel to send it <code>SIGALRM</code> in 3 seconds.</li>
+          <li><strong>Kernel to process.</strong> The kernel records a signal number for the process, then makes it run its <strong>handler</strong>. For example, you press Ctrl-C, and the terminal driver makes the kernel send <code>SIGINT</code> to the foreground process.</li>
+          <li data-step="1"><strong>Process to process.</strong> Use <code>kill(pid, sig)</code>, e.g. <code>kill(X, SIGUSR1)</code>. It still goes through the kernel, and no process writes into another directly.</li>
+          <li data-step="2">A process can signal itself. For example, <code>alarm(3)</code> asks the kernel to send it <code>SIGALRM</code> in 3 seconds.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -180,7 +180,7 @@ table.disp tr.fire td { background: var(--cx-soft2); }
             <rect x="120" y="74" width="60" height="28" class="fbox"/><text x="150" y="93" text-anchor="middle" class="lbl mono" style="font-size:11px">handler</text>
             <rect x="270" y="44" width="130" height="70" class="box"/><text x="335" y="64" text-anchor="middle" class="mono">process Y</text>
             <rect x="10" y="150" width="420" height="50" class="obox"/><text x="220" y="180" text-anchor="middle">OS kernel</text>
-            <rect x="10" y="214" width="120" height="28" class="box2"/><text x="70" y="233" text-anchor="middle" class="lbl">keyboard: Ctrl-C</text>
+            <rect x="10" y="214" width="120" height="28" class="box2"/><text x="70" y="233" text-anchor="middle" class="lbl">keyboard Ctrl-C</text>
             <path d="M70 214 V204" class="wire m" marker-end="url(#ah-m)"/>
             <path d="M150 150 V106" class="wire m" marker-end="url(#ah-m)"/><text x="156" y="136" class="lbl t-m" style="font-size:11px">SIGINT</text>
             <g data-step="1"><path d="M335 114 V146" class="wire p" marker-end="url(#ah-p)"/><text x="342" y="136" class="lbl mono" style="font-size:11px">kill(X, SIGUSR1)</text>
@@ -197,9 +197,9 @@ table.disp tr.fire td { background: var(--cx-soft2); }
     <div class="two-up" style="align-items:start">
       <div class="prose">
         <ul>
-          <li>The <strong>handler</strong> lives in the program's own code: a function called when the signal arrives. When it returns, the program continues where it was interrupted.</li>
-          <li data-step="1">If a process <strong>catches</strong> a signal, its handler runs. If not, the kernel takes the signal's <strong>default action</strong>: terminate, terminate with a core dump, ignore, or stop.</li>
-          <li data-step="2"><code>SIGKILL</code> and <code>SIGSTOP</code> can be neither caught nor ignored: the kernel always acts on them.</li>
+          <li>The <strong>handler</strong> lives in the program's own code. It is a function called when the signal arrives. When it returns, the program continues where it was interrupted.</li>
+          <li data-step="1">If a process <strong>catches</strong> a signal, its handler runs. If not, the kernel takes the signal's <strong>default action</strong>, which is to terminate, terminate with a core dump, ignore, or stop.</li>
+          <li data-step="2"><code>SIGKILL</code> and <code>SIGSTOP</code> can be neither caught nor ignored. The kernel always acts on them.</li>
         </ul>
       </div>
       <div class="table-wrap" style="margin:0">
@@ -215,7 +215,7 @@ table.disp tr.fire td { background: var(--cx-soft2); }
             <tr><td class="mono">29</td><td class="mono">SIGIO</td><td>I/O now possible on a descriptor</td></tr>
           </tbody>
         </table>
-        <p class="small muted" style="margin-top:6px">Linux x86 numbering; see <code>man 7 signal</code>.</p>
+        <p class="small muted" style="margin-top:6px">Linux x86 numbering. See <code>man 7 signal</code>.</p>
       </div>
     </div>
   </div>
@@ -256,7 +256,7 @@ table.disp tr.fire td { background: var(--cx-soft2); }
     </div>
     <div class="note note-honest read-only">
       <span class="note-tag">Careful in handlers</span>
-      <p>A handler can interrupt the program anywhere, even inside <code>printf</code>. So a handler should call only <em>async-signal-safe</em> functions (listed in <code>man 7 signal-safety</code>): <code>write()</code> and <code>_exit()</code> are safe, <code>printf()</code> and <code>exit()</code> strictly are not. The slides' example is fine for a demo; real code often just sets a flag in the handler.</p>
+      <p>A handler can interrupt the program anywhere, even inside <code>printf</code>. So a handler should call only <em>async-signal-safe</em> functions (listed in <code>man 7 signal-safety</code>). <code>write()</code> and <code>_exit()</code> are safe, but <code>printf()</code> and <code>exit()</code> strictly are not. The slides' example is fine for a demo, but real code often just sets a flag in the handler.</p>
     </div>
   </div>
 
@@ -267,7 +267,7 @@ table.disp tr.fire td { background: var(--cx-soft2); }
         <div class="q-text">A program installs a handler for <code>SIGINT</code> that prints "not yet" and returns. You press Ctrl-C, then run <code>kill -9</code> on it. What happens?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="The handler catches SIGINT, but SIGKILL (9) cannot be caught.">It prints "not yet" twice and keeps running.</button>
-          <button type="button" class="q-opt" data-ok>It prints "not yet" once and keeps running; then SIGKILL terminates it immediately.</button>
+          <button type="button" class="q-opt" data-ok>It prints "not yet" once and keeps running. Then SIGKILL terminates it immediately.</button>
           <button type="button" class="q-opt" data-why="Ctrl-C is caught, so its default action (terminate) does not happen.">Ctrl-C terminates it.</button>
         </div>
         <div class="q-fb ok">Right. SIGKILL is the one the kernel always carries out, so a stuck process can always be killed.</div>
@@ -294,8 +294,8 @@ table.disp tr.fire td { background: var(--cx-soft2); }
     <h3><span class="sec-no">2.1</span>Shared memory and message passing</h3>
     <div class="two-up">
       <div class="prose">
-        <p><strong>(a) Shared memory</strong>: the OS maps one region into both processes; they read and write it directly.</p>
-        <p data-step="1"><strong>(b) Message passing</strong>: processes <code>send()</code> and <code>receive()</code> messages through the kernel, which copies them.</p>
+        <p><strong>(a) Shared memory.</strong> The OS maps one region into both processes, and they read and write it directly.</p>
+        <p data-step="1"><strong>(b) Message passing.</strong> Processes <code>send()</code> and <code>receive()</code> messages through the kernel, which copies them.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -328,7 +328,7 @@ table.disp tr.fire td { background: var(--cx-soft2); }
         <thead><tr><th></th><th>Shared memory</th><th>Message passing</th></tr></thead>
         <tbody>
           <tr><td>performance</td><td>very high</td><td>moderate</td></tr>
-          <tr data-step="1"><td>data copies</td><td>none</td><td>yes: user → kernel → user</td></tr>
+          <tr data-step="1"><td>data copies</td><td>none</td><td>yes, user → kernel → user</td></tr>
           <tr data-step="1"><td>synchronization</td><td>managed by the application</td><td>managed by the kernel</td></tr>
           <tr data-step="2"><td>programming complexity</td><td>high</td><td>low</td></tr>
           <tr data-step="2"><td>isolation</td><td>weaker</td><td>stronger</td></tr>
@@ -362,16 +362,16 @@ table.disp tr.fire td { background: var(--cx-soft2); }
   <div class="ch-head">
     <div class="ch-no">Chapter 3</div>
     <h2>Shared memory</h2>
-    <p class="ch-lede">The fastest IPC: after setup, communication is just loads and stores.</p>
+    <p class="ch-lede">Shared memory is the fastest IPC. After setup, communication is just loads and stores.</p>
   </div>
 
   <div class="sec" id="s3-1">
     <h3><span class="sec-no">3.1</span>From fork to sharing</h3>
     <div class="prose">
       <ul>
-        <li>When process 2 is a <code>fork()</code> of process 1, what really has to be copied? The code is identical: share it. The data is the same too, until someone changes it.</li>
+        <li>When process 2 is a <code>fork()</code> of process 1, what really has to be copied? The code is identical, so share it. The data is the same too, until someone changes it.</li>
         <li data-step="1"><strong>Copy on write</strong> shares until a change, then gives the writer its own copy (Lectures 14–15). So the kernel can already map the same frames into two processes.</li>
-        <li data-step="2"><strong>Shared-memory IPC</strong> does it on purpose: the OS creates a region and maps it into each process that asks. It applies to processes on the same machine. The catch: shared access must be <strong>synchronized</strong> (Lectures 08–11).</li>
+        <li data-step="2"><strong>Shared-memory IPC</strong> does it on purpose. The OS creates a region and maps it into each process that asks. It applies to processes on the same machine. The catch is that shared access must be <strong>synchronized</strong> (Lectures 08–11).</li>
       </ul>
     </div>
   </div>
@@ -379,7 +379,7 @@ table.disp tr.fire td { background: var(--cx-soft2); }
   <div class="sec" id="s3-2">
     <h3><span class="sec-no">3.2</span>Two APIs on Linux</h3>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">System V</span><code>shmid = shmget(key, size, flags)</code> creates a region named by a key all parties agree on, or returns the existing one. <code>shm_ptr = shmat(shmid, NULL, 0)</code> attaches (<em>binds</em>) it into the address space; reads and writes then use <code>shm_ptr</code>. <code>shmctl()</code> changes permissions or removes it.</div>
+      <div><span class="tag">System V</span><code>shmid = shmget(key, size, flags)</code> creates a region named by a key all parties agree on, or returns the existing one. <code>shm_ptr = shmat(shmid, NULL, 0)</code> attaches (<em>binds</em>) it into the address space. Reads and writes then use <code>shm_ptr</code>. <code>shmctl()</code> changes permissions or removes it.</div>
       <div data-step="1"><span class="tag">POSIX</span><code>fd = shm_open("/name", …)</code> creates or opens a named object, <code>ftruncate(fd, size)</code> sets its size, and <code>mmap(…, MAP_SHARED, fd, 0)</code> maps it. <code>munmap</code>, <code>close</code>, <code>shm_unlink</code> clean up. The example below uses this API.</div>
     </div>
   </div>
@@ -394,7 +394,7 @@ table.disp tr.fire td { background: var(--cx-soft2); }
       <div>
         <div class="sub-lab" style="margin-bottom:4px">reader</div>
         <div class="code" aria-label="reader"><span class="ln"><span class="kw">#define</span> SHM_NAME <span class="s">"/my_shm"</span></span><span class="ln"><span class="kw">#define</span> SHM_SIZE 4096</span><span class="ln"> </span><span class="ln">int fd = shm_open(SHM_NAME, O_RDONLY, 0666);</span><span class="ln">char *ptr = mmap(NULL, SHM_SIZE, PROT_READ,</span><span class="ln">                 MAP_SHARED, fd, 0);</span><span class="ln">printf(<span class="s">"Read from shared memory:\n"</span>);</span><span class="ln">printf(<span class="s">"%s\n"</span>, ptr);           <span class="c">// no read() call!</span></span><span class="ln">munmap(ptr, SHM_SIZE);</span><span class="ln">close(fd);</span></div>
-        <p class="small muted" style="margin-top:8px">The strcpy and the printf touch the same physical frames through different virtual addresses (Lecture 14, §6). The reader's <code>printf</code> reads memory directly: no system call moves the data. (Link with <code>-lrt</code> on older glibc.)</p>
+        <p class="small muted" style="margin-top:8px">The strcpy and the printf touch the same physical frames through different virtual addresses (Lecture 14, §6). The reader's <code>printf</code> reads memory directly, and no system call moves the data. (Link with <code>-lrt</code> on older glibc.)</p>
       </div>
     </div>
   </div>
@@ -417,10 +417,10 @@ table.disp tr.fire td { background: var(--cx-soft2); }
     <h3><span class="sec-no">4.1</span>Pipes</h3>
     <div class="prose">
       <ul>
-        <li>Message passing is used for small messages: <code>send()</code> and <code>receive()</code>. Kinds: <strong>pipes</strong>, <strong>UNIX-domain sockets</strong>, <strong>remote procedure calls</strong>.</li>
-        <li data-step="1">A <strong>pipe</strong> is a conduit between two processes. Design questions: one-way or two-way? If two-way, half- or full-duplex? Must the processes be related (parent and child)? Can it cross a network?</li>
-        <li data-step="2"><strong>Ordinary pipes</strong> (<code>pipe(fd)</code>): producer writes to the write end, consumer reads from the read end. <strong>Unidirectional</strong>, and they need a parent-child relationship, because the child inherits the descriptors across <code>fork()</code>. Windows calls them anonymous pipes. The shell's <code>|</code> is one.</li>
-        <li data-step="3"><strong>Named pipes</strong> (FIFOs) persist beyond the processes: <code>mkfifo mypipe</code> creates a file-system entry that any process can open, until it is removed explicitly. On Linux they are one-way per open.</li>
+        <li>Message passing is used for small messages, with <code>send()</code> and <code>receive()</code>. It comes in three kinds, namely <strong>pipes</strong>, <strong>UNIX-domain sockets</strong>, and <strong>remote procedure calls</strong>.</li>
+        <li data-step="1">A <strong>pipe</strong> is a conduit between two processes. The design questions are as follows. Is it one-way or two-way? If two-way, is it half- or full-duplex? Must the processes be related (parent and child)? Can it cross a network?</li>
+        <li data-step="2">With <strong>ordinary pipes</strong> (<code>pipe(fd)</code>), the producer writes to the write end, and the consumer reads from the read end. <strong>Unidirectional</strong>, and they need a parent-child relationship, because the child inherits the descriptors across <code>fork()</code>. Windows calls them anonymous pipes. The shell's <code>|</code> is one.</li>
+        <li data-step="3"><strong>Named pipes</strong> (FIFOs) persist beyond the processes. <code>mkfifo mypipe</code> creates a file-system entry that any process can open, until it is removed explicitly. On Linux they are one-way per open.</li>
       </ul>
     </div>
   </div>
@@ -430,15 +430,15 @@ table.disp tr.fire td { background: var(--cx-soft2); }
     <div class="widget" id="pp-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">A pipe with room for 8 chunks</span><button class="w-reset" type="button" id="pp-reset">Reset</button></div>
       <div class="controls">
-        <button type="button" class="btn" id="pp-w1">writer: write 1 chunk</button>
-        <button type="button" class="btn" id="pp-w3">writer: write 3 chunks</button>
-        <button type="button" class="btn" id="pp-r2">reader: read 2 chunks</button>
-        <button type="button" class="btn" id="pp-c">writer: close(fd[1])</button>
+        <button type="button" class="btn" id="pp-w1">writer writes 1 chunk</button>
+        <button type="button" class="btn" id="pp-w3">writer writes 3 chunks</button>
+        <button type="button" class="btn" id="pp-r2">reader reads 2 chunks</button>
+        <button type="button" class="btn" id="pp-c">writer calls close(fd[1])</button>
       </div>
       <div class="widget-body"><div class="pipe" id="pp-v"></div></div>
       <div class="readout" id="pp-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">A real Linux pipe holds 64 KB by default. The rules are the same: write blocks when it is full, read blocks when it is empty, and read returns 0 (end of file) once the pipe is empty and every write end is closed.</p>
+    <p class="small muted prose read-only">A real Linux pipe holds 64 KB by default. The rules are the same. Write blocks when it is full, read blocks when it is empty, and read returns 0 (end of file) once the pipe is empty and every write end is closed.</p>
   </div>
 
   <div class="sec" id="s4-3">
@@ -461,19 +461,19 @@ table.disp tr.fire td { background: var(--cx-soft2); }
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li>A <strong>socket</strong> is an endpoint for communication: an IP address plus a <strong>port</strong>, a number that tells services on one host apart. <code>161.25.19.8:1625</code> is port 1625 on host 161.25.19.8. Communication is between a <strong>pair</strong> of sockets.</li>
+          <li>A <strong>socket</strong> is an endpoint for communication, made of an IP address plus a <strong>port</strong>, which is a number that tells services on one host apart. <code>161.25.19.8:1625</code> is port 1625 on host 161.25.19.8. Communication is between a <strong>pair</strong> of sockets.</li>
           <li data-step="1">Ports below 1024 are <strong>well known</strong>, for standard services (80 HTTP, 443 HTTPS, 22 SSH). <code>127.0.0.1</code> (loopback) means this machine.</li>
-          <li data-step="2"><code>sd = socket(domain, type, protocol)</code>: domain <code>PF_UNIX</code> for local, <code>PF_INET</code> for remote; type <code>SOCK_STREAM</code> for a reliable, in-order byte stream (TCP), <code>SOCK_DGRAM</code> for discrete messages (UDP); protocol 0 for the default.</li>
-          <li data-step="3"><code>PF_UNIX</code> sockets are for processes on one computer: each <code>bind()</code>s to a file name such as <code>/users/yc/my_ipc_socket_file</code>, and I/O looks like reading and writing a file. Usually one process is the <strong>server</strong> (<code>bind</code>, <code>listen</code>, <code>accept</code>) and the others are <strong>clients</strong> (<code>connect</code>).</li>
+          <li data-step="2"><code>sd = socket(domain, type, protocol)</code> takes three arguments. The domain is <code>PF_UNIX</code> for local and <code>PF_INET</code> for remote. The type is <code>SOCK_STREAM</code> for a reliable, in-order byte stream (TCP), or <code>SOCK_DGRAM</code> for discrete messages (UDP). The protocol is 0 for the default.</li>
+          <li data-step="3"><code>PF_UNIX</code> sockets are for processes on one computer. Each <code>bind()</code>s to a file name such as <code>/users/yc/my_ipc_socket_file</code>, and I/O looks like reading and writing a file. Usually one process is the <strong>server</strong> (<code>bind</code>, <code>listen</code>, <code>accept</code>) and the others are <strong>clients</strong> (<code>connect</code>).</li>
         </ul>
       </div>
       <figure class="fig">
         <div class="fig-frame">
           <svg class="dia" viewBox="0 0 420 240" width="380" role="img" aria-label="Host X socket 146.86.5.20 port 1625 connected to web server socket 161.25.19.8 port 80">
             <rect x="20" y="30" width="150" height="170" class="box"/><text x="95" y="52" text-anchor="middle" class="lbl">host X</text><text x="95" y="68" text-anchor="middle" class="lbl mono" style="font-size:11px">146.86.5.20</text>
-            <rect x="40" y="110" width="110" height="40" class="pbox"/><text x="95" y="128" text-anchor="middle" class="lbl">socket</text><text x="95" y="143" text-anchor="middle" class="lbl mono" style="font-size:11px">146.86.5.20:1625</text>
+            <rect x="40" y="110" width="110" height="40" class="pbox"/><text x="95" y="128" text-anchor="middle" class="lbl">socket</text><text x="95" y="143" text-anchor="middle" class="lbl mono" style="font-size:11px">port 1625</text>
             <rect x="250" y="30" width="150" height="170" class="box"/><text x="325" y="52" text-anchor="middle" class="lbl">web server</text><text x="325" y="68" text-anchor="middle" class="lbl mono" style="font-size:11px">161.25.19.8</text>
-            <rect x="270" y="110" width="110" height="40" class="fbox"/><text x="325" y="128" text-anchor="middle" class="lbl">socket</text><text x="325" y="143" text-anchor="middle" class="lbl mono" style="font-size:11px">161.25.19.8:80</text>
+            <rect x="270" y="110" width="110" height="40" class="fbox"/><text x="325" y="128" text-anchor="middle" class="lbl">socket</text><text x="325" y="143" text-anchor="middle" class="lbl mono" style="font-size:11px">port 80</text>
             <path d="M150 130 H266" class="wire p" marker-start="url(#ah-p)" marker-end="url(#ah-p)"/>
           </svg>
         </div>
@@ -487,8 +487,8 @@ table.disp tr.fire td { background: var(--cx-soft2); }
     <div class="prose">
       <ul>
         <li>A <strong>remote procedure call (RPC)</strong> makes a call to a procedure in a process on another machine look like a local call. It uses ports to tell services apart.</li>
-        <li data-step="1">A <strong>stub</strong> on the client is a proxy for the real procedure: it locates the server and <strong>marshals</strong> the parameters into a message.</li>
-        <li data-step="2">The <strong>server stub</strong> receives the message, unpacks the parameters, and runs the procedure on the server; the result travels back the same way.</li>
+        <li data-step="1">A <strong>stub</strong> on the client is a proxy for the real procedure. It locates the server and <strong>marshals</strong> the parameters into a message.</li>
+        <li data-step="2">The <strong>server stub</strong> receives the message, unpacks the parameters, and runs the procedure on the server. The result travels back the same way.</li>
       </ul>
     </div>
     <div class="widget" id="rp-w">
@@ -512,11 +512,11 @@ table.disp tr.fire td { background: var(--cx-soft2); }
       <div class="quiz-body">
         <div class="q-text">Two processes on one machine exchange a 200 MB video frame buffer 60 times a second. Which IPC fits best?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="Every frame would be copied into and out of the kernel: 24 GB/s of copying.">A pipe.</button>
+          <button type="button" class="q-opt" data-why="Every frame would be copied into and out of the kernel, which is 24 GB/s of copying.">A pipe.</button>
           <button type="button" class="q-opt" data-ok>Shared memory, with synchronization so the reader never sees a half-written frame.</button>
           <button type="button" class="q-opt" data-why="A signal carries only a number, not data.">Signals.</button>
         </div>
-        <div class="q-fb ok">Right. No copies at all; the price is doing the synchronization yourself (Lectures 08–11).</div>
+        <div class="q-fb ok">Right. No copies at all. The price is doing the synchronization yourself (Lectures 08–11).</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -529,7 +529,7 @@ table.disp tr.fire td { background: var(--cx-soft2); }
         <div class="q-text">Two unrelated programs, started separately from two terminals, need a pipe between them. What do they need?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="An ordinary pipe's descriptors exist only in the process that created it and its children.">An ordinary pipe from pipe().</button>
-          <button type="button" class="q-opt" data-ok>A named pipe: mkfifo creates a file-system name both can open.</button>
+          <button type="button" class="q-opt" data-ok>A named pipe, because mkfifo creates a file-system name both can open.</button>
           <button type="button" class="q-opt" data-why="Signals carry no data.">A signal.</button>
         </div>
         <div class="q-fb ok">Right. The name is what lets unrelated processes find the same pipe.</div>
@@ -546,9 +546,9 @@ table.disp tr.fire td { background: var(--cx-soft2); }
         <div class="q-opts">
           <button type="button" class="q-opt" data-ok>Some process (often the reader itself, after fork) still holds the pipe's write end open, so the kernel cannot report EOF.</button>
           <button type="button" class="q-opt" data-why="A full pipe blocks the writer, not the reader.">The pipe is full.</button>
-          <button type="button" class="q-opt" data-why="Pipes are reliable within one machine; nothing is dropped.">The kernel dropped the last message.</button>
+          <button type="button" class="q-opt" data-why="Pipes are reliable within one machine, so nothing is dropped.">The kernel dropped the last message.</button>
         </div>
-        <div class="q-fb ok">Right. read() returns 0 only when the pipe is empty <em>and every</em> write end is closed: close unused ends after fork. Try "close" in §4.2.</div>
+        <div class="q-fb ok">Right. read() returns 0 only when the pipe is empty <em>and every</em> write end is closed. So close unused ends after fork. Try "close" in §4.2.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -572,14 +572,14 @@ table.disp tr.fire td { background: var(--cx-soft2); }
     <div class="prose">
       <ul>
         <li>Cooperating processes need IPC for sharing, speed, modularity and convenience.</li>
-        <li>Signals carry only an event number, from the kernel or from another process via <code>kill()</code>; a handler catches them, or the kernel takes the default action. SIGKILL and SIGSTOP cannot be caught.</li>
-        <li>Shared memory maps one region into several processes: no copies, very fast, but the application must synchronize.</li>
-        <li>Message passing goes through the kernel: pipes (ordinary and named), sockets (UNIX and Internet), RPC with stubs that marshal parameters. Simpler and better isolated, at the cost of copies.</li>
+        <li>Signals carry only an event number, from the kernel or from another process via <code>kill()</code>. A handler catches them, or the kernel takes the default action. SIGKILL and SIGSTOP cannot be caught.</li>
+        <li>Shared memory maps one region into several processes. There are no copies and it is very fast, but the application must synchronize.</li>
+        <li>Message passing goes through the kernel, via pipes (ordinary and named), sockets (UNIX and Internet), and RPC with stubs that marshal parameters. Simpler and better isolated, at the cost of copies.</li>
       </ul>
     </div>
     <div class="note note-lab" data-step="1">
       <span class="note-tag">In the lab</span>
-      <p>The <code>make check</code> harness of every Basecamp talks to the course VM through a virtual serial channel: message passing between your host and the guest. Basecamp 1's <code>undead.c</code> relies on signals: the parent learns of its child's death through SIGCHLD and <code>wait()</code>.</p>
+      <p>The <code>make check</code> harness of every Basecamp talks to the course VM through a virtual serial channel, which is message passing between your host and the guest. Basecamp 1's <code>undead.c</code> relies on signals. The parent learns of its child's death through SIGCHLD and <code>wait()</code>.</p>
     </div>
   </div>
 
@@ -590,7 +590,7 @@ table.disp tr.fire td { background: var(--cx-soft2); }
         <tr><td>IPC</td><td>Interprocess communication.</td></tr>
         <tr><td>signal, handler</td><td>A numbered event notification / the function a process runs when it arrives.</td></tr>
         <tr><td>kill(), alarm()</td><td>Send a signal to a process / ask for SIGALRM later.</td></tr>
-        <tr><td>default action</td><td>What the kernel does with an uncaught signal: terminate, core, ignore, stop.</td></tr>
+        <tr><td>default action</td><td>What the kernel does with an uncaught signal, namely terminate, core, ignore, or stop.</td></tr>
         <tr><td>shared memory</td><td>A region mapped into several processes' address spaces.</td></tr>
         <tr><td>shmget/shmat · shm_open/mmap</td><td>System V / POSIX shared-memory APIs.</td></tr>
         <tr><td>ordinary pipe / named pipe</td><td>One-way channel between related processes / a FIFO with a file-system name.</td></tr>
@@ -655,17 +655,17 @@ table.disp tr.fire td { background: var(--cx-soft2); }
     function send(i) {
       const [n, num, src, def, catchable] = SIG[i];
       fire = n;
-      if (state === 'dead') { render('Process X no longer exists: the kernel has nowhere to deliver the signal (kill() returns ESRCH).'); return; }
+      if (state === 'dead') { render('Process X no longer exists, so the kernel has nowhere to deliver the signal (kill() returns ESRCH).'); return; }
       const d = catchable ? disp[n] : 'default';
       let msg;
-      if (d === 'catch') { log.push(`<div class="h">${n} (${num}) · ${src} → handler_${n.toLowerCase()}() runs, returns; main() resumes</div>`); msg = `${n} is caught: the kernel runs X's handler, then X continues exactly where it was.` + (state === 'stop' ? ' (It stays stopped until SIGCONT.)' : ''); }
-      else if (d === 'ignore') { log.push(`<div class="i">${n} (${num}) · ${src} → ignored</div>`); msg = `${n} is ignored: nothing happens.`; }
+      if (d === 'catch') { log.push(`<div class="h">${n} (${num}) · ${src} → handler_${n.toLowerCase()}() runs and returns, then main() resumes</div>`); msg = `${n} is caught. The kernel runs X's handler, then X continues exactly where it was.` + (state === 'stop' ? ' (It stays stopped until SIGCONT.)' : ''); }
+      else if (d === 'ignore') { log.push(`<div class="i">${n} (${num}) · ${src} → ignored</div>`); msg = `${n} is ignored, so nothing happens.`; }
       else {
         const act = n === 'SIGCONT' ? 'continue' : def;
-        if (act.startsWith('terminate')) { state = 'dead'; log.push(`<div class="k">${n} (${num}) · ${src} → default: ${act}</div>`); msg = `No handler, so the kernel takes the default action: <b class="bad">${act}</b>.` + (!catchable ? ' SIGKILL cannot be caught or ignored, whatever X set up.' : ''); }
+        if (act.startsWith('terminate')) { state = 'dead'; log.push(`<div class="k">${n} (${num}) · ${src} → ${act} (default)</div>`); msg = `No handler, so the kernel takes the default action, <b class="bad">${act}</b>.` + (!catchable ? ' SIGKILL cannot be caught or ignored, whatever X set up.' : ''); }
         else if (act === 'stop') { state = 'stop'; log.push(`<div class="k">${n} (${num}) · ${src} → stopped</div>`); msg = 'SIGSTOP always stops the process (it cannot be caught). Send SIGCONT to resume it.'; }
         else if (act === 'continue') { if (state === 'stop') state = 'run'; log.push(`<div class="i">${n} (${num}) · ${src} → continue</div>`); msg = 'SIGCONT resumes a stopped process.'; }
-        else { log.push(`<div class="i">${n} (${num}) · ${src} → default: ignore</div>`); msg = `The default for ${n} is to ignore it.`; }
+        else { log.push(`<div class="i">${n} (${num}) · ${src} → ignore (default)</div>`); msg = `The default for ${n} is to ignore it.`; }
       }
       render(msg);
     }
@@ -676,7 +676,7 @@ table.disp tr.fire td { background: var(--cx-soft2); }
       $('#sg-log').innerHTML = log.slice(-10).join('') || '<div class="i">no signals yet</div>';
       $('#sg-out').innerHTML = msg;
     }
-    $('#sg-t').addEventListener('change', (e) => { const s = e.target.closest('[data-s]'); if (s) { disp[s.dataset.s] = s.value; fire = null; render(`X now handles ${s.dataset.s} with: ${s.value}.`); } });
+    $('#sg-t').addEventListener('change', (e) => { const s = e.target.closest('[data-s]'); if (s) { disp[s.dataset.s] = s.value; fire = null; render(`X now handles ${s.dataset.s} with ${s.value}.`); } });
     $('#sg-t').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b) send(+b.dataset.i); });
     $('#sg-reset').addEventListener('click', reset);
     reset();
@@ -686,9 +686,9 @@ table.disp tr.fire td { background: var(--cx-soft2); }
   (function () {
     const CODE = ['<span class="kw">#include</span> &lt;signal.h&gt;', '<span class="kw">int</span> beeps = 0;', '', '<span class="kw">void</span> handler(<span class="kw">int</span> sig) {', '    <span class="kw">if</span> (beeps &lt; 5) {', '        alarm(3);', '        beeps++;', '    } <span class="kw">else</span> {', '        printf("DONE\\n");', '        exit(0);', '    }', '}', '<span class="kw">int</span> main() {', '    signal(SIGALRM, handler); <span class="c">// register</span>', '    alarm(3);   <span class="c">// SIGALRM in 3 s</span>', '    <span class="kw">while</span> (1) {;} <span class="c">// spin</span>', '    exit(0);', '}'];
     const S = [[13, 0, 0, 'Register <code>handler</code> for SIGALRM.'], [14, 0, 0, 'Ask the kernel for a SIGALRM in 3 seconds.'], [15, 0, 0, 'Spin in the infinite loop. The only way out is a signal.']];
-    for (let k = 1; k <= 5; k++) { S.push([5, 3 * k, k - 1, `t = ${3 * k} s: SIGALRM #${k}. The loop is interrupted and <code>handler</code> runs. beeps = ${k - 1} &lt; 5, so it sets a new alarm…`]); S.push([6, 3 * k, k, `…and counts: beeps = ${k}. The handler returns, and <code>main</code> goes back to spinning.`]); }
-    S.push([8, 18, 5, 't = 18 s: SIGALRM #6. Now beeps = 5, so the handler prints DONE…']);
-    S.push([9, 18, 5, '…and exits. Total: 6 alarms, 18 seconds, one process that did nothing but wait for signals.']);
+    for (let k = 1; k <= 5; k++) { S.push([5, 3 * k, k - 1, `At t = ${3 * k} s, SIGALRM #${k} arrives. The loop is interrupted and <code>handler</code> runs. beeps = ${k - 1} &lt; 5, so it sets a new alarm…`]); S.push([6, 3 * k, k, `…and counts, so beeps = ${k}. The handler returns, and <code>main</code> goes back to spinning.`]); }
+    S.push([8, 18, 5, 'At t = 18 s, SIGALRM #6 arrives. Now beeps = 5, so the handler prints DONE…']);
+    S.push([9, 18, 5, '…and exits. The total is 6 alarms, 18 seconds, and one process that did nothing but wait for signals.']);
     let i = 0;
     function show(k) {
       i = Math.max(0, Math.min(S.length - 1, k));
@@ -711,9 +711,9 @@ table.disp tr.fire td { background: var(--cx-soft2); }
     function render() {
       const n = +$('#mc-n').value, s = +$('#mc-s').value, tot = n * s;
       $('#mc-c').innerHTML =
-        `<div><div class="sub-lab">shared memory</div><div class="stats" style="margin-top:8px"><div><div class="lab">system calls</div><div class="big">4</div><div class="sub">shm_open, ftruncate, mmap on one side; open + mmap on the other, once</div></div><div><div class="lab">bytes copied by the kernel</div><div class="big">0</div></div></div></div>` +
+        `<div><div class="sub-lab">shared memory</div><div class="stats" style="margin-top:8px"><div><div class="lab">system calls</div><div class="big">4</div><div class="sub">shm_open, ftruncate, mmap on one side, then open + mmap on the other, once</div></div><div><div class="lab">bytes copied by the kernel</div><div class="big">0</div></div></div></div>` +
         `<div><div class="sub-lab">message passing (pipe)</div><div class="stats" style="margin-top:8px"><div class="${n > 1 ? 'warn' : ''}"><div class="lab">system calls</div><div class="big">${(2 * n).toLocaleString('en-US')}</div><div class="sub">one write + one read per message</div></div><div class="warn"><div class="lab">bytes copied by the kernel</div><div class="big">${fmt(2 * tot)}</div><div class="sub">A → kernel, kernel → B</div></div></div></div>`;
-      $('#mc-out').innerHTML = `Moving ${fmt(tot)}: shared memory pays a one-time setup and then plain memory writes; the pipe pays two system calls and two copies for every message. Message passing wins back what it costs in simplicity: the kernel does the synchronizing (a read waits until there is data).`;
+      $('#mc-out').innerHTML = `To move ${fmt(tot)}, shared memory pays a one-time setup and then plain memory writes. The pipe pays two system calls and two copies for every message. Message passing wins back what it costs in simplicity, because the kernel does the synchronizing (a read waits until there is data).`;
     }
     $('#mc-n').addEventListener('change', render); $('#mc-s').addEventListener('change', render);
     $('#mc-reset').addEventListener('click', () => { $('#mc-n').value = '100'; $('#mc-s').value = '4096'; render(); });
@@ -730,35 +730,35 @@ table.disp tr.fire td { background: var(--cx-soft2); }
       if (wblk && buf.length < CAP) { const k = Math.min(wblk, CAP - buf.length); for (let j = 0; j < k; j++) buf.push(next++); wblk -= k; if (!wblk) msg += ' The blocked writer wakes up and finishes its write.'; }
     }
     function write(k) {
-      if (!wopen) { msg = 'The write end is closed: the writer can no longer write.'; render(); return; }
+      if (!wopen) { msg = 'The write end is closed, so the writer can no longer write.'; render(); return; }
       if (wblk) { msg = 'The writer is still blocked on its previous write.'; render(); return; }
       const room = CAP - buf.length, n = Math.min(k, room);
       for (let j = 0; j < n; j++) buf.push(next++);
-      if (n < k) { wblk = k - n; msg = `The pipe is full: write() <b class="bad">blocks</b> with ${wblk} chunk${wblk > 1 ? 's' : ''} left, until the reader makes room.`; }
+      if (n < k) { wblk = k - n; msg = `The pipe is full, so write() <b class="bad">blocks</b> with ${wblk} chunk${wblk > 1 ? 's' : ''} left, until the reader makes room.`; }
       else msg = `Wrote ${k} chunk${k > 1 ? 's' : ''}.`;
       drainBlocked(); render();
     }
     function read(k) {
       if (rblk) { msg = 'The reader is already blocked.'; render(); return; }
       if (!buf.length) {
-        if (!wopen) { msg = 'The pipe is empty and every write end is closed: read() returns <b>0</b>, end of file. The reader stops.'; render(); return; }
-        rblk = k; msg = 'The pipe is empty: read() <b class="bad">blocks</b> until the writer writes (or closes).'; render(); return;
+        if (!wopen) { msg = 'The pipe is empty and every write end is closed, so read() returns <b>0</b>, end of file. The reader stops.'; render(); return; }
+        rblk = k; msg = 'The pipe is empty, so read() <b class="bad">blocks</b> until the writer writes (or closes).'; render(); return;
       }
       const n = Math.min(k, buf.length); for (let j = 0; j < n; j++) got.push(buf.shift());
-      msg = `read() returned ${n} chunk${n > 1 ? 's' : ''}` + (n < k ? ' (fewer than asked: a read returns whatever is there).' : '.');
+      msg = `read() returned ${n} chunk${n > 1 ? 's' : ''}` + (n < k ? ' (fewer than asked, because a read returns whatever is there).' : '.');
       drainBlocked(); render();
     }
     function close() {
       if (!wopen) { msg = 'Already closed.'; render(); return; }
       wopen = false; wblk = 0;
-      if (rblk && !buf.length) { rblk = 0; msg = 'The writer closed fd[1]. The blocked reader wakes with read() = 0: end of file.'; }
-      else msg = 'The writer closed fd[1]. The reader can still read what is left; after that, read() returns 0.';
+      if (rblk && !buf.length) { rblk = 0; msg = 'The writer closed fd[1]. The blocked reader wakes with read() = 0, which means end of file.'; }
+      else msg = 'The writer closed fd[1]. The reader can still read what is left. After that, read() returns 0.';
       render();
     }
     function render() {
-      $('#pp-v').innerHTML = `<div class="end${wblk ? ' blk' : ''}"><b>writer</b><span class="small">${!wopen ? 'fd[1] closed' : wblk ? 'blocked in write()' : 'fd[1] open'}</span><span class="small muted">next chunk: ${next}</span></div>` +
+      $('#pp-v').innerHTML = `<div class="end${wblk ? ' blk' : ''}"><b>writer</b><span class="small">${!wopen ? 'fd[1] closed' : wblk ? 'blocked in write()' : 'fd[1] open'}</span><span class="small muted">next chunk ${next}</span></div>` +
         `<div class="buf">${Array.from({ length: CAP }, (_, k) => `<span class="${k < buf.length ? 'on' : ''}">${k < buf.length ? buf[k] : ''}</span>`).join('')}</div>` +
-        `<div class="end${rblk ? ' blk' : ''}"><b>reader</b><span class="small">${rblk ? 'blocked in read()' : 'fd[0] open'}</span><span class="small muted">got: ${got.slice(-6).join(' ') || '—'}</span></div>`;
+        `<div class="end${rblk ? ' blk' : ''}"><b>reader</b><span class="small">${rblk ? 'blocked in read()' : 'fd[0] open'}</span><span class="small muted">got ${got.slice(-6).join(' ') || '—'}</span></div>`;
       $('#pp-out').innerHTML = msg + ` <span class="muted small">(${buf.length}/${CAP} full)</span>`;
     }
     $('#pp-w1').addEventListener('click', () => write(1));
@@ -771,15 +771,15 @@ table.disp tr.fire td { background: var(--cx-soft2); }
 
   /* ---------- §4.5 RPC ---------- */
   (function () {
-    const H = [['client', 'sum = add(3, 4) looks like a local call'], ['client stub', 'marshal: procedure id + parameters'], ['network', 'message to the server\'s port'], ['server stub', 'unmarshal the parameters'], ['server', 'add(3, 4) runs, returns 7'], ['back', 'reply marshalled, sent, unmarshalled']];
+    const H = [['client', 'sum = add(3, 4) looks like a local call'], ['client stub', 'marshal procedure id + parameters'], ['network', 'message to the server\'s port'], ['server stub', 'unmarshal the parameters'], ['server', 'add(3, 4) runs, returns 7'], ['back', 'reply marshalled, sent, unmarshalled']];
     const B = ['', 'proc=ADD(0x0002)  arg0=00 00 00 03  arg1=00 00 00 04', '→ 10.0.0.7:5050  [00 02 | 00 00 00 03 | 00 00 00 04]', 'a = 3, b = 4', 'result = 7', '← [00 00 00 07]  → sum = 7'];
     const T = [
       'The client calls <code>add(3, 4)</code> as if it were a local function. It is actually calling the <b>client stub</b>.',
-      'The stub <b>marshals</b> the call: a code for the procedure and the parameters in an agreed byte order (big-endian here), so machines with different architectures agree.',
+      'The stub <b>marshals</b> the call into a code for the procedure and the parameters in an agreed byte order (big-endian here), so machines with different architectures agree.',
       'The message travels to the server\'s port (message passing over a socket). The client usually blocks, waiting for the reply.',
       'The <b>server stub</b> receives the message and unpacks the parameters into real integers.',
       'It calls the real <code>add</code> on the server.',
-      'The result is marshalled, sent back, unmarshalled by the client stub, and returned: <code>sum = 7</code>. Unlike a local call, any step could fail on the network, so RPC systems must handle lost or duplicated messages.',
+      'The result is marshalled, sent back, unmarshalled by the client stub, and returned as <code>sum = 7</code>. Unlike a local call, any step could fail on the network, so RPC systems must handle lost or duplicated messages.',
     ];
     let i = 0;
     function show(k) {

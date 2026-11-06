@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lab04 Walkthrough · Basecamp 4</title>
-<meta name="description" content="Step-by-step walkthrough for Basecamp 4, Pages, Faults, and the Art of Eviction: measuring VmRSS and minor faults in touch.c, transparent huge pages, the Couch paging simulator, designing and tuning an LRU pager, reading make check, and submitting.">
+<meta name="description" content="Step-by-step walkthrough for Basecamp 4, Pages, Faults, and the Art of Eviction. It covers measuring VmRSS and minor faults in touch.c, transparent huge pages, the Couch paging simulator, designing and tuning an LRU pager, reading make check, and submitting.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -31,12 +31,12 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 <body>
 
 <header class="topbar">
-  <a class="brand" href="#top">
+  <a class="brand" href="../index.html">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M2 18L8 8l4 6 3-4 5 8z" stroke="currentColor" stroke-width="1.4" fill="none"/><circle cx="16" cy="5" r="2" fill="var(--co)"/></svg>
-    <span>Lab04 walkthrough · Pages, Faults, and the Art of Eviction</span>
+    <span>CSCI 3753 · Base Camp Academy</span>
   </a>
   <span class="spacer"></span>
-  <a class="crumb" href="../index.html">CSCI 3753 · all lectures</a>
+  <a class="crumb" href="#top">Lab04 walkthrough · Pages, Faults, and the Art of Eviction</a>
   <div class="progress-track"><div class="progress-bar"></div></div>
 </header>
 
@@ -44,11 +44,11 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="hero-inner">
     <div class="eyebrow"><span class="chip-t">walkthrough</span> &nbsp;Basecamp 4 · Weeks 9–13 · due Sun Mar 28</div>
     <h1>Watch the kernel page, then <span class="accent">be</span> the pager</h1>
-    <p class="lede">Part 1 measures the real kernel handing out memory lazily, one page fault at a time. Part 2 puts you inside a paging simulator: every tick it calls your <code>pageit()</code>, and your eviction policy decides how much time 20 processes spend waiting for the disk. This page says what each piece must do, which questions your LRU has to answer each tick, and how to read the simulator's score. It never shows code for the lab files. This page, <code>check/sim/simulator.h</code>, and the file headers are the specification; L15–L16 are the lectures behind it.</p>
+    <p class="lede">Part 1 measures the real kernel handing out memory lazily, one page fault at a time. Part 2 puts you inside a paging simulator. Every tick it calls your <code>pageit()</code>, and your eviction policy decides how much time 20 processes spend waiting for the disk. This page says what each piece must do, which questions your LRU has to answer each tick, and how to read the simulator's score. It never shows code for the lab files. This page, <code>check/sim/simulator.h</code>, and the file headers are the specification, and L15–L16 are the lectures behind it.</p>
     <div class="steps-map">
-      <div><b>Step 0–2</b>The loop; touch.c; huge pages</div>
+      <div><b>Step 0–2</b>The loop, touch.c, huge pages</div>
       <div><b>Step 3</b>Meet the simulator</div>
-      <div><b>Step 4–5</b>Design LRU; measure and iterate</div>
+      <div><b>Step 4–5</b>Design LRU, measure and iterate</div>
       <div><b>Step 6–7</b>make check, report, submit</div>
     </div>
   </div>
@@ -85,19 +85,19 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 0</div>
     <h2>Set up the loop</h2>
-    <p class="ch-lede">Share the whole lab directory, as in Lab03: the simulator's sources live in <code>check/sim/</code>.</p>
+    <p class="ch-lede">Share the whole lab directory, as in Lab03, because the simulator's sources live in <code>check/sim/</code>.</p>
   </div>
   <div class="sec">
     <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">SHARE=$PWD/labs/04-virtual-memory env/run.sh</span><span class="ln"><span class="c"># VM</span></span><span class="ln">cd /share                        <span class="c"># submit/ and check/ are both here</span></span><span class="ln">gcc -Wall -Werror -O2 -o /tmp/touch submit/touch.c</span></div>
-    <div class="prose"><p>You hand in three files, all in <code>submit/</code>: <code>touch.c</code> (Part 1, Steps 1–2), <code>pager-lru.c</code> (Part 2, Steps 3–5), and <code>report.md</code> (Step 7). <code>check/</code> holds the check script and, in <code>check/sim/</code>, the paging simulator by Dr. Alva Couch (Tufts). Its source is open, like every check in this course.</p></div>
+    <div class="prose"><p>You hand in three files, all in <code>submit/</code>, namely <code>touch.c</code> (Part 1, Steps 1–2), <code>pager-lru.c</code> (Part 2, Steps 3–5), and <code>report.md</code> (Step 7). <code>check/</code> holds the check script and, in <code>check/sim/</code>, the paging simulator by Dr. Alva Couch (Tufts). Its source is open, like every check in this course.</p></div>
   </div>
 </section>
 
 <section class="chapter" id="s1">
   <div class="ch-head">
     <div class="ch-no">Step 1</div>
-    <h2>touch.c: watch pages materialize</h2>
-    <p class="ch-lede">Goal: print exactly <code>RSS_KB_BEFORE=</code>, <code>RSS_KB_AFTER=</code> and <code>MINFLT_DELTA=</code>, measured around a loop that touches every page of a 64 MiB region.</p>
+    <h2>touch.c, watching pages materialize</h2>
+    <p class="ch-lede">The goal is to print exactly <code>RSS_KB_BEFORE=</code>, <code>RSS_KB_AFTER=</code> and <code>MINFLT_DELTA=</code>, measured around a loop that touches every page of a 64 MiB region.</p>
   </div>
   <div class="sec">
     <div class="table-wrap">
@@ -105,21 +105,21 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
         <thead><tr><th>TODO</th><th>what it must do</th><th>read first</th></tr></thead>
         <tbody>
           <tr><td>rss_kb()</td><td>Open <code>/proc/self/status</code>, find the line that starts with <code>VmRSS:</code>, and return its number (already in kB). Return -1 if anything fails.</td><td><code>man 3 fopen</code>, <code>man 3 fgets</code>, <code>man 3 sscanf</code>. It is the Lab00 job, now in C.</td></tr>
-          <tr><td>minflt()</td><td>Open <code>/proc/self/stat</code> and return field 10, the minor-fault count. Return -1 on failure.</td><td><code>man 5 proc</code> for the fields; <code>man 3 fscanf</code>, and how to read a field without keeping it.</td></tr>
-          <tr><td>the touch loop</td><td>Touch one byte in every <code>PAGE</code>-sized chunk of <code>region</code>: 64 MiB / 4096 = 16,384 touches.</td><td>Which kind of access makes the kernel give you a page of your own? Try both a read and a write, and compare RSS.</td></tr>
+          <tr><td>minflt()</td><td>Open <code>/proc/self/stat</code> and return field 10, the minor-fault count. Return -1 on failure.</td><td><code>man 5 proc</code> for the fields, and <code>man 3 fscanf</code> and how to read a field without keeping it.</td></tr>
+          <tr><td>the touch loop</td><td>Touch one byte in every <code>PAGE</code>-sized chunk of <code>region</code>, which is 64 MiB / 4096 = 16,384 touches.</td><td>Which kind of access makes the kernel give you a page of your own? Try both a read and a write, and compare RSS.</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="prose"><p><b>How to check it yourself</b> (with huge pages off; see Step 2):</p></div>
+    <div class="prose"><p><b>How to check it yourself</b> (with huge pages off, see Step 2) is shown below.</p></div>
     <div class="code"><span class="ln">echo never &gt; /sys/kernel/mm/transparent_hugepage/enabled</span><span class="ln">/tmp/touch</span><span class="ln"><span class="c"># BEFORE: a few thousand kB. AFTER: about 65,536 kB more. DELTA: about 16,384.</span></span></div>
-    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>A value of -1</b>: that reader failed to open or parse; print the line it found. <b>MINFLT_DELTA about 16,384 but RSS barely grows</b>: your touch reads instead of writing. Reading an untouched page does not give the process a page of its own; why not is a good sentence for report question 1. <b>MINFLT_DELTA of only a few hundred</b>: huge pages are still on (Step 2). <b>RSS_KB_BEFORE already about 65,000</b>: something touched the region before the first measurement.</p></div>
+    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>A value of -1.</b> That reader failed to open or parse. Print the line it found. <b>MINFLT_DELTA about 16,384 but RSS barely grows.</b> Your touch reads instead of writing. Reading an untouched page does not give the process a page of its own. Why not is a good sentence for report question 1. <b>MINFLT_DELTA of only a few hundred.</b> Huge pages are still on (Step 2). <b>RSS_KB_BEFORE already about 65,000.</b> Something touched the region before the first measurement.</p></div>
   </div>
 </section>
 
 <section class="chapter" id="s2">
   <div class="ch-head">
     <div class="ch-no">Step 2</div>
-    <h2>Transparent huge pages: two true answers</h2>
+    <h2>Transparent huge pages, with two true answers</h2>
     <p class="ch-lede">No code. Measure both settings and keep both sets of numbers for the report.</p>
   </div>
   <div class="sec">
@@ -128,7 +128,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       <ul>
         <li>Compare the two MINFLT_DELTA values. Their ratio should be close to the number of 4 KiB pages in one 2 MiB page. Compute that number and check.</li>
         <li>Compare the two RSS growths. Are they different?</li>
-        <li>The setting is not saved: every boot starts from the default. <code>make check</code> turns it off itself before running touch.</li>
+        <li>The setting is not saved, so every boot starts from the default. <code>make check</code> turns it off itself before running touch.</li>
       </ul>
     </div>
   </div>
@@ -142,11 +142,11 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   </div>
   <div class="sec">
     <div class="prose">
-      <p>In Part 2 you switch roles: you are the page-fault handler. The simulator runs 20 concurrent processes over 400 virtual pages with only <strong>100 physical frames</strong>, and it calls your <code>pageit()</code> every tick. One instruction costs 1 tick; one swap-in or one swap-out costs <strong>100 ticks</strong>. Your score is the ratio of blocked ticks to compute ticks: time spent waiting on paging versus useful work.</p>
-      <p>Grading uses the default constants in <code>simulator.h</code>: 20 processes × 20 virtual pages, 100 physical frames, <code>PAGESIZE</code> 128, and <code>PAGEWAIT</code> 100. <code>check/sim/pager-basic.c</code> is provided and readable; it is your baseline, and on our reference VM it scores about 15. The simulator is seeded and exactly deterministic: the same seed gives the same ratio, every time.</p>
+      <p>In Part 2 you switch roles. You are the page-fault handler. The simulator runs 20 concurrent processes over 400 virtual pages with only <strong>100 physical frames</strong>, and it calls your <code>pageit()</code> every tick. One instruction costs 1 tick, and one swap-in or one swap-out costs <strong>100 ticks</strong>. Your score is the ratio of blocked ticks to compute ticks, that is, time spent waiting on paging versus useful work.</p>
+      <p>Grading uses the default constants in <code>simulator.h</code>, namely 20 processes × 20 virtual pages, 100 physical frames, <code>PAGESIZE</code> 128, and <code>PAGEWAIT</code> 100. <code>check/sim/pager-basic.c</code> is provided and readable. It is your baseline, and on our reference VM it scores about 15. The simulator is seeded and exactly deterministic. The same seed gives the same ratio, every time.</p>
     </div>
     <div class="code"><span class="ln">gcc -Wall -Werror -O2 -Icheck/sim -o /tmp/test-basic \</span><span class="ln">    check/sim/simulator.c check/sim/programs.c check/sim/pager-basic.c</span><span class="ln">/tmp/test-basic -seed 1 2&gt;&amp;1 | grep ratio   <span class="c"># ratio blocked/compute=… (about 15)</span></span><span class="ln">/tmp/test-basic -help                          <span class="c"># the other flags</span></span></div>
-    <div class="prose"><p>The simulator writes everything, the score included, to <strong>stderr</strong>, hence the <code>2&gt;&amp;1</code> before any pipe. Read <code>check/sim/simulator.h</code> and <code>pager-basic.c</code>, then make sure you can answer these from the source, not from memory:</p></div>
+    <div class="prose"><p>The simulator writes everything, the score included, to <strong>stderr</strong>, hence the <code>2&gt;&amp;1</code> before any pipe. Read <code>check/sim/simulator.h</code> and <code>pager-basic.c</code>, then make sure you can answer the questions below from the source, not from memory.</p></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>question</th><th>where the answer is</th></tr></thead>
@@ -155,27 +155,27 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
           <tr><td>What does <code>pages[k] == 0</code> mean? Name all three situations.</td><td>the interface reference below</td></tr>
           <tr><td>When does <code>pagein</code> return 0, and what does that tell you about free frames?</td><td>the interface reference below, and the comment in <code>simulator.h</code></td></tr>
           <tr><td>How long after <code>pageout</code> is the frame free again?</td><td><code>PAGEWAIT</code></td></tr>
-          <tr><td>Why does pager-basic score so badly?</td><td>its comment: how many processes and pages it allows at once</td></tr>
+          <tr><td>Why does pager-basic score so badly?</td><td>its comment, which says how many processes and pages it allows at once</td></tr>
           <tr><td>What keeps a value alive from one call of <code>pageit</code> to the next?</td><td>the <code>static</code> variables in the skeleton</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="prose"><p><b>Interface reference.</b> <code>simulator.h</code> declares the types and the three functions. <code>pageit(Pentry q[MAXPROCESSES])</code> receives one entry per process:</p></div>
+    <div class="prose"><p><b>Interface reference.</b> <code>simulator.h</code> declares the types and the three functions. <code>pageit(Pentry q[MAXPROCESSES])</code> receives one entry per process, as the table below shows.</p></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>field</th><th>meaning</th></tr></thead>
         <tbody>
           <tr><td>active</td><td>1 running, 0 exited</td></tr>
-          <tr><td>pc</td><td>the program counter; the page the process needs is <code>pc / PAGESIZE</code></td></tr>
+          <tr><td>pc</td><td>the program counter. The page the process needs is <code>pc / PAGESIZE</code></td></tr>
           <tr><td>npages</td><td>pages in the process's space (20 while active)</td></tr>
-          <tr><td>pages[]</td><td>the page map: 1 swapped in, 0 not. A 0 covers three situations: out, going out, or coming in. The map alone does not distinguish them. If your policy needs to know about in-flight operations, track them yourself.</td></tr>
+          <tr><td>pages[]</td><td>the page map, with 1 swapped in and 0 not. A 0 covers three situations, namely out, going out, or coming in. The map alone does not distinguish them. If your policy needs to know about in-flight operations, track them yourself.</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="prose"><p>You act through <code>pagein(proc, page)</code> and <code>pageout(proc, page)</code>. Both return 1 if the operation starts, is already underway, or is already done. Both return 0 if it cannot start: there is no free frame, or the page is mid-swap the other way. An operation completes 100 ticks after it starts.</p>
-    <p><b>The programs being paged.</b> The simulator runs 40 processes in total, at most 20 at a time. Each is drawn randomly from five known program shapes:</p></div>
+    <div class="prose"><p>You act through <code>pagein(proc, page)</code> and <code>pageout(proc, page)</code>. Both return 1 if the operation starts, is already underway, or is already done. Both return 0 if it cannot start, because there is no free frame or the page is mid-swap the other way. An operation completes 100 ticks after it starts.</p>
+    <p><b>The programs being paged.</b> The simulator runs 40 processes in total, at most 20 at a time. Each is drawn randomly from five known program shapes, listed below.</p></div>
     <div class="code"><span class="ln">1: loop w/ branch      2: one loop       3: doubly nested</span><span class="ln">   for 10 30              for 20 50         for 10 20</span><span class="ln">     run 500                run 1129          run 1166</span><span class="ln">     if .4                end                 for 10 20</span><span class="ln">       run 900            exit                  run 516</span><span class="ln">     else                                     end</span><span class="ln">       run 131         4: linear            end</span><span class="ln">     endif                run 1911          exit</span><span class="ln">   end                    exit</span><span class="ln">   exit                5: probabilistic backward branch</span><span class="ln">                          for 10 20</span><span class="ln">                            label: run 500</span><span class="ln">                            if .5 goto label</span><span class="ln">                          end</span><span class="ln">                          exit</span></div>
-    <div class="prose"><p>Which branches fire and how many iterations run depend on the seed. Therefore, you can never predict an execution, only its probabilistic shape. The shapes matter mostly for the stretch in Step 7 and for report question 4. For LRU, you need only one assumption: the recent past predicts the near future <em>most</em> of the time.</p></div>
+    <div class="prose"><p>Which branches fire and how many iterations run depend on the seed. Therefore, you can never predict an execution, only its probabilistic shape. The shapes matter mostly for the stretch in Step 7 and for report question 4. For LRU, you need only one assumption, namely that the recent past predicts the near future <em>most</em> of the time.</p></div>
   </div>
 </section>
 
@@ -183,19 +183,19 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 4</div>
     <h2>Design your LRU</h2>
-    <p class="ch-lede">Goal: <code>pageit()</code> keeps every active process's needed page in memory as often as it can, and when it must evict, it evicts the least recently used page.</p>
+    <p class="ch-lede">The goal is that <code>pageit()</code> keeps every active process's needed page in memory as often as it can, and when it must evict, it evicts the least recently used page.</p>
   </div>
   <div class="sec">
     <div class="prose">
-      <p>Each call is one tick. On every tick your function has four jobs. Decide how you will do each one before you write it:</p>
+      <p>Each call is one tick. On every tick your function has four jobs. Decide how you will do each one before you write it.</p>
     </div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>job</th><th>the question you must answer</th></tr></thead>
         <tbody>
           <tr><td>1 · record use</td><td>Which (process, page) pairs are in use on this tick? The skeleton's <code>timestamps</code> array and <code>tick</code> counter exist to store "when was this page last used".</td></tr>
-          <tr><td>2 · request</td><td>For each active process whose needed page is not in memory: ask for it.</td></tr>
-          <tr><td>3 · make room</td><td>If the request cannot start, choose a victim: the page with the <em>oldest</em> timestamp, among which pages? Only this process's (local), or all processes' (global)? Local means each process evicts its own pages; if you choose it, consider reserving frames per process. This is your design decision, and report question 2 asks you to defend it. Never choose a page someone needs right now.</td></tr>
+          <tr><td>2 · request</td><td>For each active process whose needed page is not in memory, ask for it.</td></tr>
+          <tr><td>3 · make room</td><td>If the request cannot start, choose a victim. It is the page with the <em>oldest</em> timestamp, but among which pages? Only this process's (local), or all processes' (global)? Local means each process evicts its own pages. If you choose it, consider reserving frames per process. This is your design decision, and report question 2 asks you to defend it. Never choose a page someone needs right now.</td></tr>
           <tr><td>4 · in flight</td><td>A swap takes 100 ticks, and the page map cannot tell "going out" from "coming in" from "out". What stops your function from choosing the same victim again on the next tick? Does it matter?</td></tr>
         </tbody>
       </table>
@@ -211,7 +211,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   </div>
   <div class="sec">
     <div class="code"><span class="ln">gcc -Wall -Werror -O2 -Icheck/sim -o /tmp/test-lru \</span><span class="ln">    check/sim/simulator.c check/sim/programs.c submit/pager-lru.c</span><span class="ln">for s in 1 2 3; do /tmp/test-lru -seed $s 2&gt;&amp;1 | grep ratio; done   <span class="c"># make check averages these three</span></span><span class="ln">for i in 1 2; do /tmp/test-lru -seed 1 2&gt;&amp;1 | grep ratio; done         <span class="c"># must be identical</span></span></div>
-    <div class="prose"><p>The legacy course graded this ratio, averaged over several seeds. Use its bands to see where your average stands:</p></div>
+    <div class="prose"><p>The legacy course graded this ratio, averaged over several seeds. Use its bands, listed below, to see where your average stands.</p></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>avg ratio</th><th>verdict</th></tr></thead>
@@ -221,13 +221,13 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
           <tr><td>1.28 – 2.56</td><td>getting there</td></tr>
           <tr><td>0.64 – 1.28</td><td><strong>the checks' passing bar</strong></td></tr>
           <tr><td>0.32 – 0.64</td><td>good LRU</td></tr>
-          <tr><td>&lt; 0.32</td><td>excellent: reference territory</td></tr>
+          <tr><td>&lt; 0.32</td><td>excellent, reference territory</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="prose"><p><code>make check</code> requires the average over seeds 1–3 to be below <strong>1.28</strong>; an honest LRU clears that several times over. Only the score matters to the check, so once you pass, the local vs global choice is yours to explore: try both and report what you saw.</p></div>
-    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>"pager-lru not yet implemented"</b>: the placeholder lines are still there. <b>The run never ends</b>: rerun with <code>-dead</code>. If it prints "All needed pages swapped out!", then at some tick every process was waiting and nothing was coming in, and the simulator will wait forever: your function evicted without requesting, or requested nothing. Stop it with Ctrl-C. <b>Two runs with the same seed differ</b>: the policy uses something that is not repeatable, such as <code>rand()</code>, the time, or an uninitialized variable. <b>A score around 5 or more</b>: eviction is barely working. Check that job 1 really updates the timestamps, and that job 3 picks the smallest one. <b>It is merely slow</b>: <code>make check</code> gives each run 120 seconds. Look for a loop inside <code>pageit</code> that keeps searching when no victim exists.</p></div>
-    <details class="fold"><summary>Seeing your policy think</summary><div class="prose"><p><code>-block</code> logs every block and unblock with its tick, and <code>-page</code> every pagein and pageout: <code>/tmp/test-lru -seed 1 -block -page 2&gt;&amp;1 | head -80</code>. Follow one process: how long does it wait for each page, and is it waiting for the same page over and over? The second pattern means you are evicting pages that come back soon. (<code>-csv</code> writes the same events to <code>output.csv</code> and <code>pages.csv</code> in the current directory, for plotting.)</p></div></details>
+    <div class="prose"><p><code>make check</code> requires the average over seeds 1–3 to be below <strong>1.28</strong>, and an honest LRU clears that several times over. Only the score matters to the check, so once you pass, the local vs global choice is yours to explore. Try both and report what you saw.</p></div>
+    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>"pager-lru not yet implemented".</b> The placeholder lines are still there. <b>The run never ends.</b> Rerun with <code>-dead</code>. If it prints "All needed pages swapped out!", then at some tick every process was waiting and nothing was coming in, and the simulator will wait forever. Your function evicted without requesting, or requested nothing. Stop it with Ctrl-C. <b>Two runs with the same seed differ.</b> The policy uses something that is not repeatable, such as <code>rand()</code>, the time, or an uninitialized variable. <b>A score around 5 or more.</b> Eviction is barely working. Check that job 1 really updates the timestamps, and that job 3 picks the smallest one. <b>It is merely slow.</b> <code>make check</code> gives each run 120 seconds. Look for a loop inside <code>pageit</code> that keeps searching when no victim exists.</p></div>
+    <details class="fold"><summary>Seeing your policy think</summary><div class="prose"><p><code>-block</code> logs every block and unblock with its tick, and <code>-page</code> every pagein and pageout, as in <code>/tmp/test-lru -seed 1 -block -page 2&gt;&amp;1 | head -80</code>. Follow one process. How long does it wait for each page, and is it waiting for the same page over and over? The second pattern means you are evicting pages that come back soon. (<code>-csv</code> writes the same events to <code>output.csv</code> and <code>pages.csv</code> in the current directory, for plotting.)</p></div></details>
   </div>
 </section>
 
@@ -242,7 +242,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       <table class="t">
         <thead><tr><th>check</th><th>what it tests</th><th>go back to</th></tr></thead>
         <tbody>
-          <tr><td>missing-touch.c<br>missing-pager-lru.c</td><td>the file exists in <code>submit/</code>; if it does not, the checks stop here</td><td>Step 0</td></tr>
+          <tr><td>missing-touch.c<br>missing-pager-lru.c</td><td>the file exists in <code>submit/</code>. If it does not, the checks stop here</td><td>Step 0</td></tr>
           <tr><td>report-present</td><td><code>report.md</code> is not empty</td><td>Step 7</td></tr>
           <tr><td>touch-compiles</td><td><code>-Wall -Werror -O2</code></td><td>Step 1</td></tr>
           <tr><td>touch-rss</td><td>BEFORE ≥ 0, and AFTER − BEFORE ≥ 60,000 kB</td><td>Step 1, the read-vs-write symptom</td></tr>
@@ -266,11 +266,11 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   </div>
   <div class="sec">
     <div class="prose">
-      <p>Five questions in <code>submit/report.md</code>; the file holds their exact wording, and your answer replaces each <em>(your answer)</em> placeholder. How to investigate, not the answers:</p>
+      <p>Five questions in <code>submit/report.md</code>. The file holds their exact wording, and your answer replaces each <em>(your answer)</em> placeholder. Below is how to investigate, not the answers.</p>
       <ol>
         <li><b>The lie of malloc.</b> Paste your Step 1 and Step 2 numbers. For "what did each fault do", compare RSS just before and just after the loop, and think about the read-vs-write experiment. For "major", ask where the data of a page would have to come from for a fault to need the disk.</li>
         <li><b>The 75×.</b> Put your three seeds next to pager-basic's. Explain the gap from what pager-basic refuses to do (Step 3), then describe your victim choice and your local or global decision, with the evidence from Step 5.</li>
-        <li><b>Is 100:1 honest?</b> Compute the real ratio from the question's two numbers yourself, and compare it with 100. Then convert: how many instructions could the CPU have run during one fault?</li>
+        <li><b>Is 100 to 1 honest?</b> Compute the real ratio from the question's two numbers yourself, and compare it with 100. Then convert. How many instructions could the CPU have run during one fault?</li>
         <li><b>Where LRU is exactly wrong.</b> Pick a loop from the five program shapes, or make one up. Give LRU fewer frames than the loop has pages, and simulate by hand, tick by tick, which page LRU evicts and which page the loop needs next.</li>
         <li><b>MemFree or MemAvailable?</b> In the VM, read both lines of <code>/proc/meminfo</code>. Then read a lot of file data, for example with <code>find /usr -type f -exec cat {} + &gt; /dev/null</code>, and read both lines again. Which one dropped, and which one barely moved? The kernel's documentation for <code>/proc</code>, at <a href="https://docs.kernel.org/filesystems/proc.html">docs.kernel.org/filesystems/proc.html</a>, explains each line. <a href="../lectures/15-virtual-memory.html#s3-1">L15 §3.1</a> says which victim frames cost no disk write.</li>
       </ol>
@@ -281,7 +281,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       <li>Your seed 1–3 ratios, and their average, are in the report.</li>
       <li>All three files are visible on GitHub, in <em>your</em> repository.</li>
     </ul>
-    <div class="note"><span class="note-tag">Stretch, ungraded</span><p>LRU only reacts. However, you know the five program shapes from Step 3: a doubly nested loop will come back, and a straight line never will. Copy your pager to <code>pager-predict.c</code> and prefetch: track each process's branch behavior, and during idle paging capacity, page in what the structure says comes next. Build it the same way you built <code>test-lru</code> in Step 5, and let the simulator score it. Getting meaningfully under a good LRU is hard, which is the point. Start from your LRU, and first measure how often a process blocks on a page it has used before. That number bounds how much any predictor can win.</p></div>
+    <div class="note"><span class="note-tag">Stretch, ungraded</span><p>LRU only reacts. However, you know the five program shapes from Step 3. A doubly nested loop will come back, and a straight line never will. Copy your pager to <code>pager-predict.c</code> and prefetch. Track each process's branch behavior, and during idle paging capacity, page in what the structure says comes next. Build it the same way you built <code>test-lru</code> in Step 5, and let the simulator score it. Getting meaningfully under a good LRU is hard, which is the point. Start from your LRU, and first measure how often a process blocks on a page it has used before. That number bounds how much any predictor can win.</p></div>
   </div>
 </section>
 
