@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kernel Modules · R11</title>
-<meta name="description" content="CSCI 3753 Recitation 11 covers building, loading, inspecting and unloading a hello-world kernel module, where printk output goes, how device files name a driver by major and minor number, and Lab05 help.">
+<meta name="description" content="CSCI 3753 Recitation 11 covers building, loading, inspecting, and unloading a hello-world kernel module, where printk output goes, how device files name a driver by major and minor number, and Lab05 help.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -47,10 +47,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 11 · Week 13</div>
     <h1>Code that runs <span class="accent">inside</span> the kernel</h1>
-    <p class="lede">Lectures 17–19 described drivers from the outside. Today you put code into the kernel yourself. You build a hello-world module for the course VM's exact kernel, load it with a parameter, read its messages, and unload it. Then you see how a file in <code>/dev</code> finds its driver. That is the whole build-and-load loop of Lab05 Part 2, without the driver itself. Then Lab05 help.</p>
+    <p class="lede">Lectures 17–19 describe drivers from the outside. In this recitation, you put code into the kernel yourself. First, you build a hello-world module for the exact kernel of the course VM, load it with a parameter, read its messages, and unload it. Second, you see how a file in <code>/dev</code> finds its driver. Together, these steps are the whole build-and-load loop of Lab05 Part 2, without the driver itself. The session then turns to Lab05 help.</p>
     <div class="agenda">
-      <div><b>0–5</b>Recap of drivers, interrupts, DMA, disks</div>
-      <div><b>5–25</b>Worked example to build, load, inspect, unload</div>
+      <div><b>0–5</b>Recap of drivers, interrupts, DMA, and disks</div>
+      <div><b>5–25</b>Worked example to build, load, inspect, and unload</div>
       <div><b>25–45</b>Lab05 help (due Sun Apr 11)</div>
       <div><b>45–50</b>Exit ticket</div>
     </div>
@@ -92,10 +92,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       <div class="code" style="tab-size:4"><span class="ln"><span class="c">/* hello.c */</span></span><span class="ln"><span class="kw">#include</span> &lt;linux/init.h&gt;</span><span class="ln"><span class="kw">#include</span> &lt;linux/module.h&gt;</span><span class="ln"> </span><span class="ln">MODULE_LICENSE("GPL");</span><span class="ln">MODULE_DESCRIPTION("R11 demo: the smallest useful module");</span><span class="ln"> </span><span class="ln"><span class="kw">static int</span> count = 1;</span><span class="ln hl">module_param(count, <span class="kw">int</span>, 0444);</span><span class="ln">MODULE_PARM_DESC(count, "how many times to say hello");</span><span class="ln"> </span><span class="ln"><span class="kw">static int</span> __init hello_init(<span class="kw">void</span>)</span><span class="ln">{</span><span class="ln">	<span class="kw">int</span> i;</span><span class="ln"> </span><span class="ln">	<span class="kw">for</span> (i = 0; i &lt; count; i++)</span><span class="ln hl">		pr_info("hello: loaded (%d of %d)\n", i + 1, count);</span><span class="ln">	<span class="kw">return</span> 0;</span><span class="ln">}</span><span class="ln"> </span><span class="ln"><span class="kw">static void</span> __exit hello_exit(<span class="kw">void</span>)</span><span class="ln">{</span><span class="ln">	pr_info("hello: unloaded\n");</span><span class="ln">}</span><span class="ln"> </span><span class="ln hl">module_init(hello_init);</span><span class="ln hl">module_exit(hello_exit);</span></div>
       <div class="prose">
         <ul>
-          <li>There is no <code>main</code>. <code>module_init</code> names the function the kernel calls on load, and <code>module_exit</code> the one it calls on unload. A nonzero return from init means "failed to load".</li>
-          <li>There is no <code>printf</code>, because the kernel has no terminal. <code>pr_info</code> (a <code>printk</code>) writes to the <strong>kernel log</strong>.</li>
+          <li>There is no <code>main</code>. <code>module_init</code> names the function that the kernel calls on load, and <code>module_exit</code> names the one that it calls on unload. A nonzero return from init means "failed to load".</li>
+          <li>There is no <code>printf</code>, because the kernel has no terminal. Instead, <code>pr_info</code>, which is a <code>printk</code>, writes to the <strong>kernel log</strong>.</li>
           <li><code>module_param</code> makes <code>count</code> settable when the module is loaded.</li>
-          <li>Once loaded, this code runs in <strong>kernel mode</strong>. A bug here can crash the whole VM, not just one process.</li>
+          <li>Once the module is loaded, this code runs in <strong>kernel mode</strong>. As such, a bug here can crash the whole VM, not just one process.</li>
         </ul>
       </div>
     </div>
@@ -106,11 +106,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="ch-head">
     <div class="ch-no">Part 2 · follow along</div>
     <h2>Build it, on the laptop</h2>
-    <p class="ch-lede">A module is built against one exact kernel tree. The VM has none, so the build runs in the course's Docker container, just as in Lab05. Docker must be running.</p>
+    <p class="ch-lede">A module is built against one exact kernel tree. However, the VM has no kernel tree. Therefore, the build runs in the course's Docker container, just as in Lab05. Note that Docker must be running.</p>
   </div>
   <div class="sec">
     <div class="code"><span class="ln"><span class="c"># repository root; the directory must be inside the repo (Docker's file sharing)</span></span><span class="ln">mkdir -p mod-r11 &amp;&amp; cp hello.c mod-r11/ &amp;&amp; printf 'obj-m := hello.o\n' &gt; mod-r11/Makefile</span><span class="ln">docker run --rm --platform linux/amd64 \</span><span class="ln">  -v kernel-lens-cache:/work/cache -v "$PWD/mod-r11:/mod" kernel-lens-build \</span><span class="ln">  sh -c 'make -C /work/cache/linux-6.6.87 M=/mod modules \</span><span class="ln">         &amp;&amp; objcopy --remove-section .BTF /mod/hello.ko'</span><span class="ln">SHARE=$PWD/mod-r11 env/run.sh          <span class="c"># boot with the module at /share</span></span></div>
-    <p class="prose small muted">If Docker reports that the image <code>kernel-lens-build</code> is missing, run <code>make images</code> in <code>env/</code>. The <code>objcopy</code> step is explained in Step 3 of the Lab05 walkthrough.</p>
+    <p class="prose small muted">If Docker reports that the image <code>kernel-lens-build</code> is missing, run <code>make images</code> in <code>env/</code>. Note that the <code>objcopy</code> step is part of the build recipe.</p>
   </div>
 </section>
 
@@ -124,10 +124,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="code"><span class="ln"><span class="c"># from the course VM</span></span><span class="ln">description:    R11 demo: the smallest useful module</span><span class="ln">parm:           count:how many times to say hello (int)</span><span class="ln hl">vermagic:       6.6.87 SMP preempt mod_unload</span><span class="ln">[    3.685538] hello: loaded (1 of 3)</span><span class="ln">[    3.685881] hello: loaded (2 of 3)</span><span class="ln">[    3.685954] hello: loaded (3 of 3)</span><span class="ln">hello                  12288  0</span><span class="ln">3</span><span class="ln">[    3.779600] hello: unloaded</span></div>
     <div class="prose">
       <ul>
-        <li><strong>vermagic</strong> records the kernel the module was built for. The kernel refuses a module whose vermagic does not match it.</li>
+        <li><strong>vermagic</strong> records the kernel that the module was built for. The kernel refuses a module whose vermagic does not match it.</li>
         <li><code>lsmod</code> shows the module's size and how many users it has (0).</li>
-        <li>Loaded parameters show up under <code>/sys/module/&lt;name&gt;/parameters/</code>.</li>
-        <li><code>insmod</code> and <code>rmmod</code> make system calls underneath (<code>init_module</code>, <code>delete_module</code>), and only root may make them.</li>
+        <li>The parameters of a loaded module appear under <code>/sys/module/&lt;name&gt;/parameters/</code>.</li>
+        <li>Underneath, <code>insmod</code> and <code>rmmod</code> make system calls, namely <code>init_module</code> and <code>delete_module</code>. Only root may make them.</li>
       </ul>
     </div>
   </div>
@@ -146,11 +146,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       </div>
       <figure class="fig">
         <div class="fig-frame"><svg class="dia" id="mm-svg" viewBox="0 0 330 200" width="320" role="img" aria-label="open on /dev/zero looks up major 1 in the driver table and calls the mem driver with minor 5"></svg></div>
-        <figcaption><span class="fno">Fig. 1</span>The major number picks the driver, and the minor picks a device inside it.</figcaption>
+        <figcaption><span class="fno">Fig. 1</span>The major number selects the driver, and the minor number selects a device inside it.</figcaption>
       </figure>
     </div>
     <div class="prose">
-      <p>The <code>c</code> means character device, and in place of a size <code>ls</code> shows two numbers. The <strong>major</strong> picks the driver, and <code>/proc/devices</code> lists which driver owns which major. The <strong>minor</strong> picks a device within that driver. A file in <code>/dev</code> is only a <em>name</em> for a (major, minor) pair. <code>open</code> on it dispatches to whichever driver registered that major. In Lab05 Part 2 you register major 511 and create such a name yourself.</p>
+      <p>The <code>c</code> means character device. In place of a size, <code>ls</code> shows two numbers. The <strong>major</strong> number selects the driver, and <code>/proc/devices</code> lists which driver owns which major. The <strong>minor</strong> number selects a device within that driver. In other words, a file in <code>/dev</code> is only a <em>name</em> for a (major, minor) pair. An <code>open</code> on it dispatches to whichever driver registered that major. In Lab05 Part 2, you register major 511 and create such a name yourself.</p>
     </div>
   </div>
 </section>
@@ -164,12 +164,12 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="prose">
       <ul>
-        <li>Use the build and load loop in Step 3 of the Lab05 walkthrough. It uses the same commands as today, pointed at <code>char_driver.c</code> and <code>mod/</code>.</li>
-        <li><code>Invalid module format</code> means it was built against a different tree, or the <code>.BTF</code> section was not stripped. Rebuild with the exact command.</li>
-        <li><code>Module is in use</code> means something still has your device open.</li>
-        <li>If the VM freezes or prints an Oops, your kernel code touched a bad pointer. Reread Step 5 of the Lab05 walkthrough on <code>copy_to_user</code>.</li>
-        <li>The skeleton's contract gives the exact dmesg formats, so compare character by character.</li>
-        <li><b>PS4.</b> TAs explain rules and definitions, but they do not work its problems.</li>
+        <li>Use the build-and-load loop in Step 3 of the Lab05 walkthrough. It uses the same commands as today, applied to <code>char_driver.c</code> and <code>mod/</code>.</li>
+        <li><code>Invalid module format</code> means that the module was built against a different tree, or that the <code>objcopy</code> step was skipped. In either case, rebuild with the exact command.</li>
+        <li><code>Module is in use</code> means that something still has your device open.</li>
+        <li>If the VM freezes or prints an Oops, your kernel code has touched a bad pointer. In this case, reread Step 5 of the Lab05 walkthrough on <code>copy_to_user</code>.</li>
+        <li>The contract in the skeleton gives the exact dmesg formats. Therefore, compare your output character by character.</li>
+        <li><b>PS4.</b> TAs explain the rules and definitions. However, they do not work its problems.</li>
       </ul>
     </div>
   </div>
@@ -179,7 +179,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="ch-head">
     <div class="ch-no">Part 6</div>
     <h2>Exit ticket</h2>
-    <p class="ch-lede">Not graded. Answer, then check.</p>
+    <p class="ch-lede">The exit ticket is not graded. Answer each question, then check.</p>
   </div>
   <div class="sec">
     <div class="quiz" data-quiz>
@@ -191,7 +191,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <button type="button" class="q-opt" data-ok>To the kernel log, read with dmesg</button>
           <button type="button" class="q-opt" data-why="/proc/modules lists loaded modules, not messages.">Into /proc/modules</button>
         </div>
-        <div class="q-fb ok">Right. The checks for Lab05 read it the same way.</div>
+        <div class="q-fb ok">Right. The Lab05 checks read the kernel log in the same way.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -201,7 +201,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <div class="q-text"><code>ls -l /dev/zero</code> shows <code>1, 5</code>. What does the <code>1</code> select?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-ok>The driver is major number 1 (mem), and 5 is the device within it</button>
-          <button type="button" class="q-opt" data-why="Device files have no size. Those numbers replace it.">The file's size in blocks</button>
+          <button type="button" class="q-opt" data-why="Device files have no size. The two numbers appear in its place.">The file's size in blocks</button>
           <button type="button" class="q-opt" data-why="The link count is the earlier column.">The number of hard links</button>
         </div>
         <div class="q-fb ok">Right. Your Lab05 driver will own major 511.</div>
@@ -220,11 +220,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="table-wrap">
       <table class="cs">
         <tbody>
-          <tr><td>module_init / module_exit</td><td>Functions the kernel calls on load and unload.</td></tr>
+          <tr><td>module_init / module_exit</td><td>The functions that the kernel calls on load and unload.</td></tr>
           <tr><td>pr_info(...) / printk</td><td>Write to the kernel log.</td></tr>
-          <tr><td>modinfo x.ko</td><td>Description, license, parameters, vermagic.</td></tr>
+          <tr><td>modinfo x.ko</td><td>Description, license, parameters, and vermagic.</td></tr>
           <tr><td>insmod x.ko k=v · rmmod x</td><td>Load (with parameters) · unload. Root only.</td></tr>
-          <tr><td>lsmod</td><td>Loaded modules, sizes, users.</td></tr>
+          <tr><td>lsmod</td><td>Loaded modules, with their sizes and users.</td></tr>
           <tr><td>dmesg | tail</td><td>The latest kernel log lines.</td></tr>
           <tr><td>/proc/devices</td><td>Which driver owns which major number.</td></tr>
           <tr><td>ls -l /dev/x</td><td><code>c</code> plus <code>major, minor</code> for a character device.</td></tr>

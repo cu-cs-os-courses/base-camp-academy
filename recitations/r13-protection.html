@@ -44,11 +44,11 @@ table.bits th { font-size: 10.5px; letter-spacing: .1em; text-transform: upperca
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 13 · Week 15</div>
     <h1>Who may do <span class="accent">what</span>?</h1>
-    <p class="lede">Lecture 22 described protection as domains, objects and an access matrix. Today you watch the kernel enforce it. A second user is refused a file until the permission bits change. Then a program switches domains with the setuid bit, which is how <code>passwd</code> edits a file ordinary users cannot even read. You end with the rule that follows, namely least privilege.</p>
+    <p class="lede">Lecture 22 describes protection in terms of domains, objects, and an access matrix. In this recitation, you watch the kernel enforce it. First, a second user is refused a file until the permission bits change. Second, a program switches domains with the setuid bit. This is how <code>passwd</code> edits a file that ordinary users cannot even read. Finally, you end with the rule that follows, namely least privilege.</p>
     <div class="agenda">
-      <div><b>0–5</b>Recap of domains, access matrix, least privilege</div>
+      <div><b>0–5</b>Recap of domains, the access matrix, and least privilege</div>
       <div><b>5–25</b>Worked example (bits, setuid, auditing)</div>
-      <div><b>25–45</b>Questions on lab feedback, PS4</div>
+      <div><b>25–45</b>Questions on lab feedback and PS4</div>
       <div><b>45–50</b>Exit ticket</div>
     </div>
   </div>
@@ -87,9 +87,9 @@ table.bits th { font-size: 10.5px; letter-spacing: .1em; text-transform: upperca
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li>The nine bits are three triples, <strong>owner / group / other</strong>, each <code>rwx</code>. In octal, 6 = <code>rw-</code>, 4 = <code>r--</code>, 0 = <code>---</code>.</li>
-          <li><code>ls -l</code> shows one <strong>column</strong> of the access matrix, the file's access list in compact form, for three domains.</li>
-          <li>The check happens in the kernel, inside <code>open</code>, every time. <code>cat</code> only reports the error it got back.</li>
+          <li>The nine bits form three triples, namely <strong>owner / group / other</strong>, and each triple is <code>rwx</code>. In octal, 6 = <code>rw-</code>, 4 = <code>r--</code>, and 0 = <code>---</code>.</li>
+          <li><code>ls -l</code> shows one <strong>column</strong> of the access matrix. In other words, it shows the file's access list in compact form, for three domains.</li>
+          <li>The kernel performs the check inside <code>open</code>, every time. <code>cat</code> only reports the error that it gets back.</li>
         </ul>
       </div>
       <table class="bits">
@@ -113,13 +113,13 @@ table.bits th { font-size: 10.5px; letter-spacing: .1em; text-transform: upperca
   <div class="sec">
     <div class="code"><span class="ln">ls -l /etc/passwd /etc/shadow /usr/bin/passwd</span></div>
     <div class="code"><span class="ln">-rw-r--r-- 1 root root     997 … /etc/passwd</span><span class="ln hl">-rw-r----- 1 root shadow   623 … /etc/shadow</span><span class="ln hl">-rwsr-xr-x 1 root root   68248 … /usr/bin/passwd</span></div>
-    <div class="prose"><p><code>/etc/shadow</code> holds the salted password hashes (Lecture 23), and alice cannot even read it. So how does alice change her own password? Look at the <b>s</b> in <code>/usr/bin/passwd</code>. Now try it with a program of your own, shown below.</p></div>
+    <div class="prose"><p><code>/etc/shadow</code> holds the salted password hashes (Lecture 23), and alice cannot even read it. However, alice can still change her own password. To see how, look at the <b>s</b> in <code>/usr/bin/passwd</code>. Then try the same mechanism with a program of your own, shown below.</p></div>
     <div class="code"><span class="ln"><span class="c">/* who.c */</span></span><span class="ln"><span class="kw">#include</span> &lt;stdio.h&gt;</span><span class="ln"><span class="kw">#include</span> &lt;unistd.h&gt;</span><span class="ln"> </span><span class="ln"><span class="kw">int</span> main(<span class="kw">void</span>) {</span><span class="ln">    printf("real uid %d, effective uid %d\n", (<span class="kw">int</span>)getuid(), (<span class="kw">int</span>)geteuid());</span><span class="ln">    FILE *f = fopen("/etc/shadow", "r");</span><span class="ln">    printf("open /etc/shadow: %s\n", f ? "allowed" : "Permission denied");</span><span class="ln">    <span class="kw">if</span> (f) fclose(f);</span><span class="ln">    <span class="kw">return</span> 0;</span><span class="ln">}</span></div>
-    <p class="prose small muted">Save it in a directory on your laptop and boot with it shared, e.g. <code>SHARE=$HOME/r13 env/run.sh</code>, so it appears at <code>/share/who.c</code>.</p>
+    <p class="prose small muted">Save it in a directory on your laptop, and boot the VM with that directory shared, for example <code>SHARE=$HOME/r13 env/run.sh</code>. The file then appears at <code>/share/who.c</code>.</p>
     <div class="code"><span class="ln">gcc -Wall -Werror -o /tmp/who /share/who.c</span><span class="ln">su alice -c /tmp/who</span><span class="ln">chmod u+s /tmp/who</span><span class="ln">su alice -c /tmp/who</span></div>
     <details class="fold"><summary>What you should see, and why</summary><div class="prose">
       <div class="code"><span class="ln">real uid 1000, effective uid 1000</span><span class="ln">open /etc/shadow: Permission denied</span><span class="ln"><span class="c"># after chmod u+s: -rwsr-xr-x 1 root root … /tmp/who</span></span><span class="ln hl">real uid 1000, effective uid 0</span><span class="ln hl">open /etc/shadow: allowed</span></div>
-      <p>The <strong>real</strong> uid says who started the program. The <strong>effective</strong> uid is what the kernel checks. A setuid program runs with its <strong>owner's</strong> effective uid, which is a switch of protection domain. That is how <code>passwd</code> works. A small, carefully written program may edit <code>/etc/shadow</code> on alice's behalf, while alice herself never can.</p>
+      <p>The <strong>real</strong> uid records who started the program. The <strong>effective</strong> uid is the one that the kernel checks. A setuid program runs with its <strong>owner's</strong> effective uid. In other words, it switches protection domain. This is how <code>passwd</code> works. Specifically, a small, carefully written program may edit <code>/etc/shadow</code> on alice's behalf, while alice herself never can.</p>
     </div></details>
   </div>
 </section>
@@ -132,12 +132,12 @@ table.bits th { font-size: 10.5px; letter-spacing: .1em; text-transform: upperca
   <div class="sec">
     <div class="code"><span class="ln">find / -xdev -perm -4000 -type f 2&gt;/dev/null   <span class="c"># every setuid program on the disk</span></span><span class="ln">rm -f /tmp/who /tmp/secret.txt                 <span class="c"># clean up</span></span><span class="ln">userdel -r alice</span></div>
     <div class="prose">
-      <p>The course VM has <code>/tmp/who</code> plus nine system programs, namely <code>passwd</code>, <code>su</code>, <code>chsh</code>, <code>chfn</code>, <code>gpasswd</code>, <code>newgrp</code>, <code>mount</code>, <code>umount</code> and <code>ssh-keysign</code>. Each runs with root's power no matter who starts it, so a bug in any of them is a bug with root's power.</p>
-      <p>Hence <strong>least privilege</strong> (Lecture 22). Keep setuid programs few, small and audited, and have them drop privilege as early as possible. Prefer narrower rights, such as a dedicated group like <code>shadow</code> or Linux capabilities, over full root. Administrators run exactly this <code>find</code> to audit a machine.</p>
+      <p>The course VM has <code>/tmp/who</code> plus nine system programs, namely <code>passwd</code>, <code>su</code>, <code>chsh</code>, <code>chfn</code>, <code>gpasswd</code>, <code>newgrp</code>, <code>mount</code>, <code>umount</code>, and <code>ssh-keysign</code>. Each of them runs with root's power, no matter who starts it. As such, a bug in any of them is a bug with root's power.</p>
+      <p>This is the reason for <strong>least privilege</strong> (Lecture 22). Keep setuid programs few, small, and audited, and make them drop privilege as early as possible. Prefer narrower rights over full root, such as a dedicated group like <code>shadow</code> or Linux capabilities. Note that administrators run exactly this <code>find</code> to audit a machine.</p>
     </div>
     <div class="note note-warn">
       <span class="note-tag">Clean up</span>
-      <p>Run the last two lines. <code>/etc/passwd</code> and alice's home directory persist in your VM image. <code>userdel</code> may warn that alice had no mail spool. That is harmless.</p>
+      <p>Run the last two lines, because <code>/etc/passwd</code> and alice's home directory persist in your VM image. Note that <code>userdel</code> may warn that alice had no mail spool. This warning is harmless.</p>
     </div>
   </div>
 </section>
@@ -152,8 +152,8 @@ table.bits th { font-size: 10.5px; letter-spacing: .1em; text-transform: upperca
     <div class="prose">
       <ul>
         <li><b>Lab feedback.</b> Ask what a failed check in a graded lab was testing, and why. Regrade requests go through the course's procedure on Canvas.</li>
-        <li><b>PS4.</b> TAs explain rules and definitions, but they do not work its problems.</li>
-        <li>Anything about today's demo or the course VM.</li>
+        <li><b>PS4.</b> TAs explain the rules and definitions. However, they do not work its problems.</li>
+        <li>Any question about today's demo or the course VM.</li>
       </ul>
     </div>
   </div>
@@ -163,7 +163,7 @@ table.bits th { font-size: 10.5px; letter-spacing: .1em; text-transform: upperca
   <div class="ch-head">
     <div class="ch-no">Part 5</div>
     <h2>Exit ticket</h2>
-    <p class="ch-lede">Not graded. Answer, then check.</p>
+    <p class="ch-lede">The exit ticket is not graded. Answer each question, then check.</p>
   </div>
   <div class="sec">
     <div class="quiz" data-quiz>
@@ -171,11 +171,11 @@ table.bits th { font-size: 10.5px; letter-spacing: .1em; text-transform: upperca
       <div class="quiz-body">
         <div class="q-text">A file is <code>-rw-r-----</code>, owner alice, group staff. Bob is in staff. Can Bob write it?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="The w in the first triple is the owner's, alice's.">Yes, the file has a w.</button>
+          <button type="button" class="q-opt" data-why="The w in the first triple belongs to the owner, alice.">Yes, the file has a w.</button>
           <button type="button" class="q-opt" data-ok>No, the group triple is r--, read only.</button>
-          <button type="button" class="q-opt" data-why="Bob is in the group, so the group triple applies, not the other triple.">No, Bob gets the other triple, ---.</button>
+          <button type="button" class="q-opt" data-why="Bob is in the group. Therefore, the group triple applies, not the other triple.">No, Bob gets the other triple, ---.</button>
         </div>
-        <div class="q-fb ok">Right. Bob can read it, not write it.</div>
+        <div class="q-fb ok">Right. Bob can read it, but he cannot write it.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -188,7 +188,7 @@ table.bits th { font-size: 10.5px; letter-spacing: .1em; text-transform: upperca
           <button type="button" class="q-opt" data-ok>Root's, 0</button>
           <button type="button" class="q-opt" data-why="setuid does not create a new user.">A fresh temporary uid</button>
         </div>
-        <div class="q-fb ok">Right, the owner's. That is why such programs must be small and careful.</div>
+        <div class="q-fb ok">Right, it runs with the owner's uid. This is why such programs must be small and carefully written.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>

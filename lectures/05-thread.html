@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Thread · L05</title>
-<meta name="description" content="CSCI 3753 Lecture 05, interactive edition, covering threads vs processes, user-space and kernel threads, pthreads, interleavings, thread safety, reentrancy, and data races vs race conditions.">
+<meta name="description" content="CSCI 3753 Lecture 05, interactive edition. It covers threads versus processes, user-space and kernel threads, pthreads, interleavings, thread safety, reentrancy, and data races versus race conditions.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -81,7 +81,7 @@
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 05 · Interactive notes</div>
     <h1>Many program counters,<br><span class="accent">one</span> address space</h1>
-    <p class="lede">A process gave each program its own memory and one program counter. A thread keeps the memory and multiplies the program counter. It gives several streams of execution sharing code, data and heap, each with its own stack and registers. Communication becomes as cheap as a memory write. So does getting it wrong, and this lecture ends with the first taste of what happens when two threads touch the same variable.</p>
+    <p class="lede">A process gives each program its own memory and one program counter. A thread keeps the memory and adds more program counters. As such, a process can have several streams of execution that share code, data, and heap, and each stream has its own stack and registers. Communication between them is as cheap as a memory write. However, so is a mistake. This lecture ends with a first look at what happens when two threads access the same variable.</p>
     <div class="promise">
       <span>Before you start, review</span><span class="mono">the PCB, context switches, and IPC</span><span>from Lectures 03–04.</span>
     </div>
@@ -135,9 +135,9 @@
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li>All threads of a process share its <strong>code</strong>, <strong>data</strong> and <strong>heap</strong>, and its open files.</li>
-          <li data-step="1">Each thread has its own <strong>program counter</strong>, <strong>register state</strong> and <strong>stack</strong>.</li>
-          <li data-step="2">The kernel keeps the PCB for the process plus <strong>control data for each thread</strong>. On Linux, every thread is in fact its own <code>task_struct</code> that shares the memory (<code>mm</code>) and files with its siblings.</li>
+          <li>All threads of a process share its <strong>code</strong>, <strong>data</strong>, <strong>heap</strong>, and open files.</li>
+          <li data-step="1">Each thread has its own <strong>program counter</strong>, <strong>register state</strong>, and <strong>stack</strong>.</li>
+          <li data-step="2">The kernel keeps the PCB for the process and <strong>control data for each thread</strong>. On Linux, every thread is in fact a separate <code>task_struct</code>, which shares the memory (<code>mm</code>) and files with its siblings.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -158,9 +158,9 @@
     <h3><span class="sec-no">0.2</span>Applications, processes, threads</h3>
     <div class="prose">
       <ul>
-        <li>An application can consist of several processes, each dedicated to a task (UI, computation, communication). Recall Chrome.</li>
-        <li data-step="1">Each process can consist of several threads, so an application may be many processes and many threads.</li>
-        <li data-step="2">A classic example is a <strong>multithreaded server</strong>. One thread listens for requests. For each request it creates a new thread (or takes one from a pool) to service it, and goes back to listening.</li>
+        <li>An application can consist of several processes, and each process is dedicated to a task (UI, computation, communication). Chrome is an example.</li>
+        <li data-step="1">Each process can consist of several threads. Therefore, an application may consist of many processes and many threads.</li>
+        <li data-step="2">A classic example is a <strong>multithreaded server</strong>. One thread listens for requests. For each request, it creates a new thread (or takes one from a pool) to service the request. Then, it goes back to listening.</li>
       </ul>
     </div>
   </div>
@@ -168,9 +168,9 @@
   <div class="sec" id="s0-3">
     <h3><span class="sec-no">0.3</span>Why threads?</h3>
     <div class="opts3">
-      <div><span class="tag">Economy</span>Cheaper to create than processes, and cheaper to switch, because there are no MMU registers to reload and no TLB to flush (Lecture 14). In Solaris, switching between processes was about 5× slower than between threads.</div>
-      <div data-step="1"><span class="tag">Shared resources</span>No duplicated code, data, heap or PCBs. More scalable, such as a web server with thousands of connections.</div>
-      <div data-step="2"><span class="tag">Easy communication</span>Threads share memory, so communication is a read or write of the same memory. Message-passing IPC is slow. Shared-memory IPC (Lecture 04) comes closest.</div>
+      <div><span class="tag">Economy</span>Threads are cheaper to create than processes. They are also cheaper to switch, because there are no MMU registers to reload and no TLB to flush (Lecture 14). In Solaris, switching between processes was about 5× slower than switching between threads.</div>
+      <div data-step="1"><span class="tag">Shared resources</span>Threads do not duplicate code, data, heap, or PCBs. As such, they scale better, for example in a web server with thousands of connections.</div>
+      <div data-step="2"><span class="tag">Easy communication</span>Threads share memory. Therefore, communication is a read or write of the same memory. In contrast, message-passing IPC is slow. Shared-memory IPC (Lecture 04) comes closest to threads.</div>
     </div>
   </div>
 
@@ -205,9 +205,9 @@
     <h3><span class="sec-no">1.1</span>User-space threads</h3>
     <div class="prose">
       <ul>
-        <li>A thread library gives the programmer an API to create and manage threads, implemented entirely in <strong>user space</strong> or by the kernel.</li>
-        <li data-step="1">User-space threads are usually <strong>cooperatively multitasked</strong>. They voluntarily give the CPU to each other through the library. They are also called <strong>fibers</strong> (or green threads, coroutines).</li>
-        <li data-step="2">The OS is unaware of them and sees only the process. So if one user thread <strong>blocks</strong> in a system call, the whole process blocks (the many-to-one case).</li>
+        <li>A thread library gives the programmer an API to create and manage threads. The library is implemented either entirely in <strong>user space</strong> or by the kernel.</li>
+        <li data-step="1">User-space threads are usually <strong>cooperatively multitasked</strong>. In other words, they voluntarily give the CPU to each other through the library. They are also called <strong>fibers</strong> (or green threads, coroutines).</li>
+        <li data-step="2">The OS is unaware of them and sees only the process. Therefore, if one user thread <strong>blocks</strong> in a system call, the whole process blocks (the many-to-one case).</li>
       </ul>
     </div>
   </div>
@@ -216,7 +216,7 @@
     <h3><span class="sec-no">1.2</span>Kernel threads and mappings</h3>
     <div class="prose">
       <ul>
-        <li><strong>Kernel threads</strong> are supported by the OS. The kernel sees threads and schedules each one. Linux, macOS and Windows all support them.</li>
+        <li><strong>Kernel threads</strong> are supported by the OS. The kernel sees each thread and schedules it. Linux, macOS, and Windows all support them.</li>
         <li data-step="1">User threads map onto kernel threads <strong>one-to-one</strong> (Linux, Windows), <strong>many-to-one</strong>, or <strong>many-to-many</strong>.</li>
       </ul>
     </div>
@@ -236,9 +236,9 @@
   <div class="sec" id="s1-3">
     <h3><span class="sec-no">1.3</span>Three main libraries</h3>
     <div class="opts3">
-      <div><span class="tag">POSIX pthreads</span>A POSIX standard (IEEE 1003.1c) API for creating and synchronizing threads. It specifies behavior, not implementation, which may be user-level or kernel-level. On Linux it is kernel-level, one-to-one.</div>
+      <div><span class="tag">POSIX pthreads</span>A POSIX standard (IEEE 1003.1c) API for creating and synchronizing threads. It specifies behavior, not implementation. As such, the implementation may be user-level or kernel-level. On Linux, it is kernel-level and one-to-one.</div>
       <div data-step="1"><span class="tag">Win32</span>A kernel-level thread library on Windows.</div>
-      <div data-step="2"><span class="tag">Java</span>Threads managed by the JVM, typically on top of the underlying OS's threads.</div>
+      <div data-step="2"><span class="tag">Java</span>Threads managed by the JVM, typically on top of the threads of the underlying OS.</div>
     </div>
   </div>
 
@@ -253,16 +253,16 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 2</div>
     <h2>The pthreads API</h2>
-    <p class="ch-lede">Thread management here. Semaphores, mutexes and condition variables come in Lectures 08–10.</p>
+    <p class="ch-lede">This chapter covers thread management. Semaphores, mutexes, and condition variables come in Lectures 08–10.</p>
   </div>
 
   <div class="sec" id="s2-1">
     <h3><span class="sec-no">2.1</span>Create, exit, join</h3>
     <div class="prose">
       <ul>
-        <li><code>pthread_create(&amp;tid, attr, start_routine, arg)</code> returns the new thread's ID in <code>tid</code>. <code>attr</code> sets attributes (NULL for defaults). <code>start_routine</code> is the C function the thread runs, and <code>arg</code> is its single argument, passed as a <code>void *</code>.</li>
-        <li data-step="1"><code>pthread_exit(value)</code> terminates the calling thread, returning <code>value</code> as a pointer. Returning from <code>start_routine</code> does the same.</li>
-        <li data-step="2"><code>pthread_join(tid, &amp;value)</code> blocks until thread <code>tid</code> terminates and collects its return value (NULL if you do not care). It returns 0 on success, an error number otherwise. It is to threads what <code>wait()</code> is to processes.</li>
+        <li><code>pthread_create(&amp;tid, attr, start_routine, arg)</code> returns the ID of the new thread in <code>tid</code>. <code>attr</code> sets attributes (NULL for defaults). <code>start_routine</code> is the C function the thread runs, and <code>arg</code> is its single argument, passed as a <code>void *</code>.</li>
+        <li data-step="1"><code>pthread_exit(value)</code> terminates the calling thread and returns <code>value</code> as a pointer. Returning from <code>start_routine</code> has the same effect.</li>
+        <li data-step="2"><code>pthread_join(tid, &amp;value)</code> blocks until thread <code>tid</code> terminates, and then it collects the return value of that thread (NULL if you do not need it). It returns 0 on success and an error number otherwise. In other words, it is to threads what <code>wait()</code> is to processes.</li>
       </ul>
     </div>
   </div>
@@ -292,8 +292,8 @@
     <div class="prose">
       <ul>
         <li>Some applications are sequential by nature and not easily parallelized.</li>
-        <li data-step="1"><strong>No fault isolation</strong> between threads. One crashing thread brings down the whole process. A crashed process leaves the others running in their own address spaces.</li>
-        <li data-step="2">Writing <strong>thread-safe</strong> and <strong>reentrant</strong> code is hard (Chapters 3–4). Processes avoid it with separate copies of data and heap, except when they use shared-memory IPC. The OS kernel, a concurrent program itself, has the same problem.</li>
+        <li data-step="1">Threads have <strong>no fault isolation</strong> between them. One crashing thread brings down the whole process. In contrast, a crashed process leaves the other processes running in their own address spaces.</li>
+        <li data-step="2">Writing <strong>thread-safe</strong> and <strong>reentrant</strong> code is hard (Chapters 3–4). Processes avoid this problem with separate copies of data and heap, except when they use shared-memory IPC. Note that the OS kernel is itself a concurrent program, and it has the same problem.</li>
       </ul>
     </div>
   </div>
@@ -305,10 +305,10 @@
         <div class="q-text">A thread in a web server dereferences a NULL pointer. What happens to the other threads?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="SIGSEGV's default action terminates the process, and every thread is part of it.">Only the faulty thread dies.</button>
-          <button type="button" class="q-opt" data-ok>The whole process, every thread with it, is terminated.</button>
-          <button type="button" class="q-opt" data-why="The kernel cannot just restart part of an address space that may now be corrupted.">The kernel restarts the faulty thread.</button>
+          <button type="button" class="q-opt" data-ok>The whole process is terminated, including every thread in it.</button>
+          <button type="button" class="q-opt" data-why="The kernel cannot simply restart part of an address space that may now be corrupted.">The kernel restarts the faulty thread.</button>
         </div>
-        <div class="q-fb ok">Right. That is the fault-isolation argument for processes, and why Chrome uses a process per site.</div>
+        <div class="q-fb ok">Right. This is the fault-isolation argument for processes. It is also the reason why Chrome uses a process per site.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -332,9 +332,9 @@
     <h3><span class="sec-no">3.1</span>Concurrency and parallelism</h3>
     <div class="prose">
       <ul>
-        <li><strong>Concurrency</strong> on a single core means the threads' instructions are interleaved over time, as the scheduler switches among them.</li>
-        <li data-step="1"><strong>Parallelism</strong> on multiple cores means instructions really run at the same time.</li>
-        <li data-step="2">Either way, the program cannot assume any particular order between two threads' instructions.</li>
+        <li><strong>Concurrency</strong> on a single core means that the instructions of the threads are interleaved over time, as the scheduler switches among them.</li>
+        <li data-step="1"><strong>Parallelism</strong> on multiple cores means that instructions actually run at the same time.</li>
+        <li data-step="2">In both cases, the program cannot assume any particular order between the instructions of two threads.</li>
       </ul>
     </div>
   </div>
@@ -342,7 +342,7 @@
   <div class="sec" id="s3-2">
     <h3><span class="sec-no">3.2</span>What is X?</h3>
     <div class="prose">
-      <p>X = 7 is shared. Thread 1 runs <code>X = X * 2; print X</code>, and thread 2 runs <code>X = X + 1; print X</code>. Each statement <code>X = X op k</code> is really three machine steps, namely <strong>load</strong> X into a register, compute, and <strong>store</strong> it back. You be the scheduler below.</p>
+      <p>X = 7 is shared. Thread 1 runs <code>X = X * 2; print X</code>, and thread 2 runs <code>X = X + 1; print X</code>. Each statement <code>X = X op k</code> is actually three machine steps, namely <strong>load</strong> X into a register, compute, and <strong>store</strong> the result back. In the widget below, you act as the scheduler.</p>
     </div>
     <div class="widget" id="il-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Pick the next step of either thread</span><button class="w-reset" type="button" id="il-reset">Reset</button></div>
@@ -355,7 +355,7 @@
           <div>
             <div class="stats" id="il-st"></div>
             <div class="hist" id="il-h" style="margin-top:10px"></div>
-            <div class="sub-lab" style="margin-top:10px">every possible output (found by trying all 20 interleavings)</div>
+            <div class="sub-lab" style="margin-top:10px">every possible output (found by running all 20 interleavings)</div>
             <div class="outs" id="il-o"></div>
           </div>
         </div>
@@ -367,15 +367,15 @@
   <div class="sec" id="s3-3">
     <h3><span class="sec-no">3.3</span>Data race vs. race condition</h3>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">Data race</span>Two threads access the same memory location without synchronization, and at least one access is a write. A low-level memory behavior, not necessarily a bug.</div>
-      <div data-step="1"><span class="tag">Race condition</span>The threads' execution order causes incorrect behavior. A high-level logic flaw.</div>
+      <div><span class="tag">Data race</span>Two threads access the same memory location without synchronization, and at least one access is a write. It is a low-level memory behavior, and it is not necessarily a bug.</div>
+      <div data-step="1"><span class="tag">Race condition</span>The execution order of the threads causes incorrect behavior. It is a high-level logic flaw.</div>
     </div>
     <div class="prose" data-step="2">
-      <p>They overlap, but neither implies the other. A statistics counter that two threads increment with <code>stats_counter++</code> has a <strong>data race</strong>. If missing a few increments is acceptable, it is <strong>not a race condition</strong>. A race condition without a data race needs synchronization to exist first, for example two properly locked steps executed in the wrong order (Lecture 08).</p>
+      <p>The two terms overlap, but neither implies the other. A statistics counter that two threads increment with <code>stats_counter++</code> has a <strong>data race</strong>. However, if missing a few increments is acceptable, it is <strong>not a race condition</strong>. Conversely, a race condition without a data race requires synchronization in the first place, for example two properly locked steps that execute in the wrong order (Lecture 08).</p>
     </div>
     <div class="note note-honest read-only" data-step="2">
       <span class="note-tag">Careful in C</span>
-      <p>Since C11, a data race on a plain (non-atomic) variable is <em>undefined behavior</em>, so the compiler may assume it never happens. "It's only a counter" code should use <code>atomic_ulong</code> with relaxed operations, which states the intent and keeps the program well-defined.</p>
+      <p>Since C11, a data race on a plain (non-atomic) variable is <em>undefined behavior</em>. Therefore, the compiler may assume that it never happens. Code for a variable that is "only a counter" should use <code>atomic_ulong</code> with relaxed operations. This choice states the intent and keeps the program well-defined.</p>
     </div>
   </div>
 
@@ -383,13 +383,13 @@
     <div class="quiz" data-quiz>
       <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Chapter 3</span></div>
       <div class="quiz-body">
-        <div class="q-text">In §3.2, which output shows that one thread's update was <strong>lost</strong>?</div>
+        <div class="q-text">In §3.2, which output shows that the update of one thread was <strong>lost</strong>?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="14 then 15 is simply thread 1 finishing before thread 2 starts.">14, 15</button>
-          <button type="button" class="q-opt" data-why="8 then 16 is thread 2 finishing first, and both updates count.">8, 16</button>
+          <button type="button" class="q-opt" data-why="14 then 15 means that thread 1 simply finished before thread 2 started.">14, 15</button>
+          <button type="button" class="q-opt" data-why="8 then 16 means that thread 2 finished first, and both updates count.">8, 16</button>
           <button type="button" class="q-opt" data-ok>14, 8</button>
         </div>
-        <div class="q-fb ok">Right. Both loaded 7 before either stored. Thread 2's store of 8 overwrote thread 1's 14, so the doubling is lost.</div>
+        <div class="q-fb ok">Right. Both threads loaded 7 before either one stored. The store of 8 by thread 2 overwrote the 14 of thread 1. As a result, the doubling is lost.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -406,16 +406,16 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 4</div>
     <h2>Thread-safe and reentrant code</h2>
-    <p class="ch-lede">Two different promises a piece of code can make.</p>
+    <p class="ch-lede">A piece of code can make two different promises.</p>
   </div>
 
   <div class="sec" id="s4-1">
     <h3><span class="sec-no">4.1</span>Definitions</h3>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">Thread-safe</span>Behaves correctly during simultaneous or concurrent execution by <strong>multiple threads</strong>. The kernel itself is a concurrent program, with user threads in kernel mode, kernel threads, and interrupt handlers.</div>
+      <div><span class="tag">Thread-safe</span>The code behaves correctly during simultaneous or concurrent execution by <strong>multiple threads</strong>. The kernel itself is a concurrent program, with user threads in kernel mode, kernel threads, and interrupt handlers.</div>
       <div data-step="1"><span class="tag">Reentrant</span>A <strong>single thread</strong> can be interrupted in the middle of the code and <strong>re-enter</strong> it without breaking anything. Re-entry comes from recursion, another thread, or a <strong>signal handler</strong>. In the kernel, it comes from recursive calls, system calls from several threads, and interrupt handlers.</div>
     </div>
-    <p class="prose small muted" data-step="1">In both cases "correct" means what the programmer intended.</p>
+    <p class="prose small muted" data-step="1">In both cases, "correct" means what the programmer intended.</p>
   </div>
 
   <div class="sec" id="s4-2">
@@ -433,7 +433,7 @@
 
   <div class="sec" id="s4-3">
     <h3><span class="sec-no">4.3</span>Four swaps</h3>
-    <div class="prose"><p>Classify each version of <code>swap</code>, then check.</p></div>
+    <div class="prose"><p>Classify each version of <code>swap</code>, and then check your answer.</p></div>
     <div class="swaps" id="swaps"></div>
   </div>
 
@@ -443,11 +443,11 @@
       <div class="quiz-body">
         <div class="q-text">Why is the <code>__thread int tmp</code> version of swap thread-safe but not reentrant?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-ok>Each thread has its own tmp, so threads cannot clash. However, a signal handler in the same thread that calls swap uses the same tmp and overwrites it mid-swap.</button>
-          <button type="button" class="q-opt" data-why="Thread-local storage is allocated per thread. That is the point of __thread.">__thread variables are shared by all threads.</button>
-          <button type="button" class="q-opt" data-why="Recursion or a handler runs in the same thread, which is exactly the case __thread does not separate.">Reentrancy is only about multiple threads.</button>
+          <button type="button" class="q-opt" data-ok>Each thread has its own tmp, so threads cannot clash. However, a signal handler in the same thread that calls swap uses the same tmp and overwrites it in the middle of a swap.</button>
+          <button type="button" class="q-opt" data-why="Thread-local storage is allocated per thread. This is the purpose of __thread.">__thread variables are shared by all threads.</button>
+          <button type="button" class="q-opt" data-why="Recursion or a handler runs in the same thread. This is exactly the case that __thread does not separate.">Reentrancy is only about multiple threads.</button>
         </div>
-        <div class="q-fb ok">Right. Thread-local fixes clashes between threads, not re-entry within one.</div>
+        <div class="q-fb ok">Right. Thread-local storage prevents clashes between threads, but not re-entry within one thread.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -461,9 +461,9 @@
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="Each thread has its own registers, and they must still be saved and restored.">Threads share registers.</button>
           <button type="button" class="q-opt" data-ok>They share an address space, so there is no page-table switch, and TLB entries stay valid.</button>
-          <button type="button" class="q-opt" data-why="The kernel schedules kernel threads the same way. There is no special fast path in the scheduler.">The scheduler skips threads' PCBs.</button>
+          <button type="button" class="q-opt" data-why="The kernel schedules kernel threads the same way. There is no special fast path in the scheduler.">The scheduler skips the PCBs of threads.</button>
         </div>
-        <div class="q-fb ok">Right. The expensive part of a process switch is the memory context (Lecture 14's TLB flush).</div>
+        <div class="q-fb ok">Right. The expensive part of a process switch is the memory context (the TLB flush in Lecture 14).</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -486,17 +486,17 @@
     <h3><span class="sec-no">∎</span>What to take away</h3>
     <div class="prose">
       <ul>
-        <li>Threads of a process share code, data, heap and files, and each has its own PC, registers and stack. They are cheaper to create and switch, and communicate through memory.</li>
-        <li>User-space threads are invisible to the kernel, so one blocking call blocks them all (many-to-one). Kernel threads, usually one-to-one, are scheduled individually.</li>
-        <li>pthreads provides <code>pthread_create</code>, <code>pthread_exit</code>, <code>pthread_join</code>.</li>
+        <li>Threads of a process share code, data, heap, and files, and each thread has its own PC, registers, and stack. Threads are cheaper to create and switch, and they communicate through memory.</li>
+        <li>User-space threads are invisible to the kernel. Therefore, one blocking call blocks them all (many-to-one). Kernel threads, usually one-to-one, are scheduled individually.</li>
+        <li>pthreads provides <code>pthread_create</code>, <code>pthread_exit</code>, and <code>pthread_join</code>.</li>
         <li>Processes remain useful for fault isolation and for avoiding shared-state bugs.</li>
-        <li>Interleaved load/compute/store steps can lose updates. A data race is unsynchronized access with a write. A race condition is wrong behavior caused by ordering.</li>
-        <li>Thread-safe means correct under several threads. Reentrant means correct when one thread re-enters it, e.g. from a signal handler. Neither implies the other.</li>
+        <li>Interleaved load, compute, and store steps can lose updates. A data race is an unsynchronized access that includes a write. A race condition is incorrect behavior caused by ordering.</li>
+        <li>Thread-safe means correct under several threads. Reentrant means correct when one thread re-enters the code, for example from a signal handler. Neither implies the other.</li>
       </ul>
     </div>
     <div class="note note-lab" data-step="1">
       <span class="note-tag">In the lab</span>
-      <p>In Basecamp 3, <em>The Trouble with Threads</em>, <code>race.c</code> loses 10–12% of its increments inside the VM without a lock, exactly the lost update of §3.2, and then you fix it.</p>
+      <p>In Basecamp 3, <em>The Trouble with Threads</em>, <code>race.c</code> runs in the VM without a lock and loses about a tenth of its increments. The number is different on every run. This is exactly the lost update of §3.2, and then you fix it.</p>
     </div>
   </div>
 
@@ -504,7 +504,7 @@
     <table class="glossary">
       <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
       <tbody>
-        <tr><td>thread</td><td>A stream of execution with its own PC, registers and stack, sharing its process's memory.</td></tr>
+        <tr><td>thread</td><td>A stream of execution with its own PC, registers, and stack, which shares the memory of its process.</td></tr>
         <tr><td>user-space thread (fiber)</td><td>Managed by a library, invisible to the kernel.</td></tr>
         <tr><td>kernel thread</td><td>Known to and scheduled by the kernel.</td></tr>
         <tr><td>one-to-one / many-to-one / many-to-many</td><td>How user threads map onto kernel threads.</td></tr>
@@ -562,9 +562,9 @@
     const V = {
       g: ['counter', 'global', true, 'In the data section. Every thread reads and writes the same one.'],
       h: ['*buf', 'heap block', true, 'On the heap. Any thread holding the pointer can use it.'],
-      l: ['i', 'local in worker()', false, 'On the calling thread\'s own stack. Each thread running worker() has its own i.'],
-      a: ['arg', 'parameter', false, 'Also on the thread\'s stack. (But what it points to may be shared!)'],
-      s: ['calls', 'static local', true, 'static means one copy for the whole program, in the data section, even though it is declared inside a function. It is shared.'],
+      l: ['i', 'local in worker()', false, 'On the stack of the calling thread. Each thread that runs worker() has its own i.'],
+      a: ['arg', 'parameter', false, 'Also on the stack of the thread. Note that what it points to may be shared.'],
+      s: ['calls', 'static local', true, 'static means one copy for the whole program, in the data section, even though it is declared inside a function. As such, it is shared.'],
       t: ['mine', '__thread global', false, 'Thread-local storage gives every thread its own copy (§4.3).'],
     };
     const CODE = ['<span class="kw">int</span> <span class="v" data-v="g">counter</span>;', '<span class="kw">__thread int</span> <span class="v" data-v="t">mine</span>;', '<span class="kw">char</span> *buf;  <span class="c">/* main does buf = malloc(64): <span class="v" data-v="h">*buf</span> */</span>', '', '<span class="kw">void</span> *worker(<span class="kw">void</span> *<span class="v" data-v="a">arg</span>) {', '    <span class="kw">static int</span> <span class="v" data-v="s">calls</span>;', '    <span class="kw">for</span> (<span class="kw">int</span> <span class="v" data-v="l">i</span> = 0; i &lt; 100; i++)', '        counter++;', '    <span class="kw">return</span> NULL;', '}'];
@@ -617,9 +617,9 @@
       $('#mp-tl').innerHTML = Object.entries(rows).map(([n, r]) => `<div class="row"><span class="nm">${n}</span>${r.map((c) => `<span class="${c}"></span>`).join('')}</div>`).join('') + '<div class="row"><span class="nm"></span>' + Array.from({ length: 12 }, (_, t) => `<span class="nm" style="text-align:center;color:var(--ink3)">${t}</span>`).join('') + '</div>';
       const runs = Object.values(rows).flat().filter((c) => c === 'run').length;
       $('#mp-out').innerHTML = [
-        `<b>Many-to-one.</b> The kernel sees one thread. When T2 blocks in read(), the kernel blocks that one thread, so T1 and T3 stop too (red) until t = 8. And it uses only one of the two cores. ${runs} thread-slots of work.`,
-        `<b>One-to-one</b> (Linux, Windows). Each user thread is a kernel thread. T2 blocking affects only T2, while T1 and T3 keep both cores busy. ${runs} thread-slots of work.`,
-        `<b>Many-to-many.</b> Three user threads share two kernel threads. T2's block stops only K2, and K1 keeps running T1 and T3. ${runs} thread-slots of work.`,
+        `<b>Many-to-one.</b> The kernel sees one thread. When T2 blocks in read(), the kernel blocks that one thread. Therefore, T1 and T3 also stop (red) until t = 8. In addition, the process uses only one of the two cores. ${runs} thread-slots of work.`,
+        `<b>One-to-one</b> (Linux, Windows). Each user thread is a kernel thread. When T2 blocks, only T2 is affected, and T1 and T3 keep both cores busy. ${runs} thread-slots of work.`,
+        `<b>Many-to-many.</b> Three user threads share two kernel threads. When T2 blocks, only K2 stops, and K1 keeps running T1 and T3. ${runs} thread-slots of work.`,
       ][m];
     }
     $('#mp-m').addEventListener('click', (e) => { const b = e.target.closest('[data-m]'); if (b) { m = +b.dataset.m; render(); } });
@@ -630,9 +630,9 @@
   /* ---------- §2.2 pthreads example ---------- */
   (function () {
     const CODE = ['<span class="kw">int</span> sum;   <span class="c">/* shared by the threads */</span>', '<span class="kw">void</span> *runner(<span class="kw">void</span> *param);', '', '<span class="kw">int</span> main(<span class="kw">int</span> argc, <span class="kw">char</span> *argv[]) {', '    pthread_t tid;', '    pthread_attr_t attr;', '    pthread_attr_init(&amp;attr);', '    pthread_create(&amp;tid, &amp;attr, runner, argv[1]);', '    pthread_join(tid, NULL);', '    printf("sum = %d\\n", sum);', '}', '', '<span class="kw">void</span> *runner(<span class="kw">void</span> *param) {', '    <span class="kw">int</span> i, upper = atoi(param);', '    sum = 0;', '    <span class="kw">for</span> (i = 1; i &lt;= upper; i++)', '        sum += i;', '    pthread_exit(0);', '}'];
-    const S = [[6, -1, '—', 'main only', 'Initialize the default thread attributes.'], [7, 13, '—', 'main + runner', 'pthread_create starts a new thread running runner("5"). Now two threads exist in one process, and runner gets the pointer argv[1].'], [8, 13, '—', 'main blocked', 'main calls pthread_join and blocks until runner finishes.'], [8, 14, '0', 'main blocked', 'runner parses "5" into upper = 5 (its own stack) and sets the shared sum to 0.']];
-    let sum = 0; for (let i = 1; i <= 5; i++) { sum += i; S.push([8, 16, String(sum), 'main blocked', `i = ${i}, so sum = ${sum}. runner writes the global sum directly, and main will see it because they share the data section.`]); }
-    S.push([8, 17, '15', 'runner exiting', 'runner calls pthread_exit(0).'], [9, -1, '15', 'main only', 'pthread_join returns, and main prints <code>sum = 15</code>. No IPC was needed, because the thread wrote the answer where main could read it.']);
+    const S = [[6, -1, '—', 'main only', 'Initialize the default thread attributes.'], [7, 13, '—', 'main + runner', 'pthread_create starts a new thread that runs runner("5"). Now two threads exist in one process, and runner receives the pointer argv[1].'], [8, 13, '—', 'main blocked', 'main calls pthread_join and blocks until runner finishes.'], [8, 14, '0', 'main blocked', 'runner parses "5" into upper = 5 (on its own stack) and sets the shared sum to 0.']];
+    let sum = 0; for (let i = 1; i <= 5; i++) { sum += i; S.push([8, 16, String(sum), 'main blocked', `i = ${i}, so sum = ${sum}. runner writes the global sum directly. main sees the value because the two threads share the data section.`]); }
+    S.push([8, 17, '15', 'runner exiting', 'runner calls pthread_exit(0).'], [9, -1, '15', 'main only', 'pthread_join returns, and main prints <code>sum = 15</code>. No IPC is needed, because the thread wrote the answer where main can read it.']);
     let i = 0;
     function show(k) {
       i = Math.max(0, Math.min(S.length - 1, k));
@@ -666,7 +666,7 @@
       $('#il-h').innerHTML = hist.join('<br>') || '<span class="muted">X = 7. Pick a step.</span>';
       if (order.length === 6) seen.add(out.join(', '));
       $('#il-o').innerHTML = [...all.keys()].map((k) => `<span class="${seen.has(k) ? 'seen' : ''}">${k} <span class="muted">×${all.get(k)}</span></span>`).join('');
-      $('#il-out').innerHTML = order.length === 6 ? `The output is <b>${out.join(', ')}</b>. ${out.join(', ') === '14, 8' || out.join(', ') === '8, 14' ? 'Both threads loaded 7 before either stored, so one update was <b class="bad">lost</b>.' : ''} Reset and try for another. There are ${all.size} possible outputs.` : 'Registers are private to each thread, but X is shared.';
+      $('#il-out').innerHTML = order.length === 6 ? `The output is <b>${out.join(', ')}</b>. ${out.join(', ') === '14, 8' || out.join(', ') === '8, 14' ? 'Both threads loaded 7 before either one stored. As a result, one update was <b class="bad">lost</b>.' : ''} Reset, and try to get another output. There are ${all.size} possible outputs.` : 'Registers are private to each thread, but X is shared.';
     }
     $('#il-w').addEventListener('click', (e) => { const b = e.target.closest('[data-t]'); if (b && !b.disabled) { order.push(+b.dataset.t); render(); } });
     $('#il-reset').addEventListener('click', () => { order = []; render(); });
@@ -684,7 +684,7 @@
         ? ['global = 10', '<span class="t2">handler: load 10, add 1, store → 11</span>', '<span class="t1">main: load 11</span>', '<span class="t1">main: sub 1, store → <b>10</b></span>']
         : ['global = 10', '<span class="t1">main: load global → r = 10</span>', '<span class="t2">handler: load 10, add 1, store → 11</span>', '<span class="t1">main: r − 1 = 9, store → <b>9</b></span>'];
       $('#sr-h').innerHTML = L.join('<br>');
-      $('#sr-out').innerHTML = p === 0 ? 'The handler runs between two whole statements, so +1 then −1 brings it back to <b>10</b>. Correct.' : 'The signal lands inside <code>global--</code>. main already holds 10 in a register. The handler\'s increment to 11 is then overwritten by main\'s 9. The increment is <b class="bad">lost</b>, and the answer depends on where the signal lands. This code is not reentrant, even with a single thread.';
+      $('#sr-out').innerHTML = p === 0 ? 'The handler runs between two whole statements. Therefore, +1 and then −1 bring global back to <b>10</b>. The result is correct.' : 'The signal lands inside <code>global--</code>. main already holds 10 in a register. Then, the 9 stored by main overwrites the 11 stored by the handler. The increment is <b class="bad">lost</b>, and the answer depends on where the signal lands. In other words, this code is not reentrant, even with a single thread.';
     }
     $('#sr-s').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) { p = +b.dataset.p; render(); } });
     render();
@@ -693,10 +693,10 @@
   /* ---------- §4.3 swaps ---------- */
   (function () {
     const SW = [
-      ['<span class="kw">void</span> swap(<span class="kw">int</span> *x, <span class="kw">int</span> *y) {\n    <span class="kw">int</span> tmp;\n    tmp = *x; *x = *y; *y = tmp;\n}', true, true, 'tmp is a local, so each call, in any thread or handler, has its own on its own stack.'],
-      ['<span class="kw">int</span> tmp;\n<span class="kw">void</span> swap(<span class="kw">int</span> *x, <span class="kw">int</span> *y) {\n    tmp = *x; *x = *y; *y = tmp;\n}', false, false, 'With one global tmp, another thread, or a handler that calls swap, can overwrite it mid-swap.'],
+      ['<span class="kw">void</span> swap(<span class="kw">int</span> *x, <span class="kw">int</span> *y) {\n    <span class="kw">int</span> tmp;\n    tmp = *x; *x = *y; *y = tmp;\n}', true, true, 'tmp is a local variable. Therefore, each call, in any thread or handler, has its own tmp on its own stack.'],
+      ['<span class="kw">int</span> tmp;\n<span class="kw">void</span> swap(<span class="kw">int</span> *x, <span class="kw">int</span> *y) {\n    tmp = *x; *x = *y; *y = tmp;\n}', false, false, 'With one global tmp, another thread, or a handler that calls swap, can overwrite tmp in the middle of a swap.'],
       ['<span class="kw">__thread int</span> tmp;\n<span class="kw">void</span> swap(<span class="kw">int</span> *x, <span class="kw">int</span> *y) {\n    tmp = *x; *x = *y; *y = tmp;\n}', true, false, 'Per-thread tmp keeps threads apart. However, a signal handler in the same thread still shares it.'],
-      ['<span class="kw">int</span> tmp;\n<span class="kw">void</span> swap(<span class="kw">int</span> *x, <span class="kw">int</span> *y) {\n    <span class="kw">int</span> s = tmp;\n    tmp = *x; *x = *y; *y = tmp;\n    tmp = s;\n}', false, true, 'It saves and restores the global, so a nested call within one thread leaves it intact. However, two threads running at once still clash on tmp.'],
+      ['<span class="kw">int</span> tmp;\n<span class="kw">void</span> swap(<span class="kw">int</span> *x, <span class="kw">int</span> *y) {\n    <span class="kw">int</span> s = tmp;\n    tmp = *x; *x = *y; *y = tmp;\n    tmp = s;\n}', false, true, 'It saves and restores the global. Therefore, a nested call within one thread leaves it intact. However, two threads that run at once still clash on tmp.'],
     ];
     $('#swaps').innerHTML = SW.map(([c], k) => `<div class="sw" data-k="${k}"><div class="code"><span class="ln">${c.replace(/\n/g, '</span><span class="ln">')}</span></div><div class="q"><label><input type="checkbox" data-f="ts"> thread-safe</label><label><input type="checkbox" data-f="re"> reentrant</label><button type="button" class="btn small" data-chk>check</button></div><div class="ans"></div></div>`).join('');
     $('#swaps').addEventListener('click', (e) => {

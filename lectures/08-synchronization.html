@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Synchronization · L08</title>
-<meta name="description" content="CSCI 3753 Lecture 08, interactive edition, covering race conditions, the critical-section problem and its three requirements, producer-consumer, disabling interrupts, Peterson's solution, test-and-set, compare-and-swap, spinlocks, and busy waiting.">
+<meta name="description" content="CSCI 3753 Lecture 08, interactive edition. It covers race conditions, the critical-section problem and its three requirements, producer-consumer, disabling interrupts, Peterson's solution, test-and-set, compare-and-swap, spinlocks, and busy waiting.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -80,7 +80,7 @@
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 08 · Interactive notes</div>
     <h1>One at a <span class="accent">time</span>, please</h1>
-    <p class="lede">Lecture 05 showed that interleaved threads can corrupt shared data. This lecture states the problem precisely as the critical-section problem, with three requirements any solution must meet. Then it tries solutions, namely turning interrupts off, clever software, and atomic hardware instructions. The last ones work, but they spin, and that sets up Lecture 09.</p>
+    <p class="lede">Lecture 05 shows that interleaved threads can corrupt shared data. In this lecture, we state the problem precisely as the critical-section problem, with three requirements that any solution must meet. Then we try three kinds of solutions, namely turning interrupts off, software algorithms, and atomic hardware instructions. The last kind works. However, it spins, and this problem leads to Lecture 09.</p>
     <div class="promise">
       <span>Before you start, review</span><span class="mono">threads, interleavings, races</span><span>from Lecture 05, and preemption from Lecture 06.</span>
     </div>
@@ -119,16 +119,16 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 0</div>
     <h2>Why synchronize</h2>
-    <p class="ch-lede">Concurrency and parallelism both let two pieces of code touch the same data at the same time.</p>
+    <p class="ch-lede">Concurrency and parallelism both let two pieces of code access the same data at the same time.</p>
   </div>
 
   <div class="sec" id="s0-1">
     <h3><span class="sec-no">0.1</span>Recall Lecture 05</h3>
     <div class="prose">
       <ul>
-        <li><strong>Concurrency</strong> on one core means the scheduler interleaves threads to give the appearance of simultaneous execution. It can preempt one anywhere (Lecture 06).</li>
-        <li><strong>Parallelism</strong> on several cores means genuinely simultaneous execution, with the same problem and more ways to hit it.</li>
-        <li>Processes, threads and the OS kernel itself all run concurrently. <strong>Concurrent access to shared data can leave it inconsistent.</strong> Sometimes the inconsistency is tolerable, and sometimes it is fatal.</li>
+        <li><strong>Concurrency</strong> on one core means the scheduler interleaves threads to give the appearance of simultaneous execution. The scheduler can preempt a thread at any point (Lecture 06).</li>
+        <li><strong>Parallelism</strong> on several cores means truly simultaneous execution. It has the same problem, and more ways to trigger it.</li>
+        <li>Processes, threads, and the OS kernel itself all run concurrently. <strong>Concurrent access to shared data can leave it inconsistent.</strong> Sometimes the inconsistency is tolerable, and sometimes it is fatal.</li>
       </ul>
     </div>
   </div>
@@ -137,8 +137,8 @@
     <h3><span class="sec-no">0.2</span>A race inside the kernel</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Processes P0 and P1 both call <code>fork()</code>. The kernel hands out child PIDs from a variable, <code>next_available_pid</code>. Each fork reads it, uses it, then increments it.</p>
-        <p>If both forks read it before either increments it, the same PID is given to two different processes. Unless something stops P0 and P1 from racing on <code>next_available_pid</code>, the result depends on timing. This is a <strong>race condition</strong>.</p>
+        <p>Processes P0 and P1 both call <code>fork()</code>. The kernel assigns child PIDs from a variable, <code>next_available_pid</code>. Each fork reads the variable, uses it, and then increments it.</p>
+        <p>If both forks read the variable before either one increments it, the same PID is assigned to two different processes. Unless a mechanism prevents P0 and P1 from racing on <code>next_available_pid</code>, the result depends on timing. This is a <strong>race condition</strong>.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -162,7 +162,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 1</div>
     <h2>The critical-section problem</h2>
-    <p class="ch-lede">Name the dangerous code, then require that only one process runs it at a time.</p>
+    <p class="ch-lede">We identify the code that accesses shared data, and then require that only one process runs it at a time.</p>
   </div>
 
   <div class="sec" id="s1-1">
@@ -172,7 +172,7 @@
         <ul>
           <li>Keeping data consistent requires mechanisms that <strong>order</strong> cooperating processes or threads, so that no two use a shared resource at the same time. The resource can be a variable, a table, a file, and so on.</li>
           <li>The part of a program that accesses the shared resource is its <strong>critical section</strong>.</li>
-          <li>A process asks permission in an <strong>entry section</strong>, runs the critical section, may follow it with an <strong>exit section</strong>, and then runs the <strong>remainder section</strong>.</li>
+          <li>A process asks for permission in an <strong>entry section</strong> and then runs the critical section. The critical section may be followed by an <strong>exit section</strong>. Then the process runs the <strong>remainder section</strong>.</li>
         </ul>
       </div>
       <div>
@@ -185,7 +185,7 @@
   <div class="sec" id="s1-2">
     <h3><span class="sec-no">1.2</span>An example</h3>
     <div class="prose">
-      <p>Two processes each read values and keep a running average in shared <code>data</code>, <code>count</code> and <code>avg</code>. All of <code>add_new_value</code> is a critical section. If P2 runs <code>count++</code> between P1's <code>data[count] = v</code> and P1's <code>count++</code>, a slot is skipped and the average is computed from the wrong count.</p>
+      <p>Two processes each read values and keep a running average in the shared variables <code>data</code>, <code>count</code>, and <code>avg</code>. The whole <code>add_new_value</code> function is a critical section. If P2 runs <code>count++</code> between P1's <code>data[count] = v</code> and P1's <code>count++</code>, a slot is skipped. As a result, the average is computed from the wrong count.</p>
     </div>
     <div class="code" style="max-width:520px"><span class="ln"><span class="kw">while</span> (true) {                 <span class="c">// each of Process 1 and Process 2</span></span><span class="ln">    v = get_value();</span><span class="ln">    add_new_value(v);</span><span class="ln">}</span><span class="ln">add_new_value(v) {</span><span class="ln cs">    <span class="kw">int</span> sum = avg*count + v;</span><span class="ln cs">    data[count] = v;</span><span class="ln cs">    count++;</span><span class="ln cs">    avg = sum/count;</span><span class="ln">}</span></div>
   </div>
@@ -194,10 +194,10 @@
     <h3><span class="sec-no">1.3</span>Three requirements</h3>
     <div class="opts3">
       <div><span class="tag">Mutual exclusion</span>If P<sub>i</sub> is in its critical section, no other process is in its critical section.</div>
-      <div><span class="tag">Progress</span>If no one is in the critical section and some processes want in, the choice of who enters next cannot be postponed forever, and only processes that want in take part in it. <em>No deadlock. Either Alice or Bob gets in.</em></div>
-      <div><span class="tag">Bounded waiting</span>After P<sub>i</sub> asks to enter, the others may enter only a bounded number of times before P<sub>i</sub> does. <em>No starvation. It is not always Alice.</em></div>
+      <div><span class="tag">Progress</span>If no process is in the critical section and some processes want to enter, the choice of which process enters next cannot be postponed forever. Only the processes that want to enter take part in this choice. <em>In other words, there is no deadlock. Either Alice or Bob gets in.</em></div>
+      <div><span class="tag">Bounded waiting</span>After P<sub>i</sub> asks to enter, the others may enter only a bounded number of times before P<sub>i</sub> does. <em>In other words, there is no starvation. It is not always Alice.</em></div>
     </div>
-    <p class="prose">Assume every process runs at a nonzero speed, and assume nothing about their relative speeds. A solution has to work under every interleaving.</p>
+    <p class="prose">We assume that every process runs at a nonzero speed. However, we assume nothing about their relative speeds. Therefore, a solution has to work under every interleaving.</p>
   </div>
 
   <div class="ch-nav">
@@ -211,13 +211,13 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 2</div>
     <h2>The producer–consumer problem</h2>
-    <p class="ch-lede">The running example for this lecture and the next three.</p>
+    <p class="ch-lede">This problem is the running example for this lecture and the next three.</p>
   </div>
 
   <div class="sec" id="s2-1">
     <h3><span class="sec-no">2.1</span>A shared buffer</h3>
     <div class="prose">
-      <p>A producer puts new items into a buffer and a consumer takes them out. There are two variations.</p>
+      <p>A producer puts new items into a buffer, and a consumer takes them out. The problem has two variations.</p>
       <ul>
         <li><strong>Unbounded buffer.</strong> It has no practical limit on size. The producer never waits, and the consumer waits when the buffer is empty.</li>
         <li><strong>Bounded buffer.</strong> It has a fixed size. The producer waits when the buffer is full, and the consumer waits when it is empty.</li>
@@ -237,13 +237,13 @@
       <div class="widget-body" style="padding-top:26px;padding-bottom:26px"><div class="ring" id="bb-ring"></div></div>
       <div class="readout" id="bb-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only"><code>in</code> and <code>out</code> wrap around modulo MAX. <code>counter</code> says how many slots are full, and it is the variable both processes update.</p>
+    <p class="small muted prose read-only"><code>in</code> and <code>out</code> wrap around modulo MAX. <code>counter</code> holds the number of full slots, and both processes update it.</p>
   </div>
 
   <div class="sec" id="s2-2">
     <h3><span class="sec-no">2.2</span>The race on <code>counter</code></h3>
     <div class="prose">
-      <p><code>counter++</code> and <code>counter--</code> are each three machine instructions, namely load into a register, add or subtract, and store back. Start at <code>counter = 5</code> with one produce and one consume. The correct result is 5. Pick the order the instructions run in.</p>
+      <p><code>counter++</code> and <code>counter--</code> each consist of three machine instructions, namely load into a register, add or subtract, and store back. Start at <code>counter = 5</code>, with one produce and one consume. The correct result is 5. Pick the order in which the instructions run.</p>
     </div>
     <div class="widget" id="rc-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Interleave <code>counter++</code> and <code>counter--</code></span><button class="w-reset" type="button" id="rc-reset">Reset</button></div>
@@ -263,7 +263,7 @@
       </div>
       <div class="readout" id="rc-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">"With a lock" and "CAS loop" are previews of §3.3. In the lock version, a blocked <code>acquire</code> cannot be picked.</p>
+    <p class="small muted prose read-only">The "with a lock" and "CAS loop" versions preview §3.3. In the lock version, a blocked <code>acquire</code> cannot be picked.</p>
   </div>
 
   <div class="sec" id="q0">
@@ -272,11 +272,11 @@
       <div class="quiz-body">
         <div class="q-text">counter starts at 5. One <code>counter++</code> and one <code>counter--</code> run concurrently with no protection. Which final values are possible?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="5 is the correct answer, but not the only one possible.">Only 5</button>
-          <button type="button" class="q-opt" data-why="5 happens too, whenever one finishes before the other loads.">4 or 6</button>
-          <button type="button" class="q-opt" data-ok>4, 5 or 6</button>
+          <button type="button" class="q-opt" data-why="5 is the correct answer, but it is not the only possible one.">Only 5</button>
+          <button type="button" class="q-opt" data-why="5 is also possible, whenever one update finishes before the other one loads.">4 or 6</button>
+          <button type="button" class="q-opt" data-ok>4, 5, or 6</button>
         </div>
-        <div class="q-fb ok">Right. The last store wins. The result is 4 if the consumer stores last after overlapping, and 6 if the producer does.</div>
+        <div class="q-fb ok">Right. The last store wins. If the two updates overlap, the result is 4 when the consumer stores last, and 6 when the producer stores last.</div>
         <div class="q-fb no">Not quite. Look at the histogram in §2.2.</div>
       </div>
     </div>
@@ -293,20 +293,20 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 3</div>
     <h2>Solutions</h2>
-    <p class="ch-lede">There are three attempts, namely stopping the clock, outsmarting it in software, or getting help from the hardware.</p>
+    <p class="ch-lede">We make three attempts, namely stopping the clock, working around it in software, and getting help from the hardware.</p>
   </div>
 
   <div class="sec" id="s3-1">
     <h3><span class="sec-no">3.1</span>Solution 1, disable interrupts</h3>
     <div class="two-up">
       <div class="prose">
-        <p>If nothing can interrupt the process while it is in its critical section, the scheduler cannot preempt it there. So disable all interrupts before entering and enable them on exit.</p>
-        <p>Will it work?</p>
+        <p>If nothing can interrupt the process while it is in its critical section, the scheduler cannot preempt it there. Therefore, the process disables all interrupts before it enters and enables them on exit.</p>
+        <p>Does it work?</p>
         <ul>
-          <li>What if the critical section runs for an hour? With interrupts off, no timer and no I/O completions, so every other process is blocked.</li>
-          <li>Can a process starve? Nothing bounds how often the others get in first.</li>
-          <li>What if there are two CPUs? Disabling interrupts on one core does not stop the other core, so <strong>it gives no mutual exclusion on a multiprocessor</strong>.</li>
-          <li>And a user program cannot do it anyway, because disabling interrupts is a privileged instruction (Lecture 02). Kernels use it only for short sections on one core.</li>
+          <li>What if the critical section runs for an hour? With interrupts off, there are no timer interrupts and no I/O completions. Therefore, every other process is blocked.</li>
+          <li>Can a process starve? Yes, because nothing bounds how often the others get in first.</li>
+          <li>What if there are two CPUs? Disabling interrupts on one core does not stop the other core. As such, <strong>it gives no mutual exclusion on a multiprocessor</strong>.</li>
+          <li>Further, a user program cannot do it at all, because disabling interrupts is a privileged instruction (Lecture 02). Kernels use it only for short sections on one core.</li>
         </ul>
       </div>
       <div class="code"><span class="ln"><span class="c">// Producer</span></span><span class="ln">...</span><span class="ln">in = (in + 1) % MAX;</span><span class="ln ent">disableInterrupts();</span><span class="ln cs">counter++;</span><span class="ln ext">enableInterrupts();</span><span class="ln"> </span><span class="ln"><span class="c">// Consumer</span></span><span class="ln">...</span><span class="ln">out = (out + 1) % MAX;</span><span class="ln ent">disableInterrupts();</span><span class="ln cs">counter--;</span><span class="ln ext">enableInterrupts();</span><span class="ln">consume(next_consumed);</span></div>
@@ -316,18 +316,18 @@
   <div class="sec" id="s3-2">
     <h3><span class="sec-no">3.2</span>Solution 2, software only</h3>
     <div class="prose">
-      <p>The first try is a shared <code>boolean lock = FALSE</code>. Wait while it is set, then set it, with <code>while (lock); lock = TRUE;</code>. The problem is that both processes can see <code>lock == FALSE</code> if a context switch lands just before <code>lock = TRUE</code>. Then both enter.</p>
-      <p><strong>Peterson's solution</strong> uses two shared variables. <code>boolean flag[2]</code> says who is ready to enter, and <code>int turn</code> says whose turn it is. Process i (with j the other one) runs the code below.</p>
+      <p>The first try is a shared <code>boolean lock = FALSE</code>. A process waits while the lock is set and then sets it, with <code>while (lock); lock = TRUE;</code>. However, both processes can see <code>lock == FALSE</code> if a context switch happens just before <code>lock = TRUE</code>. Then both enter.</p>
+      <p><strong>Peterson's solution</strong> uses two shared variables. <code>boolean flag[2]</code> indicates which process is ready to enter, and <code>int turn</code> indicates whose turn it is. Process i runs the code below, where j is the other process.</p>
     </div>
     <div class="code" style="max-width:520px"><span class="ln ent">flag[i] = TRUE;                <span class="c">// I want in</span></span><span class="ln ent">turn = j;                      <span class="c">// but you go first</span></span><span class="ln ent"><span class="kw">while</span> (flag[j] &amp;&amp; turn == j);  <span class="c">// wait: you want in, your turn</span></span><span class="ln cs">    <i>critical section</i></span><span class="ln ext">flag[i] = FALSE;</span></div>
     <div class="prose" style="margin-top:1em">
       <ul>
-        <li><strong>Mutual exclusion.</strong> P<sub>i</sub> enters only if <code>flag[j] == FALSE</code> or <code>turn == i</code>. If both are ready, <code>turn</code> is a single variable and holds whichever value was written <em>last</em>, so only one process can pass.</li>
-        <li><strong>Progress</strong> and <strong>bounded waiting</strong> hold too, because a waiting process gets in after the other enters at most once.</li>
-        <li>It works for <strong>two processes only</strong>.</li>
+        <li><strong>Mutual exclusion.</strong> P<sub>i</sub> enters only if <code>flag[j] == FALSE</code> or <code>turn == i</code>. If both are ready, only one process can pass, because <code>turn</code> is a single variable and holds the value that was written <em>last</em>.</li>
+        <li><strong>Progress</strong> and <strong>bounded waiting</strong> also hold, because a waiting process enters after the other process enters at most once.</li>
+        <li>However, it works for <strong>two processes only</strong>.</li>
       </ul>
     </div>
-    <p class="prose">Rather than argue each case by hand, let the page check them. The checker explores <em>every</em> reachable state of two processes running a protocol, then tests the three requirements.</p>
+    <p class="prose">Instead of arguing each case by hand, we let the page check them. The checker explores <em>every</em> reachable state of two processes that run a protocol, and then tests the three requirements.</p>
     <div class="widget" id="mc-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">A model checker for two-process protocols</span><button class="w-reset" type="button" id="mc-reset">Reset</button></div>
       <div class="controls">
@@ -351,10 +351,10 @@
       </div>
       <div class="readout" id="mc-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Each line of code is one atomic step. A process in its remainder section may stay there forever, so a process that waits on one sitting in its remainder is a progress violation. "Run P0/P1 here" cuts the trace at the current step and adds your own move.</p>
+    <p class="small muted prose read-only">Each line of code is one atomic step. A process in its remainder section may stay there forever. Therefore, if a process waits on another process that sits in its remainder section, progress is violated. "Run P0/P1 here" cuts the trace at the current step and adds your own move.</p>
     <div class="note note-honest">
       <span class="note-tag">On real hardware</span>
-      <p>Peterson's proof assumes each load and store happens in program order. Modern CPUs and compilers reorder independent memory operations, and the solution breaks unless you add memory barriers. That is one more reason to rely on the hardware instructions below.</p>
+      <p>Peterson's proof assumes that each load and store happens in program order. However, modern CPUs and compilers reorder independent memory operations. As a result, the solution breaks unless you add memory barriers. This is one more reason to rely on the hardware instructions below.</p>
     </div>
   </div>
 
@@ -364,11 +364,11 @@
       <div class="quiz-body">
         <div class="q-text">Both processes set their flags. Then P0 runs <code>turn = 1</code>, and after that P1 runs <code>turn = 0</code>. Who enters the critical section?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-ok>P0. Since turn is now 0, P1 waits on <code>flag[0] &amp;&amp; turn == 0</code> and P0 passes</button>
-          <button type="button" class="q-opt" data-why="P1 wrote turn last, giving the turn away to P0.">P1</button>
+          <button type="button" class="q-opt" data-ok>P0. Since turn is now 0, P1 waits on <code>flag[0] &amp;&amp; turn == 0</code>, and P0 passes</button>
+          <button type="button" class="q-opt" data-why="P1 wrote turn last, so it gave the turn away to P0.">P1</button>
           <button type="button" class="q-opt" data-why="Exactly one of the two while conditions is false, because turn has only one value.">Neither. They deadlock</button>
         </div>
-        <div class="q-fb ok">Right. The process that wrote <code>turn</code> last is the polite one that waits.</div>
+        <div class="q-fb ok">Right. The process that wrote <code>turn</code> last gives way, and it is the one that waits.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -377,28 +377,28 @@
   <div class="sec" id="s3-3">
     <h3><span class="sec-no">3.3</span>Solution 3, hardware support</h3>
     <div class="prose">
-      <p>Hardware offers instructions that <strong>test and modify</strong> a word, or <strong>swap</strong> the contents of two words, <strong>atomically</strong>, that is, as one uninterruptible step, even with other cores.</p>
+      <p>Hardware provides instructions that <strong>test and modify</strong> a word, or <strong>swap</strong> the contents of two words, <strong>atomically</strong>. In other words, each instruction runs as one uninterruptible step, even with respect to other cores.</p>
     </div>
     <div class="pair">
       <div>
         <div class="sub-lab">test_and_set</div>
         <div class="code"><span class="ln"><span class="kw">boolean</span> test_and_set(<span class="kw">boolean</span> *target) {</span><span class="ln">    <span class="kw">boolean</span> rv = *target;</span><span class="ln">    *target = true;</span><span class="ln">    <span class="kw">return</span> rv;          <span class="c">// the old value</span></span><span class="ln">}</span></div>
-        <p class="small">Atomically sets <code>*target</code> to true and returns what it was. A lock uses <code>while (test_and_set(&amp;lock));</code> … <code>lock = false;</code></p>
+        <p class="small">It atomically sets <code>*target</code> to true and returns the old value. A lock uses <code>while (test_and_set(&amp;lock));</code> … <code>lock = false;</code></p>
       </div>
       <div>
         <div class="sub-lab">compare_and_swap</div>
         <div class="code"><span class="ln"><span class="kw">int</span> compare_and_swap(<span class="kw">int</span> *value,</span><span class="ln">        <span class="kw">int</span> expected, <span class="kw">int</span> new_value) {</span><span class="ln">    <span class="kw">int</span> temp = *value;</span><span class="ln">    <span class="kw">if</span> (*value == expected)</span><span class="ln">        *value = new_value;</span><span class="ln">    <span class="kw">return</span> temp;         <span class="c">// the old value</span></span><span class="ln">}</span></div>
-        <p class="small">Atomically writes <code>new_value</code>, but only if <code>*value == expected</code>. A lock uses <code>while (compare_and_swap(&amp;lock, 0, 1) != 0);</code> … <code>lock = 0;</code></p>
+        <p class="small">It atomically writes <code>new_value</code>, but only if <code>*value == expected</code>. A lock uses <code>while (compare_and_swap(&amp;lock, 0, 1) != 0);</code> … <code>lock = 0;</code></p>
       </div>
     </div>
     <div class="note note-warn">
       <span class="note-tag">Mind the semicolon</span>
-      <p>In <code>while (compare_and_swap(&amp;lock, 0, 1) != 0)</code> the <code>;</code> is the loop's empty body. Leave it out and the next statement, <code>counter++</code>, becomes the body. It then runs only when the lock is <em>not</em> acquired, and never by the process that holds it.</p>
+      <p>In <code>while (compare_and_swap(&amp;lock, 0, 1) != 0)</code>, the <code>;</code> is the empty body of the loop. If you leave it out, the next statement, <code>counter++</code>, becomes the body. Then it runs only when the lock is <em>not</em> acquired, and never by the process that holds it.</p>
     </div>
     <div class="prose">
       <ul>
-        <li>Try "test_and_set" in the model checker. Mutual exclusion and progress hold. <strong>Bounded waiting does not</strong>. Nothing orders the waiters, so an unlucky process can lose the race every time. The textbook gives a longer TAS algorithm that adds bounded waiting.</li>
-        <li>These instructions are building blocks. <strong>Atomic variables</strong> provide atomic updates on integers and booleans. For example, <code>increment()</code> is a CAS loop. It reads the value, then tries to swap in value + 1, and retries if someone changed it in between. Try "CAS loop" in §2.2 to see every interleaving end at 5.</li>
+        <li>Try "test_and_set" in the model checker. Mutual exclusion and progress hold. However, <strong>bounded waiting does not</strong>. Nothing orders the waiters, so one process can lose the race every time. The textbook gives a longer TAS algorithm that adds bounded waiting.</li>
+        <li>These instructions are building blocks. <strong>Atomic variables</strong> provide atomic updates on integers and booleans. For example, <code>increment()</code> is a CAS loop. It reads the value and then tries to swap in value + 1. If another thread changed the value in between, it retries. To see every interleaving end at 5, try "CAS loop" in §2.2.</li>
       </ul>
     </div>
     <div class="code" style="max-width:520px"><span class="ln"><span class="kw">void</span> increment(atomic_int *v) {</span><span class="ln">    <span class="kw">int</span> temp;</span><span class="ln">    <span class="kw">do</span> {</span><span class="ln">        temp = *v;</span><span class="ln">    } <span class="kw">while</span> (temp != compare_and_swap(v, temp, temp + 1));</span><span class="ln">}</span></div>
@@ -408,14 +408,14 @@
     <h3><span class="sec-no">3.4</span>Mutex locks and spinlocks</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Wrap the instruction in two functions. <code>acquire(&amp;lock)</code> gets the lock without interruption, and <code>release(&amp;lock)</code> gives it back. The producer and consumer become simply <code>acquire(&amp;lock); counter++; release(&amp;lock);</code>.</p>
-        <p>This lock still <strong>busy-waits</strong>. A process that cannot get it keeps looping, burning CPU. It is called a <strong>spinlock</strong>. On a multiprocessor, spinning is fine for very short waits, because it avoids a context switch. On one core it wastes the rest of the spinner's quantum, since the lock holder cannot run to release it until then.</p>
+        <p>We wrap the instruction in two functions. <code>acquire(&amp;lock)</code> gets the lock without interruption, and <code>release(&amp;lock)</code> gives it back. Then the producer and consumer simply become <code>acquire(&amp;lock); counter++; release(&amp;lock);</code>.</p>
+        <p>However, this lock still <strong>busy-waits</strong>. A process that cannot get the lock keeps looping and consumes CPU time. Such a lock is called a <strong>spinlock</strong>. On a multiprocessor, spinning is acceptable for very short waits, because it avoids a context switch. In contrast, on one core, spinning wastes the rest of the spinner's quantum, because the lock holder cannot run and release the lock until the quantum ends.</p>
       </div>
       <div class="code"><span class="ln"><span class="kw">void</span> acquire(<span class="kw">boolean</span> *lock) {</span><span class="ln">    <span class="kw">while</span> (test_and_set(lock));</span><span class="ln">}</span><span class="ln"><span class="kw">void</span> release(<span class="kw">boolean</span> *lock) {</span><span class="ln">    *lock = false;</span><span class="ln">}</span></div>
     </div>
     <div class="note note-lab">
       <span class="note-tag">In the lab</span>
-      <p>In Basecamp 3, Part 1, <code>race.c</code> runs four threads of 200,000 increments on one counter, first bare and then under a mutex. You will measure how many increments vanish and what the lock costs in time.</p>
+      <p>In Basecamp 3, Part 1, <code>race.c</code> runs four threads of 200,000 increments on one counter, first without protection and then under a mutex. You measure how many increments are lost and how much time the lock costs.</p>
     </div>
   </div>
 
@@ -425,11 +425,11 @@
       <div class="quiz-body">
         <div class="q-text">Why does disabling interrupts fail to protect <code>counter</code> on a dual-core machine?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="The instruction works. It just affects only one core.">Interrupts cannot be disabled on multicore CPUs.</button>
-          <button type="button" class="q-opt" data-ok>It only stops preemption on the local core. A thread on the other core can run <code>counter--</code> at the same time.</button>
+          <button type="button" class="q-opt" data-why="The instruction works. However, it affects only one core.">Interrupts cannot be disabled on multicore CPUs.</button>
+          <button type="button" class="q-opt" data-ok>It stops preemption only on the local core. A thread on the other core can run <code>counter--</code> at the same time.</button>
           <button type="button" class="q-opt" data-why="The timer matters for preemption, but the real problem is true parallelism.">The timer interrupt still fires.</button>
         </div>
-        <div class="q-fb ok">Right. With true parallelism, there is no interleaving to prevent. Both run at once.</div>
+        <div class="q-fb ok">Right. With true parallelism, there is no interleaving to prevent, because both threads run at once.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -443,7 +443,7 @@
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="Only one process can have turn == its own id at a time.">Mutual exclusion</button>
           <button type="button" class="q-opt" data-ok>Progress. If P1 stays in its remainder section, P0 can never enter twice in a row</button>
-          <button type="button" class="q-opt" data-why="Strict alternation actually bounds waiting at one entry by the other.">Only bounded waiting</button>
+          <button type="button" class="q-opt" data-why="Strict alternation bounds the waiting at one entry by the other process.">Only bounded waiting</button>
         </div>
         <div class="q-fb ok">Right. Load "take turns" in the model checker to see the trace.</div>
         <div class="q-fb no">Not quite. Check it in the model checker.</div>
@@ -462,13 +462,13 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 4</div>
     <h2>Busy waiting</h2>
-    <p class="ch-lede">Instead of spinning, go to sleep and be woken up. It is harder than it sounds.</p>
+    <p class="ch-lede">Instead of spinning, a process can go to sleep and be woken up. However, this is harder than it sounds.</p>
   </div>
 
   <div class="sec" id="s4-1">
     <h3><span class="sec-no">4.1</span>sleep and wakeup</h3>
     <div class="prose">
-      <p>Two things spin in the bounded buffer, namely the lock, and the <code>while (counter == MAX);</code> and <code>while (counter == 0);</code> loops. For the loops, we need a way to pause a process until there is something to do, which the two calls below provide.</p>
+      <p>Two things spin in the bounded buffer, namely the lock, and the <code>while (counter == MAX);</code> and <code>while (counter == 0);</code> loops. For the loops, we need a way to pause a process until there is work to do. The two calls below provide it.</p>
       <ul>
         <li><code>sleep()</code> blocks the calling process.</li>
         <li><code>wakeup(pid)</code> wakes process pid. It has <strong>no effect</strong> if pid is not sleeping.</li>
@@ -483,7 +483,7 @@
   <div class="sec" id="s4-2">
     <h3><span class="sec-no">4.2</span>The lost wakeup</h3>
     <div class="prose">
-      <p>The waiting loops are gone, but two problems remain. The mutex still spins. Worse, the check <code>if (counter == 0)</code> and the <code>sleep()</code> are two separate steps, so a wakeup can arrive between them and be lost. Step through it with MAX = 4.</p>
+      <p>The waiting loops are gone. However, two problems remain. First, the mutex still spins. Second, the check <code>if (counter == 0)</code> and the <code>sleep()</code> are two separate steps. Therefore, a wakeup can arrive between them and be lost. Step through it with MAX = 4.</p>
     </div>
     <div class="widget" id="lw-w">
       <div class="widget-head"><span class="chip">Step through</span><span class="w-title">Both processes asleep, forever</span><button class="w-reset" type="button" id="lw-reset">Reset</button></div>
@@ -503,7 +503,7 @@
     </div>
     <div class="note note-key">
       <span class="note-tag">The fix, next lecture</span>
-      <p>We need a mechanism that <strong>counts</strong> the <code>sleep()</code> and <code>wakeup()</code> calls, so that a wakeup sent too early is saved rather than lost, and that makes checking and sleeping one atomic step. That mechanism is the <strong>semaphore</strong> (Lecture 09).</p>
+      <p>We need a mechanism with two properties. First, it <strong>counts</strong> the <code>sleep()</code> and <code>wakeup()</code> calls, so that a wakeup sent too early is saved rather than lost. Second, it makes checking and sleeping one atomic step. This mechanism is the <strong>semaphore</strong> (Lecture 09).</p>
     </div>
   </div>
 
@@ -511,8 +511,8 @@
     <h3><span class="sec-no">4.3</span>Signals race too</h3>
     <div class="prose">
       <ul>
-        <li>A handler processing signal S1 can be interrupted by another signal S2 (see the reentrancy example in Lecture 05, §4.2).</li>
-        <li>The fix is to <strong>block</strong> other signals while handling one, with <code>sigprocmask()</code>. A blocked signal becomes <strong>pending</strong> and is delivered when unblocked.</li>
+        <li>A handler that processes signal S1 can be interrupted by another signal S2 (see the reentrancy example in Lecture 05, §4.2).</li>
+        <li>The fix is to <strong>block</strong> other signals while one signal is handled, with <code>sigprocmask()</code>. A blocked signal becomes <strong>pending</strong> and is delivered when it is unblocked.</li>
         <li>At most one signal of each type can be pending. Signals are <strong>not queued</strong>, so two identical signals may arrive as one.</li>
       </ul>
     </div>
@@ -521,19 +521,19 @@
   <div class="sec" id="s4-4">
     <h3><span class="sec-no">4.4</span>Blocking vs. non-blocking</h3>
     <div class="prose">
-      <p>"Block" means two different things in this lecture, so separate them first.</p>
+      <p>"Block" has two different meanings in this lecture. We separate them first.</p>
       <ul>
-        <li>A <strong>process blocks</strong> when it gives up the CPU and sleeps until an event occurs, such as <code>sleep()</code> in §4.1, a <code>read()</code> on an empty pipe, or a mutex that puts waiters to sleep. The scheduler moves it to the waiting state (Lecture 03) and runs someone else.</li>
+        <li>A <strong>process blocks</strong> when it gives up the CPU and sleeps until an event occurs, such as <code>sleep()</code> in §4.1, a <code>read()</code> on an empty pipe, or a mutex that puts waiters to sleep. The scheduler moves it to the waiting state (Lecture 03) and runs another process.</li>
         <li>A <strong>signal is blocked</strong> when delivery is postponed with <code>sigprocmask()</code> (§4.3). The process keeps running, and only the signal waits.</li>
       </ul>
-      <p>With the first meaning, an operation that might have to wait comes in two styles.</p>
+      <p>In the first meaning, an operation that may have to wait comes in two styles.</p>
     </div>
     <div class="pc">
-      <div class="pro"><span class="tag">Blocking call</span>Returns only when it can complete. <code>read()</code> on an empty pipe sleeps until data arrives, and <code>pthread_mutex_lock()</code> waits until it owns the lock. It is simple to use, and the CPU is free for others while the caller sleeps. But the caller can do nothing else meanwhile.</div>
-      <div class="con"><span class="tag">Non-blocking call</span>Returns immediately, even if it cannot complete, and says so. <code>read()</code> on a pipe opened with <code>O_NONBLOCK</code> returns −1 with <code>errno = EAGAIN</code>, and <code>pthread_mutex_trylock()</code> returns <code>EBUSY</code>. The caller stays in control, but it has to retry later.</div>
+      <div class="pro"><span class="tag">Blocking call</span>A blocking call returns only when it can complete. <code>read()</code> on an empty pipe sleeps until data arrives, and <code>pthread_mutex_lock()</code> waits until it owns the lock. It is simple to use, and the CPU is free for other processes while the caller sleeps. However, the caller can do nothing else in the meantime.</div>
+      <div class="con"><span class="tag">Non-blocking call</span>A non-blocking call returns immediately, even if it cannot complete, and reports this. <code>read()</code> on a pipe opened with <code>O_NONBLOCK</code> returns −1 with <code>errno = EAGAIN</code>, and <code>pthread_mutex_trylock()</code> returns <code>EBUSY</code>. The caller stays in control. However, it has to retry later.</div>
     </div>
     <div class="prose">
-      <p>A non-blocking call retried in a tight loop is busy waiting again. For example, <code>while (trylock(&amp;m) == EBUSY);</code> is a spinlock in disguise. Non-blocking calls pay off when the caller has other useful work to do between attempts, like a server polling many connections.</p>
+      <p>A non-blocking call that is retried in a tight loop is busy waiting again. For example, <code>while (trylock(&amp;m) == EBUSY);</code> is effectively a spinlock. Non-blocking calls are useful when the caller has other work to do between attempts, such as a server that polls many connections.</p>
     </div>
   </div>
 
@@ -542,9 +542,9 @@
     <div class="prose">
       <p>This pair is about <em>when</em> something happens relative to the program's own flow of control.</p>
       <ul>
-        <li><strong>Synchronous signals</strong> are caused by the thread's own instruction, such as <code>SIGSEGV</code> from a bad pointer or <code>SIGFPE</code> from dividing by zero. They arrive at a predictable point, right at the faulting instruction, and are delivered to the thread that caused them.</li>
-        <li><strong>Asynchronous signals</strong> come from outside the thread, such as <code>SIGINT</code> when the user presses Ctrl-C, <code>SIGALRM</code> from a timer, or <code>kill()</code> from another process. They can arrive <em>between any two instructions</em>, which is why they cause the races in §4.3 and why handlers must be reentrant.</li>
-        <li><strong>Operations</strong> use the same words. A <strong>synchronous</strong> operation finishes before the call returns, so the result is there when the next line runs. An <strong>asynchronous</strong> operation is only <em>started</em> by the call. Its completion is reported later, by a signal, a callback, or a status the caller checks (for example POSIX <code>aio_read()</code>).</li>
+        <li><strong>Synchronous signals</strong> are caused by the thread's own instruction, such as <code>SIGSEGV</code> from a bad pointer or <code>SIGFPE</code> from dividing by zero. They arrive at a predictable point, namely the faulting instruction, and are delivered to the thread that caused them.</li>
+        <li><strong>Asynchronous signals</strong> come from outside the thread, such as <code>SIGINT</code> when the user presses Ctrl-C, <code>SIGALRM</code> from a timer, or <code>kill()</code> from another process. They can arrive <em>between any two instructions</em>. As such, they cause the races in §4.3, and handlers must be reentrant.</li>
+        <li>The same terms also apply to <strong>operations</strong>. A <strong>synchronous</strong> operation finishes before the call returns, so the result is available when the next line runs. In contrast, an <strong>asynchronous</strong> operation is only <em>started</em> by the call. Its completion is reported later, by a signal, a callback, or a status that the caller checks (for example, POSIX <code>aio_read()</code>).</li>
       </ul>
     </div>
     <figure class="fig">
@@ -556,8 +556,8 @@
       <figcaption><span class="fno">Fig. 4.1</span>Waiting for data that arrives at t = 6, three ways.</figcaption>
     </figure>
     <div class="note note-key">
-      <span class="note-tag">Don't mix them up</span>
-      <p>Non-blocking is not the same as asynchronous. A non-blocking call gives up <em>now</em> ("not ready, try again"), and the caller must come back. An asynchronous call accepts the work <em>now</em> and finishes it later, telling the caller when it is done. The terms overlap in some places. The textbook's message passing (Ch. 3) calls blocking send and receive <em>synchronous</em>, and non-blocking ones <em>asynchronous</em>.</p>
+      <span class="note-tag">Do not confuse the two</span>
+      <p>Note that non-blocking is not the same as asynchronous. A non-blocking call gives up <em>now</em> ("not ready, try again"), and the caller must come back. In contrast, an asynchronous call accepts the work <em>now</em>, finishes it later, and tells the caller when it is done. However, the terms overlap in some places. For example, the textbook's message passing (Ch. 3) calls blocking send and receive <em>synchronous</em>, and non-blocking ones <em>asynchronous</em>.</p>
     </div>
   </div>
 
@@ -565,13 +565,13 @@
     <div class="quiz" data-quiz>
       <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Which kind?</span></div>
       <div class="quiz-body">
-        <div class="q-text">A program dereferences a NULL pointer and receives <code>SIGSEGV</code>. Meanwhile the user presses Ctrl-C and it receives <code>SIGINT</code>. Which is which?</div>
+        <div class="q-text">A program dereferences a NULL pointer and receives <code>SIGSEGV</code>. Meanwhile, the user presses Ctrl-C, and the program receives <code>SIGINT</code>. Which is which?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-ok>SIGSEGV is synchronous (caused by its own instruction), and SIGINT is asynchronous (arrives from outside at any point)</button>
           <button type="button" class="q-opt" data-why="SIGSEGV is triggered by the program's own faulting instruction, so its timing is not arbitrary.">Both are asynchronous, because signals always are</button>
-          <button type="button" class="q-opt" data-why="Blocking is about whether delivery is postponed with sigprocmask, a separate question.">SIGSEGV is blocking, and SIGINT is non-blocking</button>
+          <button type="button" class="q-opt" data-why="Blocking is about whether delivery is postponed with sigprocmask, which is a separate question.">SIGSEGV is blocking, and SIGINT is non-blocking</button>
         </div>
-        <div class="q-fb ok">Right. Synchronous signals arrive at a predictable instruction, but asynchronous ones can land anywhere.</div>
+        <div class="q-fb ok">Right. Synchronous signals arrive at a predictable instruction. In contrast, asynchronous ones can arrive at any point.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -600,10 +600,10 @@
         <div class="q-text">On a single-core machine, a thread spins on a spinlock held by a preempted thread. What happens?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="The holder is not running, so it cannot release the lock while the spinner spins.">The lock is released a few cycles later.</button>
-          <button type="button" class="q-opt" data-ok>The spinner burns the rest of its quantum. The holder can release only after it is scheduled again.</button>
+          <button type="button" class="q-opt" data-ok>The spinner wastes the rest of its quantum. The holder can release the lock only after it is scheduled again.</button>
           <button type="button" class="q-opt" data-why="Spinning never blocks. That is what makes it busy waiting.">The spinner blocks until the lock is free.</button>
         </div>
-        <div class="q-fb ok">Right. That is why spinlocks suit short critical sections on multiprocessors.</div>
+        <div class="q-fb ok">Right. Therefore, spinlocks suit short critical sections on multiprocessors.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -627,11 +627,11 @@
     <div class="prose">
       <ul>
         <li>Concurrent access to shared data can leave it inconsistent. The code that accesses it is a critical section.</li>
-        <li>A solution needs mutual exclusion, progress and bounded waiting, under every interleaving and at any relative speed.</li>
-        <li><code>counter++</code> is three instructions. Interleaved with <code>counter--</code>, it can yield 4, 5 or 6.</li>
-        <li>Disabling interrupts fails on multiprocessors and is privileged. A plain lock variable fails mutual exclusion. Peterson's solution works for two processes, but only in program order.</li>
-        <li>Atomic test-and-set and compare-and-swap build spinlocks and atomic variables. They busy-wait, and simple spinlocks do not bound waiting.</li>
-        <li>sleep/wakeup removes the spinning but loses wakeups. The fix is the semaphore, in Lecture 09.</li>
+        <li>A solution needs mutual exclusion, progress, and bounded waiting, under every interleaving and at any relative speed.</li>
+        <li><code>counter++</code> consists of three instructions. When it is interleaved with <code>counter--</code>, the result can be 4, 5, or 6.</li>
+        <li>Disabling interrupts fails on multiprocessors, and it is privileged. A plain lock variable violates mutual exclusion. Peterson's solution works for two processes, but only if memory operations happen in program order.</li>
+        <li>Atomic test-and-set and compare-and-swap are used to build spinlocks and atomic variables. They busy-wait, and simple spinlocks do not bound waiting.</li>
+        <li>sleep/wakeup removes the spinning, but it can lose wakeups. The fix is the semaphore, which Lecture 09 introduces.</li>
         <li>Blocking calls sleep until they can finish. Non-blocking calls return at once and must be retried. Synchronous events happen at a predictable point in the program. Asynchronous ones can happen between any two instructions.</li>
       </ul>
     </div>
@@ -644,15 +644,15 @@
         <tr><td>race condition</td><td>The outcome depends on the timing of concurrent accesses.</td></tr>
         <tr><td>critical section</td><td>Code that accesses a shared resource.</td></tr>
         <tr><td>entry / exit / remainder section</td><td>Asking to enter / leaving / everything else.</td></tr>
-        <tr><td>mutual exclusion</td><td>At most one process in its critical section.</td></tr>
-        <tr><td>progress</td><td>If the section is free and someone wants in, someone gets in.</td></tr>
+        <tr><td>mutual exclusion</td><td>At most one process is in its critical section.</td></tr>
+        <tr><td>progress</td><td>If the section is free and some process wants to enter, some process enters.</td></tr>
         <tr><td>bounded waiting</td><td>A bound on how many times others enter first.</td></tr>
         <tr><td>Peterson's solution</td><td><code>flag[2]</code> plus <code>turn</code>, for two processes.</td></tr>
         <tr><td>test-and-set / compare-and-swap</td><td>Atomic read-modify-write instructions that return the old value.</td></tr>
         <tr><td>atomic variable</td><td>An integer or boolean with atomic updates.</td></tr>
         <tr><td>spinlock</td><td>A lock whose waiters busy-wait.</td></tr>
-        <tr><td>busy waiting</td><td>Looping on a condition, using CPU while waiting.</td></tr>
-        <tr><td>lost wakeup</td><td>A wakeup sent before the target sleeps, and so forgotten.</td></tr>
+        <tr><td>busy waiting</td><td>Looping on a condition, which uses the CPU while waiting.</td></tr>
+        <tr><td>lost wakeup</td><td>A wakeup that is sent before the target sleeps, and is therefore lost.</td></tr>
         <tr><td>blocking / non-blocking call</td><td>Sleeps until it can complete / returns at once, possibly with EAGAIN or EBUSY.</td></tr>
         <tr><td>synchronous / asynchronous</td><td>Happens at a predictable point, or completes before the call returns / can happen at any time, or completes later.</td></tr>
       </tbody>
@@ -717,7 +717,7 @@
   /* ---------- §2.1 bounded buffer ---------- */
   (function () {
     const MAX = 8; let buf, inn, out, counter, next, msg;
-    const init = () => { buf = Array(MAX).fill(null); inn = 0; out = 0; counter = 0; next = 1; msg = 'Empty buffer. The consumer would spin on <code>while (counter == 0);</code>.'; };
+    const init = () => { buf = Array(MAX).fill(null); inn = 0; out = 0; counter = 0; next = 1; msg = 'The buffer is empty. The consumer would spin on <code>while (counter == 0);</code>.'; };
     function produce() { if (counter === MAX) { msg = '<b class="bad">Full.</b> The producer spins on <code>while (counter == MAX);</code> until the consumer takes something.'; return; } buf[inn] = 'i' + next++; inn = (inn + 1) % MAX; counter++; msg = `Produced into slot ${(inn + MAX - 1) % MAX}, so in → ${inn} and counter → ${counter}.`; }
     function consume() { if (counter === 0) { msg = '<b class="bad">Empty.</b> The consumer spins on <code>while (counter == 0);</code> until the producer adds something.'; return; } const it = buf[out]; buf[out] = null; out = (out + 1) % MAX; counter--; msg = `Consumed ${it}, so out → ${out} and counter → ${counter}.`; }
     function render() {
@@ -853,7 +853,7 @@
       const mk = (ok, name, txt) => `<div class="v ${ok ? 'ok' : 'no'}"><span class="mk">${ok ? '✓' : '✗'}</span><b>${name}</b><span>${txt}</span></div>`;
       const pg = !(M.dead || M.prog);
       $('#mc-v').innerHTML = mk(!M.me, 'Mutual exclusion', M.me ? `Both processes reach the critical section after ${M.me.length} steps.` : 'No reachable state has both in the critical section.')
-        + mk(pg, 'Progress', M.dead ? 'Deadlock. Both wait on each other forever.' : M.prog ? `P${M.progI} can wait forever while P${1 - M.progI} sits in its remainder section.` : 'Nobody waits forever for a free critical section.')
+        + mk(pg, 'Progress', M.dead ? 'Deadlock. Both processes wait on each other forever.' : M.prog ? `P${M.progI} can wait forever while P${1 - M.progI} sits in its remainder section.` : 'No process waits forever for a free critical section.')
         + mk(!M.bw, 'Bounded waiting', M.bw ? `P${1 - M.bw.i} can enter again and again while P${M.bw.i} keeps trying. This is a loop in the state graph.` : 'No process can be overtaken indefinitely.')
         + `<div class="small muted">${M.n} reachable states explored.</div>`;
       if (M.me) setTrace(M.me, 'The trace ends with both processes in the critical section.');
@@ -877,7 +877,7 @@
       const both = P.ops[s.pc[0]].r === 'C' && P.ops[s.pc[1]].r === 'C';
       $('#mc-out').innerHTML = both ? '<b class="bad">Both processes are in the critical section.</b> ' + why : why;
     }
-    function manual(k) { const s = trace[at].s, n = M.succ(s, k); trace = trace.slice(0, at + 1); trace.push({ s: n, k }); at++; why = 'Your own trace. Pick protocols and moves to break them.'; show(); }
+    function manual(k) { const s = trace[at].s, n = M.succ(s, k); trace = trace.slice(0, at + 1); trace.push({ s: n, k }); at++; why = 'This is your own trace. Pick protocols and moves that break them.'; show(); }
     $('#mc-p').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) load(b.dataset.p); });
     $('#mc-t').addEventListener('click', (e) => { const d = e.target.closest('[data-at]'); if (d) { at = +d.dataset.at; show(); } });
     $('#mc-prev').addEventListener('click', () => { if (at > 0) { at--; show(); } });
@@ -910,13 +910,13 @@
     const CC = ['<span class="c">// Consumer</span>', 'if (counter == 0)', '    sleep();', 'item = buffer[out]; out = …;', 'acquire; counter--; release;', 'consume(item);'];
     const S = [
       [-1, -1, 0, 'run', 'run', 'At the start, the buffer is empty and counter = 0. Both processes are running.'],
-      [-1, 1, 0, 'run', 'run', 'The consumer tests <code>counter == 0</code>, which is true. It is about to call <code>sleep()</code>, but a context switch lands first.', 'c'],
+      [-1, 1, 0, 'run', 'run', 'The consumer tests <code>counter == 0</code>, which is true. It is about to call <code>sleep()</code>. However, a context switch happens first.', 'c'],
       [3, 1, 0, 'run', 'run', 'The producer produces an item and puts it in the buffer.', 'p'],
       [4, 1, 1, 'run', 'run', 'counter → 1, under the lock.', 'p'],
-      [5, 1, 1, 'run', 'run', '<code>counter == 1</code>, so the producer calls <code>wakeup(consumer)</code>. But the consumer is not asleep yet, <b class="bad">so the wakeup has no effect</b> and nothing remembers it.', 'p'],
+      [5, 1, 1, 'run', 'run', '<code>counter == 1</code>, so the producer calls <code>wakeup(consumer)</code>. However, the consumer is not asleep yet, <b class="bad">so the wakeup has no effect</b>, and nothing remembers it.', 'p'],
       [5, 2, 1, 'run', 'sleep', 'The consumer resumes where it left off and calls <code>sleep()</code>. It blocks, with an item waiting in the buffer.', 'c'],
-      [4, 2, 4, 'run', 'sleep', 'The producer keeps producing, and counter goes to 2, 3, 4. counter is never 1 again, so it sends no more wakeups.', 'p'],
-      [2, 2, 4, 'sleep', 'sleep', '<code>counter == MAX</code>, so the producer sleeps too. <b class="bad">Both processes sleep forever.</b> The consumer waits for a wakeup that already came and went.', 'p'],
+      [4, 2, 4, 'run', 'sleep', 'The producer keeps producing, and counter goes to 2, 3, and 4. Since counter is never 1 again, the producer sends no more wakeups.', 'p'],
+      [2, 2, 4, 'sleep', 'sleep', '<code>counter == MAX</code>, so the producer sleeps too. <b class="bad">Both processes sleep forever.</b> The consumer waits for a wakeup that was already sent.', 'p'],
     ];
     let i = 0;
     function show(k) {

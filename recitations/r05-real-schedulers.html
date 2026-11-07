@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Real Schedulers · R05</title>
-<meta name="description" content="CSCI 3753 Recitation 05, covering tracing a multilevel feedback queue by hand, computing CFS vruntime with nice weights, a lost update from counter++ on paper, and Lab02/Lab03 help.">
+<meta name="description" content="CSCI 3753 Recitation 05 traces a multilevel feedback queue by hand, computes CFS vruntime with nice weights, shows a lost update from counter++ on paper, and offers help with Lab02 and Lab03.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -44,7 +44,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 05 · Week 5</div>
     <h1>Queues that <span class="accent">learn</span>, a clock that is fair</h1>
-    <p class="lede">Lecture 07 went past the textbook algorithms to the ones real kernels use, and Lecture 08 started synchronization. Today you trace a multilevel feedback queue step by step, compute CFS's vruntime for two nice levels, and watch <code>counter++</code> lose an update on paper. Then Lab02 and Lab03 help.</p>
+    <p class="lede">Lecture 07 goes beyond the textbook algorithms to the ones that real kernels use, and Lecture 08 starts synchronization. In this recitation, you trace a multilevel feedback queue step by step, compute the vruntime of CFS for two nice levels, and watch <code>counter++</code> lose an update on paper. The rest of the session is help with Lab02 and Lab03.</p>
     <div class="agenda">
       <div><b>0–5</b>Recap of MLFQ, CFS, and races</div>
       <div><b>5–25</b>Worked example on MLFQ, vruntime, and a lost update</div>
@@ -88,7 +88,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <ul>
           <li><b>Q0</b> uses RR with q = 4, <b>Q1</b> uses RR with q = 8, and <b>Q2</b> uses FCFS. New jobs enter Q0.</li>
           <li>Using a whole quantum <strong>demotes</strong> the job one level.</li>
-          <li>A job arriving in a higher queue <strong>preempts</strong> a job running from a lower one. The preempted job stays at the head of its queue and keeps the part of its quantum it has used.</li>
+          <li>A job that arrives in a higher queue <strong>preempts</strong> a job that runs from a lower queue. The preempted job stays at the head of its queue and keeps the part of its quantum that it has already used.</li>
         </ul>
       </div>
       <table class="t">
@@ -115,7 +115,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         </table>
       </div>
       <div class="canvas-wrap"><svg class="dia" id="mq-svg" viewBox="0 0 640 140" width="640" style="min-width:460px" role="img" aria-label="MLFQ timeline with one lane per queue"></svg></div>
-      <p>The turnaround times are A 25, B 5, C 18, and D 2. The short jobs B and D finished from Q0 almost as if SJF had picked them, yet the scheduler never knew a burst length. The long job sank to the bottom.</p>
+      <p>The turnaround times are 25 for A, 5 for B, 18 for C, and 2 for D. The short jobs B and D finish from Q0, almost as if SJF had picked them. However, the scheduler never knows a burst length. The long job moves down to the bottom queue.</p>
     </div></details>
   </div>
 </section>
@@ -127,7 +127,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   </div>
   <div class="sec">
     <div class="prose">
-      <p>Two CPU-bound tasks share one CPU, namely T0 at nice 0 (weight 1024) and T5 at nice 5 (weight 335). Each pick runs 4 ms. CFS runs the task with the <strong>smallest vruntime</strong>, and after it runs Δ ms, vruntime += Δ × 1024 / weight. So T0 gains 4 per run and T5 gains 12.23. Ties go to T0.</p>
+      <p>Two CPU-bound tasks share one CPU, namely T0 at nice 0 (weight 1024) and T5 at nice 5 (weight 335). Each pick runs for 4 ms. CFS runs the task with the <strong>smallest vruntime</strong>. After a task runs for Δ ms, vruntime += Δ × 1024 / weight. Therefore, T0 gains 4 per run, and T5 gains 12.23. Ties go to T0.</p>
     </div>
     <details class="fold"><summary>Eight picks</summary><div class="prose">
       <table class="t">
@@ -144,7 +144,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <tr><td>8</td><td>T0</td><td>24</td><td>24.45</td></tr>
         </tbody>
       </table>
-      <p>T0 ran 24 ms and T5 8 ms, so T0 got 75%, the same as 1024 / (1024 + 335) ≈ 0.753. CFS never counts shares. It only keeps the vruntimes level, and the shares follow from the weights.</p>
+      <p>T0 runs for 24 ms, and T5 runs for 8 ms. Therefore, T0 gets 75% of the CPU, which matches 1024 / (1024 + 335) ≈ 0.753. Note that CFS never counts shares. It only keeps the vruntimes level, and the shares follow from the weights.</p>
     </div></details>
   </div>
 </section>
@@ -155,7 +155,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <h2>A lost update, on paper</h2>
   </div>
   <div class="sec">
-    <div class="prose"><p><code>counter++</code> is three machine steps, namely load, add, and store. Below are two threads, starting from <code>counter = 5</code>.</p></div>
+    <div class="prose"><p><code>counter++</code> consists of three machine steps, namely load, add, and store. The table below shows two threads that start from <code>counter = 5</code>.</p></div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>step</th><th>thread 1</th><th>thread 2</th><th>counter</th></tr></thead>
@@ -169,7 +169,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         </tbody>
       </table>
     </div>
-    <p class="prose">Two increments, one lost. The three steps are a critical section that must not be interleaved. In Lab03 Part 1 you measure how often this happens with four threads, then fix it with a mutex.</p>
+    <p class="prose">The two threads perform two increments, and one of them is lost. The three steps form a critical section, which must not be interleaved. In Lab03 Part 1, you measure how often this happens with four threads, and then you fix it with a mutex.</p>
   </div>
 </section>
 
@@ -182,9 +182,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="prose">
       <ul>
-        <li><b>Lab03.</b> Read <code>man 3 pthread_create</code> and <code>man 3 pthread_join</code>, and compile with <code>-pthread</code>. If <code>racy</code> never loses anything, think about what <code>-O2</code> is allowed to do to a loop, as in Lab02's <code>spin.c</code> hint.</li>
-        <li><b>Lab02.</b> Kill leftover spinners before you leave the VM, because a stray real-time spinner makes it unusable.</li>
-        <li><b>PS2.</b> TAs explain rules and definitions, but they do not work PS2's problems.</li>
+        <li><b>Lab03.</b> Read <code>man 3 pthread_create</code> and <code>man 3 pthread_join</code>, and compile with <code>-pthread</code>. If <code>racy</code> never loses anything, think about what <code>-O2</code> is allowed to do to a loop, as in the <code>spin.c</code> hint of Lab02.</li>
+        <li><b>Lab02.</b> Kill leftover spinners before each new experiment, because a stray real-time spinner takes CPU 0 away from every normal task.</li>
+        <li><b>PS2.</b> TAs explain rules and definitions. However, they do not solve the PS2 problems.</li>
       </ul>
     </div>
     <div class="code"><span class="ln">SHARE=$PWD/labs/03-concurrency/submit env/run.sh</span><span class="ln"><span class="c"># in the VM</span></span><span class="ln">cd /share &amp;&amp; gcc -Wall -Werror -O2 -pthread -o /tmp/race race.c</span><span class="ln">time /tmp/race racy ; time /tmp/race locked</span></div>
@@ -195,7 +195,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="ch-head">
     <div class="ch-no">Part 5</div>
     <h2>Exit ticket</h2>
-    <p class="ch-lede">Not graded. Answer, then check.</p>
+    <p class="ch-lede">The exit ticket is not graded. Answer each question, then check.</p>
   </div>
   <div class="sec">
     <div class="quiz" data-quiz>
@@ -207,7 +207,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <button type="button" class="q-opt" data-why="Demotion happens only when a whole quantum is used.">It drifts down to Q2 over time</button>
           <button type="button" class="q-opt" data-why="Nothing promotes it or demotes it to Q1 here.">Q1</button>
         </div>
-        <div class="q-fb ok">Right. It never uses a full 4 ms quantum, so it is never demoted. That is how MLFQ favors interactive jobs.</div>
+        <div class="q-fb ok">Right. It never uses a full 4 ms quantum, so it is never demoted. In this way, MLFQ favors interactive jobs.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -220,7 +220,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <button type="button" class="q-opt" data-ok>The one with the smallest vruntime</button>
           <button type="button" class="q-opt" data-why="CFS has no fixed rotation. It picks by vruntime every time.">The next one in round-robin order</button>
         </div>
-        <div class="q-fb ok">Right. The leftmost node of the red-black tree.</div>
+        <div class="q-fb ok">Right. This task is the leftmost node of the red-black tree.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -236,9 +236,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="table-wrap">
       <table class="cs">
         <tbody>
-          <tr><td>MLFQ demotion</td><td>Uses a whole quantum → one queue down.</td></tr>
+          <tr><td>MLFQ demotion</td><td>A job that uses a whole quantum moves one queue down.</td></tr>
           <tr><td>MLFQ preemption</td><td>An arrival in a higher queue takes the CPU from a lower-queue job.</td></tr>
-          <tr><td>CFS pick</td><td>Smallest vruntime.</td></tr>
+          <tr><td>CFS pick</td><td>The task with the smallest vruntime runs next.</td></tr>
           <tr><td>Δvruntime</td><td>Δ run time × 1024 / weight (weight 1024 at nice 0).</td></tr>
           <tr><td>CPU share</td><td>weight / sum of weights of the runnable tasks.</td></tr>
           <tr><td>race condition</td><td>The result depends on how steps interleave.</td></tr>

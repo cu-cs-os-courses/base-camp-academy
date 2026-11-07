@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Storage Management · L19</title>
-<meta name="description" content="CSCI 3753 Lecture 19, interactive edition, covering magnetic disks and disk scheduling, flash memory and wear leveling, RAID.">
+<meta name="description" content="CSCI 3753 Lecture 19, interactive edition, covering magnetic disks and disk scheduling, flash memory and wear leveling, and RAID.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -86,7 +86,7 @@
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 19 · Interactive notes</div>
     <h1>Three ways to keep bits,<br>three ways to <span class="accent">lose time</span></h1>
-    <p class="lede">Storage outlives power, and every kind of storage pays for that in its own currency. A magnetic disk pays in milliseconds of mechanical motion, so the OS reorders requests to move the head less. Flash pays in erases, and every cell wears out, so writes must be spread around. A single disk of either kind can fail outright, so RAID spends extra disks to buy speed, safety, or both.</p>
+    <p class="lede">Storage keeps data after the power is removed, and each kind of storage pays a different cost for this. A magnetic disk pays in milliseconds of mechanical motion. Therefore, the OS reorders requests so that the head moves less. Flash pays in erases, and every cell wears out. Therefore, writes must be spread across the chip. Further, a single disk of either kind can fail outright. As such, RAID uses extra disks to gain speed, safety, or both.</p>
     <div class="promise">
       <span>Before you start, review</span><span class="mono">block devices and device controllers</span><span>from Lectures 17–18.</span>
     </div>
@@ -121,7 +121,7 @@
     <div class="sec present-only title-slide" id="title">
       <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 19</div>
       <h1>Storage Management</h1>
-      <p class="lede">Magnetic disks and disk scheduling, flash memory and wear, RAID.</p>
+      <p class="lede">Magnetic disks and disk scheduling, flash memory and wear, and RAID.</p>
       <div class="meta">Instructor Yueqi Chen · Textbook Silberschatz, Ch. 11</div>
     </div>
 
@@ -150,10 +150,10 @@
       <div class="prose">
         <ul>
           <li><strong>Platter</strong> is a spinning disk coated with magnetic film, usually on both sides.</li>
-          <li><strong>Read/write head</strong> on an <strong>arm</strong>. All arms move together.</li>
+          <li><strong>Read/write head</strong> is mounted on an <strong>arm</strong>. All arms move together.</li>
           <li><strong>Track</strong> is one ring on one surface.</li>
-          <li><strong>Sector</strong> is a slice of a track, the unit of transfer.</li>
-          <li data-step="1"><strong>Cylinder</strong> is the same track on every surface. The heads reach a whole cylinder without moving, which is why schedulers count <em>cylinders</em>.</li>
+          <li><strong>Sector</strong> is a slice of a track, and it is the unit of transfer.</li>
+          <li data-step="1"><strong>Cylinder</strong> is the same track on every surface. The heads reach a whole cylinder without moving. Therefore, schedulers count <em>cylinders</em>.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -189,7 +189,7 @@
   <div class="sec" id="s0-3">
     <h3><span class="sec-no">0.3</span>Time to access data</h3>
     <div class="prose">
-      <p>Three things happen, one after another.</p>
+      <p>An access consists of three steps, which happen one after another.</p>
       <ol>
         <li>Move the head to the right track. The time this takes is the <strong>seek time</strong>, typically 5–10 ms.</li>
         <li data-step="1">Wait for the sector to rotate under the head. The time this takes is the <strong>rotational latency</strong>, typically 1–5 ms. At 10,000 RPM, half a revolution on average takes 0.5 / (10000/60) s ≈ 3 ms.</li>
@@ -225,15 +225,15 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 1</div>
     <h2>Disk scheduling</h2>
-    <p class="ch-lede">Seek time dominates. When several requests are waiting, the order in which the OS serves them decides how far the head travels.</p>
+    <p class="ch-lede">Seek time dominates. When several requests are waiting, the order in which the OS serves them determines how far the head travels.</p>
   </div>
 
   <div class="sec" id="s1-1">
     <h3><span class="sec-no">1.1</span>Why schedule the disk?</h3>
     <div class="prose">
       <ul>
-        <li>Any technique that reduces seek time or rotational latency is a big win for disk access time.</li>
-        <li data-step="1">Disk operations take time. At any moment several requests for different places on the disk are waiting in the <strong>request queue</strong> (Lecture 18's queue, in front of a busy device).</li>
+        <li>Any technique that reduces seek time or rotational latency greatly reduces disk access time.</li>
+        <li data-step="1">Disk operations take time. At any moment, several requests for different places on the disk are waiting in the <strong>request queue</strong>, namely the queue in front of a busy device from Lecture 18.</li>
         <li data-step="2">The OS can choose the order in which to serve them. Our goal is an algorithm that minimizes seek time.</li>
       </ul>
     </div>
@@ -247,9 +247,9 @@
     <h3><span class="sec-no">1.2</span>FCFS and SSTF</h3>
     <div class="two-up">
       <div class="prose">
-        <p><strong>FCFS</strong> serves requests in arrival order, so the head crosses |53−98| + |98−183| + |183−37| + … = <b>640</b> cylinders. Easy to implement, but slow. The head would move less if 37 and 14 were served together, and 122 and 124.</p>
-        <p data-step="1"><strong>SSTF</strong> (shortest seek time first) always picks the pending request closest to the head. The order is 65, 67, 37 (closer than 98), 14, 98, 122, 124, 183, for <b>236</b> cylinders.</p>
-        <p data-step="2">SSTF is only locally optimal. Going 53 → 37 → 14 first, then up to 183, crosses <b>208</b>. And it can <strong>starve</strong> far requests. While the head sits near 37, a stream of new requests for 39, 35, 38… keeps it there.</p>
+        <p><strong>FCFS</strong> serves requests in arrival order, so the head crosses |53−98| + |98−183| + |183−37| + … = <b>640</b> cylinders. FCFS is easy to implement, but it is slow. For example, the head would move less if 37 and 14 were served together, and likewise 122 and 124.</p>
+        <p data-step="1"><strong>SSTF</strong> (shortest seek time first) always picks the pending request closest to the head. The order is 65, 67, 37 (closer than 98), 14, 98, 122, 124, 183, for a total of <b>236</b> cylinders.</p>
+        <p data-step="2">SSTF is only locally optimal. For example, going 53 → 37 → 14 first and then up to 183 crosses <b>208</b>. In addition, SSTF can <strong>starve</strong> far requests. While the head sits near 37, a stream of new requests for 39, 35, 38… keeps it there.</p>
       </div>
       <div>
         <figure class="fig"><div class="fig-frame"><svg class="dia plot" data-algo="FCFS" viewBox="0 0 460 250" width="420" role="img" aria-label="FCFS head movement"></svg></div><figcaption><span class="fno">Fig. 1.1</span>FCFS crosses 640 cylinders.</figcaption></figure>
@@ -262,9 +262,9 @@
     <h3><span class="sec-no">1.3</span>OPT</h3>
     <div class="two-up">
       <div class="prose">
-        <p><strong>OPT</strong> minimizes the back-and-forth. It moves to the closer edge request, then sweeps once to the other end.</p>
-        <p>The path 53 → 37 → 14 → 65 → 67 → 98 → 122 → 124 → 183 crosses 39 down + 169 up = <b>208</b> cylinders. OPT ignores the head's current direction and changes it when that is shorter.</p>
-        <p data-step="1">The problem is that OPT must be recomputed every time a new request arrives. Its best practical approximation is to scan in one direction, then reverse.</p>
+        <p><strong>OPT</strong> minimizes the back-and-forth. It first moves to the closer edge request, and then it sweeps once to the other end.</p>
+        <p>The path 53 → 37 → 14 → 65 → 67 → 98 → 122 → 124 → 183 crosses 39 down + 169 up = <b>208</b> cylinders. OPT ignores the head's current direction and changes direction when doing so is shorter.</p>
+        <p data-step="1">However, OPT must be recomputed every time a new request arrives. Its best practical approximation is to scan in one direction and then reverse.</p>
       </div>
       <figure class="fig"><div class="fig-frame"><svg class="dia plot" data-algo="OPT" viewBox="0 0 460 250" width="420" role="img" aria-label="OPT head movement"></svg></div><figcaption><span class="fno">Fig. 1.3</span>OPT crosses 208 cylinders, the minimum for this queue.</figcaption></figure>
     </div>
@@ -274,9 +274,9 @@
     <h3><span class="sec-no">1.4</span>SCAN and C-SCAN</h3>
     <div class="two-up">
       <div class="prose">
-        <p><strong>SCAN</strong> (the elevator) sweeps in one direction to the edge of the disk, then reverses. The path is 53 → 65 → … → 183 → <b>200</b> → 37 → 14, for <b>333</b> cylinders. It approximates OPT, never starves anyone, handles new arrivals, and is simple.</p>
-        <p data-step="1">But it only approximates OPT, travels to the edge even when no request is there, and is unfair to the edges. After two full sweeps, middle tracks have been served twice and edge tracks once.</p>
-        <p data-step="2"><strong>C-SCAN</strong> (circular SCAN) treats the disk as a circular queue. At the edge, return all the way to the other edge <em>without serving anything</em>, and keep scanning in the same direction. The path 53 → … → 183 → 200, return to 0, → 14 → 37 crosses <b>384</b> cylinders, counting the 200-cylinder return. Service times are fairer.</p>
+        <p><strong>SCAN</strong> (the elevator) sweeps in one direction to the edge of the disk and then reverses. The path is 53 → 65 → … → 183 → <b>200</b> → 37 → 14, for <b>333</b> cylinders. It approximates OPT, never starves a request, handles new arrivals, and is simple.</p>
+        <p data-step="1">However, it only approximates OPT, travels to the edge even when no request is there, and is unfair to the edges. Specifically, after two full sweeps, the middle tracks have been served twice and the edge tracks once.</p>
+        <p data-step="2"><strong>C-SCAN</strong> (circular SCAN) treats the disk as a circular queue. At the edge, the head returns all the way to the other edge <em>without serving anything</em> and keeps scanning in the same direction. The path 53 → … → 183 → 200, return to 0, → 14 → 37 crosses <b>384</b> cylinders, counting the 200-cylinder return. As a result, service times are fairer.</p>
       </div>
       <div>
         <figure class="fig"><div class="fig-frame"><svg class="dia plot" data-algo="SCAN" viewBox="0 0 460 250" width="420" role="img" aria-label="SCAN head movement"></svg></div><figcaption><span class="fno">Fig. 1.4</span>SCAN crosses 333 cylinders.</figcaption></figure>
@@ -289,8 +289,8 @@
     <h3><span class="sec-no">1.5</span>LOOK and C-LOOK</h3>
     <div class="two-up">
       <div class="prose">
-        <p><strong>LOOK</strong> does not travel to the edge. It goes only as far as the furthest request in the current direction, then reverses. The path 53 → … → 183 → 37 → 14 crosses 130 up + 169 down = <b>299</b> cylinders. No starvation either.</p>
-        <p data-step="1"><strong>C-LOOK</strong> makes LOOK fairer. From the furthest request in this direction, jump straight back to the furthest request at the other end and keep scanning the same way. The path 53 → … → 183 → 14 → 37 crosses 130 up + 169 back + 23 up = <b>322</b> cylinders.</p>
+        <p><strong>LOOK</strong> does not travel to the edge. It goes only as far as the furthest request in the current direction and then reverses. The path 53 → … → 183 → 37 → 14 crosses 130 up + 169 down = <b>299</b> cylinders. LOOK also does not starve requests.</p>
+        <p data-step="1"><strong>C-LOOK</strong> makes LOOK fairer. From the furthest request in the current direction, the head jumps straight back to the furthest request at the other end and keeps scanning the same way. The path 53 → … → 183 → 14 → 37 crosses 130 up + 169 back + 23 up = <b>322</b> cylinders.</p>
       </div>
       <div>
         <figure class="fig"><div class="fig-frame"><svg class="dia plot" data-algo="LOOK" viewBox="0 0 460 250" width="420" role="img" aria-label="LOOK head movement"></svg></div><figcaption><span class="fno">Fig. 1.6</span>LOOK crosses 299 cylinders.</figcaption></figure>
@@ -348,9 +348,9 @@
     <h3><span class="sec-no">1.7</span>Disk scheduling in practice</h3>
     <div class="prose">
       <ul>
-        <li>In the examples, SCAN, LOOK and C-LOOK would cross far fewer cylinders if the head had started moving <strong>down</strong>. Try it in §1.6.</li>
-        <li data-step="1">But the scheduler cannot keep switching direction, because that brings back starvation and unfairness. Keeping the scan's direction is important for fairness, at some cost in performance.</li>
-        <li data-step="2">SSTF or LOOK are reasonable defaults. Today these seek-reducing algorithms usually run inside the disk controller, together with algorithms that reduce rotational latency.</li>
+        <li>In the examples, SCAN, LOOK, and C-LOOK would cross far fewer cylinders if the head had started moving <strong>down</strong>. Try it in §1.6.</li>
+        <li data-step="1">However, the scheduler cannot keep switching direction, because switching brings back starvation and unfairness. Keeping the scan's direction is important for fairness, even at some cost in performance.</li>
+        <li data-step="2">SSTF and LOOK are reasonable defaults. Today, these seek-reducing algorithms usually run inside the disk controller, together with algorithms that reduce rotational latency.</li>
       </ul>
     </div>
   </div>
@@ -359,9 +359,9 @@
     <h3><span class="sec-no">1.8</span>Disk scheduling vs. file layout</h3>
     <div class="prose">
       <ul>
-        <li>How blocks are allocated affects access time. A file spread across the disk increases seeks, and contiguous allocation minimizes them. Choose free blocks near the file's other data.</li>
-        <li data-step="1">Opening a file for the first time means finding the directory, the file's header, and its data, which may be spread across the disk. That means large seeks.</li>
-        <li data-step="2">Put directories in the middle tracks, so at most half the disk is crossed to reach a file. Put file headers near their data, or near their directory. Lecture 20 builds file systems that do this.</li>
+        <li>How blocks are allocated affects access time. A file spread across the disk increases seeks, and contiguous allocation minimizes them. Therefore, choose free blocks near the file's other data.</li>
+        <li data-step="1">Opening a file for the first time means finding the directory, the file's header, and its data, which may be spread across the disk. As a result, the first open requires large seeks.</li>
+        <li data-step="2">Put directories in the middle tracks, so that the head crosses at most half the disk to reach a file. Put file headers near their data, or near their directory. Lecture 20 builds file systems that do this.</li>
       </ul>
     </div>
   </div>
@@ -377,14 +377,14 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 2</div>
     <h2>Flash memory</h2>
-    <p class="ch-lede">No moving parts, so no seeks. The new costs are erasing and wear.</p>
+    <p class="ch-lede">Flash has no moving parts, so it has no seeks. The new costs are erasing and wear.</p>
   </div>
 
   <div class="sec" id="s2-1">
     <h3><span class="sec-no">2.1</span>What is flash memory?</h3>
     <div class="prose">
-      <p>Flash is <strong>solid-state</strong> storage. Its bits live in an electronic chip, not on a magnetic disk, and are programmed and erased electrically, with no mechanical parts. It is <strong>non-volatile</strong>, meaning permanent, with caveats. It is in SSDs, memory cards, USB drives, phones and cameras.</p>
-      <p data-step="1">Flash is a form of <strong>EEPROM</strong> (electrically erasable programmable read-only memory). Its bits can be rewritten again and again with ordinary electrical signals. Its name comes from erasing a large block of memory quickly and cheaply, like a flash of light.</p>
+      <p>Flash is <strong>solid-state</strong> storage. Its bits live in an electronic chip, not on a magnetic disk. They are programmed and erased electrically, with no mechanical parts. Flash is <strong>non-volatile</strong>, which means permanent, with some caveats. It is used in SSDs, memory cards, USB drives, phones, and cameras.</p>
+      <p data-step="1">Flash is a form of <strong>EEPROM</strong> (electrically erasable programmable read-only memory). Its bits can be rewritten many times with ordinary electrical signals. The name comes from its ability to erase a large block of memory quickly and cheaply, like a flash of light.</p>
     </div>
     <div class="fam" data-step="1">
       <div><span class="tag">RAM</span>main memory, volatile</div>
@@ -415,7 +415,7 @@
   <div class="sec" id="s2-3">
     <h3><span class="sec-no">2.3</span>Cells, NAND and NOR</h3>
     <div class="prose">
-      <p>Each bit is a <strong>floating-gate transistor</strong>. Charge trapped on the floating gate shifts the voltage at which the transistor conducts. To read a bit, apply a read voltage to the control gate and measure the current. If current flows, the bit is "1". If no current flows, it is "0". Cells sit in a matrix of control-gate lines ("words") and drain lines ("bits"), wired in one of two ways, as the table below shows.</p>
+      <p>Each bit is a <strong>floating-gate transistor</strong>. Charge trapped on the floating gate shifts the voltage at which the transistor conducts. To read a bit, apply a read voltage to the control gate and measure the current. If current flows, the bit is "1". If no current flows, it is "0". Cells sit in a matrix of control-gate lines ("words") and drain lines ("bits"). The matrix is wired in one of two ways, as the table below shows.</p>
     </div>
     <div class="table-wrap" data-step="1">
       <table class="glossary" style="max-width:none">
@@ -439,7 +439,7 @@
     <h3><span class="sec-no">2.4</span>How flash is organized</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Flash is divided into <strong>sectors</strong> (also called erase blocks), each holding many <strong>pages</strong>. For example, 64 pages per sector, 16 sectors, 4 KB per page → 4 MB of flash.</p>
+        <p>Flash is divided into <strong>sectors</strong> (also called erase blocks), and each sector holds many <strong>pages</strong>. For example, 64 pages per sector, 16 sectors, and 4 KB per page give 4 MB of flash.</p>
         <p data-step="1">The last 12–16 bytes of each page are reserved for error detection and correction (ECC) and bookkeeping. The flash file system can keep its own information there.</p>
       </div>
       <figure class="fig">
@@ -461,9 +461,9 @@
     <div class="prose">
       <ul>
         <li>Reads and writes happen below page granularity, on a byte (NOR) or a word (NAND), named by page + offset.</li>
-        <li data-step="1">But a write proceeds immediately only if that memory has been <strong>erased and not yet written</strong>. Rewriting memory that already holds data needs an erase first.</li>
-        <li data-step="2">And erasing happens only a whole <strong>sector</strong> at a time. To change one byte that was already written, erase the entire sector containing it, then write the byte. That is the price of cheap "flash" technology.</li>
-        <li data-step="3">Rewrites happen all the time. Deleting a file frees its pages, but before they can be given to another file, their sectors must be erased. On a magnetic disk a rewrite costs the same as a write, because the head simply resets the bits.</li>
+        <li data-step="1">However, a write proceeds immediately only if that memory has been <strong>erased and not yet written</strong>. Rewriting memory that already holds data requires an erase first.</li>
+        <li data-step="2">Further, erasing happens only a whole <strong>sector</strong> at a time. To change one byte that was already written, you must erase the entire sector that contains it and then write the byte. This is the price of cheap "flash" technology.</li>
+        <li data-step="3">Rewrites happen all the time. For example, deleting a file frees its pages. However, before these pages can be given to another file, their sectors must be erased. In contrast, on a magnetic disk, a rewrite costs the same as a write, because the head simply resets the bits.</li>
       </ul>
     </div>
   </div>
@@ -489,8 +489,8 @@
   <div class="sec" id="s2-7">
     <h3><span class="sec-no">2.7</span>Limited lifetime and wear leveling</h3>
     <div class="prose">
-      <p>Flash <strong>wears out</strong>. The strong electric field that sets and resets bits eventually breaks down the silicon. The classic figures are 100,000 write-erase cycles for NOR and 1,000,000 for NAND. After that a cell is unreliable, and eventually a device can no longer save data.</p>
-      <p data-step="1"><strong>Wear leveling</strong> spreads writes and erases over the whole chip. Keep a count of writes in each page's trailer, and pick the free page with the lowest count. Scatter data freely, since distant pages are as fast as nearby ones. Most flash device controllers now do this in hardware.</p>
+      <p>Flash <strong>wears out</strong>. The strong electric field that sets and resets bits eventually breaks down the silicon. The classic figures are 100,000 write-erase cycles for NOR and 1,000,000 for NAND. After that, a cell is unreliable, and eventually a device can no longer save data.</p>
+      <p data-step="1"><strong>Wear leveling</strong> spreads writes and erases over the whole chip. Specifically, it keeps a count of writes in each page's trailer and picks the free page with the lowest count. Data can be scattered freely, since distant pages are as fast as nearby ones. Most flash device controllers now do this in hardware.</p>
     </div>
     <div class="widget" id="wl-w" data-step="1">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Keep rewriting one small file</span><button class="w-reset" type="button" id="wl-reset">Reset</button></div>
@@ -504,10 +504,10 @@
         <div class="stats" id="wl-stats" style="margin-top:14px"></div>
       </div>
     </div>
-    <p class="small muted prose read-only">The toy endurance is 100 erases per sector instead of 100,000, so the difference shows in a few hundred rewrites.</p>
+    <p class="small muted prose read-only">The widget uses a toy endurance of 100 erases per sector instead of 100,000, so the difference appears within a few hundred rewrites.</p>
     <div class="note note-honest read-only">
       <span class="note-tag">Modern endurance</span>
-      <p>The 1,000,000-cycle NAND figure is from single-level cells. The multi-level (MLC) and triple-level (TLC) cells in today's SSDs store 2–3 bits per cell and last roughly 1,000–10,000 cycles, which is why wear leveling is no longer optional.</p>
+      <p>The 1,000,000-cycle NAND figure is from single-level cells. The multi-level (MLC) and triple-level (TLC) cells in today's SSDs store 2–3 bits per cell and last roughly 1,000–10,000 cycles. Therefore, wear leveling is no longer optional.</p>
     </div>
   </div>
 
@@ -515,8 +515,8 @@
     <h3><span class="sec-no">2.8</span>Why disk file systems hurt flash</h3>
     <div class="prose">
       <ol>
-        <li><strong>Fixed locations.</strong> A disk file system keeps its directory structure, file headers, allocation structures (the FAT), free-space bitmap, and often file data at fixed locations. Modifying them over and over at the same spots on flash quickly exhausts those locations, and then the whole chip. That is the "fixed location" run in §2.7.</li>
-        <li data-step="1"><strong>Rewrites treated as cheap.</strong> On a disk a rewrite costs the same as a write, and rapid rewrites are fast because there is little seeking. On flash a rewrite is far slower than a write to a clean page. Rapid rewrites would mean disastrous latency and a shorter lifetime.</li>
+        <li><strong>Fixed locations.</strong> A disk file system keeps its directory structure, file headers, allocation structures (the FAT), free-space bitmap, and often file data at fixed locations. Repeated modification of these structures at the same spots on flash quickly exhausts those locations, and then the whole chip. This is the "fixed location" run in §2.7.</li>
+        <li data-step="1"><strong>Rewrites treated as cheap.</strong> On a disk, a rewrite costs the same as a write, and rapid rewrites are fast because there is little seeking. In contrast, on flash, a rewrite is far slower than a write to a clean page. As a result, rapid rewrites would cause very high latency and a shorter lifetime.</li>
       </ol>
     </div>
   </div>
@@ -524,10 +524,10 @@
   <div class="sec" id="s2-9">
     <h3><span class="sec-no">2.9</span>Flash file systems</h3>
     <div class="prose">
-      <p>A flash file system must handle both problems. First, rewrites need erases, so hold writes back. Second, lifetime is limited.</p>
+      <p>A flash file system must handle both problems. First, rewrites need erases, so the file system should hold writes back. Second, lifetime is limited.</p>
       <ul>
-        <li data-step="1"><strong>Log-structured</strong> file systems fit flash well. Every write, and every rewrite, is appended to the end of a log, and <em>the log is the file system</em>. The log grows sequentially and never rewrites a location in place, so there is less erasing and a longer lifetime.</li>
-        <li data-step="2"><strong>JFFS and JFFS2</strong> (Journaling Flash File System) work this way. Log entries hold everything needed to reconstruct the files, much like the log-based recovery of Lecture 20. The log can be circular, wrapping around once all free pages are used. Free space is the distance between its head and its tail, and as it shrinks, <strong>garbage collection</strong> reclaims stale pages.</li>
+        <li data-step="1"><strong>Log-structured</strong> file systems fit flash well. Every write and every rewrite is appended to the end of a log, and <em>the log is the file system</em>. The log grows sequentially and never rewrites a location in place. As a result, there is less erasing and a longer lifetime.</li>
+        <li data-step="2"><strong>JFFS and JFFS2</strong> (Journaling Flash File System) work this way. Log entries hold everything needed to reconstruct the files, much like the log-based recovery of Lecture 20. The log can be circular, so that it wraps around once all free pages are used. Free space is the distance between the head and the tail of the log. As free space shrinks, <strong>garbage collection</strong> reclaims stale pages.</li>
       </ul>
     </div>
   </div>
@@ -559,15 +559,15 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 3</div>
     <h2>RAID, redundant arrays of inexpensive disks</h2>
-    <p class="ch-lede">Disks are cheap. Attach several, and trade capacity for speed, for safety, or for both.</p>
+    <p class="ch-lede">Disks are cheap. Attach several of them, and trade capacity for speed, safety, or both.</p>
   </div>
 
   <div class="sec" id="s3-1">
     <h3><span class="sec-no">3.1</span>Why an array of disks?</h3>
     <div class="prose">
       <ul>
-        <li><strong>Faster access.</strong> Reads and writes proceed on several disks in parallel. Data is <strong>striped</strong> across disks, for example each byte of an 8-byte word on a different disk.</li>
-        <li data-step="1"><strong>Better reliability.</strong> If one disk fails, a copy of its data, or enough information to rebuild it, is on another disk. Redundancy to the rescue.</li>
+        <li><strong>Faster access.</strong> Reads and writes proceed on several disks in parallel. Data is <strong>striped</strong> across disks, for example with each byte of an 8-byte word on a different disk.</li>
+        <li data-step="1"><strong>Better reliability.</strong> If one disk fails, a copy of its data, or enough information to rebuild it, is on another disk. This is the purpose of redundancy.</li>
       </ul>
     </div>
   </div>
@@ -579,13 +579,13 @@
         <thead><tr><th>Level</th><th>Idea</th><th>What you get</th></tr></thead>
         <tbody>
           <tr><td>RAID 0</td><td>striping, no redundancy</td><td>fast parallel reads and writes, but one failure loses data</td></tr>
-          <tr data-step="1"><td>RAID 1</td><td>mirror each disk</td><td>redundancy, but not RAID 0's speedup. A read can go to all mirrors and take the first answer. A synchronous write takes twice as long, which the OS can hide by delaying writes</td></tr>
+          <tr data-step="1"><td>RAID 1</td><td>mirror each disk</td><td>redundancy, but not RAID 0's speedup. A read can go to all mirrors and take the first answer. A synchronous write takes twice as long, but the OS can hide this cost by delaying writes</td></tr>
           <tr data-step="1"><td>RAID 0+1</td><td>stripe, then mirror the stripe</td><td>speed + redundancy. If a disk fails in <em>both</em> stripe sets, the data is lost</td></tr>
-          <tr data-step="1"><td>RAID 1+0 (10)</td><td>mirror each disk, then stripe</td><td>any two disks may fail, unless they mirror the same data, so it is more robust than 0+1</td></tr>
+          <tr data-step="1"><td>RAID 1+0 (10)</td><td>mirror each disk, then stripe</td><td>any two disks may fail unless they mirror the same data. Therefore, it is more robust than 0+1</td></tr>
           <tr data-step="2"><td>RAID 2</td><td>error-correcting code (ECC) bits on other disks</td><td>more compact than full copies, with strong guarantees</td></tr>
-          <tr data-step="2"><td>RAID 3</td><td>bit-interleaved parity on one parity disk</td><td>only one extra disk, and parity is computed in hardware so writes stay fast</td></tr>
+          <tr data-step="2"><td>RAID 3</td><td>bit-interleaved parity on one parity disk</td><td>only one extra disk, and parity is computed in hardware, so writes stay fast</td></tr>
           <tr data-step="2"><td>RAID 4</td><td>block-interleaved parity on one parity disk</td><td>one extra disk, but every write also updates the parity disk</td></tr>
-          <tr data-step="3"><td>RAID 5</td><td>block-interleaved <em>distributed</em> parity</td><td>parity spread over all disks, so no parity-disk bottleneck. It is the most common parity RAID</td></tr>
+          <tr data-step="3"><td>RAID 5</td><td>block-interleaved <em>distributed</em> parity</td><td>parity is spread over all disks, so there is no parity-disk bottleneck. It is the most common parity RAID</td></tr>
           <tr data-step="3"><td>RAID 6</td><td>RAID 5 with Reed-Solomon codes instead of parity</td><td>survives two simultaneous disk failures</td></tr>
         </tbody>
       </table>
@@ -594,7 +594,7 @@
 
   <div class="sec" id="s3-3">
     <h3><span class="sec-no">3.3</span>Fail some disks</h3>
-    <p class="prose read-only">Click a disk to fail it, click again to replace it. Letters are data blocks, and <span class="os">P</span> blocks hold parity.</p>
+    <p class="prose read-only">Click a disk to fail it, and click it again to replace it. Letters are data blocks, and <span class="os">P</span> blocks hold parity.</p>
     <div class="widget" id="rd-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">What survives?</span><button class="w-reset" type="button" id="rd-reset">Reset</button></div>
       <div class="controls"><span class="seg" aria-label="RAID level" id="rd-lv"></span></div>
@@ -611,9 +611,9 @@
     <h3><span class="sec-no">3.4</span>How parity rebuilds a disk</h3>
     <div class="two-up">
       <div class="prose">
-        <p>For each position, the parity bit is the XOR of the data bits at that position on the other disks, so P = D0 ⊕ D1 ⊕ D2.</p>
-        <p data-step="1">XOR is its own inverse. If disk 1 dies, recompute its bit from everything that survived, as D1 = D0 ⊕ D2 ⊕ P.</p>
-        <p data-step="2">One parity disk therefore protects against any <em>one</em> failure, at the cost of one disk of capacity instead of half the array.</p>
+        <p>For each position, the parity bit is the XOR of the data bits at that position on the other disks. In other words, P = D0 ⊕ D1 ⊕ D2.</p>
+        <p data-step="1">XOR is its own inverse. Therefore, if disk 1 fails, its bit can be recomputed from everything that survived, as D1 = D0 ⊕ D2 ⊕ P.</p>
+        <p data-step="2">As such, one parity disk protects against any <em>one</em> failure, at the cost of one disk of capacity instead of half the array.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -629,9 +629,9 @@
   <div class="sec" id="s3-5">
     <h3><span class="sec-no">3.5</span>Where RAID is implemented</h3>
     <div class="opts3">
-      <div><span class="tag">Software</span>Plug disks into the bus. RAID management runs in the OS kernel, above the device drivers. Cheap and easy, but less efficient. On Linux, <code>mdadm</code> manages arrays.</div>
+      <div><span class="tag">Software</span>The disks plug into the bus. RAID management runs in the OS kernel, above the device drivers. This approach is cheap and easy, but less efficient. On Linux, <code>mdadm</code> manages arrays.</div>
       <div data-step="1"><span class="tag">Firmware / driver</span>Standard disk-controller chips with RAID firmware and drivers recognize the disks and build the array. The system can boot from it, but the CPU still does part of the work.</div>
-      <div data-step="2"><span class="tag">Hardware</span>A stand-alone array with its own RAID controller that looks like one physical device on the bus. The file system need not know about RAID. Expensive, highly efficient.</div>
+      <div data-step="2"><span class="tag">Hardware</span>A stand-alone array has its own RAID controller and looks like one physical device on the bus. The file system does not need to know about RAID. This approach is expensive but highly efficient.</div>
     </div>
   </div>
 
@@ -639,9 +639,9 @@
     <div class="quiz" data-quiz>
       <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">0+1 or 1+0?</span></div>
       <div class="quiz-body">
-        <div class="q-text">Four disks. In RAID 0+1, disks 0–1 are one stripe set and disks 2–3 its mirror. In RAID 1+0, disks 0–1 mirror each other and disks 2–3 mirror each other. Disks 0 and 3 fail. Which array still has the data?</div>
+        <div class="q-text">Consider four disks. In RAID 0+1, disks 0–1 are one stripe set, and disks 2–3 are its mirror. In RAID 1+0, disks 0–1 mirror each other and disks 2–3 mirror each other. Disks 0 and 3 fail. Which array still has the data?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="In 0+1 one failure takes down a whole stripe set, and here each stripe set has lost a disk.">Only RAID 0+1</button>
+          <button type="button" class="q-opt" data-why="In 0+1, one failure takes down a whole stripe set, and here each stripe set has lost a disk.">Only RAID 0+1</button>
           <button type="button" class="q-opt" data-ok>Only RAID 1+0</button>
           <button type="button" class="q-opt" data-why="The two layouts behave differently for exactly this pair of failures.">Both</button>
           <button type="button" class="q-opt" data-why="RAID 1+0 loses data only if both disks of one mirrored pair fail. Disks 0 and 3 are in different pairs.">Neither</button>
@@ -662,7 +662,7 @@
           <button type="button" class="q-opt" data-ok>Every write updates parity. RAID 4 puts all parity on one disk, which becomes the bottleneck, while RAID 5 spreads it over all disks.</button>
           <button type="button" class="q-opt" data-why="They use the same capacity, namely one disk's worth of parity.">RAID 5 uses less space for parity.</button>
         </div>
-        <div class="q-fb ok">Right. Same capacity, same protection. RAID 5 just avoids overusing a single parity disk.</div>
+        <div class="q-fb ok">Right. Both have the same capacity and the same protection. RAID 5 only avoids overloading a single parity disk.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -685,15 +685,15 @@
     <h3><span class="sec-no">∎</span>What to take away</h3>
     <div class="prose">
       <ul>
-        <li><strong>Magnetic disks</strong> have an access time of seek + rotational latency + transfer, dominated by the mechanical first two.</li>
-        <li><strong>Disk scheduling</strong> reorders the request queue to cut seeks. FCFS is simple and slow. SSTF is greedy and can starve. SCAN, C-SCAN, LOOK and C-LOOK sweep, trading a little distance for fairness. SSTF or LOOK are reasonable defaults.</li>
-        <li><strong>Flash</strong> has no seeks, but a rewrite needs a sector-wide erase and every cell wears out. Wear leveling spreads erases, and log-structured file systems avoid rewriting in place.</li>
-        <li><strong>RAID</strong> uses striping for speed, and mirroring or parity for reliability. 1+0 beats 0+1 on failures, and RAID 5 spreads parity to avoid RAID 4's bottleneck.</li>
+        <li><strong>Magnetic disks</strong> have an access time of seek + rotational latency + transfer. The first two are mechanical, and they dominate.</li>
+        <li><strong>Disk scheduling</strong> reorders the request queue to cut seeks. FCFS is simple and slow. SSTF is greedy and can starve requests. SCAN, C-SCAN, LOOK, and C-LOOK sweep, and they trade a little distance for fairness. SSTF and LOOK are reasonable defaults.</li>
+        <li><strong>Flash</strong> has no seeks. However, a rewrite needs a sector-wide erase, and every cell wears out. Wear leveling spreads erases, and log-structured file systems avoid rewriting in place.</li>
+        <li><strong>RAID</strong> uses striping for speed, and mirroring or parity for reliability. 1+0 survives more failure combinations than 0+1, and RAID 5 spreads parity to avoid RAID 4's bottleneck.</li>
       </ul>
     </div>
     <div class="note note-lab" data-step="1">
       <span class="note-tag">In the lab</span>
-      <p>Basecamp 5's driver is a block of kernel memory pretending to be a device. Everything in this lecture is what a real storage driver, and the controller behind it, would have to add.</p>
+      <p>Basecamp 5's driver is a block of kernel memory that acts as a device. A real storage driver, and the controller behind it, would have to add everything in this lecture.</p>
     </div>
   </div>
 
@@ -702,8 +702,8 @@
       <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
       <tbody>
         <tr><td>track / sector / cylinder</td><td>One ring on one surface / a slice of a track / the same track on every surface.</td></tr>
-        <tr><td>seek time</td><td>Time to move the head to the right track.</td></tr>
-        <tr><td>rotational latency</td><td>Time for the sector to rotate under the head, half a revolution on average.</td></tr>
+        <tr><td>seek time</td><td>The time to move the head to the right track.</td></tr>
+        <tr><td>rotational latency</td><td>The time for the sector to rotate under the head, which is half a revolution on average.</td></tr>
         <tr><td>FCFS / SSTF</td><td>Serve in arrival order / serve the closest request next.</td></tr>
         <tr><td>SCAN / C-SCAN</td><td>Sweep edge to edge and back / sweep one way, return to the start without serving.</td></tr>
         <tr><td>LOOK / C-LOOK</td><td>SCAN / C-SCAN that turn at the last request instead of the edge.</td></tr>
@@ -799,7 +799,7 @@
         `<div><div class="lab">transfer at 1 Gb/s</div><div class="big">${xfer < 1 ? xfer.toFixed(3) : xfer.toFixed(1)} ms</div></div>` +
         `<div><div class="lab">mechanical share</div><div class="big">${Math.round((seek + rot) / tot * 100)}%</div></div>`;
       $('#lat-out').innerHTML = (seek + rot) / tot > 0.9
-        ? 'Almost all the time is mechanical. Reading more data per access, or seeking less, is where the wins are, and that is disk scheduling.'
+        ? 'Almost all the time is mechanical. Therefore, the gains come from reading more data per access or from seeking less, and seeking less is the goal of disk scheduling.'
         : 'A large read amortizes the mechanical delay. Once the head is in place, bytes stream quickly.';
     }
     ['lat-rpm', 'lat-seek', 'lat-kb'].forEach((id) => $('#' + id).addEventListener('input', render));
@@ -895,12 +895,12 @@
       $('#ds-board').innerHTML = all.map((r, i) => `<div class="row${i === algo ? ' cur' : ''}${r.dist === min ? ' best' : ''}" data-a="${i}"><span class="nm">${ALGOS[i]}</span><span class="bar" style="width:${Math.max(4, r.dist / max * 100)}%"></span><span class="v">${r.dist}</span></div>`).join('');
       const notes = {
         'FCFS': 'Arrival order, with no reordering at all.',
-        'SSTF': 'Greedy. It takes the closest pending request each time. Locally optimal, and far requests can starve.',
-        'OPT': 'Goes to the nearer end first and sweeps once. Direction is ignored, and every new request means recomputing.',
-        'SCAN': `Sweeps ${dir} to the edge (${dir === 'up' ? MAXC : 0}), then reverses. Edge visits are shown in red.`,
-        'C-SCAN': 'Sweeps to the edge, returns to the opposite edge without serving (dashed), and keeps the same direction. The return counts.',
-        'LOOK': 'Like SCAN, but turns at the last request instead of the edge.',
-        'C-LOOK': 'Like C-SCAN, but jumps from the last request straight to the furthest one at the other end. The jump counts.',
+        'SSTF': 'It is greedy and takes the closest pending request each time. It is locally optimal, and far requests can starve.',
+        'OPT': 'It goes to the nearer end first and sweeps once. It ignores the direction, and every new request requires recomputing.',
+        'SCAN': `It sweeps ${dir} to the edge (${dir === 'up' ? MAXC : 0}) and then reverses. Edge visits are shown in red.`,
+        'C-SCAN': 'It sweeps to the edge, returns to the opposite edge without serving (dashed), and keeps the same direction. The return counts toward the total.',
+        'LOOK': 'It works like SCAN, but it turns at the last request instead of the edge.',
+        'C-LOOK': 'It works like C-SCAN, but it jumps from the last request straight to the furthest one at the other end. The jump counts toward the total.',
       };
       $('#ds-out').innerHTML = `<b class="mono">${ALGOS[algo]}</b> · ${res.dist} cylinders. ${notes[ALGOS[algo]]}`;
     }
@@ -935,17 +935,17 @@
   (function () {
     const M = [
       [ // erase in place via RAM
-        { s1: ['A', 'B', 'C', 'D'], ram: null, s2: null, c: [0, 0, 0], t: 'Sector 1 holds pages A B C D. We want page 2 to say B′.' },
+        { s1: ['A', 'B', 'C', 'D'], ram: null, s2: null, c: [0, 0, 0], t: 'Sector 1 holds pages A B C D. We want page 2 to hold B′.' },
         { s1: ['A', 'B', 'C', 'D'], ram: ['A', 'B', 'C', 'D'], s2: null, c: [4, 0, 0], t: '1. Copy the entire sector into RAM, which takes 4 page reads.' },
         { s1: ['A', 'B', 'C', 'D'], ram: ['A', 'B′', 'C', 'D'], s2: null, c: [4, 0, 0], t: '2. In RAM, change page 2 to B′.', hot: [1] },
         { s1: [null, null, null, null], ram: ['A', 'B′', 'C', 'D'], s2: null, c: [4, 1, 0], t: '3. Erase sector 1. Every page is now clean, including the three we did not want to change.' },
-        { s1: ['A', 'B′', 'C', 'D'], ram: null, s2: null, c: [4, 1, 4], t: '4. Write all four pages back, including the modified one. One changed page cost 4 reads, 1 erase and 4 writes. Power loss during steps 3–4 loses the sector.', hot: [1] },
+        { s1: ['A', 'B′', 'C', 'D'], ram: null, s2: null, c: [4, 1, 4], t: '4. Write all four pages back, including the modified one. One changed page cost 4 reads, 1 erase, and 4 writes. A power loss during steps 3–4 loses the sector.', hot: [1] },
       ],
       [ // copy to a clean sector
         { s1: ['A', 'B', 'C', 'D'], ram: null, s2: [null, null, null, null], c: [0, 0, 0], t: 'Sector 1 holds A B C D. Sector 2 is already erased and clean.' },
         { s1: ['A', 'B', 'C', 'D'], ram: null, s2: ['A', null, 'C', 'D'], c: [3, 0, 3], t: '1. Copy every page except page 2 into the clean sector, which takes 3 reads and 3 writes.' },
         { s1: ['A', 'B', 'C', 'D'], ram: null, s2: ['A', 'B′', 'C', 'D'], c: [3, 0, 4], t: '2. Write B′ into page 2 of the new sector. The page is clean, so the write goes straight through.', hot: [1] },
-        { s1: ['~A', '~B', '~C', '~D'], ram: null, s2: ['A', 'B′', 'C', 'D'], c: [3, 0, 4], t: '3. Point the file at sector 2. Sector 1 is now stale. It will be erased later, in the background, when there is time. No erase on the critical path, and the old copy survives a crash.' },
+        { s1: ['~A', '~B', '~C', '~D'], ram: null, s2: ['A', 'B′', 'C', 'D'], c: [3, 0, 4], t: '3. Point the file at sector 2. Sector 1 is now stale. It will be erased later, in the background, when there is time. There is no erase on the critical path, and the old copy survives a crash.' },
       ],
     ];
     let meth = 0, i = 0;
@@ -1017,7 +1017,7 @@
   (function () {
     const L = [
       { n: 'RAID 0', disks: [['A', 'E'], ['B', 'F'], ['C', 'G'], ['D', 'H']], cap: '100%', tol: 'none',
-        eval: (f) => f.some(Boolean) ? ['lost', 'Any failure loses the blocks on that disk. Striping has no redundancy.'] : ['ok', 'Fast, because 4 disks read and write in parallel. No redundancy at all.'] },
+        eval: (f) => f.some(Boolean) ? ['lost', 'Any failure loses the blocks on that disk. Striping has no redundancy.'] : ['ok', 'It is fast, because 4 disks read and write in parallel. However, there is no redundancy at all.'] },
       { n: 'RAID 1', disks: [['A', 'B', 'C'], ['A*', 'B*', 'C*'], null, null], cap: '50%', tol: '1 of 2',
         eval: (f) => f[0] && f[1] ? ['lost', 'Both copies are gone.'] : f[0] || f[1] ? ['deg', 'Degraded. Every block is still on the surviving mirror. Replace the disk and copy it back.'] : ['ok', 'Each block is on both disks. Reads can go to either, and each write goes to both.'] },
       { n: 'RAID 0+1', disks: [['A', 'C'], ['B', 'D'], ['A*', 'C*'], ['B*', 'D*']], cap: '50%', tol: '1 (some 2)',
@@ -1025,7 +1025,7 @@
       { n: 'RAID 1+0', disks: [['A', 'C'], ['A*', 'C*'], ['B', 'D'], ['B*', 'D*']], cap: '50%', tol: '1 (some 2)',
         eval: (f) => (f[0] && f[1]) || (f[2] && f[3]) ? ['lost', 'Both disks of one mirrored pair failed, so those blocks are gone.'] : f.some(Boolean) ? ['deg', 'Degraded but intact. Each failed disk still has its mirror partner.'] : ['ok', 'Disks 0–1 mirror each other, disks 2–3 mirror each other, and data is striped across the pairs.'] },
       { n: 'RAID 4', disks: [['A', 'D'], ['B', 'E'], ['C', 'F'], ['P', 'P']], cap: '75%', tol: '1',
-        eval: (f) => f.filter(Boolean).length >= 2 ? ['lost', 'Two disks are gone, and one parity block per stripe cannot rebuild two missing blocks.'] : f.some(Boolean) ? ['deg', f[3] ? 'Degraded. The parity disk failed. All data is still readable. Recompute parity on a new disk.' : `Degraded. Rebuild each missing block as the XOR of the survivors, e.g. ${['A', 'B', 'C'][f.indexOf(true)]} = ${['A', 'B', 'C'].filter((_, k) => !f[k]).join(' ⊕ ')} ⊕ P.`] : ['ok', 'Three data disks and one parity disk. Every write updates disk 3, so it is the bottleneck.'] },
+        eval: (f) => f.filter(Boolean).length >= 2 ? ['lost', 'Two disks are gone, and one parity block per stripe cannot rebuild two missing blocks.'] : f.some(Boolean) ? ['deg', f[3] ? 'Degraded. The parity disk failed. All data is still readable. Recompute parity on a new disk.' : `Degraded. Rebuild each missing block as the XOR of the survivors, for example ${['A', 'B', 'C'][f.indexOf(true)]} = ${['A', 'B', 'C'].filter((_, k) => !f[k]).join(' ⊕ ')} ⊕ P.`] : ['ok', 'There are three data disks and one parity disk. Every write updates disk 3, so disk 3 is the bottleneck.'] },
       { n: 'RAID 5', disks: [['A', 'D', 'G', 'P'], ['B', 'E', 'P', 'J'], ['C', 'P', 'H', 'K'], ['P', 'F', 'I', 'L']], cap: '75%', tol: '1',
         eval: (f) => f.filter(Boolean).length >= 2 ? ['lost', 'Two disks are gone. Each stripe is missing two blocks, and one parity block cannot rebuild both.'] : f.some(Boolean) ? ['deg', 'Degraded. In every stripe, the missing block (data or parity) is the XOR of the other three.'] : ['ok', 'Parity rotates across the disks, so parity writes are spread out. There is no single parity disk to overload.'] },
     ];

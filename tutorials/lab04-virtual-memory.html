@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lab04 Walkthrough · Basecamp 4</title>
-<meta name="description" content="Step-by-step walkthrough for Basecamp 4, Pages, Faults, and the Art of Eviction. It covers measuring VmRSS and minor faults in touch.c, transparent huge pages, the Couch paging simulator, designing and tuning an LRU pager, reading make check, and submitting.">
+<meta name="description" content="Step-by-step walkthrough for Basecamp 4, Pages, Faults, and the Art of Eviction. It covers measuring VmRSS and page faults with touch.c, the Couch paging simulator, designing and measuring an LRU pager, reading make check, the report, and submitting.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -44,12 +44,12 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="hero-inner">
     <div class="eyebrow"><span class="chip-t">walkthrough</span> &nbsp;Basecamp 4 · Weeks 9–13 · due Sun Mar 28</div>
     <h1>Watch the kernel page, then <span class="accent">be</span> the pager</h1>
-    <p class="lede">Part 1 measures the real kernel handing out memory lazily, one page fault at a time. Part 2 puts you inside a paging simulator. Every tick it calls your <code>pageit()</code>, and your eviction policy decides how much time 20 processes spend waiting for the disk. This page says what each piece must do, which questions your LRU has to answer each tick, and how to read the simulator's score. It never shows code for the lab files. This page, <code>check/sim/simulator.h</code>, and the file headers are the specification, and L15–L16 are the lectures behind it.</p>
+    <p class="lede">This page walks you through Lab04 step by step. In this lab, you first watch how the kernel hands memory to a program, and then you decide yourself what stays in memory. In Part 1, <code>touch.c</code> measures how much memory a program really holds before and after it uses a 64 MiB region. In Part 2, you write the eviction policy of a simulator, and the simulator measures how long 20 processes wait for the disk. This page, the header comment of each file in <code>labs/04-virtual-memory/submit/</code>, and <code>check/sim/simulator.h</code> are the specification for this lab.</p>
     <div class="steps-map">
-      <div><b>Step 0–2</b>The loop, touch.c, huge pages</div>
-      <div><b>Step 3</b>Meet the simulator</div>
-      <div><b>Step 4–5</b>Design LRU, measure and iterate</div>
-      <div><b>Step 6–7</b>make check, report, submit</div>
+      <div><b>Step 0–1</b>Get the lab and touch.c</div>
+      <div><b>Step 2</b>Meet the simulator</div>
+      <div><b>Step 3–4</b>Design your LRU, then measure it</div>
+      <div><b>Step 5–7</b>make check, report, and submit</div>
     </div>
   </div>
 </div>
@@ -57,231 +57,401 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 <div class="layout">
   <nav class="rail" aria-label="steps">
     <p class="rail-title">Steps</p>
-    <a href="#s0"><span class="n">0</span>Set up the loop</a>
+    <a href="#s0"><span class="n">0</span>Get the lab</a>
     <a href="#s1"><span class="n">1</span>touch.c</a>
-    <a href="#s2"><span class="n">2</span>Huge pages</a>
-    <a href="#s3"><span class="n">3</span>Meet the simulator</a>
-    <a href="#s4"><span class="n">4</span>Design your LRU</a>
-    <a href="#s5"><span class="n">5</span>Measure and iterate</a>
-    <a href="#s6"><span class="n">6</span>make check</a>
-    <a href="#s7"><span class="n">7</span>Report and submit</a>
+    <a href="#s2"><span class="n">2</span>Meet the simulator</a>
+    <a href="#s3"><span class="n">3</span>Design your LRU</a>
+    <a href="#s4"><span class="n">4</span>Measure and iterate</a>
+    <a href="#s5"><span class="n">5</span>make check</a>
+    <a href="#s6"><span class="n">6</span>The report</a>
+    <a href="#s7"><span class="n">7</span>Submit</a>
   </nav>
   <main>
     <details class="toc-mobile">
       <summary>Steps</summary>
       <nav>
-        <a href="#s0"><span class="n">0</span>Set up the loop</a>
+        <a href="#s0"><span class="n">0</span>Get the lab</a>
         <a href="#s1"><span class="n">1</span>touch.c</a>
-        <a href="#s2"><span class="n">2</span>Huge pages</a>
-        <a href="#s3"><span class="n">3</span>Meet the simulator</a>
-        <a href="#s4"><span class="n">4</span>Design your LRU</a>
-        <a href="#s5"><span class="n">5</span>Measure and iterate</a>
-        <a href="#s6"><span class="n">6</span>make check</a>
-        <a href="#s7"><span class="n">7</span>Report and submit</a>
+        <a href="#s2"><span class="n">2</span>Meet the simulator</a>
+        <a href="#s3"><span class="n">3</span>Design your LRU</a>
+        <a href="#s4"><span class="n">4</span>Measure and iterate</a>
+        <a href="#s5"><span class="n">5</span>make check</a>
+        <a href="#s6"><span class="n">6</span>The report</a>
+        <a href="#s7"><span class="n">7</span>Submit</a>
       </nav>
     </details>
 
 <section class="chapter" id="s0">
   <div class="ch-head">
     <div class="ch-no">Step 0</div>
-    <h2>Set up the loop</h2>
-    <p class="ch-lede">Share the whole lab directory, as in Lab03, because the simulator's sources live in <code>check/sim/</code>.</p>
+    <h2>Get the lab</h2>
+    <p class="ch-lede">Pull Lab04 into your repository, boot the VM with the whole Lab04 directory, and compile touch.c once.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">SHARE=$PWD/labs/04-virtual-memory env/run.sh</span><span class="ln"><span class="c"># VM</span></span><span class="ln">cd /share                        <span class="c"># submit/ and check/ are both here</span></span><span class="ln">gcc -Wall -Werror -O2 -o /tmp/touch submit/touch.c</span></div>
-    <div class="prose"><p>You hand in three files, all in <code>submit/</code>, namely <code>touch.c</code> (Part 1, Steps 1–2), <code>pager-lru.c</code> (Part 2, Steps 3–5), and <code>report.md</code> (Step 7). <code>check/</code> holds the check script and, in <code>check/sim/</code>, the paging simulator by Dr. Alva Couch (Tufts). Its source is open, like every check in this course.</p></div>
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>On your laptop, at the repository root, pull the new lab.</b></p>
+          <div class="code"><span class="ln">git pull upstream main</span><span class="ln">git push</span><span class="ln">ls labs/04-virtual-memory/submit     <span class="c"># pager-lru.c  report.md  touch.c</span></span></div>
+          <p>Lab04 is released in the course repository, <code>upstream</code>. <code>git pull upstream main</code> copies it into your local repository, and <code>git push</code> copies it on to your private repository on GitHub. A release never touches your <code>submit/</code> directories, so your earlier work stays as it is.</p>
+          <p>In this lab, you edit the three files below.</p>
+          <div class="table-wrap">
+            <table class="t">
+              <thead><tr><th>file</th><th>what it is</th><th>step</th></tr></thead>
+              <tbody>
+                <tr><td>touch.c</td><td>Part 1, a program that measures its own memory (C)</td><td>Step 1</td></tr>
+                <tr><td>pager-lru.c</td><td>Part 2, the eviction policy for the simulator (C)</td><td>Steps 2–4</td></tr>
+                <tr><td>report.md</td><td>three questions that you answer with your own numbers</td><td>Step 6</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>The directory <code>check/sim/</code> holds a <span class="ref" data-sec="L14 §0.2" data-title="Pages and frames" data-href="../lectures/14-paging.html#s0-2">paging<span class="ref-body">Paging cuts the memory of a process into pieces of one fixed size, called pages. Physical memory is cut into frames of the same size, and any page can go in any free frame. A typical page is 4 KiB.</span></span> simulator, written by Dr. Alva Couch at Tufts University. You compile it together with your own file, but you never change it.</p>
+        </li>
+        <li>
+          <p><b>Boot the VM, and share the whole Lab04 directory with it.</b></p>
+          <div class="code"><span class="ln">SHARE=$PWD/labs/04-virtual-memory env/run.sh</span></div>
+          <p>Run it from the repository root. The VM now sees <code>labs/04-virtual-memory</code> at <code>/share</code>, with <code>submit/</code> and <code>check/</code> inside it. This lab shares the whole lab directory, not only <code>submit/</code>, because in Step 2 you compile the simulator in <code>check/sim/</code>.</p>
+        </li>
+        <li>
+          <p><b>In the VM, compile touch.c, and run it.</b></p>
+          <div class="code"><span class="ln">cd /share</span><span class="ln">gcc -Wall -Werror -O2 -o /tmp/touch submit/touch.c</span><span class="ln">/tmp/touch</span><span class="ln hl">RSS_KB_BEFORE=-1</span><span class="ln hl">RSS_KB_AFTER=-1</span><span class="ln hl">FAULT_DELTA=0</span></div>
+          <p>These are the flags that <code>make check</code> uses. <code>-o /tmp/touch</code> puts the binary outside <code>/share</code>, because it is a build product, not part of your submission. Every <code>TODO</code> is still empty, so both readers return -1, and the difference of two -1 values is 0. From now on, you edit on your laptop, save, and then recompile and rerun in the VM.</p>
+        </li>
+      </ol>
+      <p>Lab04 opens in the week of Lecture 13. Pages, page faults, and page replacement come in Lectures 14 to 16, while you work on this lab. Therefore, a new idea is underlined with a dashed line where you first need it. Click it for a short explanation and a link to the lecture section.</p>
+    </div>
   </div>
 </section>
 
 <section class="chapter" id="s1">
   <div class="ch-head">
     <div class="ch-no">Step 1</div>
-    <h2>touch.c, watching pages materialize</h2>
-    <p class="ch-lede">The goal is to print exactly <code>RSS_KB_BEFORE=</code>, <code>RSS_KB_AFTER=</code> and <code>MINFLT_DELTA=</code>, measured around a loop that touches every page of a 64 MiB region.</p>
+    <h2>touch.c, watching pages arrive</h2>
+    <p class="ch-lede">The goal of this step is to see how much memory a program really holds after <code>malloc</code> returns, and when that amount changes. touch.c allocates a 64 MiB region, measures itself, writes one byte into every page of the region, and measures itself again. It prints exactly three lines, <code>RSS_KB_BEFORE=</code>, <code>RSS_KB_AFTER=</code>, and <code>FAULT_DELTA=</code>, each followed by a whole number.</p>
   </div>
   <div class="sec">
-    <div class="table-wrap">
-      <table class="t">
-        <thead><tr><th>TODO</th><th>what it must do</th><th>read first</th></tr></thead>
-        <tbody>
-          <tr><td>rss_kb()</td><td>Open <code>/proc/self/status</code>, find the line that starts with <code>VmRSS:</code>, and return its number (already in kB). Return -1 if anything fails.</td><td><code>man 3 fopen</code>, <code>man 3 fgets</code>, <code>man 3 sscanf</code>. It is the Lab00 job, now in C.</td></tr>
-          <tr><td>minflt()</td><td>Open <code>/proc/self/stat</code> and return field 10, the minor-fault count. Return -1 on failure.</td><td><code>man 5 proc</code> for the fields, and <code>man 3 fscanf</code> and how to read a field without keeping it.</td></tr>
-          <tr><td>the touch loop</td><td>Touch one byte in every <code>PAGE</code>-sized chunk of <code>region</code>, which is 64 MiB / 4096 = 16,384 touches.</td><td>Which kind of access makes the kernel give you a page of your own? Try both a read and a write, and compare RSS.</td></tr>
-        </tbody>
-      </table>
+    <div class="two-up" style="align-items: start;">
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>On your laptop, read the header of <code>touch.c</code>.</b></p>
+          <p>There are three <code>TODO</code>s, namely two readers, <code>rss_kb()</code> and <code>faults()</code>, and the loop in <code>main</code>. <code>main</code> already allocates the region and prints the three lines, so you write only the parts marked <code>TODO</code>.</p>
+        </li>
+        <li>
+          <p><b>In the VM, look at the two values that the readers parse.</b></p>
+          <div class="code"><span class="ln">grep VmRSS /proc/self/status</span><span class="ln hl">VmRSS:	    1792 kB</span><span class="ln">awk '{print $10 + $12}' /proc/self/stat</span><span class="ln hl">119</span></div>
+          <p><code>/proc/self</code> is the <code>/proc</code> directory of whichever process reads it. Here that is <code>grep</code> or <code>awk</code>, and inside touch.c it is touch itself. The <code>VmRSS:</code> line gives the size of the <span class="ref" data-sec="L15 §0.4" data-title="Resident set" data-href="../lectures/15-virtual-memory.html#s0-4">resident set<span class="ref-body">The resident set of a process is the part of its memory that is in RAM right now. Its size is the resident set size, RSS. A process can own pages that are not in RAM, and Lecture 15 explains why.</span></span> in kB. Fields 10 and 12 of the stat file together count the process's <span class="ref" data-sec="L15 §1.1" data-title="Page faults" data-href="../lectures/15-virtual-memory.html#s1-1">page faults<span class="ref-body">A page fault is a trap that the MMU raises when a program touches a page whose page-table entry is invalid. The kernel handles it in six steps, and then it restarts the instruction, which now finds the page.</span></span> since the process started. Your numbers differ.</p>
+        </li>
+        <li>
+          <p><b>Write <code>rss_kb()</code>.</b></p>
+          <p>Open <code>/proc/self/status</code>, find the line that starts with <code>VmRSS:</code>, and return its number. The number is already in kB. Return -1 if the file does not open or no line matches, and close the file before you return. Read <a href="https://man7.org/linux/man-pages/man3/fopen.3.html" target="_blank" rel="noopener">fopen(3)</a>, <a href="https://man7.org/linux/man-pages/man3/fgets.3.html" target="_blank" rel="noopener">fgets(3)</a>, and <a href="https://man7.org/linux/man-pages/man3/sscanf.3.html" target="_blank" rel="noopener">sscanf(3)</a> first. <code>fgets</code> reads one line at a time. <code>sscanf</code> parses a string with a format, and its return value says how many values it parsed. <a href="https://man7.org/linux/man-pages/man5/proc_pid_status.5.html" target="_blank" rel="noopener">proc_pid_status(5)</a> describes every line of the file.</p>
+        </li>
+        <li>
+          <p><b>Write <code>faults()</code>.</b></p>
+          <p>Open <code>/proc/self/stat</code>, and return field 10 plus field 12. Return -1 on failure. The stat file is one line of fields separated by spaces, and the header explains why splitting on spaces is safe for this program. Read <a href="https://man7.org/linux/man-pages/man3/fscanf.3.html" target="_blank" rel="noopener">fscanf(3)</a>, which reads from a file with the same formats as <code>sscanf</code>. The formats are described in sscanf(3), including how a conversion can read a field without storing it.</p>
+        </li>
+      </ol>
     </div>
-    <div class="prose"><p><b>How to check it yourself</b> (with huge pages off, see Step 2) is shown below.</p></div>
-    <div class="code"><span class="ln">echo never &gt; /sys/kernel/mm/transparent_hugepage/enabled</span><span class="ln">/tmp/touch</span><span class="ln"><span class="c"># BEFORE: a few thousand kB. AFTER: about 65,536 kB more. DELTA: about 16,384.</span></span></div>
-    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>A value of -1.</b> That reader failed to open or parse. Print the line it found. <b>MINFLT_DELTA about 16,384 but RSS barely grows.</b> Your touch reads instead of writing. Reading an untouched page does not give the process a page of its own. Why not is a good sentence for report question 1. <b>MINFLT_DELTA of only a few hundred.</b> Huge pages are still on (Step 2). <b>RSS_KB_BEFORE already about 65,000.</b> Something touched the region before the first measurement.</p></div>
+    <figure class="fig">
+      <div class="code"><span class="ln"><span class="c"># the finished touch.c</span></span><span class="ln">/tmp/touch</span><span class="ln hl">RSS_KB_BEFORE=1024</span><span class="ln hl">RSS_KB_AFTER=66816</span><span class="ln hl">FAULT_DELTA=16384</span></div>
+      <figcaption><span class="fno">Fig. 1.1</span>Sample output in the VM. Your numbers differ slightly from run to run. RSS grows by about 65,536 kB, which is 64 MiB, and there is about one page fault per 4 KiB page. <code>make check</code> requires a growth of at least 60,000 kB and at least 14,000 faults.</figcaption>
+    </figure>
+    </div>
+    <div class="prose">
+      <ol start="5">
+        <li>
+          <p><b>Recompile, and run touch before you write the loop.</b></p>
+          <div class="code"><span class="ln">gcc -Wall -Werror -O2 -o /tmp/touch submit/touch.c</span><span class="ln">/tmp/touch</span><span class="ln hl">RSS_KB_BEFORE=1024</span><span class="ln hl">RSS_KB_AFTER=1280</span><span class="ln hl">FAULT_DELTA=2</span></div>
+          <p>Both readers now return positive numbers. However, nothing writes into the region yet, so AFTER is close to BEFORE, and FAULT_DELTA is small.</p>
+        </li>
+        <li>
+          <p><b>Write the loop, recompile, and run touch again.</b></p>
+          <p>Write one byte into every <code>PAGE</code>-sized chunk of <code>region</code>. That is 64 MiB / 4096 B = 16,384 writes. Your output should now look like Fig. 1.1.</p>
+        </li>
+      </ol>
+    </div>
+    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>A value of -1.</b> That reader failed to open the file or to parse it. Print the line it found. <b>AFTER is close to BEFORE.</b> The loop does not write into the region. <b>RSS_KB_BEFORE is already about 65,000.</b> Something touched the region before the first measurement.</p></div>
+    <details class="fold"><summary>Look deeper (ungraded). Transparent huge pages.</summary><div class="prose">
+      <p><a href="../lectures/14-paging.html#s2-1">L14 §2.1</a> mentions that pages larger than 4 KB, called huge pages, also exist. Real Linux can back a large region like yours with huge pages of 2 MB on its own, which it calls transparent huge pages. The course VM turns them off when it boots, so that one page fault brings in one 4 KiB page, as in Lecture 15. Nothing in <code>make check</code> or the report uses this fold.</p>
+      <ol>
+        <li>
+          <p><b>In the VM, turn huge pages on, and run touch.</b></p>
+          <div class="code"><span class="ln">echo always &gt; /sys/kernel/mm/transparent_hugepage/enabled</span><span class="ln">/tmp/touch</span><span class="ln hl">RSS_KB_BEFORE=1024</span><span class="ln hl">RSS_KB_AFTER=66740</span><span class="ln hl">FAULT_DELTA=543</span></div>
+          <p>The file under <code>/sys/kernel/mm/</code> is a kernel setting, and you are root in the VM, so the write is allowed.</p>
+        </li>
+        <li>
+          <p><b>Turn them off again, and run touch.</b></p>
+          <div class="code"><span class="ln">echo never &gt; /sys/kernel/mm/transparent_hugepage/enabled</span><span class="ln">/tmp/touch</span><span class="ln hl">RSS_KB_BEFORE=1024</span><span class="ln hl">RSS_KB_AFTER=66816</span><span class="ln hl">FAULT_DELTA=16384</span></div>
+          <p>The same 64 MiB became resident in both runs, with about 30 times fewer faults when huge pages are on. A 64 MiB region holds only 32 pieces of 2 MB. The count is larger because the region that <code>malloc</code> returns does not start on a 2 MB boundary, so its two ends still fault in 4 KiB at a time.</p>
+        </li>
+      </ol>
+    </div></details>
   </div>
 </section>
 
 <section class="chapter" id="s2">
   <div class="ch-head">
     <div class="ch-no">Step 2</div>
-    <h2>Transparent huge pages, with two true answers</h2>
-    <p class="ch-lede">No code. Measure both settings and keep both sets of numbers for the report.</p>
+    <h2>Meet the simulator</h2>
+    <p class="ch-lede">The goal of this step is to learn what the simulator models, what your <code>pageit()</code> can see and do, and how badly a simple policy scores. You build and run the baseline pager that comes with the simulator. There is no code to write in this step.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln">cat /sys/kernel/mm/transparent_hugepage/enabled     <span class="c"># the default; brackets mark the active value</span></span><span class="ln">/tmp/touch                                          <span class="c"># run 1: huge pages as booted</span></span><span class="ln">echo never &gt; /sys/kernel/mm/transparent_hugepage/enabled</span><span class="ln">/tmp/touch                                          <span class="c"># run 2: one fault per 4 KiB page</span></span></div>
     <div class="prose">
-      <ul>
-        <li>Compare the two MINFLT_DELTA values. Their ratio should be close to the number of 4 KiB pages in one 2 MiB page. Compute that number and check.</li>
-        <li>Compare the two RSS growths. Are they different?</li>
-        <li>The setting is not saved, so every boot starts from the default. <code>make check</code> turns it off itself before running touch.</li>
-      </ul>
+      <p>In Part 2, you play the part of the kernel's page-fault handler. The simulator runs 20 processes at the same time. Each process has an address space of 20 pages, and each page holds 128 instructions. The programs use between 4 and 15 of those pages, and all 20 processes share only <strong>100 physical frames</strong>. Therefore, the processes together need about twice as many pages as fit in memory. On every tick, each process whose current page is in memory runs one instruction, and each process whose page is not in memory is blocked. Then the simulator calls your <code>pageit()</code>. To <span class="ref" data-sec="L15 §1.2" data-title="Page in, page out" data-href="../lectures/15-virtual-memory.html#s1-2">page in<span class="ref-body">A page that is not in RAM lives in swap space, a disk area reserved as backing store. Paging in reads a page from there into a free frame. In this simulator every page out is a write to swap that takes 100 ticks, as if every victim were dirty (L15 §3.2).</span></span> or page out one page takes <strong>100 ticks</strong>. The score is the total number of blocked ticks divided by the total number of compute ticks. Lower is better.</p>
+      <ol>
+        <li>
+          <p><b>In the VM, build the simulator with the baseline pager.</b></p>
+          <div class="code"><span class="ln">cd /share</span><span class="ln">gcc -Wall -Werror -O2 -Icheck/sim -o /tmp/test-basic \</span><span class="ln">    check/sim/simulator.c check/sim/programs.c check/sim/pager-basic.c</span></div>
+          <p>gcc compiles the three files and links them into one program. <code>simulator.c</code> is the simulator, <code>programs.c</code> holds the programs that the processes run, and <code>pager-basic.c</code> holds a <code>pageit()</code>. <code>-Icheck/sim</code> tells gcc to look for header files in <code>check/sim</code> as well, so that <code>#include "simulator.h"</code> finds the header. The backslash at the end of the first line continues the command on the next line.</p>
+        </li>
+      </ol>
     </div>
+    <div class="two-up" style="align-items: start;">
+    <div class="prose">
+      <ol start="2">
+        <li>
+          <p><b>Run it with seed 1, and keep only the score.</b></p>
+          <div class="code"><span class="ln">/tmp/test-basic -seed 1 2&gt;&amp;1 | grep ratio</span><span class="ln hl">01713657: ratio blocked/compute=15.2964</span></div>
+          <p>A run takes about 5 seconds. The simulator writes everything to stderr, not to stdout. <code>2&gt;&amp;1</code> sends stderr to the same place as stdout, so that the pipe hands it to <code>grep</code>. Each line starts with the tick at which it was written. The seed fixes every random choice in the run. Therefore, the same seed gives exactly the same run and the same ratio, every time.</p>
+        </li>
+        <li>
+          <p><b>Run seeds 2 and 3, and look at a whole run once.</b></p>
+          <div class="code"><span class="ln">/tmp/test-basic -seed 2 2&gt;&amp;1 | grep ratio</span><span class="ln">/tmp/test-basic -seed 3 2&gt;&amp;1 | grep ratio</span><span class="ln">/tmp/test-basic -seed 1</span></div>
+          <p>The baseline scores about 15 on all three seeds, as Fig. 2.1 shows. Write the three ratios down, because report question 2 compares your pager with them. The flag <code>-help</code> lists the other flags, and Step 4 uses two of them.</p>
+        </li>
+      </ol>
+    </div>
+    <figure class="fig">
+      <div class="code"><span class="ln">/tmp/test-basic -seed 1</span><span class="ln hl">00000000: random seed 1</span><span class="ln hl">00000000: using 20 processors</span><span class="ln hl">01713657: simulation ends</span><span class="ln hl">01713657: 25552000 blocked cycles</span><span class="ln hl">01713657: 1670456 compute cycles</span><span class="ln hl">01713657: ratio blocked/compute=15.2964</span></div>
+      <figcaption><span class="fno">Fig. 2.1</span>A whole run of the baseline in the VM. Seeds 2 and 3 score 14.4419 and 14.8992.</figcaption>
+    </figure>
+    </div>
+    <div class="prose">
+      <ol start="4">
+        <li>
+          <p><b>On your laptop, read <code>check/sim/simulator.h</code>, and check the interface below against it.</b></p>
+          <p><code>pageit(Pentry q[MAXPROCESSES])</code> receives one entry per process slot, as the table below shows.</p>
+        </li>
+      </ol>
+    </div>
+    <div class="table-wrap">
+      <table class="t">
+        <thead><tr><th>field</th><th>meaning</th></tr></thead>
+        <tbody>
+          <tr><td>active</td><td>1 if a process runs in this slot, 0 if the slot is empty</td></tr>
+          <tr><td>pc</td><td>the program counter. The page that the process needs now is <code>pc / PAGESIZE</code>.</td></tr>
+          <tr><td>npages</td><td>the number of pages in the process's address space, 20 while it is active</td></tr>
+          <tr><td>pages[]</td><td>1 if the page is in memory, 0 if it is not. A 0 covers three situations, namely out, going out, and coming in. The map alone cannot tell them apart.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p>You act through two functions, <code>pagein(proc, page)</code> and <code>pageout(proc, page)</code>. Both return 1 if the operation starts, is already underway, or is already done. Both return 0 if it cannot start. <code>pagein</code> cannot start when no frame is free, or when the page is still going out. <code>pageout</code> cannot start when the page is still coming in. An operation completes 100 ticks after it starts, and a frame that a pageout frees is free only then. When <code>pagein</code> returns 0 because memory is full, your pager must choose a <span class="ref" data-sec="L15 §3.1" data-title="The replacement mechanism" data-href="../lectures/15-virtual-memory.html#s3-1">victim<span class="ref-body">When no frame is free, a page fault needs page replacement. The kernel picks a victim page, writes it out if needed, marks it not present, and reads the wanted page into the freed frame.</span></span> to page out.</p>
+      <ol start="5">
+        <li>
+          <p><b>Read <code>check/sim/pager-basic.c</code>, and find out why it scores so badly.</b></p>
+          <p>Read its loop. For one tick, count how many processes it can serve. Then check whether it ever frees a frame. The flag <code>-page</code> logs every pagein and pageout that a run starts, so <code>grep</code> on its output counts them. Report question 2 asks for this explanation.</p>
+        </li>
+        <li>
+          <p><b>Read the five program shapes below.</b></p>
+          <p>The simulator runs 40 processes in total, at most 20 at a time. It gives them the five shapes in turn, so each shape runs 8 times. A <code>run n</code> executes n instructions in a row.</p>
+        </li>
+      </ol>
+    </div>
+    <div class="code"><span class="ln">1: loop w/ branch      2: one loop       3: doubly nested</span><span class="ln">   for 10 30              for 20 50         for 10 20</span><span class="ln">     run 500                run 1129          run 1166</span><span class="ln">     if .4                end                 for 10 20</span><span class="ln">       run 900            exit                  run 516</span><span class="ln">     else                                     end</span><span class="ln">       run 131         4: linear            end</span><span class="ln">     endif                run 1911          exit</span><span class="ln">   end                    exit</span><span class="ln">   exit                5: probabilistic backward branch</span><span class="ln">                          for 10 20</span><span class="ln">                            label: run 500</span><span class="ln">                            if .5 goto label</span><span class="ln">                          end</span><span class="ln">                          exit</span></div>
+    <div class="prose"><p>Which branches fire, and how many iterations run, depend on the seed. Therefore, you can never predict one execution, only its shape. The shapes matter mostly for report question 3. For LRU, you need only one assumption, namely <span class="ref" data-sec="L15 §0.2" data-title="Locality of reference" data-href="../lectures/15-virtual-memory.html#s0-2">locality<span class="ref-body">Most programs reuse the pages they referenced recently. Loops run through the same instructions again and again, and execution is mostly linear. Therefore, the recent past is a good guess about the near future, most of the time.</span></span>.</p></div>
   </div>
 </section>
 
 <section class="chapter" id="s3">
   <div class="ch-head">
     <div class="ch-no">Step 3</div>
-    <h2>Meet the simulator</h2>
-    <p class="ch-lede">Before writing a policy, get the baseline score and learn what your function can see and do.</p>
+    <h2>Design your LRU</h2>
+    <p class="ch-lede">The goal of this step is to turn the <span class="ref" data-sec="L16 §1.1" data-title="LRU" data-href="../lectures/16-paging-policy.html#s1-1">LRU<span class="ref-body">Least-recently-used replacement evicts the page that has gone unused for the longest time. It uses the past as a guess about the future, so it needs the time of last use of every page.</span></span> policy into code. Your <code>pageit()</code> keeps the page that each active process needs in memory as often as it can. When it must evict, it evicts the least recently used page.</p>
   </div>
   <div class="sec">
     <div class="prose">
-      <p>In Part 2 you switch roles. You are the page-fault handler. The simulator runs 20 concurrent processes over 400 virtual pages with only <strong>100 physical frames</strong>, and it calls your <code>pageit()</code> every tick. One instruction costs 1 tick, and one swap-in or one swap-out costs <strong>100 ticks</strong>. Your score is the ratio of blocked ticks to compute ticks, that is, time spent waiting on paging versus useful work.</p>
-      <p>Grading uses the default constants in <code>simulator.h</code>, namely 20 processes × 20 virtual pages, 100 physical frames, <code>PAGESIZE</code> 128, and <code>PAGEWAIT</code> 100. <code>check/sim/pager-basic.c</code> is provided and readable. It is your baseline, and on our reference VM it scores about 15. The simulator is seeded and exactly deterministic. The same seed gives the same ratio, every time.</p>
+      <ol>
+        <li>
+          <p><b>On your laptop, open <code>submit/pager-lru.c</code>, and delete the placeholder.</b></p>
+          <p>Delete the <code>fprintf</code> and <code>exit</code> lines, which only make the empty skeleton compile. Keep <code>tick++</code> as the last thing the function does on every path. A <code>return</code> in the middle that skips it freezes your clock. The skeleton declares <code>initialized</code>, <code>tick</code>, and <code>timestamps</code> as <code>static</code>. A <code>static</code> variable inside a function keeps its value from one call to the next, so your pager remembers what it saw on earlier ticks.</p>
+        </li>
+        <li>
+          <p><b>Decide how <code>pageit()</code> does each of the four jobs below, before you write it.</b></p>
+          <p>Each call is one tick. On every tick, your function has four jobs.</p>
+        </li>
+      </ol>
     </div>
-    <div class="code"><span class="ln">gcc -Wall -Werror -O2 -Icheck/sim -o /tmp/test-basic \</span><span class="ln">    check/sim/simulator.c check/sim/programs.c check/sim/pager-basic.c</span><span class="ln">/tmp/test-basic -seed 1 2&gt;&amp;1 | grep ratio   <span class="c"># ratio blocked/compute=… (about 15)</span></span><span class="ln">/tmp/test-basic -help                          <span class="c"># the other flags</span></span></div>
-    <div class="prose"><p>The simulator writes everything, the score included, to <strong>stderr</strong>, hence the <code>2&gt;&amp;1</code> before any pipe. Read <code>check/sim/simulator.h</code> and <code>pager-basic.c</code>, then make sure you can answer the questions below from the source, not from memory.</p></div>
     <div class="table-wrap">
       <table class="t">
-        <thead><tr><th>question</th><th>where the answer is</th></tr></thead>
+        <thead><tr><th>job</th><th>the question you must answer</th></tr></thead>
         <tbody>
-          <tr><td>Which page does process <code>p</code> need right now?</td><td>its <code>pc</code> and <code>PAGESIZE</code></td></tr>
-          <tr><td>What does <code>pages[k] == 0</code> mean? Name all three situations.</td><td>the interface reference below</td></tr>
-          <tr><td>When does <code>pagein</code> return 0, and what does that tell you about free frames?</td><td>the interface reference below, and the comment in <code>simulator.h</code></td></tr>
-          <tr><td>How long after <code>pageout</code> is the frame free again?</td><td><code>PAGEWAIT</code></td></tr>
-          <tr><td>Why does pager-basic score so badly?</td><td>its comment, which says how many processes and pages it allows at once</td></tr>
-          <tr><td>What keeps a value alive from one call of <code>pageit</code> to the next?</td><td>the <code>static</code> variables in the skeleton</td></tr>
+          <tr><td>1 · record use</td><td>Which (process, page) pairs are in use on this tick? The skeleton's <code>timestamps</code> array and <code>tick</code> counter store <span class="ref" data-sec="L16 §3.1" data-title="Exact LRU with timestamps" data-href="../lectures/16-paging-policy.html#s3-1">when each page was last used<span class="ref-body">One way to implement exact LRU is to store the time of last use with every page. At replacement time, the page with the oldest time is the victim. A real kernel cannot afford this on every memory reference. Your pager runs once per tick, so it can.</span></span>.</td></tr>
+          <tr><td>2 · request</td><td>For each active process whose needed page is not in memory, ask for it.</td></tr>
+          <tr><td>3 · make room</td><td>If the request cannot start, choose a victim. It is the page in memory with the <em>oldest</em> timestamp (<a href="../lectures/16-paging-policy.html#s1-1">L16 §1.1</a>). Never choose a page that some process needs right now.</td></tr>
+          <tr><td>4 · in flight</td><td>A swap takes 100 ticks, and the page map cannot tell "going out" from "coming in" from "out". What stops your function from choosing the same victim again on the next tick? Does it matter?</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="prose"><p><b>Interface reference.</b> <code>simulator.h</code> declares the types and the three functions. <code>pageit(Pentry q[MAXPROCESSES])</code> receives one entry per process, as the table below shows.</p></div>
-    <div class="table-wrap">
-      <table class="t">
-        <thead><tr><th>field</th><th>meaning</th></tr></thead>
-        <tbody>
-          <tr><td>active</td><td>1 running, 0 exited</td></tr>
-          <tr><td>pc</td><td>the program counter. The page the process needs is <code>pc / PAGESIZE</code></td></tr>
-          <tr><td>npages</td><td>pages in the process's space (20 while active)</td></tr>
-          <tr><td>pages[]</td><td>the page map, with 1 swapped in and 0 not. A 0 covers three situations, namely out, going out, or coming in. The map alone does not distinguish them. If your policy needs to know about in-flight operations, track them yourself.</td></tr>
-        </tbody>
-      </table>
+    <div class="prose">
+      <ol start="3">
+        <li>
+          <p><b>Write the four jobs, then go on to Step 4 to build and run your pager.</b></p>
+        </li>
+      </ol>
     </div>
-    <div class="prose"><p>You act through <code>pagein(proc, page)</code> and <code>pageout(proc, page)</code>. Both return 1 if the operation starts, is already underway, or is already done. Both return 0 if it cannot start, because there is no free frame or the page is mid-swap the other way. An operation completes 100 ticks after it starts.</p>
-    <p><b>The programs being paged.</b> The simulator runs 40 processes in total, at most 20 at a time. Each is drawn randomly from five known program shapes, listed below.</p></div>
-    <div class="code"><span class="ln">1: loop w/ branch      2: one loop       3: doubly nested</span><span class="ln">   for 10 30              for 20 50         for 10 20</span><span class="ln">     run 500                run 1129          run 1166</span><span class="ln">     if .4                end                 for 10 20</span><span class="ln">       run 900            exit                  run 516</span><span class="ln">     else                                     end</span><span class="ln">       run 131         4: linear            end</span><span class="ln">     endif                run 1911          exit</span><span class="ln">   end                    exit</span><span class="ln">   exit                5: probabilistic backward branch</span><span class="ln">                          for 10 20</span><span class="ln">                            label: run 500</span><span class="ln">                            if .5 goto label</span><span class="ln">                          end</span><span class="ln">                          exit</span></div>
-    <div class="prose"><p>Which branches fire and how many iterations run depend on the seed. Therefore, you can never predict an execution, only its probabilistic shape. The shapes matter mostly for the stretch in Step 7 and for report question 4. For LRU, you need only one assumption, namely that the recent past predicts the near future <em>most</em> of the time.</p></div>
   </div>
 </section>
 
 <section class="chapter" id="s4">
   <div class="ch-head">
     <div class="ch-no">Step 4</div>
-    <h2>Design your LRU</h2>
-    <p class="ch-lede">The goal is that <code>pageit()</code> keeps every active process's needed page in memory as often as it can, and when it must evict, it evicts the least recently used page.</p>
+    <h2>Measure and iterate</h2>
+    <p class="ch-lede">The goal of this step is to score your pager the way <code>make check</code> does, and to improve it until it passes with margin. <code>make check</code> averages the ratios of seeds 1, 2, and 3, and the average must be below <strong>1.28</strong>.</p>
   </div>
   <div class="sec">
     <div class="prose">
-      <p>Each call is one tick. On every tick your function has four jobs. Decide how you will do each one before you write it.</p>
+      <ol>
+        <li>
+          <p><b>In the VM, build the simulator with your pager.</b></p>
+          <div class="code"><span class="ln">gcc -Wall -Werror -O2 -Icheck/sim -o /tmp/test-lru \</span><span class="ln">    check/sim/simulator.c check/sim/programs.c submit/pager-lru.c</span></div>
+          <p>Run it in <code>/share</code>. This is the build from Step 2, with your file in place of <code>pager-basic.c</code>. <code>make check</code> builds it with the same flags.</p>
+        </li>
+        <li>
+          <p><b>Score seeds 1, 2, and 3.</b></p>
+          <div class="code"><span class="ln">for s in 1 2 3; do /tmp/test-lru -seed $s 2&gt;&amp;1 | grep ratio; done</span></div>
+          <p>The <code>for</code> loop runs the command once for each value of <code>s</code>, so it prints three ratio lines. A working LRU finishes each run in well under a second. Compute the average of the three ratios, and compare it with the table below.</p>
+        </li>
+        <li>
+          <p><b>Run seed 1 twice, and check that the two ratios are identical.</b></p>
+          <div class="code"><span class="ln">for i in 1 2; do /tmp/test-lru -seed 1 2&gt;&amp;1 | grep ratio; done</span></div>
+          <p>The simulator is deterministic. Therefore, if the two lines differ, your pager is the cause.</p>
+        </li>
+      </ol>
+      <p>The course that this lab comes from graded this ratio, averaged over several seeds, in the bands below.</p>
     </div>
     <div class="table-wrap">
       <table class="t">
-        <thead><tr><th>job</th><th>the question you must answer</th></tr></thead>
+        <thead><tr><th>average ratio</th><th>verdict</th></tr></thead>
         <tbody>
-          <tr><td>1 · record use</td><td>Which (process, page) pairs are in use on this tick? The skeleton's <code>timestamps</code> array and <code>tick</code> counter exist to store "when was this page last used".</td></tr>
-          <tr><td>2 · request</td><td>For each active process whose needed page is not in memory, ask for it.</td></tr>
-          <tr><td>3 · make room</td><td>If the request cannot start, choose a victim. It is the page with the <em>oldest</em> timestamp, but among which pages? Only this process's (local), or all processes' (global)? Local means each process evicts its own pages. If you choose it, consider reserving frames per process. This is your design decision, and report question 2 asks you to defend it. Never choose a page someone needs right now.</td></tr>
-          <tr><td>4 · in flight</td><td>A swap takes 100 ticks, and the page map cannot tell "going out" from "coming in" from "out". What stops your function from choosing the same victim again on the next tick? Does it matter?</td></tr>
+          <tr><td>5.12 or more</td><td>worse than useless</td></tr>
+          <tr><td>2.56 to 5.12</td><td>barely paging</td></tr>
+          <tr><td>1.28 to 2.56</td><td>getting there</td></tr>
+          <tr><td>0.64 to 1.28</td><td><strong>passes make check</strong></td></tr>
+          <tr><td>0.32 to 0.64</td><td>good LRU</td></tr>
+          <tr><td>below 0.32</td><td>excellent</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="note"><span class="note-tag">Before you write it</span><p>Delete the three placeholder lines in the skeleton (the <code>fprintf</code> and <code>exit</code>), and keep <code>tick++</code> as the last thing the function does on every path. A <code>return</code> in the middle that skips it freezes your clock.</p></div>
+    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>"pager-lru not yet implemented".</b> The placeholder lines are still there. <b>The run never ends.</b> Stop it with Ctrl-C, namely press Control and c together. The simulator then prints the state of every page and exits. Rerun it with <code>-dead</code>. If it prints "All needed pages swapped out!" on every tick, then every process is waiting for a page that nobody brings in, and the simulator waits forever. Your function evicted without requesting, or requested nothing. <b>Two runs with the same seed differ.</b> The policy uses something that is not repeatable, such as <code>rand()</code>, the time, or an uninitialized variable. <b>A score around 5 or more.</b> Eviction barely works. Check that job 1 really updates the timestamps, and that job 3 picks the smallest one. <b>It is merely slow.</b> <code>make check</code> gives each run 120 seconds. Look for a loop inside <code>pageit</code> that keeps searching when no victim exists.</p></div>
+    <details class="fold"><summary>Look deeper (ungraded). Watch your policy think.</summary><div class="prose">
+      <p><code>-block</code> logs every time a process blocks and unblocks, and <code>-page</code> logs every pagein and pageout, each with its tick. Follow one process, for example the process in slot 3.</p>
+      <div class="code"><span class="ln">/tmp/test-lru -seed 1 -block -page 2&gt;&amp;1 | grep 'process= 3 ' | head -40</span></div>
+      <p>How long does it wait for each page? Does it wait for the same page over and over? The second pattern means that your policy evicts pages that come back soon. <code>-csv</code> writes the same events to <code>output.csv</code> and <code>pages.csv</code> in the current directory, for plotting. Run it from <code>/tmp</code>, so that the files stay out of your lab directory.</p>
+    </div></details>
+    <details class="fold"><summary>Stretch (ungraded). Replace LRU with clock.</summary><div class="prose">
+      <p>Copy your pager to <code>/tmp/pager-clock.c</code> and replace LRU with the <a href="../lectures/16-paging-policy.html#s3-2">clock algorithm of L16 §3.2</a>, treating the page each process needs on a tick as referenced. Build it the same way as <code>test-lru</code>, and compare its ratio with your LRU.</p>
+    </div></details>
   </div>
 </section>
 
 <section class="chapter" id="s5">
   <div class="ch-head">
     <div class="ch-no">Step 5</div>
-    <h2>Measure and iterate</h2>
+    <h2>make check, and reading a failure</h2>
+    <p class="ch-lede"><code>make check</code> runs the same checks that grading runs, in a fresh VM. Therefore, a pass on your laptop is a pass in grading.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln">gcc -Wall -Werror -O2 -Icheck/sim -o /tmp/test-lru \</span><span class="ln">    check/sim/simulator.c check/sim/programs.c submit/pager-lru.c</span><span class="ln">for s in 1 2 3; do /tmp/test-lru -seed $s 2&gt;&amp;1 | grep ratio; done   <span class="c"># make check averages these three</span></span><span class="ln">for i in 1 2; do /tmp/test-lru -seed 1 2&gt;&amp;1 | grep ratio; done         <span class="c"># must be identical</span></span></div>
-    <div class="prose"><p>The legacy course graded this ratio, averaged over several seeds. Use its bands, listed below, to see where your average stands.</p></div>
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>On your laptop, at the repository root, run the checks.</b></p>
+          <div class="code"><span class="ln">make check LAB=04-virtual-memory</span></div>
+          <p>It boots a fresh VM, compiles both files, runs touch once, and runs your pager on seeds 1 to 3. On our test machine, the whole run takes about 10 seconds.</p>
+        </li>
+        <li>
+          <p><b>Read the result.</b></p>
+          <p>If every check passes, the last line ends with <code>status=pass passes=12 fails=0</code>. With the files as released, 6 checks pass and 6 fail. <code>boot</code>, <code>proc-mounted</code>, and <code>gcc</code> check the VM, not your files. If one of them fails, go back to Lab00 Step 1. Each other check points to one step on this page, as the table below shows.</p>
+        </li>
+      </ol>
+    </div>
     <div class="table-wrap">
       <table class="t">
-        <thead><tr><th>avg ratio</th><th>verdict</th></tr></thead>
+        <thead><tr><th>check</th><th>what it tests</th><th>go back to</th></tr></thead>
         <tbody>
-          <tr><td>≥ 5.12</td><td>worse than useless</td></tr>
-          <tr><td>2.56 – 5.12</td><td>barely paging</td></tr>
-          <tr><td>1.28 – 2.56</td><td>getting there</td></tr>
-          <tr><td>0.64 – 1.28</td><td><strong>the checks' passing bar</strong></td></tr>
-          <tr><td>0.32 – 0.64</td><td>good LRU</td></tr>
-          <tr><td>&lt; 0.32</td><td>excellent, reference territory</td></tr>
+          <tr><td>missing-touch.c, missing-pager-lru.c</td><td>the file exists in <code>submit/</code>, and if one is missing, the checker stops there</td><td>Step 0</td></tr>
+          <tr><td>report-present</td><td><code>report.md</code> is not empty</td><td>Step 6</td></tr>
+          <tr><td>touch-compiles</td><td><code>gcc -Wall -Werror -O2</code> succeeds</td><td>Step 1, item 5</td></tr>
+          <tr><td>touch-rss</td><td>BEFORE is at least 0, and AFTER minus BEFORE is at least 60,000 kB</td><td>Step 1, items 3 and 6</td></tr>
+          <tr><td>touch-faults</td><td>FAULT_DELTA is at least 14,000</td><td>Step 1, items 4 and 6</td></tr>
+          <tr><td>pager-compiles</td><td>your pager builds with the simulator, with <code>-Wall -Werror -O2</code></td><td>Step 4, item 1</td></tr>
+          <tr><td>pager-runs</td><td>seed 1 finishes within 120 s and prints a ratio</td><td>Step 4, the symptoms</td></tr>
+          <tr><td>deterministic</td><td>two runs of seed 1 print the same ratio</td><td>Step 4, item 3</td></tr>
+          <tr><td>beats-baseline</td><td>the ratio of seed 1 is below 5.12</td><td>Step 3</td></tr>
+          <tr><td>lru-works</td><td>the average ratio of seeds 1 to 3 is below 1.28</td><td>Steps 3–4</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="prose"><p><code>make check</code> requires the average over seeds 1–3 to be below <strong>1.28</strong>, and an honest LRU clears that several times over. Only the score matters to the check, so once you pass, the local vs global choice is yours to explore. Try both and report what you saw.</p></div>
-    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>"pager-lru not yet implemented".</b> The placeholder lines are still there. <b>The run never ends.</b> Rerun with <code>-dead</code>. If it prints "All needed pages swapped out!", then at some tick every process was waiting and nothing was coming in, and the simulator will wait forever. Your function evicted without requesting, or requested nothing. Stop it with Ctrl-C. <b>Two runs with the same seed differ.</b> The policy uses something that is not repeatable, such as <code>rand()</code>, the time, or an uninitialized variable. <b>A score around 5 or more.</b> Eviction is barely working. Check that job 1 really updates the timestamps, and that job 3 picks the smallest one. <b>It is merely slow.</b> <code>make check</code> gives each run 120 seconds. Look for a loop inside <code>pageit</code> that keeps searching when no victim exists.</p></div>
-    <details class="fold"><summary>Seeing your policy think</summary><div class="prose"><p><code>-block</code> logs every block and unblock with its tick, and <code>-page</code> every pagein and pageout, as in <code>/tmp/test-lru -seed 1 -block -page 2&gt;&amp;1 | head -80</code>. Follow one process. How long does it wait for each page, and is it waiting for the same page over and over? The second pattern means you are evicting pages that come back soon. (<code>-csv</code> writes the same events to <code>output.csv</code> and <code>pages.csv</code> in the current directory, for plotting.)</p></div></details>
+    <div class="prose">
+      <p>Note that <code>report-present</code> passes as soon as <code>report.md</code> is not empty, and the file already holds the three questions. Therefore, this check passing does not mean your report is done.</p>
+    </div>
   </div>
 </section>
 
 <section class="chapter" id="s6">
   <div class="ch-head">
     <div class="ch-no">Step 6</div>
-    <h2>make check, and reading a failure</h2>
+    <h2>The report</h2>
+    <p class="ch-lede"><code>submit/report.md</code> already holds three questions. Your answer replaces each <em>(your answer)</em> placeholder. Each item below tells you how to investigate, not what the answer is.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">make check LAB=04-virtual-memory</span></div>
-    <div class="table-wrap">
-      <table class="t">
-        <thead><tr><th>check</th><th>what it tests</th><th>go back to</th></tr></thead>
-        <tbody>
-          <tr><td>missing-touch.c<br>missing-pager-lru.c</td><td>the file exists in <code>submit/</code>. If it does not, the checks stop here</td><td>Step 0</td></tr>
-          <tr><td>report-present</td><td><code>report.md</code> is not empty</td><td>Step 7</td></tr>
-          <tr><td>touch-compiles</td><td><code>-Wall -Werror -O2</code></td><td>Step 1</td></tr>
-          <tr><td>touch-rss</td><td>BEFORE ≥ 0, and AFTER − BEFORE ≥ 60,000 kB</td><td>Step 1, the read-vs-write symptom</td></tr>
-          <tr><td>touch-faults</td><td>MINFLT_DELTA ≥ 14,000 (huge pages off)</td><td>Step 1</td></tr>
-          <tr><td>pager-compiles</td><td>your pager builds against the simulator with <code>-Wall -Werror -O2</code></td><td>Step 5, the compile line</td></tr>
-          <tr><td>pager-runs</td><td>seed 1 finishes within 120 s and prints a ratio</td><td>Step 5 symptoms</td></tr>
-          <tr><td>deterministic</td><td>two seed-1 runs print the same ratio</td><td>Step 5</td></tr>
-          <tr><td>beats-baseline</td><td>seed 1 ratio below 5.12</td><td>Step 4</td></tr>
-          <tr><td>lru-works</td><td>the average of seeds 1–3 is below 1.28</td><td>Steps 4–5</td></tr>
-        </tbody>
-      </table>
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>Question 1. "Paste your touch.c numbers. <code>malloc(64 MiB)</code> returned success, so why was <code>RSS_KB_BEFORE</code> so small? Go through the six steps of a page fault in Lecture 15 and say what each of your ~16,000 page faults did and which step it did not need. If the kernel later evicted one of these pages and your program touched it again, where would its contents come from?"</b></p>
+          <p>Paste your three numbers from Step 1, item 6. For "why so small", compare RSS just before and just after the loop, and read in <a href="../lectures/15-virtual-memory.html#s0-3">L15 §0.3</a> when a page first gets a frame. Then follow one of your pages through the six steps in <a href="../lectures/15-virtual-memory.html#s1-1">L15 §1.1</a>. At each step, ask what the kernel had to do for a heap page that your program had never written before. The second checkpoint at the end of <a href="../lectures/15-virtual-memory.html#q1">L15 Chapter 1</a> asks about the same kind of page. For the last part, <a href="../lectures/15-virtual-memory.html#s1-2">L15 §1.2</a> says where an evicted page is written, and which kinds of pages go there.</p>
+        </li>
+        <li>
+          <p><b>Question 2. "pager-basic scores ~15, and your LRU should score well under 1.28. Explain where the orders of magnitude come from, and how you chose your eviction victim."</b></p>
+          <p>Put your three seeds and their average next to the baseline's three ratios from Step 2. Explain the gap from what pager-basic does with its processes and its frames, which you found in Step 2 item 5. Then describe how your pager chooses its victim.</p>
+        </li>
+        <li>
+          <p><b>Question 3. "LRU bets that the recent past predicts the near future. Using one of the five simulated program structures (or a pattern of your own construction), show an access pattern where LRU's bet loses, namely where the page it evicts is precisely the one needed next."</b></p>
+          <p>Pick a loop from the five program shapes in Step 2, or make one up. Write down the pages it references in order, and give LRU fewer frames than the loop has pages. Then simulate by hand, step by step, which page LRU evicts and which page the loop needs next. The simulator in <a href="../lectures/16-paging-policy.html#s1-2">L16 §1.2</a> accepts your own reference string and frame count, so you can check your hand simulation there.</p>
+        </li>
+      </ol>
     </div>
-    <div class="prose"><p>Note that the first three lines, <code>boot</code>, <code>proc-mounted</code>, and <code>gcc</code>, check the VM itself, not your code.</p></div>
   </div>
 </section>
 
 <section class="chapter" id="s7">
   <div class="ch-head">
     <div class="ch-no">Step 7</div>
-    <h2>Report and submit</h2>
+    <h2>Submit</h2>
+    <p class="ch-lede">We grade what is on GitHub at the deadline.</p>
   </div>
   <div class="sec">
     <div class="prose">
-      <p>Five questions in <code>submit/report.md</code>. The file holds their exact wording, and your answer replaces each <em>(your answer)</em> placeholder. Below is how to investigate, not the answers.</p>
       <ol>
-        <li><b>The lie of malloc.</b> Paste your Step 1 and Step 2 numbers. For "what did each fault do", compare RSS just before and just after the loop, and think about the read-vs-write experiment. For "major", ask where the data of a page would have to come from for a fault to need the disk.</li>
-        <li><b>The 75×.</b> Put your three seeds next to pager-basic's. Explain the gap from what pager-basic refuses to do (Step 3), then describe your victim choice and your local or global decision, with the evidence from Step 5.</li>
-        <li><b>Is 100 to 1 honest?</b> Compute the real ratio from the question's two numbers yourself, and compare it with 100. Then convert. How many instructions could the CPU have run during one fault?</li>
-        <li><b>Where LRU is exactly wrong.</b> Pick a loop from the five program shapes, or make one up. Give LRU fewer frames than the loop has pages, and simulate by hand, tick by tick, which page LRU evicts and which page the loop needs next.</li>
-        <li><b>MemFree or MemAvailable?</b> In the VM, read both lines of <code>/proc/meminfo</code>. Then read a lot of file data, for example with <code>find /usr -type f -exec cat {} + &gt; /dev/null</code>, and read both lines again. Which one dropped, and which one barely moved? The kernel's documentation for <code>/proc</code>, at <a href="https://docs.kernel.org/filesystems/proc.html">docs.kernel.org/filesystems/proc.html</a>, explains each line. <a href="../lectures/15-virtual-memory.html#s3-1">L15 §3.1</a> says which victim frames cost no disk write.</li>
+        <li>
+          <p><b>On your laptop, at the repository root, commit your three files, and push.</b></p>
+          <div class="code"><span class="ln">git add labs/04-virtual-memory/submit/touch.c \</span><span class="ln">        labs/04-virtual-memory/submit/pager-lru.c \</span><span class="ln">        labs/04-virtual-memory/submit/report.md</span><span class="ln">git commit -m "Lab04"</span><span class="ln">git push</span></div>
+          <p>Add only these three files. The binaries stay in the VM's <code>/tmp</code>, and <code>check/</code> stays as it was released.</p>
+        </li>
+        <li>
+          <p><b>Open your repository on GitHub, and check the files.</b></p>
+          <p>Go to <code>labs/04-virtual-memory/submit/</code>, and check that all three files are there with your latest changes.</p>
+        </li>
+        <li>
+          <p><b>Before the deadline, go through this list.</b></p>
+          <ul class="check">
+            <li><code>make check LAB=04-virtual-memory</code> shows no <code>FAIL</code>.</li>
+            <li><code>report.md</code> quotes your own touch numbers, your three seeds, and their average.</li>
+            <li>All three files are visible on GitHub, in <em>your</em> private repository.</li>
+          </ul>
+        </li>
       </ol>
     </div>
-    <div class="code"><span class="ln">cd labs/04-virtual-memory/submit</span><span class="ln">git add touch.c pager-lru.c report.md</span><span class="ln">git commit -m "Lab04"</span><span class="ln">git push</span></div>
-    <ul class="check prose">
-      <li><code>make check LAB=04-virtual-memory</code> shows no <code>FAIL</code>.</li>
-      <li>Your seed 1–3 ratios, and their average, are in the report.</li>
-      <li>All three files are visible on GitHub, in <em>your</em> repository.</li>
-    </ul>
-    <div class="note"><span class="note-tag">Stretch, ungraded</span><p>LRU only reacts. However, you know the five program shapes from Step 3. A doubly nested loop will come back, and a straight line never will. Copy your pager to <code>pager-predict.c</code> and prefetch. Track each process's branch behavior, and during idle paging capacity, page in what the structure says comes next. Build it the same way you built <code>test-lru</code> in Step 5, and let the simulator score it. Getting meaningfully under a good LRU is hard, which is the point. Start from your LRU, and first measure how often a process blocks on a page it has used before. That number bounds how much any predictor can win.</p></div>
   </div>
 </section>
 
@@ -289,7 +459,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 </div>
 
 <footer class="footer">
-  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab04 walkthrough. This page, <code>check/sim/simulator.h</code>, and the file headers are the lab's specification.
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab04 walkthrough. This page, the header comments of the files in <code>labs/04-virtual-memory/submit/</code>, and <code>check/sim/simulator.h</code> are the specification for this lab.
 </footer>
 
 <script src="../assets/academy.js"></script>

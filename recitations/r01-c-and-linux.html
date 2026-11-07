@@ -43,7 +43,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 01 · Week 1</div>
     <h1>Boot it, then <span class="accent">talk</span> to it</h1>
-    <p class="lede">Today you get the course VM running on your laptop, and you pick up the C and shell you need for Lab00 and Lab01, namely strings as pointers, <code>argv</code>, compiler warnings that stop the build, pipes, redirection and exit status.</p>
+    <p class="lede">In this recitation, you get the course VM running on your laptop. You also learn the C and shell skills that Lab00 and Lab01 need, namely strings as pointers, <code>argv</code>, compiler warnings that stop the build, pipes, redirection, and exit status.</p>
     <div class="agenda">
       <div><b>0–5</b>Recap</div>
       <div><b>5–25</b>Worked example on strings and the shell</div>
@@ -84,14 +84,14 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="note note-warn">
       <span class="note-tag">Do this before Friday</span>
-      <p>The first image build takes <strong>30–60 minutes</strong> and cannot happen during the section. Follow Lab00 Part 0–1. Create your private repository, push the course repository to it, add <code>chenyueqi</code> as a collaborator, and then, in <code>env/</code> run <code>make setup</code> and <code>make images</code>.</p>
+      <p>The first image build takes <strong>30–60 minutes</strong>, so it cannot happen during the section. Therefore, follow Lab00 Parts 0–1 in advance. First, create your private repository and push the course repository to it. Second, add <code>chenyueqi</code> as a collaborator. Third, in <code>env/</code>, run <code>make setup</code> and <code>make images</code>.</p>
     </div>
     <ul class="check prose">
       <li>My course repository is cloned.</li>
       <li><code>make images</code> has finished without errors.</li>
       <li>I can open two terminals, one for the laptop (host) and one for the VM.</li>
     </ul>
-    <p class="prose">If the build is not done when you arrive, start it at once. It can run while your TA works the example.</p>
+    <p class="prose">If the build is not finished when you arrive, start it immediately. It can run while your TA works through the example.</p>
   </div>
 </section>
 
@@ -101,15 +101,15 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <h2>Strings are pointers</h2>
   </div>
   <div class="sec">
-    <div class="prose"><p>Your TA types this live. Type it with them.</p></div>
+    <div class="prose"><p>Your TA types the program below live. Type it along with your TA.</p></div>
     <div class="code"><span class="ln"><span class="kw">#include</span> &lt;stdio.h&gt;</span><span class="ln"><span class="kw">#include</span> &lt;string.h&gt;</span><span class="ln"> </span><span class="ln"><span class="kw">int</span> main(<span class="kw">int</span> argc, <span class="kw">char</span> *argv[]) {</span><span class="ln">    <span class="kw">for</span> (<span class="kw">int</span> i = 0; i &lt; argc; i++)</span><span class="ln">        printf("argv[%d] = \"%s\"  (%zu chars)\n", i, argv[i], strlen(argv[i]));</span><span class="ln">    <span class="kw">return</span> 0;</span><span class="ln">}</span></div>
     <div class="code"><span class="ln">gcc -Wall -Werror -o args args.c</span><span class="ln">./args hello "two words" ''</span></div>
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li><code>argv</code> is an array of <code>argc</code> pointers. Each one points to characters that end with a <code>'\0'</code> byte.</li>
-          <li><code>strlen</code> counts characters up to the <code>'\0'</code>, but it does not count the <code>'\0'</code> itself.</li>
-          <li>The shell splits the command line into words, and quotes keep <code>"two words"</code> as one argument.</li>
+          <li><code>argv</code> is an array of <code>argc</code> pointers. Each pointer points to characters that end with a <code>'\0'</code> byte.</li>
+          <li><code>strlen</code> counts characters up to the <code>'\0'</code>. However, it does not count the <code>'\0'</code> itself.</li>
+          <li>The shell splits the command line into words. Quotes keep <code>"two words"</code> as one argument.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -123,7 +123,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     </div>
     <div class="note note-key">
       <span class="note-tag">The bug everybody writes once</span>
-      <p><code>char name[5]; strcpy(name, "hello");</code> writes six bytes, five letters plus <code>'\0'</code>, into five. With <code>-Wall -Werror</code>, GCC refuses to compile it. Without the flags it compiles and even prints <code>hello</code>, because undefined behavior often looks fine. Build it with <code>-fsanitize=address -g</code> and run it again, and AddressSanitizer names the line that overflowed. When a C program acts strangely, try that first.</p>
+      <p><code>char name[5]; strcpy(name, "hello");</code> writes six bytes, namely five letters plus <code>'\0'</code>, into five bytes. With <code>-Wall -Werror</code>, GCC refuses to compile it. Without the flags, it compiles and even prints <code>hello</code>, because undefined behavior often looks fine. If you build it with <code>-fsanitize=address -g</code> and run it again, AddressSanitizer names the line that overflowed. When a C program behaves strangely, try this first.</p>
     </div>
   </div>
 </section>
@@ -134,9 +134,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <h2>Shell plumbing</h2>
   </div>
   <div class="sec">
-    <div class="prose"><p>Run these <strong>inside the VM</strong>, because <code>/proc</code> exists only on Linux.</p></div>
+    <div class="prose"><p>Run the commands below <strong>inside the VM</strong>, because <code>/proc</code> exists only on Linux.</p></div>
     <div class="code"><span class="ln">cat /proc/meminfo | head -3          <span class="c"># pipe: output of one → input of the next</span></span><span class="ln">grep MemFree /proc/meminfo           <span class="c"># kernel files read like text</span></span><span class="ln">ls /proc | wc -l                     <span class="c"># count entries</span></span><span class="ln">ls /nonexistent &gt; out.txt            <span class="c"># the error still shows: it is stderr</span></span><span class="ln">ls /nonexistent &gt; out.txt 2&gt;&amp;1       <span class="c"># both streams into the file</span></span><span class="ln">echo $?                              <span class="c"># exit status of the last command; 0 = success</span></span><span class="ln">man 3 strlen ; man 2 read            <span class="c"># 3 = C library, 2 = system calls</span></span></div>
-    <p class="prose small muted">Some useful keys follow. Tab completes a name. Ctrl-C stops the running program. Ctrl-D ends input. <b>Ctrl-a x</b> quits the VM.</p>
+    <p class="prose small muted">Several keys are useful. Tab completes a name. Ctrl-C stops the running program. Ctrl-D ends input. <b>Ctrl-a x</b> quits the VM.</p>
   </div>
 </section>
 
@@ -144,20 +144,20 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="ch-head">
     <div class="ch-no">Part 3</div>
     <h2>Lab00 help</h2>
-    <p class="ch-lede">The second half of the hour is for your own Lab00. Your TA comes round, and the first goal is that your VM boots.</p>
+    <p class="ch-lede">The second half of the hour is for your own Lab00 work. Your TA comes around to help. The first goal is to boot your VM.</p>
   </div>
   <div class="sec">
     <div class="prose">
       <ol>
-        <li><strong>Boot the VM.</strong> In <code>env/</code>, <code>make smoke</code> should pass, then <code>make run</code>. Inside, <code>cat /proc/version</code> should print a line starting <code>Linux version 6.6.87</code>. Leave with Ctrl-a x.</li>
-        <li><strong>Work on Lab00 Part 2</strong>, and ask when you get stuck.</li>
+        <li><strong>Boot the VM.</strong> In <code>env/</code>, <code>make smoke</code> should pass. Then, start the VM with <code>make run</code>. Inside the VM, <code>cat /proc/version</code> should print a line that starts with <code>Linux version 6.6.87</code>. Leave the VM with Ctrl-a x.</li>
+        <li><strong>Work on Lab00 Part 2</strong>, and ask for help when you get stuck.</li>
       </ol>
       <p>To edit on the laptop and run in the VM, share your <code>submit/</code> directory. Run the command below from your repository root.</p>
     </div>
     <div class="code"><span class="ln">SHARE=$PWD/labs/00-getting-started/submit env/run.sh</span><span class="ln"><span class="c"># in the VM: your files are in /share</span></span><span class="ln">bash /share/observe.sh</span></div>
     <div class="note note-key">
       <span class="note-tag">How to ask a good question</span>
-      <p>Have the terminal open with the error on screen. Say what you ran, what you expected, and what you saw instead, and what you already tried. TAs will point you to the right lecture section, manual page or debugging step. They will not write your lab for you.</p>
+      <p>Have the terminal open with the error on screen. Say what you ran, what you expected, what you saw instead, and what you already tried. TAs will point you to the right lecture section, manual page, or debugging step. However, they will not write your lab for you.</p>
     </div>
   </div>
 </section>
@@ -166,7 +166,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="ch-head">
     <div class="ch-no">Part 4</div>
     <h2>Exit ticket</h2>
-    <p class="ch-lede">Not graded. Answer, then check.</p>
+    <p class="ch-lede">The exit ticket is not graded. Answer each question, and then check your answer.</p>
   </div>
   <div class="sec">
     <div class="quiz" data-quiz>
@@ -187,11 +187,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       <div class="quiz-body">
         <div class="q-text">What does <code>./prog &gt; out.txt 2&gt;&amp;1</code> do?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="Only the first half. 2>&1 then sends stderr to the same place.">Sends standard output to out.txt, while errors still go to the screen.</button>
+          <button type="button" class="q-opt" data-why="That is only the first half. Then, 2>&1 sends stderr to the same place.">Sends standard output to out.txt, while errors still go to the screen.</button>
           <button type="button" class="q-opt" data-ok>Sends both standard output and standard error into out.txt.</button>
           <button type="button" class="q-opt" data-why="2>&1 redirects stream 2 (stderr) to wherever stream 1 goes. It does not create a file named 1.">Writes errors to a file named 1.</button>
         </div>
-        <div class="q-fb ok">Right. File descriptor 1 is stdout and 2 is stderr, and 2&gt;&amp;1 points 2 where 1 already points.</div>
+        <div class="q-fb ok">Right. File descriptor 1 is stdout, and 2 is stderr. 2&gt;&amp;1 points 2 to where 1 already points.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -213,7 +213,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <tr><td>&lt; f &nbsp; &gt; f &nbsp; &gt;&gt; f</td><td>Read stdin from f / write stdout to f / append to f.</td></tr>
           <tr><td>2&gt; f &nbsp; 2&gt;&amp;1</td><td>Redirect stderr to f / merge stderr into stdout.</td></tr>
           <tr><td>echo $?</td><td>Exit status of the last command, where 0 means success.</td></tr>
-          <tr><td>man 2 open · man 3 printf</td><td>Manual pages. Section 2 is system calls, section 3 is the C library.</td></tr>
+          <tr><td>man 2 open · man 3 printf</td><td>Manual pages. Section 2 is system calls, and section 3 is the C library.</td></tr>
           <tr><td>make run · Ctrl-a x</td><td>Boot the course VM / leave it.</td></tr>
           <tr><td>SHARE=$PWD/dir env/run.sh</td><td>Boot with a host directory mounted at <code>/share</code> in the VM.</td></tr>
         </tbody>

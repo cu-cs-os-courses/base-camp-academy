@@ -71,7 +71,7 @@
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 14 · Interactive notes</div>
     <h1>Cut memory into pages,<br>and a process can live <span class="accent">anywhere</span></h1>
-    <p class="lede">Lecture 13 ended with external fragmentation, where there is plenty of free memory but no hole big enough. Paging fixes it by making every piece the same size. This lecture builds the machinery that makes that work at full speed, namely the page table, the MMU's translation, the TLB, and the caches around it. It ends with what sharing a frame buys, namely shared libraries, shared memory, and copy-on-write <code>fork()</code>.</p>
+    <p class="lede">Lecture 13 ends with external fragmentation, in which there is plenty of free memory but no hole big enough. Paging solves this problem by making every piece the same size. In this lecture, we build the machinery that makes paging work at full speed, namely the page table, the MMU's translation, the TLB, and the caches around it. At the end, we discuss what sharing a frame buys, namely shared libraries, shared memory, and copy-on-write <code>fork()</code>.</p>
     <div class="promise">
       <span>Before you start, review</span><span class="mono">logical vs. physical address</span><span>and the MMU from Lecture 13. Everything else is built here.</span>
     </div>
@@ -123,7 +123,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 0</div>
     <h2>Recall where Lecture 13 left us</h2>
-    <p class="ch-lede">Contiguous allocation and segmentation both hand out variable-size chunks, and variable-size chunks fragment.</p>
+    <p class="ch-lede">Contiguous allocation and segmentation both hand out variable-size chunks. Variable-size chunks fragment.</p>
   </div>
 
   <div class="sec" id="s0-1">
@@ -131,8 +131,8 @@
     <div class="two-up">
       <div class="prose">
         <p>Over time, repeated allocation and deallocation leave many small, non-contiguous holes of free memory between processes.</p>
-        <p data-step="1">The result is <strong>external fragmentation</strong>, which means enough free memory in total but no single hole big enough. In Fig. 0.1, 130 KB is free, and a 100 KB process still doesn't fit.</p>
-        <p data-step="2">The OS must then swap processes out to open a large enough hole, or <strong>compact</strong> memory by moving processes, which is very costly.</p>
+        <p data-step="1">The result is <strong>external fragmentation</strong>. In other words, there is enough free memory in total, but no single hole is big enough. In Fig. 0.1, 130 KB is free. However, a 100 KB process still does not fit.</p>
+        <p data-step="2">The OS must then swap processes out to open a large enough hole, or it must <strong>compact</strong> memory by moving processes. Compaction is very costly.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -160,9 +160,9 @@
     <h3><span class="sec-no">0.2</span>What if every chunk were the same size?</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Segmentation avoids one huge chunk per process and eases external fragmentation somewhat. But segments still come in every size, so the holes they leave do too.</p>
-        <p data-step="1">Now cut the logical address space into <span class="p">pages</span> of one fixed size, and physical memory into <span class="f">frames</span> of the same size.</p>
-        <p data-step="2">Any page can go in <strong>any</strong> free frame. A free frame is never too small, so external fragmentation is gone.</p>
+        <p>Segmentation avoids one huge chunk per process and eases external fragmentation somewhat. However, segments still come in every size, and so do the holes they leave.</p>
+        <p data-step="1">Suppose that we cut the logical address space into <span class="p">pages</span> of one fixed size, and physical memory into <span class="f">frames</span> of the same size.</p>
+        <p data-step="2">Then any page can go in <strong>any</strong> free frame. A free frame is never too small. Therefore, external fragmentation is gone.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -199,7 +199,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 1</div>
     <h2>Pages, frames, and the page table</h2>
-    <p class="ch-lede">Once pages can land in any frame, something has to remember where each one went. That is the page table, and the MMU reads it on every memory reference.</p>
+    <p class="ch-lede">Once pages can land in any frame, the system has to record where each page went. This record is the page table, and the MMU reads it on every memory reference.</p>
   </div>
 
   <div class="sec" id="s1-1">
@@ -207,8 +207,8 @@
     <div class="two-up">
       <div class="prose">
         <p>The OS keeps a <span class="term">page table<span class="tip">A per-process array indexed by logical page number. Entry l holds the frame number f where page l lives, plus status bits.</span></span> for <strong>each process</strong>. Entry <span class="p">l</span> says which <span class="f">frame</span> holds logical page <span class="p">l</span>.</p>
-        <p>Given a logical address, the <span class="term">MMU<span class="tip">Memory-management unit, the hardware in the CPU that translates every logical address to a physical one at run time (Lecture 13).</span></span> finds its logical page, then looks up the physical frame in the page table.</p>
-        <p data-step="1">Frames 2, 5 and 6 are free. They can go to a new process P2, whatever its size.</p>
+        <p>Given a logical address, the <span class="term">MMU<span class="tip">Memory-management unit, the hardware in the CPU that translates every logical address to a physical one at run time (Lecture 13).</span></span> first finds its logical page. Then it looks up the physical frame in the page table.</p>
+        <p data-step="1">Frames 2, 5, and 6 are free. They can go to a new process P2, regardless of its size.</p>
         <p class="small muted read-only">Hover or tab to a row of the page table to follow it into RAM.</p>
       </div>
       <figure class="fig">
@@ -224,7 +224,7 @@
             <g data-step="1"><text x="455" y="444" text-anchor="middle" class="lbl">hatched = free, available to P2</text></g>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 1.1</span>One process's page table, with five pages scattered over eight frames.</figcaption>
+        <figcaption><span class="fno">Fig. 1.1</span>The page table of one process, with five pages scattered over eight frames.</figcaption>
       </figure>
     </div>
   </div>
@@ -233,8 +233,8 @@
     <h3><span class="sec-no">1.2</span>The program still sees one contiguous block</h3>
     <div class="two-up">
       <div class="prose">
-        <p>The program sees one contiguous logical address space, 0 to 5119 in Fig. 1.2, holding code, data, heap, and stack.</p>
-        <p>Physically, its five 1 KB pages sit in frames scattered across RAM.</p>
+        <p>The program sees one contiguous logical address space, 0 to 5119 in Fig. 1.2, which holds code, data, heap, and stack.</p>
+        <p>However, physically, its five 1 KB pages sit in frames scattered across RAM.</p>
         <p data-step="1">The MMU performs this translation at run time, for <strong>every</strong> logical address, using the page table.</p>
       </div>
       <figure class="fig">
@@ -286,7 +286,7 @@
       <p>Every logical address now has two parts.</p>
       <ul>
         <li>The most significant bits are the <span class="p">logical page l</span>. It equals the address divided by the page size, and it indexes the page table to find the <span class="f">frame f</span>.</li>
-        <li>The least significant bits are the <span class="d">page offset d</span>, the position inside the page. It is copied into the physical address unchanged.</li>
+        <li>The least significant bits are the <span class="d">page offset d</span>, which is the position inside the page. It is copied into the physical address unchanged.</li>
       </ul>
     </div>
     <div data-step="1">
@@ -302,12 +302,12 @@
             <text x="617" y="92" text-anchor="middle" class="lbl">offset d · 12 bits</text>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 1.3</span>32-bit address <code>0x00403A7C</code> with 4 KB (2<sup>12</sup>-byte) pages.</figcaption>
+        <figcaption><span class="fno">Fig. 1.3</span>The 32-bit address <code>0x00403A7C</code> with 4 KB (2<sup>12</sup>-byte) pages.</figcaption>
       </figure>
     </div>
     <div class="note note-key" data-step="2">
       <span class="note-tag">Key idea</span>
-      <p>Page sizes are powers of two, so the split is a cut between two bit positions. The hardware never divides.</p>
+      <p>Page sizes are powers of two. Therefore, the split is a cut between two bit positions, and the hardware never divides.</p>
     </div>
   </div>
 
@@ -345,13 +345,13 @@
           </g>
         </svg>
       </div>
-      <figcaption><span class="fno">Fig. 1.4</span><span class="p">l</span> picks a row of the page table, the row gives <span class="f">f</span>, and <span class="d">d</span> rides along untouched.</figcaption>
+      <figcaption><span class="fno">Fig. 1.4</span><span class="p">l</span> picks a row of the page table, and the row gives <span class="f">f</span>. The offset <span class="d">d</span> passes through unchanged.</figcaption>
     </figure>
   </div>
 
   <div class="sec" id="s1-5">
     <h3><span class="sec-no">1.5</span>Translate an address yourself</h3>
-    <p class="prose read-only">The page table from Fig. 1.1, in a 16-bit address space with 8 physical frames. Type any address, or pick an example.</p>
+    <p class="prose read-only">This widget uses the page table from Fig. 1.1, in a 16-bit address space with 8 physical frames. Type any address, or pick an example.</p>
     <div class="widget" id="xl">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Logical → physical, bit by bit</span><button class="w-reset" type="button" id="xl-reset">Reset</button></div>
       <div class="controls">
@@ -376,11 +376,11 @@
           </div>
         </div>
       </div>
-      <div class="readout read-only">Try <b>0x2A2C</b> with 1 KB pages, then with 4 KB pages. It is page 10 in one case, which this process doesn't have, and page 2 in the other.</div>
+      <div class="readout read-only">Try <b>0x2A2C</b> with 1 KB pages, and then with 4 KB pages. In the first case, it is page 10, which this process does not have. In the second case, it is page 2.</div>
     </div>
     <div class="note note-honest read-only">
       <span class="note-tag">Simplified</span>
-      <p>A real page-table entry holds more than a frame number and a valid bit. It also has protection bits (read/write/execute), a dirty bit, and a referenced bit. Lecture 15 puts them to work.</p>
+      <p>A real page-table entry holds more than a frame number and a valid bit. It also has protection bits (read/write/execute), a dirty bit, and a referenced bit. Lecture 15 discusses how they are used.</p>
     </div>
   </div>
 
@@ -390,13 +390,13 @@
       <div class="quiz-body">
         <div class="q-text">Pages are 1 KB and logical addresses are 16 bits. For logical address <code>0x0A2C</code>, what are <span class="p">l</span> and <span class="d">d</span>?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="That splits the hex digits 0x0A | 0x2C, which is an 8-bit offset for 256-byte pages. 1 KB needs a 10-bit offset.">l = 10, d = 44</button>
+          <button type="button" class="q-opt" data-why="This answer splits the hex digits as 0x0A | 0x2C, which is an 8-bit offset for 256-byte pages. A 1 KB page needs a 10-bit offset.">l = 10, d = 44</button>
           <button type="button" class="q-opt" data-ok>l = 2, d = 556</button>
           <button type="button" class="q-opt" data-why="An offset of 2604 needs pages bigger than 2604 bytes, such as 4 KB. With 1 KB pages, d is always below 1024.">l = 0, d = 2604</button>
-          <button type="button" class="q-opt" data-why="6 and 10 are how many bits each part has, not their values.">l = 6, d = 10</button>
+          <button type="button" class="q-opt" data-why="6 and 10 are the numbers of bits in the two parts, not their values.">l = 6, d = 10</button>
         </div>
-        <div class="q-fb ok">Right. 1 KB = 2<sup>10</sup>, so d is the low 10 bits and l is the top 6. 0x0A2C = 2604 = 2 × 1024 + 556.</div>
-        <div class="q-fb no">Not quite. Work out how many offset bits a 1 KB page needs first.</div>
+        <div class="q-fb ok">Right. 1 KB = 2<sup>10</sup>. Therefore, d is the low 10 bits, and l is the top 6 bits. 0x0A2C = 2604 = 2 × 1024 + 556.</div>
+        <div class="q-fb no">Not quite. First, work out how many offset bits a 1 KB page needs.</div>
       </div>
     </div>
   </div>
@@ -412,7 +412,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 2</div>
     <h2>How big is a page table?</h2>
-    <p class="ch-lede">One entry per page, one table per process. Multiply it out.</p>
+    <p class="ch-lede">There is one entry per page and one table per process. Multiplying them out gives the total size.</p>
   </div>
 
   <div class="sec" id="s2-1">
@@ -420,9 +420,9 @@
     <div class="prose">
       <ul>
         <li>A typical page is 4 KB. Larger "huge pages" (2 MB, 1 GB) also exist.</li>
-        <li data-step="1">Take a 32-bit (4 GB) address space with 4 KB pages. The offset within a page takes 12 bits, which leaves 20 bits for the page number.</li>
+        <li data-step="1">Consider a 32-bit (4 GB) address space with 4 KB pages. The offset within a page takes 12 bits, which leaves 20 bits for the page number.</li>
         <li data-step="1">2<sup>32</sup> / 2<sup>12</sup> = 2<sup>20</sup>, which is about one million entries in the page table.</li>
-        <li data-step="2">If each entry is 20 bits, that is 2<sup>20</sup> × 20 bits ≈ <strong>2.62 MB (2.5 MiB) per process</strong>, just for its page table.</li>
+        <li data-step="2">If each entry is 20 bits, the result is 2<sup>20</sup> × 20 bits ≈ <strong>2.62 MB (2.5 MiB) per process</strong>, just for its page table.</li>
       </ul>
     </div>
     <figure class="fig" data-step="1">
@@ -442,8 +442,8 @@
     <h3><span class="sec-no">2.2</span>The general formula</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Let the logical address space be 2<sup>m</sup> bytes, so addresses have m bits, and let pages be 2<sup>n</sup> bytes, so the offset has n bits.</p>
-        <p>The page number gets the remaining <strong>m − n</strong> bits, so the table has 2<sup>m−n</sup> entries.</p>
+        <p>Let the logical address space be 2<sup>m</sup> bytes, so that addresses have m bits. Let pages be 2<sup>n</sup> bytes, so that the offset has n bits.</p>
+        <p>The page number gets the remaining <strong>m − n</strong> bits. Therefore, the table has 2<sup>m−n</sup> entries.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -462,7 +462,7 @@
     </div>
     <div data-step="1">
       <div class="formula center">table size = 2<sup>m−n</sup> × (bits per entry) ÷ 8 &nbsp;bytes</div>
-      <p class="small muted">Check against §2.1, where m = 32, n = 12, 20-bit entries → 2<sup>20</sup> × 20 ÷ 8 = 2,621,440 bytes.</p>
+      <p class="small muted">As a check against §2.1, m = 32, n = 12, and 20-bit entries give 2<sup>20</sup> × 20 ÷ 8 = 2,621,440 bytes.</p>
     </div>
   </div>
 
@@ -491,7 +491,7 @@
     <details class="fold">
       <summary>How do real 64-bit systems avoid this?</summary>
       <div class="fold-body">
-        <p>A flat table for a 48-bit address space would be hundreds of gigabytes per process, and almost all of it would say "not mapped". Real CPUs use <strong>hierarchical page tables</strong> instead. A small top-level table points to lower-level tables, and lower levels exist only for regions the process actually uses. x86-64 walks four levels (five on newer CPUs). See Silberschatz §9.4, "Structure of the Page Table".</p>
+        <p>A flat table for a 48-bit address space would be hundreds of gigabytes per process, and almost all of its entries would say "not mapped". Therefore, real CPUs use <strong>hierarchical page tables</strong> instead. A small top-level table points to lower-level tables. The lower levels exist only for regions that the process actually uses. x86-64 walks four levels, or five on newer CPUs. For details, see Silberschatz §9.4, "Structure of the Page Table".</p>
       </div>
     </details>
   </div>
@@ -507,14 +507,14 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 3</div>
     <h2>Where the page table lives</h2>
-    <p class="ch-lede">Three options. Each fixes the previous one's weakness and brings its own cost.</p>
+    <p class="ch-lede">There are three options. Each option fixes the weakness of the previous one and brings its own cost.</p>
   </div>
 
   <div class="sec" id="s3-1">
     <h3><span class="sec-no">3.1</span>Option 1, dedicated hardware registers</h3>
     <div class="two-up">
       <div>
-        <p class="prose">Keep the whole page table in a bank of registers or dedicated memory inside the MMU.</p>
+        <p class="prose">The whole page table is kept in a bank of registers or in dedicated memory inside the MMU.</p>
         <div class="pc one">
           <div class="pro"><span class="tag">Good</span><ul><li>Fast translation on every instruction, because the table is right inside the MMU.</li></ul></div>
           <div class="con" data-step="1"><span class="tag">Bad</span><ul>
@@ -550,11 +550,11 @@
     <h3><span class="sec-no">3.2</span>Option 2, main memory plus one register</h3>
     <div class="two-up">
       <div>
-        <p class="prose">Store the page table in RAM. Keep a pointer to the current one in a special CPU register, the <span class="term">page-table base register (PTBR)<span class="tip">Holds the physical address of the running process's page table. On x86 this register is CR3.</span></span>.</p>
+        <p class="prose">The page table is stored in RAM. A pointer to the current table is kept in a special CPU register, the <span class="term">page-table base register (PTBR)<span class="tip">It holds the physical address of the page table of the running process. On x86, this register is CR3.</span></span>.</p>
         <div class="pc one">
           <div class="pro"><span class="tag">Good</span><ul>
             <li>Page tables can be large.</li>
-            <li data-step="1">Fast context switch that reloads only the PTBR.</li>
+            <li data-step="1">Fast context switch, which reloads only the PTBR.</li>
           </ul></div>
         </div>
       </div>
@@ -616,7 +616,7 @@
     </div>
     <div class="note note-key" data-step="3">
       <span class="note-tag">Key idea</span>
-      <p>With the page table in RAM, every memory reference costs two. The next option caches translations so that most references go back to costing one.</p>
+      <p>With the page table in RAM, every memory reference costs two memory accesses. The next option caches translations, so that most references again cost one access.</p>
     </div>
   </div>
 
@@ -624,8 +624,8 @@
     <h3><span class="sec-no">3.4</span>Option 3, cache translations in a TLB</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Cache a subset of page-table entries in a small set of CPU buffers, called the <span class="term">translation look-aside buffer (TLB)<span class="tip">A small, fully associative cache of recent page → frame translations inside the MMU. Typically tens to a few thousand entries.</span></span>. It is a fast fix for option 2's two-step memory access.</p>
-        <p data-step="1">Which entries to keep? Several caching policies work.</p>
+        <p>A subset of page-table entries is cached in a small set of CPU buffers, called the <span class="term">translation look-aside buffer (TLB)<span class="tip">A small, fully associative cache of recent page → frame translations inside the MMU. It typically has tens to a few thousand entries.</span></span>. The TLB is a fast fix for the two-step memory access of option 2.</p>
+        <p data-step="1">Several caching policies can decide which entries the TLB keeps.</p>
         <ul data-step="1">
           <li>cache the most popular, most frequently referenced pages, or</li>
           <li>cache the most recently used pages.</li>
@@ -647,7 +647,7 @@
             <text x="150" y="232" text-anchor="middle" class="lbl">a few entries, searched all at once</text>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 3.4</span>Four cached translations from Fig. 1.1's page table.</figcaption>
+        <figcaption><span class="fno">Fig. 3.4</span>Four cached translations from the page table in Fig. 1.1.</figcaption>
       </figure>
     </div>
   </div>
@@ -663,7 +663,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 4</div>
     <h2>The TLB</h2>
-    <p class="ch-lede">Follow one memory reference through a hit and through a miss, then see what a context switch does to the cache.</p>
+    <p class="ch-lede">We follow one memory reference through a hit and through a miss. Then we see what a context switch does to the cache.</p>
   </div>
 
   <div class="sec" id="s4-1">
@@ -760,8 +760,8 @@
     <div class="prose">
       <p>The MMU first looks in the TLB for the logical page.</p>
       <ul>
-        <li><strong class="f">TLB hit.</strong> Go straight to memory with frame <span class="f">f</span> plus offset <span class="d">d</span>. The TLB compares the page against all its entries in parallel, in hardware.</li>
-        <li data-step="1"><strong class="bad">TLB miss.</strong> Do the regular two-step lookup (page table, then data), then <strong>update the TLB</strong> with the new entry. If the TLB is full, evict one using a replacement policy such as least recently used (LRU, more in Lecture 16).</li>
+        <li><strong class="f">TLB hit.</strong> The MMU goes straight to memory with frame <span class="f">f</span> plus offset <span class="d">d</span>. The TLB compares the page against all of its entries in parallel, in hardware.</li>
+        <li data-step="1"><strong class="bad">TLB miss.</strong> The MMU does the regular two-step lookup (page table, then data). Then it must <strong>update the TLB</strong> with the new entry. If the TLB is full, one entry is evicted using a replacement policy such as least recently used (LRU, more in Lecture 16).</li>
         <li data-step="2">The goal is to maximize hits and minimize misses. The effective access time shows why.</li>
       </ul>
     </div>
@@ -782,9 +782,9 @@
       <div class="quiz-body">
         <div class="q-text">A load instruction reads one word. Its page is <strong>not</strong> in the TLB, and the page table is one flat table in RAM. How many RAM accesses does the load take, counting the page-table read?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="One is the TLB-hit case. On a miss the MMU must first read the page-table entry.">1</button>
+          <button type="button" class="q-opt" data-why="One access is the TLB-hit case. On a miss, the MMU must first read the page-table entry.">1</button>
           <button type="button" class="q-opt" data-ok>2</button>
-          <button type="button" class="q-opt" data-why="Updating the TLB writes into the MMU's own buffer, not RAM.">3</button>
+          <button type="button" class="q-opt" data-why="Updating the TLB writes into the MMU's own buffer, not into RAM.">3</button>
         </div>
         <div class="q-fb ok">Right. There is one read for page-table entry l (found via the PTBR) and one read for the data at ⟨f, d⟩. The TLB update happens inside the MMU.</div>
         <div class="q-fb no">Not quite.</div>
@@ -794,11 +794,11 @@
 
   <div class="sec" id="s4-3">
     <h3><span class="sec-no">4.3</span>The TLB across a context switch</h3>
-    <p class="prose">Different processes have different page tables, so P1's "page 3 → frame 7" means nothing for P2. On a <span class="term">context switch<span class="tip">The kernel saves one process's CPU state and loads another's (Lecture 3).</span></span>, the OS has three options.</p>
+    <p class="prose">Different processes have different page tables. Therefore, P1's "page 3 → frame 7" means nothing for P2. On a <span class="term">context switch<span class="tip">The kernel saves one process's CPU state and loads another's (Lecture 3).</span></span>, the OS has three options.</p>
     <div class="opts3">
-      <div><span class="tag">Flush everything</span>Invalidate all TLB entries on every switch. Classic x86 did this whenever CR3 changed.</div>
-      <div data-step="1"><span class="tag">Tag each entry</span>Add an <span class="term">address-space ID<span class="tip">ASID, a tag on each TLB entry naming the process it belongs to. Only entries whose tag matches the running process count. x86 calls it PCID.</span></span> to each entry. Only entries matching the running process are valid. Costs extra hardware and one more comparison per lookup. An example is DEC Alpha.</div>
-      <div data-step="2"><span class="tag">Keep global pages</span>Don't invalidate frequently used pages, such as kernel pages, on a switch. Intel Pentium Pro uses the PGE flag in CR4 plus the global (G) flag in a page-directory or page-table entry. ARM can also flush single entries by virtual address.</div>
+      <div><span class="tag">Flush everything</span>The OS invalidates all TLB entries on every switch. Classic x86 did this whenever CR3 changed.</div>
+      <div data-step="1"><span class="tag">Tag each entry</span>The hardware adds an <span class="term">address-space ID<span class="tip">ASID, a tag on each TLB entry that names the process it belongs to. Only entries whose tag matches the running process count. x86 calls it PCID.</span></span> to each entry. Only entries that match the running process are valid. This option costs extra hardware and one more comparison per lookup. DEC Alpha is an example.</div>
+      <div data-step="2"><span class="tag">Keep global pages</span>Frequently used pages, such as kernel pages, are not invalidated on a switch. Intel Pentium Pro uses the PGE flag in CR4 together with the global (G) flag in a page-directory or page-table entry. ARM can also flush single entries by virtual address.</div>
     </div>
   </div>
 
@@ -829,7 +829,7 @@
       </div>
       <div class="readout"><div id="tlb-stats"></div><div id="tlb-log" aria-live="polite"></div></div>
     </div>
-    <p class="small muted read-only prose">The scenario runs P1 over pages 0–2 three times, switches to P2 for two passes over pages 0–1, then switches back to P1 for two more passes. Run it under each policy and compare the hit rate.</p>
+    <p class="small muted read-only prose">The scenario first runs P1 over pages 0–2 three times. It then switches to P2 for two passes over pages 0–1. Finally, it switches back to P1 for two more passes. Run the scenario under each policy, and compare the hit rates.</p>
   </div>
 
   <div class="sec" id="q3">
@@ -838,11 +838,11 @@
       <div class="quiz-body">
         <div class="q-text">This CPU's TLB has no ASIDs. Why must the OS flush the TLB when it switches from P1 to P2?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="Size isn't the problem. Even one stale entry is a correctness bug, however big the TLB is.">The TLB is too small to hold entries for both processes.</button>
+          <button type="button" class="q-opt" data-why="Size is not the problem. Even one stale entry is a correctness bug, no matter how big the TLB is.">The TLB is too small to hold entries for both processes.</button>
           <button type="button" class="q-opt" data-ok>P2's page 7 may live in a different frame than P1's page 7. A leftover entry would send P2 into P1's memory.</button>
           <button type="button" class="q-opt" data-why="The flush makes P2 slower at first, because every first touch of a page misses.">Flushing makes P2 run faster.</button>
         </div>
-        <div class="q-fb ok">Right. A TLB entry says "page 7 → frame 2" without saying whose page 7. Without an ASID, the only safe choice is to forget everything.</div>
+        <div class="q-fb ok">Right. A TLB entry says "page 7 → frame 2" without saying whose page 7 it is. Without an ASID, the only safe choice is to forget everything.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -866,8 +866,8 @@
     <h3><span class="sec-no">5.1</span>Virtually or physically indexed?</h3>
     <div class="two-up">
       <div class="prose">
-        <p>How does the MMU interact with the L1 or L2 data and instruction caches? It depends on whether the cache is indexed by <span class="p">virtual</span> or <span class="f">physical</span> address.</p>
-        <p data-step="1"><strong class="f">Physically indexed.</strong> The MMU must translate before the cache can be consulted. Slower, but every entry is uniquely identified by its physical address.</p>
+        <p>The interaction between the MMU and the L1 or L2 data and instruction caches depends on whether the cache is indexed by <span class="p">virtual</span> or <span class="f">physical</span> address.</p>
+        <p data-step="1"><strong class="f">Physically indexed.</strong> The MMU must translate before the cache can be consulted. This is slower. However, every entry is uniquely identified by its physical address.</p>
         <p data-step="2"><strong class="p">Virtually indexed.</strong> The cache can be checked right away, without the MMU. On a miss, the MMU still has to translate.</p>
       </div>
       <figure class="fig">
@@ -904,7 +904,7 @@
 
   <div class="sec" id="s5-2">
     <h3><span class="sec-no">5.2</span>The homonym problem</h3>
-    <p class="prose">A virtually indexed cache has a problem. After a context switch, the new process may use the <strong>same virtual address V</strong> as the previous one, and a cache indexed only by V hands back the previous process's data. Pick a fix and see what P2 gets.</p>
+    <p class="prose">A virtually indexed cache has a problem. After a context switch, the new process may use the <strong>same virtual address V</strong> as the previous one. A cache indexed only by V then returns the data of the previous process. Pick a fix, and see what P2 gets.</p>
     <div class="widget" id="hom-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Same address, different process</span><button class="w-reset" type="button" id="hom-reset">Reset</button></div>
       <div class="controls">
@@ -920,9 +920,9 @@
       <summary>All three fixes, with their costs</summary>
       <div class="fold-body">
         <ul>
-          <li><strong>Flush the cache on each context switch.</strong> The process gets the whole cache to itself, but has to rebuild it from cold.</li>
-          <li><strong>Add an address-space ID (process ID) to each cache entry.</strong> Only the right process's data comes back for V. Needs hardware support and an extra comparison, and the processes now share the cache space.</li>
-          <li><strong>Give every process non-overlapping virtual addresses.</strong> Unlikely, because it breaks the model that each process is compiled and runs independently in its own address space [0, MAX].</li>
+          <li><strong>Flush the cache on each context switch.</strong> The process gets the whole cache to itself. However, it has to rebuild the cache from cold.</li>
+          <li><strong>Add an address-space ID (process ID) to each cache entry.</strong> Only the data of the right process comes back for V. This fix needs hardware support and an extra comparison. Also, the processes now share the cache space.</li>
+          <li><strong>Give every process non-overlapping virtual addresses.</strong> This fix is unlikely, because it breaks the model in which each process is compiled and runs independently in its own address space [0, MAX].</li>
         </ul>
       </div>
     </details>
@@ -933,14 +933,14 @@
     <div class="prose">
       <ul>
         <li>Most <strong>L1</strong> caches are <span class="p">virtually indexed</span>, which is fast.</li>
-        <li data-step="1">Most <strong>L2</strong> caches are <span class="f">physically indexed</span>. Each entry is unique, so there are no collisions. That suits shared library code and data. If several processes share the same code, the cache stores it once.</li>
-        <li data-step="2">So the virtually indexed cache is a small, fast L1, and the physically indexed cache is a much larger L2.</li>
+        <li data-step="1">Most <strong>L2</strong> caches are <span class="f">physically indexed</span>. Each entry is unique, so there are no collisions. This property suits shared library code and data. If several processes share the same code, the cache stores it only once.</li>
+        <li data-step="2">Therefore, the virtually indexed cache is a small, fast L1, and the physically indexed cache is a much larger L2.</li>
       </ul>
     </div>
     <details class="fold">
       <summary>Going further with "virtually indexed, physically tagged"</summary>
       <div class="fold-body">
-        <p>Many modern L1 caches are <strong>VIPT</strong>. They pick the cache set using only the page-offset bits, which are the same in the virtual and the physical address, so the lookup starts in parallel with the TLB. They then compare the <em>physical</em> frame number from the TLB against the stored tag. That keeps L1 fast and avoids homonyms without flushing. The trick works only while the set index fits inside the offset bits, which is one reason L1 caches stay small.</p>
+        <p>Many modern L1 caches are <strong>VIPT</strong>. First, they pick the cache set using only the page-offset bits, which are the same in the virtual and the physical address. As such, the lookup starts in parallel with the TLB. Second, they compare the <em>physical</em> frame number from the TLB against the stored tag. This design keeps L1 fast and avoids homonyms without flushing. However, it works only while the set index fits inside the offset bits, which is one reason L1 caches stay small.</p>
       </div>
     </details>
   </div>
@@ -971,7 +971,7 @@
           </g>
         </svg>
       </div>
-      <figcaption><span class="fno">Fig. 5.2</span>The fastest case never leaves L1 and never asks the MMU. The slowest misses L1, the TLB and L2, and walks the page table first.</figcaption>
+      <figcaption><span class="fno">Fig. 5.2</span>The fastest case never leaves L1 and never asks the MMU. The slowest case misses L1, the TLB, and L2, and it walks the page table first.</figcaption>
     </figure>
   </div>
 
@@ -986,7 +986,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 6</div>
     <h2>Shared pages</h2>
-    <p class="ch-lede">Two page tables can point at the same frame. That one fact gives shared libraries, shared memory, and a cheap <code>fork()</code>.</p>
+    <p class="ch-lede">Two page tables can point at the same frame. This single fact enables shared libraries, shared memory, and a cheap <code>fork()</code>.</p>
   </div>
 
   <div class="sec" id="s6-1">
@@ -994,8 +994,8 @@
     <div class="prose">
       <p>Page tables of different processes can point to the <strong>same physical frames</strong>.</p>
       <ul>
-        <li data-step="1"><strong>Shared code.</strong> Apps A and B run as processes P1 and P2 and share C library functions in two pages of code, lib1 and lib2. Each process keeps its own data. Both page tables map lib1 and lib2 to the same frames, so RAM holds one copy.</li>
-        <li data-step="2"><strong>Shared-memory IPC.</strong> Two or more processes that want to share memory can point their page tables at the same data frames. That is how shared-memory IPC works (Lecture 4).</li>
+        <li data-step="1"><strong>Shared code.</strong> Apps A and B run as processes P1 and P2 and share C library functions in two pages of code, lib1 and lib2. Each process keeps its own data. Both page tables map lib1 and lib2 to the same frames. Therefore, RAM holds only one copy.</li>
+        <li data-step="2"><strong>Shared-memory IPC.</strong> Two or more processes that want to share memory can point their page tables at the same data frames. This is how shared-memory IPC works (Lecture 4).</li>
       </ul>
     </div>
   </div>
@@ -1031,10 +1031,10 @@
     <div class="prose">
       <ul>
         <li><code>fork()</code> gives the child a copy of the parent's entire address space, code included.</li>
-        <li data-step="1">Rather than duplicating those pages, map the child's pages to the <strong>same frames</strong> as the parent's, and mark them read-only.</li>
-        <li data-step="2">When either process writes to a shared page, the write faults. The kernel copies that one page into a free frame and points the writer's entry at the copy. This is <span class="term">copy-on-write<span class="tip">COW means sharing pages read-only after fork(), and copying a page only when someone first writes to it. Most children call exec() soon, so most pages are never copied.</span></span>. Lecture 3 introduced it, and Lecture 15 covers it in depth.</li>
+        <li data-step="1">Rather than duplicating those pages, the kernel maps the child's pages to the <strong>same frames</strong> as the parent's, and it marks them read-only.</li>
+        <li data-step="2">When either process writes to a shared page, the write faults. The kernel copies that one page into a free frame and points the writer's entry at the copy. This is <span class="term">copy-on-write<span class="tip">COW means sharing pages read-only after fork(), and copying a page only when a process first writes to it. Most children call exec() soon. Therefore, most pages are never copied.</span></span>. Lecture 3 introduces it, and Lecture 15 covers it in depth.</li>
       </ul>
-      <p class="small muted read-only">The last two buttons of the widget in §6.2 show exactly this.</p>
+      <p class="small muted read-only">The last two buttons of the widget in §6.2 show this mechanism.</p>
     </div>
   </div>
 
@@ -1044,12 +1044,12 @@
       <div class="quiz-body">
         <div class="q-text">Right after a copy-on-write <code>fork()</code>, the <strong>parent</strong> writes to its data page. What happens?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="That's shared memory. With copy-on-write, the two processes must look independent.">The child sees the new value too.</button>
+          <button type="button" class="q-opt" data-why="That is shared memory. With copy-on-write, the two processes must look independent.">The child sees the new value too.</button>
           <button type="button" class="q-opt" data-why="The fault is expected. The kernel handles it, and the parent never notices.">The parent gets a segmentation fault.</button>
           <button type="button" class="q-opt" data-ok>The write faults. The kernel copies the page, points the parent's entry at the copy, makes it writable, and re-runs the write.</button>
           <button type="button" class="q-opt" data-why="Copying everything up front is exactly what copy-on-write avoids.">Nothing special. fork() already copied every page.</button>
         </div>
-        <div class="q-fb ok">Right. Whichever process writes first gets its own copy. Parent and child are treated the same way.</div>
+        <div class="q-fb ok">Right. Whichever process writes first gets its own copy. The parent and the child are treated the same way.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -1074,7 +1074,7 @@
     <div class="prose">
       <ul>
         <li>Paging has <strong>no external fragmentation</strong>, because any free frame fits any page.</li>
-        <li data-step="1">It does have <strong>internal fragmentation</strong>. A 4097-byte process with 4 KB (4096-byte) pages needs two pages (8 KB), and 4095 bytes of the second page are wasted inside it.</li>
+        <li data-step="1">However, it does have <strong>internal fragmentation</strong>. A 4097-byte process with 4 KB (4096-byte) pages needs two pages (8 KB). As a result, 4095 bytes of the second page are wasted inside it.</li>
         <li data-step="2">The OS also keeps a <strong>frame table</strong> (free-frame pool) to track which physical frames are free.</li>
       </ul>
     </div>
@@ -1107,14 +1107,14 @@
       <ul>
         <li>Paging cuts logical memory into <span class="p">pages</span> and RAM into <span class="f">frames</span> of the same size. There is no external fragmentation, and at most one page of internal fragmentation per process.</li>
         <li>Address = <span class="p">page l</span> | <span class="d">offset d</span>. The per-process page table maps <span class="p">l</span> → <span class="f">f</span>, and <span class="d">d</span> passes through.</li>
-        <li>A flat page table is big, with 2<sup>m−n</sup> entries. Keeping it in RAM behind the PTBR makes context switches cheap, but doubles memory accesses.</li>
+        <li>A flat page table is big, with 2<sup>m−n</sup> entries. Keeping it in RAM behind the PTBR makes context switches cheap. However, it doubles memory accesses.</li>
         <li>The TLB caches translations, so most references need one memory access. Context switches force a flush unless entries carry an ASID.</li>
         <li>Pointing two page tables at one frame gives shared libraries, shared-memory IPC, and copy-on-write <code>fork()</code>.</li>
       </ul>
     </div>
     <div class="note note-lab" data-step="1">
       <span class="note-tag">In the lab</span>
-      <p>In Basecamp 4, <em>Pages, Faults, and the Art of Eviction</em>, you count one page fault per 4096-byte page as a real kernel fills in your address space, then write the eviction policy yourself.</p>
+      <p>In Basecamp 4, <em>Pages, Faults, and the Art of Eviction</em>, you count one page fault per 4096-byte page as a real kernel fills in your address space. Then you write the eviction policy yourself.</p>
     </div>
   </div>
 
@@ -1124,12 +1124,12 @@
       <tbody>
         <tr><td>page / frame</td><td>A fixed-size piece of logical memory / of physical memory. Pages live in frames.</td></tr>
         <tr><td>page table</td><td>A per-process array, where entry l holds the frame f of logical page l, plus status bits.</td></tr>
-        <tr><td>offset d</td><td>The low bits of an address, which give the position inside the page. Copied unchanged into the physical address.</td></tr>
+        <tr><td>offset d</td><td>The low bits of an address, which give the position inside the page. It is copied unchanged into the physical address.</td></tr>
         <tr><td>MMU</td><td>Hardware that translates every logical address to a physical one at run time.</td></tr>
-        <tr><td>PTBR</td><td>Page-table base register, which says where the running process's page table starts. CR3 on x86.</td></tr>
+        <tr><td>PTBR</td><td>Page-table base register, which holds where the page table of the running process starts. It is CR3 on x86.</td></tr>
         <tr><td>TLB</td><td>Translation look-aside buffer, a small, fully associative cache of page → frame translations.</td></tr>
-        <tr><td>ASID</td><td>Address-space ID, a per-process tag on TLB or cache entries. PCID on x86.</td></tr>
-        <tr><td>homonym</td><td>One virtual address meaning different physical memory in two processes.</td></tr>
+        <tr><td>ASID</td><td>Address-space ID, a per-process tag on TLB or cache entries. It is PCID on x86.</td></tr>
+        <tr><td>homonym</td><td>One virtual address that means different physical memory in two processes.</td></tr>
         <tr><td>copy-on-write</td><td>Share pages read-only after fork(), and copy a page only on its first write.</td></tr>
         <tr><td>internal fragmentation</td><td>Space wasted inside an allocated page, almost always the last one.</td></tr>
       </tbody>
@@ -1278,7 +1278,7 @@
         out.innerHTML = `<div class="bits">${bitsHTML(P, w, n, 'b-f', 'b-d', true)}</div>
           <div class="result" style="margin-top:8px"><span class="f">f = ${f}</span> × ${1 << n} + <span class="d">${d}</span> = <b class="mono">${P}</b> = <b class="mono">${hex(P, Math.ceil(w / 4))}</b></div>`;
       } else {
-        out.innerHTML = `<div class="result trap"><b class="bad">No valid entry for page ${l}.</b> The MMU traps to the OS, which kills the process with a segmentation fault. Lecture 15 turns some of these traps into page faults that bring the page in from disk.</div>`;
+        out.innerHTML = `<div class="result trap"><b class="bad">No valid entry for page ${l}.</b> The MMU traps to the OS, which kills the process with a segmentation fault. Lecture 15 shows how some of these traps become page faults that bring the page in from disk.</div>`;
       }
     }
     ps.addEventListener('change', render);
@@ -1310,7 +1310,7 @@
         `<div class="${per > ram ? 'warn' : ''}"><div class="lab">table per process</div><div class="big">${fmtBytes(per)}</div><div class="sub">entries × ${e === 2.5 ? '20 bits' : e + ' bytes'}</div></div>` +
         `<div class="${all > ram ? 'warn' : ''}"><div class="lab">${p.toLocaleString('en-US')} processes</div><div class="big">${fmtBytes(all)}</div><div class="sub">for page tables alone</div></div>`;
       $('#c-note').innerHTML = per > ram
-        ? '<span class="no">More than a laptop\'s 16 GiB of RAM for one process.</span> A flat table can\'t work here.'
+        ? '<span class="no">More than a laptop\'s 16 GiB of RAM for one process.</span> A flat table cannot work here.'
         : per > Math.pow(2, 20) ? 'Megabytes per process, and every process has one.' : '<span class="ok">Small enough to ignore.</span>';
     }
     ['c-m', 'c-n', 'c-e', 'c-p'].forEach((id) => $('#' + id).addEventListener('input', render));
@@ -1323,15 +1323,15 @@
     const svg = $('#walk-svg');
     const HIT_HIDE = ['row-alt', 'row-upd'], MISS_HIDE = ['row-hit', 'row-upd'], UPD_HIDE = ['row-hit', 'row-old'];
     const S = [
-      { lit: null, hide: HIT_HIDE, cap: 'Both paths at once. Choose <b>TLB hit</b> or <b>TLB miss</b>, then step with Next.' },
+      { lit: null, hide: HIT_HIDE, cap: 'This overview shows both paths at once. Choose <b>TLB hit</b> or <b>TLB miss</b>, and then step with Next.' },
       { lit: ['cpu', 'w-cpu', 'la'], hide: HIT_HIDE, cap: 'The CPU issues logical address ⟨<span class="p">l</span>, <span class="d">d</span>⟩.' },
       { lit: ['la', 'search', 'tlb', 'row-hit'], hide: HIT_HIDE, cap: 'The MMU compares <span class="p">l</span> against every TLB entry at the same time.' },
       { lit: ['tlb', 'row-hit', 'arr-hit', 'pa', 'arr-d'], hide: HIT_HIDE, cap: '<span class="ok">① TLB hit.</span> Frame <span class="f">f</span> comes straight out of the TLB, and the offset <span class="d">d</span> is copied over unchanged.' },
       { lit: ['pa', 'arr-pa', 'target', 'arr-ret', 'cpu'], hide: HIT_HIDE, cap: 'One RAM access reads the target at ⟨<span class="f">f</span>, <span class="d">d</span>⟩. <b>1 memory access in total.</b>' },
-      { lit: ['la', 'search', 'tlb', 'row-alt', 'row-old', 'arr-miss', 'ptbr'], hide: MISS_HIDE, cap: '<span class="no">② TLB miss.</span> No entry holds <span class="p">l</span>. Fall back to the page table.' },
-      { lit: ['ptbr', 'arr-ptbr', 'pt', 'pte'], hide: MISS_HIDE, cap: '<span class="no">②a</span> The PTBR says where this process\'s page table is. Read entry <span class="p">l</span> to get <span class="f">f</span>. This is <b>memory access #1</b>.' },
-      { lit: ['pte', 'arr-upd', 'tlb', 'row-upd', 'row-alt'], hide: UPD_HIDE, cap: '<span class="os">②b</span> Copy (<span class="p">l</span>, <span class="f">f</span>) into the TLB, evicting the least recently used entry if it is full. The next access to this page hits.' },
-      { lit: ['pte', 'arr-pte', 'pa', 'arr-d', 'arr-pa', 'target', 'arr-ret', 'cpu'], hide: UPD_HIDE, cap: 'Form ⟨<span class="f">f</span>, <span class="d">d</span>⟩ and read the target. This is <b>memory access #2</b>. A miss costs twice as many RAM accesses as a hit.' },
+      { lit: ['la', 'search', 'tlb', 'row-alt', 'row-old', 'arr-miss', 'ptbr'], hide: MISS_HIDE, cap: '<span class="no">② TLB miss.</span> No entry holds <span class="p">l</span>. Therefore, the MMU falls back to the page table.' },
+      { lit: ['ptbr', 'arr-ptbr', 'pt', 'pte'], hide: MISS_HIDE, cap: '<span class="no">②a</span> The PTBR holds the location of this process\'s page table. The MMU reads entry <span class="p">l</span> to get <span class="f">f</span>. This is <b>memory access #1</b>.' },
+      { lit: ['pte', 'arr-upd', 'tlb', 'row-upd', 'row-alt'], hide: UPD_HIDE, cap: '<span class="os">②b</span> The MMU copies (<span class="p">l</span>, <span class="f">f</span>) into the TLB. If the TLB is full, the least recently used entry is evicted. The next access to this page hits.' },
+      { lit: ['pte', 'arr-pte', 'pa', 'arr-d', 'arr-pa', 'target', 'arr-ret', 'cpu'], hide: UPD_HIDE, cap: 'The MMU forms ⟨<span class="f">f</span>, <span class="d">d</span>⟩ and reads the target. This is <b>memory access #2</b>. A miss costs twice as many RAM accesses as a hit.' },
     ];
     let i = 0;
     const parts = $$('[data-part]', svg);
@@ -1398,7 +1398,7 @@
     function sw() {
       S.proc = S.proc === 'P1' ? 'P2' : 'P1';
       if (S.pol === 'flush') { S.tlb = []; S.log = `Switched to ${S.proc}. TLB flushed.`; }
-      else S.log = `Switched to ${S.proc}. The other process's entries stay, tagged, but don't match.`;
+      else S.log = `Switched to ${S.proc}. The other process's entries stay in the TLB with their tags, but they do not match.`;
       S.last = -1;
     }
     function render() {
@@ -1425,7 +1425,7 @@
       if (timer) { clearInterval(timer); timer = null; }
       S = fresh(pol);
       [0, 1, 2, 0, 1].forEach(access);
-      S.log = 'At the example start, P1 has already read pages 0, 1, 2, 0, 1.';
+      S.log = 'At the start of the example, P1 has already read pages 0, 1, 2, 0, 1.';
       render();
     }
     function run() {
@@ -1461,11 +1461,11 @@
   (function () {
     const fixes = {
       none: { sw: 'Nothing happens to the cache.', line: 'VA 0x4000 → "100"', res: 'wrong',
-        out: 'Cache <b>hit</b> on 0x4000. P2 reads <b class="bad">100</b>, which is P1\'s balance. Its own value is 42.' },
+        out: 'Cache <b>hit</b> on 0x4000. P2 reads <b class="bad">100</b>, which is P1\'s balance. P2\'s own value is 42.' },
       flush: { sw: 'The whole cache is emptied.', line: '(cache empty)', res: 'right',
-        out: 'Cache <b>miss</b>. The MMU translates P2\'s 0x4000 to P2\'s frame and returns <b class="f">42</b>. Correct, but P2 starts with a cold cache.' },
+        out: 'Cache <b>miss</b>. The MMU translates P2\'s 0x4000 to P2\'s frame and returns <b class="f">42</b>. The result is correct. However, P2 starts with a cold cache.' },
       asid: { sw: 'P1\'s line stays, tagged P1.', line: 'P1 · VA 0x4000 → "100"', res: 'right',
-        out: 'The tag says P1 and the running process is P2, so it is a <b>miss</b>. P2 gets <b class="f">42</b>, and P1\'s line survives for when P1 comes back.' },
+        out: 'The tag says P1, but the running process is P2. Therefore, the lookup is a <b>miss</b>. P2 gets <b class="f">42</b>, and P1\'s line stays in the cache for when P1 comes back.' },
     };
     function render(fix) {
       const f = fixes[fix];
@@ -1487,16 +1487,16 @@
     const SC = [
       { t: ['P1 (app A)', 'P2 (app B)'], p1: P1LIB, p2: [['appB', 7], ['lib1', 3], ['lib2', 5], ['data2', 1]],
         ram: ['data1', 'data2', 'appA2', 'lib1', 'appA1', 'lib2', null, 'appB'],
-        cap: 'Both page tables map <b>lib1</b> and <b>lib2</b> to frames 3 and 5, so RAM holds one copy of the library. Each process keeps private code and data.' },
+        cap: 'Both page tables map <b>lib1</b> and <b>lib2</b> to frames 3 and 5. Therefore, RAM holds only one copy of the library. Each process keeps its private code and data.' },
       { t: ['P1 (app A)', 'P2 (app B)'], p1: P1LIB.concat([['shm', 6]]), p2: [['appB', 7], ['lib1', 3], ['lib2', 5], ['data2', 1], ['shm', 6]],
         ram: ['data1', 'data2', 'appA2', 'lib1', 'appA1', 'lib2', 'shm', 'appB'],
-        cap: 'A shared-memory region. Both processes map a page to frame 6. A write by one is immediately visible to the other. That is shared-memory IPC.' },
+        cap: 'This scenario shows a shared-memory region. Both processes map a page to frame 6. A write by one process is immediately visible to the other. This is shared-memory IPC.' },
       { t: ['parent', 'child'], p1: P1LIB, p2: P1LIB, ro: true,
         ram: ['data1', null, 'appA2', 'lib1', 'appA1', 'lib2', null, 'other'],
         cap: 'Right after <code>fork()</code>, the child\'s page table is a copy of the parent\'s. Every entry points at the same frame, and every entry is marked <b class="os">read-only</b>. No page has been copied yet.' },
       { t: ['parent', 'child'], p1: P1LIB, p2: [['appA1', 4], ['appA2', 2], ['lib1', 3], ['lib2', 5], ['data1', 1]], ro: true, rw2: 4, fresh: 1,
         ram: ['data1', 'data1′', 'appA2', 'lib1', 'appA1', 'lib2', null, 'other'],
-        cap: 'The child writes to data1. The page is read-only, so the write <b class="bad">faults</b>. The kernel copies frame 0 into free frame 1, points the child\'s entry 4 at it, and makes that entry writable. The parent\'s entry stays read-only until it writes too. Then the kernel sees the parent is the only user left and simply makes the page writable.' },
+        cap: 'The child writes to data1. The page is read-only, so the write <b class="bad">faults</b>. The kernel copies frame 0 into free frame 1, points the child\'s entry 4 at it, and makes that entry writable. The parent\'s entry stays read-only until the parent writes too. At that point, the kernel sees that the parent is the only user left, and it simply makes the page writable.' },
     ];
     const RH = 46, RY = 44, FH = 44, FY = 44;
     function render(k) {

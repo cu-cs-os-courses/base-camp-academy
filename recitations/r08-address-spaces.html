@@ -42,7 +42,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 08 · Week 9</div>
     <h1>Every address is a <span class="accent">story</span></h1>
-    <p class="lede">Lecture 13 said the addresses your program uses are logical, translated and checked by the MMU on every access. Today you catch them in the act. They move from run to run, they sit in regions with permissions, the same address holds two different values in two processes, and a write to code is stopped by the hardware. Then Lab04 help.</p>
+    <p class="lede">Lecture 13 stated that the addresses a program uses are logical, and that the MMU translates and checks them on every access. In this recitation, you observe this directly. First, the addresses move from run to run. Second, they sit in regions with permissions. Third, the same address holds two different values in two processes. Fourth, the hardware stops a write to code. After that, we help with Lab04.</p>
     <div class="agenda">
       <div><b>0–5</b>Recap of logical addresses, MMU, segments</div>
       <div><b>5–25</b>Worked example on addresses, regions, protection</div>
@@ -86,8 +86,8 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="code"><span class="ln"><span class="c">/* where.c */</span></span><span class="ln"><span class="kw">#include</span> &lt;stdio.h&gt;</span><span class="ln"><span class="kw">#include</span> &lt;stdlib.h&gt;</span><span class="ln"><span class="kw">#include</span> &lt;unistd.h&gt;</span><span class="ln"> </span><span class="ln"><span class="kw">int</span> global = 1;</span><span class="ln"> </span><span class="ln"><span class="kw">int</span> main(<span class="kw">void</span>) {</span><span class="ln">    <span class="kw">int</span> local = 2;</span><span class="ln">    <span class="kw">int</span> *heap = malloc(<span class="kw">sizeof</span> *heap);</span><span class="ln">    *heap = 3;</span><span class="ln">    printf("code   %p\n", (<span class="kw">void</span> *)main);</span><span class="ln">    printf("global %p\n", (<span class="kw">void</span> *)&amp;global);</span><span class="ln">    printf("heap   %p\n", (<span class="kw">void</span> *)heap);</span><span class="ln">    printf("stack  %p\n", (<span class="kw">void</span> *)&amp;local);</span><span class="ln">    <span class="kw">return</span> 0;</span><span class="ln">}</span></div>
     <div class="code"><span class="ln">gcc -Wall -Werror -o where where.c &amp;&amp; ./where &amp;&amp; ./where</span><span class="ln">setarch -R ./where ; setarch -R ./where</span></div>
     <details class="fold"><summary>What you should see</summary><div class="prose">
-      <p>Two plain runs give different numbers (for example code <code>0x563849841149</code>, then <code>0x563aa1d52149</code>), but always in the same order, namely code &lt; global &lt; heap, far below the stack near <code>0x7ff…</code>. With <code>setarch -R</code> both runs are identical, with code <code>0x555555555149</code>, stack <code>0x7fffffffec04</code>.</p>
-      <p>The kernel places each region at a random base on every run. This is <strong>address space layout randomization</strong>. That way an attacker cannot predict where code and data are. <code>setarch -R</code> turns it off for one run. The program does not care where it is placed. That is execution-time binding.</p>
+      <p>Two plain runs print different numbers, for example code <code>0x563849841149</code> and then <code>0x563aa1d52149</code>. However, the order is always the same, namely code &lt; global &lt; heap, and all three lie far below the stack near <code>0x7ff…</code>. With <code>setarch -R</code>, both runs are identical, with code at <code>0x555555555149</code> and the stack at <code>0x7fffffffec04</code>.</p>
+      <p>On every run, the kernel places each region at a random base. This is <strong>address space layout randomization</strong>. As a result, an attacker cannot predict where code and data are. <code>setarch -R</code> turns it off for one run. Note that the program runs correctly wherever it is placed. This is execution-time binding.</p>
     </div></details>
   </div>
 </section>
@@ -101,7 +101,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="code"><span class="ln">sleep 60 &amp;</span><span class="ln">cat /proc/$!/maps</span><span class="ln">kill %1</span></div>
     <div class="code"><span class="ln"><span class="c"># start-end           perms offset   dev   inode   file (from the course VM; shortened)</span></span><span class="ln">55bc0ccdf000-55bc0cce4000 r-xp 00002000 fd:00 680    /usr/bin/sleep     <span class="c">← code</span></span><span class="ln">55bc0cce7000-55bc0cce8000 rw-p 0000a000 fd:00 680    /usr/bin/sleep     <span class="c">← data</span></span><span class="ln hl">55bc37b63000-55bc37b84000 rw-p 00000000 00:00 0      [heap]</span><span class="ln">7fda8c4cd000-7fda8c623000 r-xp 00026000 fd:00 4925   …/libc.so.6        <span class="c">← library code</span></span><span class="ln">7fda8c68f000-7fda8c6b5000 r-xp 00001000 fd:00 4780   …/ld-linux-x86-64.so.2</span><span class="ln hl">7fff22348000-7fff22369000 rw-p 00000000 00:00 0      [stack]</span></div>
     <div class="prose">
-      <p>Each line is a start–end range with protection bits, that is, the base, limit and permissions of a segment (Lecture 13, §5). Code is <code>r-x</code>, readable and executable but not writable. Data, heap and stack are <code>rw-</code>. <code>p</code> means private to this process. <code>ld-linux</code> is the dynamic linker from Lecture 13, §1.4.</p>
+      <p>Each line is a start–end range with protection bits. In other words, each line gives the base, limit, and permissions of a segment (Lecture 13, §5). Code is <code>r-x</code>, which means readable and executable but not writable. Data, heap, and stack are <code>rw-</code>. <code>p</code> means private to this process. <code>ld-linux</code> is the dynamic linker from Lecture 13, §1.4.</p>
     </div>
   </div>
 </section>
@@ -115,7 +115,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="code"><span class="ln"><span class="c">/* twins.c */</span></span><span class="ln"><span class="kw">#include</span> &lt;stdio.h&gt;</span><span class="ln"><span class="kw">#include</span> &lt;unistd.h&gt;</span><span class="ln"><span class="kw">#include</span> &lt;sys/wait.h&gt;</span><span class="ln"> </span><span class="ln"><span class="kw">int</span> global = 1;</span><span class="ln"> </span><span class="ln"><span class="kw">int</span> main(<span class="kw">void</span>) {</span><span class="ln">    <span class="kw">if</span> (fork() == 0) {</span><span class="ln">        global = 99;</span><span class="ln">        printf("child:  &amp;global = %p  global = %d\n", (<span class="kw">void</span> *)&amp;global, global);</span><span class="ln">        <span class="kw">return</span> 0;</span><span class="ln">    }</span><span class="ln">    wait(NULL);</span><span class="ln">    printf("parent: &amp;global = %p  global = %d\n", (<span class="kw">void</span> *)&amp;global, global);</span><span class="ln">    <span class="kw">return</span> 0;</span><span class="ln">}</span></div>
     <div class="code"><span class="ln">child:  &amp;global = 0x5629ef66e028  global = 99</span><span class="ln">parent: &amp;global = 0x5629ef66e028  global = 1</span></div>
     <details class="fold"><summary>How can one address hold two values?</summary><div class="prose">
-      <p>It is one <strong>logical</strong> address in two different address spaces. The MMU maps it, for each process, to a different physical location. In R03 you saw that the child's copy is separate. This is why.</p>
+      <p>It is one <strong>logical</strong> address in two different address spaces. For each process, the MMU maps this address to a different physical location. In R03, you saw that the child's copy is separate. This mapping is the reason.</p>
     </div></details>
   </div>
 </section>
@@ -128,8 +128,8 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="code"><span class="ln"><span class="c">/* poke.c */</span></span><span class="ln"><span class="kw">#include</span> &lt;stdio.h&gt;</span><span class="ln"> </span><span class="ln"><span class="kw">int</span> main(<span class="kw">void</span>) {</span><span class="ln">    <span class="kw">unsigned char</span> *p = (<span class="kw">unsigned char</span> *)main;</span><span class="ln">    fprintf(stderr, "first byte of main: 0x%02x\n", *p);   <span class="c">/* reading code is allowed */</span></span><span class="ln bad">    *p = 0;                                                  <span class="c">/* writing it is not */</span></span><span class="ln">    printf("not reached\n");</span><span class="ln">    <span class="kw">return</span> 0;</span><span class="ln">}</span></div>
     <div class="prose">
-      <p>It prints <code>first byte of main: 0x55</code>, then <code>Segmentation fault</code>, and <code>echo $?</code> gives 139. The code region is <code>r-x</code>. The write traps to the kernel, which kills the process with SIGSEGV. This is the protection check of Lecture 13, §2.1, done by hardware on every access.</p>
-      <p class="small muted">The first line goes to stderr on purpose. On stdout, redirected to a file, it could still be sitting in the buffer when the process dies (R03).</p>
+      <p>It prints <code>first byte of main: 0x55</code> and then <code>Segmentation fault</code>, and <code>echo $?</code> prints 139. The code region is <code>r-x</code>. Therefore, the write traps to the kernel, and the kernel kills the process with SIGSEGV. This is the protection check of Lecture 13, §2.1, which the hardware performs on every access.</p>
+      <p class="small muted">The first line goes to stderr on purpose. If it went to stdout and stdout were redirected to a file, the line could still be in the buffer when the process dies (R03).</p>
     </div>
   </div>
 </section>
@@ -143,11 +143,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="prose">
       <ul>
-        <li><b>Part 1</b> reads two numbers from <code>/proc/self</code>, the same skill as Lab00. <code>man 5 proc</code> documents both files. Step 1 of the Lab04 walkthrough explains the transparent-huge-pages surprise. Read it before asking about fault counts.</li>
-        <li><b>Part 2</b>, the pager, is the subject of Lecture 16 (Mar 23). Read the interface reference in Step 3 of the Lab04 walkthrough now. TAs can answer design questions.</li>
+        <li><b>Part 1</b> reads two numbers from <code>/proc/self</code>, which is the same skill as in Lab00. Step 1 of the Lab04 walkthrough shows the expected output. Compare your output with it before you ask about fault counts.</li>
+        <li><b>Part 2</b>, the pager, is the subject of Lecture 16 (Mar 23). Read the interface reference in Step 2 of the Lab04 walkthrough now. The TAs can answer design questions.</li>
       </ul>
     </div>
-    <div class="code"><span class="ln">SHARE=$PWD/labs/04-virtual-memory/submit env/run.sh</span><span class="ln"><span class="c"># in the VM</span></span><span class="ln">cd /share &amp;&amp; gcc -Wall -Werror -O2 -o /tmp/touch touch.c &amp;&amp; /tmp/touch</span></div>
+    <div class="code"><span class="ln">SHARE=$PWD/labs/04-virtual-memory env/run.sh</span><span class="ln"><span class="c"># in the VM</span></span><span class="ln">cd /share &amp;&amp; gcc -Wall -Werror -O2 -o /tmp/touch submit/touch.c &amp;&amp; /tmp/touch</span></div>
   </div>
 </section>
 
@@ -155,7 +155,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="ch-head">
     <div class="ch-no">Part 6</div>
     <h2>Exit ticket</h2>
-    <p class="ch-lede">Not graded. Answer, then check.</p>
+    <p class="ch-lede">The exit ticket is not graded. Answer each question first, then check.</p>
   </div>
   <div class="sec">
     <div class="quiz" data-quiz>
@@ -165,7 +165,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="Both prints read global after the child's write. However, the parent reads its own copy.">The parent printed before the child wrote.</button>
           <button type="button" class="q-opt" data-ok>It is the same logical address in two address spaces, mapped to different physical memory.</button>
-          <button type="button" class="q-opt" data-why="printf prints the pointer itself, and the two really are equal.">printf rounds the addresses.</button>
+          <button type="button" class="q-opt" data-why="printf prints the pointer itself, and the two pointers are equal.">printf rounds the addresses.</button>
         </div>
         <div class="q-fb ok">Right. Translation is per process.</div>
         <div class="q-fb no">Not quite.</div>
@@ -177,10 +177,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <div class="q-text">Why does <code>poke.c</code> crash?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="main's address is valid, and reading it worked.">main is not a valid address.</button>
-          <button type="button" class="q-opt" data-ok>It writes to the code region, mapped read and execute only. The MMU traps and the kernel sends SIGSEGV.</button>
-          <button type="button" class="q-opt" data-why="The crash is the write, before any second printf.">printf cannot print code bytes.</button>
+          <button type="button" class="q-opt" data-ok>It writes to the code region, which is mapped read and execute only. The MMU traps, and the kernel sends SIGSEGV.</button>
+          <button type="button" class="q-opt" data-why="The crash happens at the write, before the second printf.">printf cannot print code bytes.</button>
         </div>
-        <div class="q-fb ok">Right. It is the <code>r-xp</code> in the maps, enforced on every access.</div>
+        <div class="q-fb ok">Right. The cause is the <code>r-xp</code> in the maps, which the MMU enforces on every access.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -197,11 +197,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       <table class="cs">
         <tbody>
           <tr><td>printf("%p", (void *)x)</td><td>Print a (logical) address.</td></tr>
-          <tr><td>/proc/&lt;pid&gt;/maps</td><td>The process's regions, with range, permissions, backing file.</td></tr>
+          <tr><td>/proc/&lt;pid&gt;/maps</td><td>The process's regions, each with its range, permissions, and backing file.</td></tr>
           <tr><td>r / w / x / p</td><td>readable / writable / executable / private.</td></tr>
           <tr><td>setarch -R ./prog</td><td>Run once without address randomization.</td></tr>
-          <tr><td>exit status 139</td><td>128 + 11, that is, killed by signal 11, SIGSEGV.</td></tr>
-          <tr><td>logical vs physical</td><td>What the program sees vs what the memory unit sees. The MMU translates.</td></tr>
+          <tr><td>exit status 139</td><td>128 + 11. In other words, the process was killed by signal 11, SIGSEGV.</td></tr>
+          <tr><td>logical vs physical</td><td>The address the program sees vs the address the memory unit sees. The MMU translates the first into the second.</td></tr>
         </tbody>
       </table>
     </div>

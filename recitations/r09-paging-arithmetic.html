@@ -40,7 +40,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 09 · Week 10</div>
     <h1>Cut the address, <span class="accent">count</span> the cost</h1>
-    <p class="lede">Lectures 14 and 15 turned memory into pages and made some of them live on disk. Today is the arithmetic behind that, namely splitting an address for a page size that does not fall on a hex digit, why a two-level page table is thousands of times smaller, and how a TLB, an extra table level and a rare page fault each change the average access time. Then Lab04 help, the last session before spring break.</p>
+    <p class="lede">Lectures 14 and 15 divided memory into pages and kept some of these pages on disk. In this recitation, we work through the arithmetic behind these ideas. First, we split an address for a page size that does not fall on a hex digit. Second, we show why a two-level page table is thousands of times smaller. Third, we compute how a TLB, an extra table level, and a rare page fault each change the average access time. Then we hold Lab04 help, the last session before spring break.</p>
     <div class="agenda">
       <div><b>0–5</b>Recap of pages, frames, TLB, faults</div>
       <div><b>5–25</b>Worked example on translation, two levels, and EAT</div>
@@ -89,8 +89,8 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <div class="prose" style="margin-top:1em">
           <p>There are two ways to split an address.</p>
           <ul>
-            <li><b>Arithmetic</b> gives page = address ÷ 2048 and offset = address mod 2048.</li>
-            <li><b>Bits.</b> Write it in binary and cut 11 bits from the right. With 2 KB pages the cut falls <em>inside</em> a hex digit.</li>
+            <li><b>Arithmetic.</b> The page is address ÷ 2048, and the offset is address mod 2048.</li>
+            <li><b>Bits.</b> Write the address in binary and cut 11 bits from the right. Note that, with 2 KB pages, the cut falls <em>inside</em> a hex digit.</li>
           </ul>
         </div>
       </div>
@@ -111,7 +111,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           </tbody>
         </table>
       </div>
-      <p>For <code>0x1234</code> the OS decides (Lecture 15). If page 2 belongs to the address space but is on disk, this is a <strong>page fault</strong>, and the OS loads the page. If it does not belong, the access is illegal and the process gets a segmentation fault.</p>
+      <p>For <code>0x1234</code>, the OS decides what happens (Lecture 15). If page 2 belongs to the address space but is on disk, the access is a <strong>page fault</strong>, and the OS loads the page. Otherwise, the access is illegal, and the process gets a segmentation fault.</p>
     </div></details>
   </div>
 </section>
@@ -131,9 +131,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       <p>A process has 8 MB of code and data at the bottom and a 4 MB stack at the top. How much page table does it need? And how does <code>0x00805123</code> split?</p>
     </div>
     <details class="fold"><summary>Answers</summary><div class="prose">
-      <p>2 + 1 inner tables plus the outer one give 4 KB + 3 × 4 KB = <b>16 KB</b>, instead of 4 MB.</p>
+      <p>The process needs 2 + 1 inner tables plus the outer table, which take 4 KB + 3 × 4 KB = <b>16 KB</b> instead of 4 MB.</p>
       <p><code>0x00805123</code> splits as outer index = top 10 bits = <b>2</b>, inner index = next 10 bits = <b>5</b>, offset = <b>0x123</b>.</p>
-      <p>The cost is that without a TLB, one translation now takes <b>two</b> table reads before the data read. x86-64 uses four levels.</p>
+      <p>However, without a TLB, one translation now takes <b>two</b> table reads before the data read. Note that x86-64 uses four levels.</p>
     </div></details>
   </div>
 </section>
@@ -152,7 +152,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <li>With two levels, a miss is 3 accesses. EAT = 0.95 × 50 + 0.05 × 150 = <b>55 ns</b>.</li>
         <li>With faults, EAT ≈ (1 − 10<sup>−6</sup>) × 55 + 10<sup>−6</sup> × 5,000,000 ≈ 55 + 5 = <b>60 ns</b>.</li>
       </ol>
-      <p>One fault in a <em>million</em> accesses costs as much as all the TLB misses together. That is why the fault rate must be tiny, and why replacement policy (Lecture 16, after the break) matters. Try other values in the <a href="../lectures/14-paging.html">Lecture 14</a> and <a href="../lectures/15-virtual-memory.html#s1-3">Lecture 15</a> calculators.</p>
+      <p>In other words, one fault in a <em>million</em> accesses costs as much as all the TLB misses together. Therefore, the fault rate must be tiny, and replacement policy (Lecture 16, after the break) matters. Try other values in the <a href="../lectures/14-paging.html">Lecture 14</a> and <a href="../lectures/15-virtual-memory.html#s1-3">Lecture 15</a> calculators.</p>
     </div></details>
   </div>
 </section>
@@ -166,9 +166,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="prose">
       <ul>
-        <li><b>Part 1.</b> See R08's tips. Finish it before the break.</li>
-        <li><b>Part 2</b>, the pager. Start by reading the interface reference in Step 3 of the Lab04 walkthrough. Each swap costs 100 ticks, so ask yourself how many pages you move per tick. LRU itself is Lecture 16 (Mar 23).</li>
-        <li><b>PS3.</b> TAs explain rules and definitions, but they do not work its problems.</li>
+        <li><b>Part 1.</b> See the tips in R08. Finish Part 1 before the break.</li>
+        <li><b>Part 2</b>, the pager. Start by reading the interface reference in Step 2 of the Lab04 walkthrough. Each swap costs 100 ticks. As such, ask yourself how many pages you move per tick. LRU itself is covered in Lecture 16 (Mar 23).</li>
+        <li><b>PS3.</b> TAs explain the rules and definitions. However, they do not work the PS3 problems for you.</li>
       </ul>
     </div>
   </div>
@@ -178,7 +178,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="ch-head">
     <div class="ch-no">Part 5</div>
     <h2>Exit ticket</h2>
-    <p class="ch-lede">Not graded. Answer, then check.</p>
+    <p class="ch-lede">The exit ticket is not graded. Answer each question, then check it.</p>
   </div>
   <div class="sec">
     <div class="quiz" data-quiz>

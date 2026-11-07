@@ -86,7 +86,7 @@
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 20 · Interactive notes</div>
     <h1>A file is a name, a header,<br>and blocks <span class="accent">anywhere</span></h1>
-    <p class="lede">Lecture 19 gave us a disk, that is, numbered blocks that remember their contents. A file system turns those blocks into named, growable files that survive a crash. This lecture builds one piece by piece. It covers the structures on disk and in memory, what <code>open</code>, <code>read</code> and <code>close</code> actually do, four ways to lay a file's blocks out, how free blocks are tracked, and how a journal lets the system recover when the power dies halfway through an update.</p>
+    <p class="lede">In Lecture 19, we studied a disk, namely numbered blocks that remember their contents. A file system turns these blocks into named, growable files that survive a crash. In this lecture, we build a file system piece by piece. Specifically, we discuss the structures on disk and in memory, what <code>open</code>, <code>read</code>, and <code>close</code> actually do, five ways to lay out a file's blocks, how free blocks are tracked, and how a journal lets the system recover when the power fails halfway through an update.</p>
     <div class="promise">
       <span>Before you start, review</span><span class="mono">page tables (L14) and disks (L19)</span><span>The file-allocation chapter reuses both ideas.</span>
     </div>
@@ -134,7 +134,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 0</div>
     <h2>What a file system stores</h2>
-    <p class="ch-lede">Some of it lives on disk and survives power loss. Some lives in RAM and makes it fast.</p>
+    <p class="ch-lede">Part of the file system lives on disk and survives power loss. The other part lives in RAM and makes the file system fast.</p>
   </div>
 
   <div class="sec" id="s0-1">
@@ -154,7 +154,7 @@
             <g id="tree-g"></g>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 0.1</span>The path to <span class="p">foo.txt</span>. Two files named <code>mail</code>, no conflict.</figcaption>
+        <figcaption><span class="fno">Fig. 0.1</span>The path to <span class="p">foo.txt</span>. Two files are named <code>mail</code>, and they do not conflict.</figcaption>
       </figure>
     </div>
   </div>
@@ -169,7 +169,7 @@
           <li>each file's attributes, in a <strong>file control block (FCB)</strong>,</li>
           <li>each file's <strong>data</strong>,</li>
           <li data-step="1">a <strong>boot block</strong>, typically the first block of a volume, with what is needed to boot an OS from it (empty if there is none), and</li>
-          <li data-step="1">a <strong>volume control block</strong> with the volume's details, such as which blocks are free, how many blocks, and the block size.</li>
+          <li data-step="1">a <strong>volume control block</strong> with the volume's details, such as which blocks are free, the number of blocks, and the block size.</li>
         </ol>
       </div>
       <figure class="fig">
@@ -179,7 +179,7 @@
             <g id="fcb-g"></g>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 0.2</span>An example FCB. In UNIX this is the <strong>inode</strong>.</figcaption>
+        <figcaption><span class="fno">Fig. 0.2</span>An example FCB. In UNIX, the FCB is the <strong>inode</strong>.</figcaption>
       </figure>
     </div>
   </div>
@@ -191,7 +191,7 @@
       <ol>
         <li><strong>recently used parts of the directory tree</strong>, for fast lookup,</li>
         <li data-step="1">a <strong>system-wide open-file table (OFT)</strong> with process-independent information about each open file, namely its FCB and an <strong>open count</strong> of the processes that have it open,</li>
-        <li data-step="2">a <strong>per-process OFT</strong> with every file that process opened, holding access rights and a <strong>current file position</strong> pointer, where the process is reading or writing, and</li>
+        <li data-step="2">a <strong>per-process OFT</strong> with every file that process opened, holding access rights and a <strong>current file position</strong> pointer, which marks where the process is reading or writing, and</li>
         <li data-step="3">a <strong>mount table</strong> of the devices whose file systems are mounted as volumes.</li>
       </ol>
     </div>
@@ -208,7 +208,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 1</div>
     <h2>Open, read, close</h2>
-    <p class="ch-lede">The three calls that move a file's information from disk into those tables and back.</p>
+    <p class="ch-lede">Three calls move a file's information from disk into these tables and back.</p>
   </div>
 
   <div class="sec" id="s1-1">
@@ -216,8 +216,8 @@
     <div class="two-up">
       <div class="prose">
         <ol>
-          <li>Search the directory structure for <code>foo.txt</code>. Fast if the directory entries are in memory. Otherwise, read them from disk and cache them.</li>
-          <li data-step="2">The directory entry points to the file's FCB on disk. Read the FCB, copy it into the <strong>system OFT</strong>, which caches it for later opens, and increment the file's open count.</li>
+          <li>Search the directory structure for <code>foo.txt</code>. This search is fast if the directory entries are in memory. Otherwise, read them from disk and cache them.</li>
+          <li data-step="2">The directory entry points to the file's FCB on disk. Read the FCB and copy it into the <strong>system OFT</strong>, which caches it for later opens. Then increment the file's open count.</li>
           <li data-step="3">Add an entry to the <strong>per-process OFT</strong> pointing to the FCB in the system OFT.</li>
           <li data-step="4">Return a <strong>file descriptor</strong> (handle), which is the index of that per-process entry.</li>
         </ol>
@@ -276,7 +276,7 @@
     </div>
     <div class="note note-warn" data-step="2">
       <span class="note-tag">Watch out</span>
-      <p>Until that write-back, the FCB in memory and the FCB on disk disagree. File system designers must keep this temporary inconsistency in mind. Chapter 5 is about what happens if the machine crashes during it.</p>
+      <p>Until this write-back, the FCB in memory and the FCB on disk disagree. Therefore, file system designers must keep this temporary inconsistency in mind. Chapter 5 discusses what happens if the machine crashes during this period.</p>
     </div>
   </div>
 
@@ -300,8 +300,8 @@
   <div class="sec" id="s1-4">
     <h3><span class="sec-no">1.4</span>File locks</h3>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">Mandatory locks</span>Only one process at a time may use an open file. The OS enforces it. Windows policy.</div>
-      <div data-step="1"><span class="tag">Advisory (optional) locks</span>Processes may take locks, but the OS does not force anyone to check. It is up to the users to synchronize access. UNIX policy.</div>
+      <div><span class="tag">Mandatory locks</span>Only one process at a time may use an open file, and the OS enforces this rule. This is the Windows policy.</div>
+      <div data-step="1"><span class="tag">Advisory (optional) locks</span>Processes may take locks. However, the OS does not force any process to check them. As such, it is up to the users to synchronize access. This is the UNIX policy.</div>
     </div>
   </div>
 
@@ -316,18 +316,18 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 2</div>
     <h2>File allocation</h2>
-    <p class="ch-lede">Which disk blocks hold a file, and how the file system remembers. Five approaches follow. The running example is one 4-block file, <code>foo</code>, on a 25-block disk shared with other files (hatched).</p>
+    <p class="ch-lede">File allocation decides which disk blocks hold a file and how the file system remembers them. In this chapter, we discuss five approaches. The running example is one 4-block file, <code>foo</code>, on a 25-block disk shared with other files (hatched).</p>
   </div>
 
   <div class="sec" id="s2-1">
     <h3><span class="sec-no">2.1</span>Approach 1, contiguous allocation</h3>
     <div class="two-up">
       <div class="prose">
-        <p>A file of n blocks gets a start block b and blocks b, b+1, …, b+n−1. The header stores only <strong>start</strong> and <strong>length</strong>. It is fast, because the blocks are next to each other, so seeks are short.</p>
+        <p>A file of n blocks gets a start block b and blocks b, b+1, …, b+n−1. The header stores only <strong>start</strong> and <strong>length</strong>. Contiguous allocation is fast. Because the blocks are next to each other, seeks are short.</p>
         <ul>
-          <li data-step="1"><strong>External fragmentation</strong>, the same problem as fitting processes into RAM contiguously, with the same choices of first fit, best fit, or compaction (defragmenting the disk, late at night).</li>
-          <li data-step="2">The file's size may not be known in advance. Allocate more than estimated. If it still outgrows its space, copy it to a larger free hole.</li>
-          <li data-step="3">Slow-growing files waste space. A file that will one day need 1 MB, growing 1 byte a second, wastes most of a 1 MB allocation for most of its life.</li>
+          <li data-step="1">Contiguous allocation suffers from <strong>external fragmentation</strong>. This is the same problem as fitting processes into RAM contiguously, with the same choices of first fit, best fit, or compaction (defragmenting the disk, late at night).</li>
+          <li data-step="2">The file's size may not be known in advance. Therefore, allocate more space than estimated. If the file still outgrows its space, copy it to a larger free hole.</li>
+          <li data-step="3">Slow-growing files waste space. For example, a file that grows 1 byte a second and will one day need 1 MB wastes most of a 1 MB allocation for most of its life.</li>
         </ul>
       </div>
       <figure class="fig"><div class="fig-frame"><div class="dgrid" data-mode="contig"></div></div><figcaption><span class="fno">Fig. 2.1</span><code>foo</code> has start 17, length 4.</figcaption></figure>
@@ -337,7 +337,7 @@
   <div class="sec" id="s2-2">
     <h3><span class="sec-no">2.2</span>Borrowing from paging</h3>
     <div class="prose">
-      <p>Page tables solved external fragmentation for processes (Lecture 14). Apply the same idea to files, as follows.</p>
+      <p>In Lecture 14, page tables solved external fragmentation for processes. We apply the same idea to files, as follows.</p>
       <ul>
         <li>Divide the disk into fixed-size blocks, as RAM was divided into frames.</li>
         <li data-step="1">Let a file's blocks sit anywhere on the disk, not necessarily together.</li>
@@ -350,7 +350,7 @@
     <h3><span class="sec-no">2.3</span>Approach 2, linked allocation</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Each file is a linked list of disk blocks, and every block holds a pointer to the next. The header needs only the start (and, conveniently, the end).</p>
+        <p>In linked allocation, each file is a linked list of disk blocks. Every block holds a pointer to the next block. The header needs only the start (and, for convenience, the end).</p>
         <div class="pc one">
           <div class="pro"><span class="tag">Good</span><ul><li>no external fragmentation, no need to know the size in advance,</li><li>minimal header, good for sequential access, easy to insert in the middle.</li></ul></div>
           <div class="con" data-step="1"><span class="tag">Bad</span><ul><li>random access is very slow, because you follow the list to the block you want,</li><li>every block spends space on a pointer,</li><li>fragile, because one corrupted pointer loses the rest of the file.</li></ul></div>
@@ -364,13 +364,13 @@
     <h3><span class="sec-no">2.4</span>Approach 3, the file allocation table (FAT)</h3>
     <div class="two-up">
       <div class="prose">
-        <p>An important variation of linked allocation is to take the pointers <strong>out of the data blocks</strong> and put them in one table at the beginning of the volume. Entry k of the FAT holds the number of the block after block k. A special EOF value ends the list, and unused blocks are 0.</p>
+        <p>An important variation of linked allocation takes the pointers <strong>out of the data blocks</strong> and puts them in one table at the beginning of the volume. Entry k of the FAT holds the number of the block after block k. A special EOF value ends the list, and unused blocks are 0.</p>
         <ul>
-          <li data-step="1">Allocating a block is simple. Find the first 0 entry.</li>
-          <li data-step="1">Random access is faster than a pure linked list, because all pointers sit together near the start of the disk, so little seeking (and the FAT is often cached in RAM).</li>
-          <li data-step="2">But finding block j still means walking j links.</li>
+          <li data-step="1">Allocating a block is simple. The file system finds the first 0 entry.</li>
+          <li data-step="1">Random access is faster than in a pure linked list. Because all pointers sit together near the start of the disk, little seeking is needed (and the FAT is often cached in RAM).</li>
+          <li data-step="2">However, finding block j still requires walking j links.</li>
         </ul>
-        <p class="small muted" data-step="2">FAT came from MS-DOS and Windows 95/98 (Bill Gates wrote the original). FAT16 and FAT32 name the size of a FAT entry. NTFS replaced it from Windows NT on, but FAT lives on in USB sticks and SD cards.</p>
+        <p class="small muted" data-step="2">FAT came from MS-DOS and Windows 95/98 (Bill Gates wrote the original). The numbers in FAT16 and FAT32 give the size of a FAT entry. Starting with Windows NT, NTFS replaced FAT. However, FAT is still used on USB sticks and SD cards.</p>
       </div>
       <figure class="fig"><div class="fig-frame"><div class="dgrid" data-mode="fat"></div><div class="fatrow" data-fat></div></div><figcaption><span class="fno">Fig. 2.3</span>The FAT for <code>foo</code> (start 8) has FAT[8] = 3, FAT[3] = 7, FAT[7] = 2, FAT[2] = EOF.</figcaption></figure>
     </div>
@@ -380,11 +380,11 @@
     <h3><span class="sec-no">2.5</span>Approach 4, indexed allocation</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Collect all of a file's pointers into one list, the <strong>index block</strong>. Entry j points to the file's j-th block on disk. It looks like a page table, except that it can grow.</p>
+        <p>Indexed allocation collects all of a file's pointers into one list, namely the <strong>index block</strong>. Entry j points to the file's j-th block on disk. The index block looks like a page table, except that it can grow.</p>
         <ul>
-          <li>Unlike the FAT, the index block can live anywhere on the disk, and it is just a linear list for one file.</li>
-          <li data-step="1">No external fragmentation, no size needed in advance, and <strong>no list to walk</strong>, since you index straight into the block.</li>
-          <li data-step="2">But how big should the index block be? Too small limits file size, and too big wastes space on small files. The fixes are to <strong>link</strong> index blocks together, or use a <strong>multilevel index</strong> (§2.7).</li>
+          <li>Unlike the FAT, the index block can live anywhere on the disk, and it is only a linear list for one file.</li>
+          <li data-step="1">Indexed allocation has no external fragmentation and needs no size in advance. It also has <strong>no list to walk</strong>, since you index straight into the block.</li>
+          <li data-step="2">However, the size of the index block is a trade-off. An index block that is too small limits the file size, and one that is too big wastes space on small files. The fixes are to <strong>link</strong> index blocks together or to use a <strong>multilevel index</strong> (§2.7).</li>
         </ul>
       </div>
       <figure class="fig"><div class="fig-frame"><div class="dgrid" data-mode="index"></div></div><figcaption><span class="fno">Fig. 2.4</span>Header → index block 12 → blocks 8, 3, 7, 2.</figcaption></figure>
@@ -414,14 +414,14 @@
       </div>
       <div class="readout" id="al-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Counts assume the file's header is already in memory (the file is open) and, for FAT, that the table is cached in RAM.</p>
+    <p class="small muted prose read-only">The counts assume that the file's header is already in memory (the file is open). For FAT, they also assume that the table is cached in RAM.</p>
   </div>
 
   <div class="sec" id="s2-7">
     <h3><span class="sec-no">2.7</span>Approach 5, multilevel indexed allocation</h3>
     <div class="prose">
-      <p>It works like hierarchical page tables. A <strong>first-level</strong> index block lists the second-level index blocks, and each <strong>second-level</strong> block lists the data blocks for its section of the file.</p>
-      <p data-step="1">The problem is that small files pay the same as large ones. Every access walks the same number of levels, so even the data of a 100-byte file takes at least 4 block reads, namely header, first level, second level, and data.</p>
+      <p>Multilevel indexed allocation works like hierarchical page tables. A <strong>first-level</strong> index block lists the second-level index blocks, and each <strong>second-level</strong> block lists the data blocks for its section of the file.</p>
+      <p data-step="1">However, small files pay the same cost as large ones. Every access walks the same number of levels. As a result, even the data of a 100-byte file takes at least 4 block reads, namely the header, the first level, the second level, and the data.</p>
     </div>
   </div>
 
@@ -436,7 +436,7 @@
           <li data-step="1">a <strong>double indirect</strong> pointer, an index of index blocks, and</li>
           <li data-step="1">a <strong>triple indirect</strong> pointer, one more level.</li>
         </ul>
-        <p data-step="2">Small files stay cheap, large files can span a huge number of blocks, and a small file that grows into a large one just starts using the indirect pointers.</p>
+        <p data-step="2">As such, small files stay cheap, and large files can span a huge number of blocks. A small file that grows into a large one simply starts using the indirect pointers.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -484,10 +484,10 @@
   <div class="sec" id="s2-9">
     <h3><span class="sec-no">2.9</span>Files vs. processes</h3>
     <div class="prose">
-      <p>Both problems map an entity onto storage. A process's address space maps onto RAM frames through page tables, and a file's data maps onto disk or flash. The differences are below.</p>
+      <p>Both problems map an entity onto storage. A process's address space maps onto RAM frames through page tables, and a file's data maps onto disk or flash. The differences are listed below.</p>
       <ul>
-        <li data-step="1">An address space has a fixed size known in advance. Files grow and shrink, so they need a more flexible map than a page table, which cannot grow.</li>
-        <li data-step="2">An address space can be sparse and mostly unused, while a file's data is all in use.</li>
+        <li data-step="1">An address space has a fixed size known in advance. In contrast, files grow and shrink. Therefore, they need a more flexible map than a page table, which cannot grow.</li>
+        <li data-step="2">An address space can be sparse and mostly unused. In contrast, all of a file's data is in use.</li>
       </ul>
     </div>
   </div>
@@ -500,9 +500,9 @@
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="Contiguous is the fastest (start + 1000), but FAT is not the slowest. Its links sit together in a cached table, while linked allocation reads a disk block per link.">Fewest is contiguous · most is FAT</button>
           <button type="button" class="q-opt" data-ok>Fewest is contiguous · most is linked</button>
-          <button type="button" class="q-opt" data-why="Indexed needs one index lookup plus the data block, while contiguous needs only the data block. And linked is the slowest.">Fewest is indexed · most is contiguous</button>
+          <button type="button" class="q-opt" data-why="Indexed needs one index lookup plus the data block, while contiguous needs only the data block. In addition, linked is the slowest.">Fewest is indexed · most is contiguous</button>
         </div>
-        <div class="q-fb ok">Right. Contiguous computes the address, while linked must read 1000 blocks just to find the pointer to the 1001st.</div>
+        <div class="q-fb ok">Right. Contiguous allocation computes the address. In contrast, linked allocation must read 1000 blocks only to find the pointer to the 1001st.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -519,16 +519,16 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 3</div>
     <h2>Free-space management</h2>
-    <p class="ch-lede">To allocate blocks, the file system must know which ones are free. Four ways to keep that "list".</p>
+    <p class="ch-lede">To allocate blocks, the file system must know which ones are free. There are four ways to keep this "list".</p>
   </div>
 
   <div class="sec" id="s3-1">
     <h3><span class="sec-no">3.1</span>Four representations</h3>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">1 · Bit vector (bitmap)</span>One bit per block, concatenated into an array. Bit j tells whether block j is allocated. Here bit = 1 means free, 0 allocated.</div>
-      <div data-step="1"><span class="tag">2 · Linked list</span>Link all free blocks together. It tracks only the free blocks (a bitmap also spends bits on allocated ones), and the first free block is found immediately. But allocating many blocks at once means traversing the list, which is slow.</div>
-      <div data-step="2"><span class="tag">3 · Grouping</span>A linked list whose list blocks each store n−1 pointers to free blocks, plus a pointer to the next list block. Many free blocks can be allocated at once.</div>
-      <div data-step="3"><span class="tag">4 · Counting</span>Grouping, plus a count on each entry of how many free blocks follow the one it points to. Even faster allocation of large numbers of free blocks.</div>
+      <div><span class="tag">1 · Bit vector (bitmap)</span>The bitmap keeps one bit per block, concatenated into an array. Bit j tells whether block j is allocated. Here, bit = 1 means free, and 0 means allocated.</div>
+      <div data-step="1"><span class="tag">2 · Linked list</span>Link all free blocks together. The list tracks only the free blocks (a bitmap also spends bits on allocated ones). The first free block is found immediately. However, allocating many blocks at once requires traversing the list, which is slow.</div>
+      <div data-step="2"><span class="tag">3 · Grouping</span>Grouping uses a linked list in which each list block stores n−1 pointers to free blocks, plus a pointer to the next list block. As such, many free blocks can be allocated at once.</div>
+      <div data-step="3"><span class="tag">4 · Counting</span>Counting extends grouping with a count on each entry, which says how many free blocks follow the block that the entry points to. It allocates large numbers of free blocks even faster.</div>
     </div>
   </div>
 
@@ -556,7 +556,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 4</div>
     <h2>Performance</h2>
-    <p class="ch-lede">Most tricks either keep something in memory or put things on disk where the head will be.</p>
+    <p class="ch-lede">Most performance techniques either keep data in memory or place data on disk where the head will be.</p>
   </div>
 
   <div class="sec" id="s4-1">
@@ -580,9 +580,9 @@
     <h3><span class="sec-no">4.2</span>Read-ahead and asynchronous writes</h3>
     <div class="prose">
       <ul>
-        <li><strong>Read-ahead.</strong> If the OS knows the access is sequential, it reads the requested page and several following ones into the cache, before they are asked for.</li>
-        <li data-step="1"><strong>Asynchronous writes.</strong> Delay writing file data until later. <code>write()</code> returns without waiting for the disk, taking disk I/O off the program's critical path. The disk can schedule and group nearby writes. And if the data changes again soon, one write may be skipped entirely.</li>
-        <li data-step="2">Sometimes synchronous writes are preferable, for example for FCB metadata changed during <code>open()</code>. Chapter 5 explains why.</li>
+        <li><strong>Read-ahead.</strong> If the OS knows the access is sequential, it reads the requested page and several following ones into the cache before they are requested.</li>
+        <li data-step="1"><strong>Asynchronous writes.</strong> The OS delays writing file data until later. As such, <code>write()</code> returns without waiting for the disk, which takes disk I/O off the program's critical path. In addition, the disk can schedule and group nearby writes. Further, if the data changes again soon, one write may be skipped entirely.</li>
+        <li data-step="2">However, synchronous writes are sometimes preferable, for example for FCB metadata changed during <code>open()</code>. Chapter 5 explains why.</li>
       </ul>
     </div>
   </div>
@@ -598,17 +598,17 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 5</div>
     <h2>Reliability and fault recovery</h2>
-    <p class="ch-lede">Part of the file system lives in RAM, and a power loss erases it. The OS must recover gracefully anyway.</p>
+    <p class="ch-lede">Part of the file system lives in RAM, and a power loss erases it. However, the OS must still recover gracefully.</p>
   </div>
 
   <div class="sec" id="s5-1">
     <h3><span class="sec-no">5.1</span>A fragile file system</h3>
     <div class="prose">
-      <p>Directories, file metadata and file data may all be cached in memory, and all be modified there. On a power loss, every modification not yet saved to disk is gone, and the copy on disk may be inconsistent.</p>
+      <p>Directories, file metadata, and file data may all be cached and modified in memory. On a power loss, every modification that is not yet saved to disk is lost. In addition, the copy on disk may be inconsistent.</p>
       <ol>
-        <li data-step="1"><strong>Asynchronous writes</strong> create inconsistency between memory and disk. Promised writes of file data may be lost, and directory information in RAM can be newer than on disk. <em>UNIX's answer</em> is to cache directory entries for reads, but write any change to metadata or free-space allocation <strong>synchronously</strong>, before the data blocks.</li>
+        <li data-step="1"><strong>Asynchronous writes</strong> create inconsistency between memory and disk. Promised writes of file data may be lost. Directory information in RAM can be newer than on disk. <em>UNIX's answer</em> is to cache directory entries for reads but to write any change to metadata or free-space allocation <strong>synchronously</strong>, before the data blocks.</li>
         <li data-step="2"><strong>Even synchronous writes can fail halfway</strong>, leaving a half-written directory entry, FCB, or data block.</li>
-        <li data-step="3"><strong>Complex operations</strong> can be interrupted in the middle. <code>create()</code> updates the directory, the FCB, data blocks, and free-space structures. Crash after the FCB is created, and the directory points to an FCB whose index block was never fully allocated.</li>
+        <li data-step="3"><strong>Complex operations</strong> can be interrupted in the middle. For example, <code>create()</code> updates the directory, the FCB, data blocks, and free-space structures. If the system crashes after the FCB is created, the directory points to an FCB whose index block was never fully allocated.</li>
       </ol>
     </div>
   </div>
@@ -616,8 +616,8 @@
   <div class="sec" id="s5-2">
     <h3><span class="sec-no">5.2</span>Consistency checkers</h3>
     <div class="prose">
-      <p>Run a checker such as <code>fsck</code> (UNIX) or <code>chkdsk</code> (MS-DOS) after a crash. With linked allocation it checks every list and every FCB against the directory structure (similar checks for indexed allocation), and verifies each allocated block's checksum.</p>
-      <p data-step="1">But it is computationally intensive and takes a long time on a whole file system, and it can detect an error without being able to correct it.</p>
+      <p>After a crash, run a checker such as <code>fsck</code> (UNIX) or <code>chkdsk</code> (MS-DOS). With linked allocation, the checker checks every list and every FCB against the directory structure (indexed allocation has similar checks). It also verifies each allocated block's checksum.</p>
+      <p data-step="1">However, a checker is computationally intensive and takes a long time on a whole file system. Further, it can detect an error without being able to correct it.</p>
     </div>
   </div>
 
@@ -626,10 +626,10 @@
     <div class="prose">
       <ul>
         <li>The OS keeps a <strong>log</strong> (journal) on disk of every operation on the file system. After a failure, it consults the log to reconstruct the file system.</li>
-        <li data-step="1"><strong>Write-ahead logging.</strong> Each operation is written to the log <em>before</em> it is performed on the data, such as "I'm about to write this directory entry / file header / data block", then "I just finished".</li>
-        <li data-step="2">Operations are grouped into <strong>transactions</strong>. A <code>create()</code> has many steps, and you want the whole file created or nothing at all. Transactions are <strong>atomic</strong>, meaning they succeed in their entirety or not at all.</li>
-        <li data-step="3">A transaction T<sub>i</sub> is logged as <code>&lt;Ti start&gt;</code>, then records like <code>write(X, old, new)</code>, then <code>&lt;Ti commit&gt;</code>. Each record keeps the transaction, the data item, and <strong>both the old and the new value</strong>, so recovery can go either way.</li>
-        <li data-step="4">Once <code>&lt;commit&gt;</code> is in the log, the log alone can finish the transaction after a crash, so the system call may return. The actual write of X to disk may come much later, and transactions may overlap in the log.</li>
+        <li data-step="1"><strong>Write-ahead logging.</strong> Each operation is written to the log <em>before</em> it is performed on the data. For example, the log records "I'm about to write this directory entry / file header / data block" and then "I just finished".</li>
+        <li data-step="2">Operations are grouped into <strong>transactions</strong>. For example, a <code>create()</code> has many steps, and you want either the whole file created or nothing at all. Transactions are <strong>atomic</strong>. In other words, they succeed in their entirety or not at all.</li>
+        <li data-step="3">A transaction T<sub>i</sub> is logged as <code>&lt;Ti start&gt;</code>, then records like <code>write(X, old, new)</code>, then <code>&lt;Ti commit&gt;</code>. Each record keeps the transaction, the data item, and <strong>both the old and the new value</strong>. Therefore, recovery can go either way.</li>
+        <li data-step="4">Once <code>&lt;commit&gt;</code> is in the log, the log alone can finish the transaction after a crash. Therefore, the system call may return. The actual write of X to disk may happen much later. Note that transactions may overlap in the log.</li>
       </ul>
     </div>
   </div>
@@ -639,11 +639,11 @@
     <div class="prose">
       <p>A <strong>checkpoint</strong> record confirms that every full transaction before it has been both committed to the log and executed on disk. Relative to the latest checkpoint, transactions fall into three groups.</p>
       <ul>
-        <li data-step="1"><span class="muted"><strong>completed</strong></span> means full transactions before the checkpoint. Nothing to do, and they can be removed from the log, or overwritten if it is circular.</li>
-        <li data-step="2"><strong class="f">committed</strong> means full transactions after the checkpoint, possibly not yet on disk. After a crash, <strong>redo()</strong> them.</li>
-        <li data-step="3"><strong class="d">partial</strong> means a start without a commit. After a crash, <strong>undo()</strong> them, rolling back to the old values. These are <em>aborted</em> transactions.</li>
+        <li data-step="1"><span class="muted"><strong>completed</strong></span> means full transactions before the checkpoint. Recovery has nothing to do for them. They can be removed from the log, or overwritten if the log is circular.</li>
+        <li data-step="2"><strong class="f">committed</strong> means full transactions after the checkpoint, which are possibly not yet on disk. After a crash, <strong>redo()</strong> them.</li>
+        <li data-step="3"><strong class="d">partial</strong> means a start without a commit. After a crash, <strong>undo()</strong> them, which rolls them back to the old values. These are <em>aborted</em> transactions.</li>
       </ul>
-      <p data-step="3">In normal operation the file system periodically replays committed transactions onto disk and appends a new checkpoint, turning them into completed ones.</p>
+      <p data-step="3">In normal operation, the file system periodically replays committed transactions onto disk and appends a new checkpoint. As a result, these transactions become completed ones.</p>
     </div>
   </div>
 
@@ -660,7 +660,7 @@
       </div>
       <div class="readout" id="lg-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Before any transaction, the disk holds X = 1, Y = 2, Z = 3. The log is the one from the slides.</p>
+    <p class="small muted prose read-only">Before any transaction, the disk holds X = 1, Y = 2, Z = 3. The log is the same as the one in the slides.</p>
   </div>
 
   <div class="sec" id="q2">
@@ -674,7 +674,7 @@
           <button type="button" class="q-opt" data-why="T4's commit is in the log, so the system call already returned to the program. Undoing it would lose a promised write.">Undo T4 and T5</button>
           <button type="button" class="q-opt" data-why="T4 is after the checkpoint, so its writes may not have reached the disk yet. It must be redone.">Nothing, since both are after the checkpoint</button>
         </div>
-        <div class="q-fb ok">Right. Committed after the checkpoint → redo with the new value. Started but not committed → undo with the old value.</div>
+        <div class="q-fb ok">Right. A transaction committed after the checkpoint is redone with the new value. A transaction started but not committed is undone with the old value.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -686,9 +686,9 @@
       <table class="glossary" style="max-width:none">
         <thead><tr><th>Kind</th><th>How it works</th><th>Trade-off</th></tr></thead>
         <tbody>
-          <tr><td>journaling</td><td>the log is a separate structure next to the normal file system. NTFS logs only metadata changes (file headers, directory entries), not file data</td><td>safe metadata, but data written twice if it is journaled too</td></tr>
-          <tr data-step="1"><td>log-structured</td><td>the log <em>is</em> the file system, with no separate structures for data and metadata. Storage is a circular log, written sequentially at its head. Assumes writes cost more than reads, since reads are mostly served from cache</td><td>fast batched writes with low seek time, snapshots and "time travel", and simple recovery from the last checkpoint. But files fragment, so reads from disk can be much slower</td></tr>
-          <tr data-step="2"><td>copy-on-write (ZFS, Btrfs)</td><td>never change data in place. Write new blocks, then new metadata pointing to them, then new metadata pointing to that, up to the root</td><td>the correctness of a journal without its write-twice overhead, and checksums guard data integrity</td></tr>
+          <tr><td>journaling</td><td>the log is a separate structure next to the normal file system. For example, NTFS logs only metadata changes (file headers, directory entries), not file data</td><td>metadata is safe, but data is written twice if it is journaled too</td></tr>
+          <tr data-step="1"><td>log-structured</td><td>the log <em>is</em> the file system, with no separate structures for data and metadata. Storage is a circular log, written sequentially at its head. This design assumes that writes cost more than reads, since reads are mostly served from cache</td><td>fast batched writes with low seek time, snapshots and "time travel", and simple recovery from the last checkpoint. However, files fragment, so reads from disk can be much slower</td></tr>
+          <tr data-step="2"><td>copy-on-write (ZFS, Btrfs)</td><td>data is never changed in place. The file system writes new blocks, then new metadata that points to them, then new metadata that points to that metadata, up to the root</td><td>the correctness of a journal without its write-twice overhead, and checksums guard data integrity</td></tr>
         </tbody>
       </table>
     </div>
@@ -697,9 +697,9 @@
   <div class="sec" id="s5-7">
     <h3><span class="sec-no">5.7</span>ext4's three journal modes</h3>
     <div class="opts3">
-      <div><span class="tag">journal</span>Both metadata and file data are logged. The safest mode, at the cost of two disk writes for every write.</div>
-      <div data-step="1"><span class="tag">ordered (default)</span>Only metadata is logged, and file contents are guaranteed to reach disk <em>before</em> the metadata is committed in the journal. The default on many Linux distributions.</div>
-      <div data-step="2"><span class="tag">writeback</span>Only metadata is logged, with no ordering guarantee, so a crash can leave a file whose metadata is new but whose contents are garbage. Fastest, least reliable.</div>
+      <div><span class="tag">journal</span>Both metadata and file data are logged. This is the safest mode, at the cost of two disk writes for every write.</div>
+      <div data-step="1"><span class="tag">ordered (default)</span>Only metadata is logged. However, file contents are guaranteed to reach disk <em>before</em> the metadata is committed in the journal. This mode is the default on many Linux distributions.</div>
+      <div data-step="2"><span class="tag">writeback</span>Only metadata is logged, with no ordering guarantee. Therefore, a crash can leave a file whose metadata is new but whose contents are garbage. This mode is the fastest and the least reliable.</div>
     </div>
   </div>
 
@@ -709,11 +709,11 @@
       <div class="quiz-body">
         <div class="q-text">ext4 in ordered mode crashes right after a program appended to a file. Which outcome is <strong>impossible</strong> after recovery?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="If the metadata commit never made it to the journal, recovery keeps the old size, and the append is simply lost. That is allowed.">The file has its old size, and the append is gone.</button>
+          <button type="button" class="q-opt" data-why="If the metadata commit never reached the journal, recovery keeps the old size, and the append is simply lost. That is allowed.">The file has its old size, and the append is gone.</button>
           <button type="button" class="q-opt" data-why="If the metadata committed, ordered mode already wrote the data first, so the file shows the appended bytes. That is allowed.">The file has its new size and the new bytes.</button>
           <button type="button" class="q-opt" data-ok>The file has its new size, but the new part contains stale garbage.</button>
         </div>
-        <div class="q-fb ok">Right. That is exactly what ordered mode prevents by writing data before committing metadata. Writeback mode allows it.</div>
+        <div class="q-fb ok">Right. Ordered mode prevents exactly this outcome by writing data before committing metadata. In contrast, writeback mode allows it.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -726,7 +726,7 @@
         <div class="q-text">Three processes have <code>foo.txt</code> open. One of them calls <code>close()</code>. What happens to the FCB in the system open-file table?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="The other two processes still use it, so removing it would break their reads.">It is removed and written back to disk.</button>
-          <button type="button" class="q-opt" data-ok>Its open count drops from 3 to 2 and it stays in memory.</button>
+          <button type="button" class="q-opt" data-ok>Its open count drops from 3 to 2, and it stays in memory.</button>
           <button type="button" class="q-opt" data-why="Only the closing process's per-process entry, with its file position, goes away. The shared FCB stays.">Every process's file position resets to 0.</button>
         </div>
         <div class="q-fb ok">Right. Write-back happens only when the count reaches 0 (§1.2, and you can step through it in §1.3).</div>
@@ -752,16 +752,16 @@
     <h3><span class="sec-no">∎</span>What to take away</h3>
     <div class="prose">
       <ul>
-        <li>On disk are the directory tree, FCBs (inodes), data, boot block, and volume control block. In memory are cached directories, the system OFT with open counts, per-process OFTs with file positions, the mount table.</li>
+        <li>On disk, the file system stores the directory tree, FCBs (inodes), data, the boot block, and the volume control block. In memory, the kernel keeps cached directories, the system OFT with open counts, per-process OFTs with file positions, and the mount table.</li>
         <li><code>open</code> finds the FCB and caches it. <code>read</code> follows descriptor → FCB → blocks. <code>close</code> writes metadata back when the last user closes.</li>
         <li>Allocation methods are contiguous (fast, fragments), linked (flexible, slow random access, fragile), FAT (links in a table), indexed (direct access), multilevel and the UNIX inode (small files cheap, large files possible).</li>
         <li>Free space is tracked by bitmap, linked list, grouping, or counting.</li>
-        <li>Crashes are handled by synchronous metadata writes, <code>fsck</code>, and write-ahead logging with transactions, checkpoints, redo and undo. Journaling, log-structured and copy-on-write file systems build on these ideas.</li>
+        <li>The file system handles crashes with synchronous metadata writes, <code>fsck</code>, and write-ahead logging with transactions, checkpoints, redo, and undo. Journaling, log-structured, and copy-on-write file systems build on these ideas.</li>
       </ul>
     </div>
     <div class="note note-lab" data-step="1">
       <span class="note-tag">In the lab</span>
-      <p>Basecamp 5's <code>filetest</code> exercises exactly the per-process state of §0.3. Every <code>r</code>, <code>w</code> and <code>s</code> command moves the file position that the kernel keeps in the open-file table, which is why <code>s 0 cur</code> works as "tell".</p>
+      <p>Basecamp 5's <code>filetest</code> exercises exactly the per-process state of §0.3. Every <code>r</code>, <code>w</code>, and <code>s</code> command moves the file position that the kernel keeps in the open-file table. This is why <code>s 0 cur</code> works as "tell".</p>
     </div>
   </div>
 
@@ -770,7 +770,7 @@
       <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
       <tbody>
         <tr><td>FCB / inode</td><td>A file's attributes and the location of its data. UNIX calls it the inode.</td></tr>
-        <tr><td>volume control block</td><td>Per-volume details, such as block count, block size, free blocks.</td></tr>
+        <tr><td>volume control block</td><td>Per-volume details, such as block count, block size, and free blocks.</td></tr>
         <tr><td>system OFT</td><td>One entry per open file, holding the cached FCB and an open count.</td></tr>
         <tr><td>per-process OFT</td><td>One entry per file a process opened, holding access rights and the current position. A file descriptor indexes it.</td></tr>
         <tr><td>contiguous / linked / indexed</td><td>Blocks b…b+n−1 / a list of blocks with next-pointers / an index block listing the blocks.</td></tr>
@@ -887,13 +887,13 @@
   (function () {
     const S = [
       { call: '(nothing open yet)', dir: [], sys: [], p1: [], p2: [], dr: 0, dw: 0, t: 'Both processes start with empty tables. The directory cache is cold.' },
-      { call: 'P1: fd = open("foo.txt")', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 1'], p1: ['fd 3 → foo.txt · pos 0'], p2: [], dr: 2, dw: 0, hot: ['dir0', 'sys0', 'p10'], t: 'Directory miss. Read the directory from disk and cache it. Read the FCB into the system OFT with count 1. P1 gets descriptor 3. <b>2 disk reads.</b>' },
-      { call: 'P2: fd = open("foo.txt")', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 2'], p1: ['fd 3 → foo.txt · pos 0'], p2: ['fd 3 → foo.txt · pos 0'], dr: 2, dw: 0, hot: ['sys0', 'p20'], t: 'Directory hit, and the FCB is already in the system OFT, so just increment the count. <b>No disk reads.</b> P2 also gets descriptor 3, because descriptors are per process.' },
-      { call: 'P1: read(3, buf, 100)', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 2'], p1: ['fd 3 → foo.txt · pos 100'], p2: ['fd 3 → foo.txt · pos 0'], dr: 3, dw: 0, hot: ['p10'], t: 'fd 3 → P1\'s entry → FCB → block 8 on disk. Copy 100 bytes to P1\'s buffer, and P1\'s position moves to 100.' },
+      { call: 'P1: fd = open("foo.txt")', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 1'], p1: ['fd 3 → foo.txt · pos 0'], p2: [], dr: 2, dw: 0, hot: ['dir0', 'sys0', 'p10'], t: 'The directory lookup misses. The kernel reads the directory from disk and caches it. It then reads the FCB into the system OFT with count 1. P1 gets descriptor 3. <b>2 disk reads.</b>' },
+      { call: 'P2: fd = open("foo.txt")', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 2'], p1: ['fd 3 → foo.txt · pos 0'], p2: ['fd 3 → foo.txt · pos 0'], dr: 2, dw: 0, hot: ['sys0', 'p20'], t: 'The directory lookup hits, and the FCB is already in the system OFT. Therefore, the kernel only increments the count. <b>No disk reads.</b> P2 also gets descriptor 3, because descriptors are per process.' },
+      { call: 'P1: read(3, buf, 100)', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 2'], p1: ['fd 3 → foo.txt · pos 100'], p2: ['fd 3 → foo.txt · pos 0'], dr: 3, dw: 0, hot: ['p10'], t: 'fd 3 → P1\'s entry → FCB → block 8 on disk. The kernel copies 100 bytes to P1\'s buffer, and P1\'s position moves to 100.' },
       { call: 'P2: read(3, buf, 50)', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 2'], p1: ['fd 3 → foo.txt · pos 100'], p2: ['fd 3 → foo.txt · pos 50'], dr: 3, dw: 0, hot: ['p20'], t: 'P2 reads from its own position, 0, not P1\'s. Block 8 is still cached from P1\'s read, so there is no disk read. Each process has its own file position.' },
       { call: 'P1: write(3, "x", 1)', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 2 · modified'], p1: ['fd 3 → foo.txt · pos 101'], p2: ['fd 3 → foo.txt · pos 50'], dr: 3, dw: 0, hot: ['p10', 'sys0'], dirty: true, t: 'The write updates the cached data and the FCB\'s modification time, <em>in memory only</em>. The FCB on disk is now out of date.' },
-      { call: 'P1: close(3)', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 1 · modified'], p1: [], p2: ['fd 3 → foo.txt · pos 50'], dr: 3, dw: 0, hot: ['sys0'], dirty: true, t: 'Remove P1\'s entry and decrement the count to 1. P2 still uses the FCB, so nothing is written back yet.' },
-      { call: 'P2: close(3)', dir: ['foo.txt → FCB'], sys: [], p1: [], p2: [], dr: 3, dw: 1, t: 'The count reaches 0, so write the modified FCB back to disk and drop it from the system OFT. <b>1 disk write.</b> The directory stays cached for the next open.' },
+      { call: 'P1: close(3)', dir: ['foo.txt → FCB'], sys: ['foo.txt · count 1 · modified'], p1: [], p2: ['fd 3 → foo.txt · pos 50'], dr: 3, dw: 0, hot: ['sys0'], dirty: true, t: 'The kernel removes P1\'s entry and decrements the count to 1. Because P2 still uses the FCB, nothing is written back yet.' },
+      { call: 'P2: close(3)', dir: ['foo.txt → FCB'], sys: [], p1: [], p2: [], dr: 3, dw: 1, t: 'The count reaches 0. Therefore, the kernel writes the modified FCB back to disk and drops it from the system OFT. <b>1 disk write.</b> The directory stays cached for the next open.' },
     ];
     let i = 0;
     function tbl(name, rows, key, hot, dirty) {
@@ -970,20 +970,20 @@
       const lost = mode === 'linked' && bad ? [2, 3] : null;
       if (act.k === 'read') {
         const j = act.j;
-        if (mode === 'contig') { hits = [CONTIG[0] + j]; reads = 1; msg = `Block ${j} is at start + ${j} = ${CONTIG[0] + j}. One disk read, computed without looking anything up.`; }
+        if (mode === 'contig') { hits = [CONTIG[0] + j]; reads = 1; msg = `Block ${j} is at start + ${j} = ${CONTIG[0] + j}. One disk read suffices, and the address is computed without any lookup.`; }
         else if (mode === 'linked') {
-          if (bad && j >= 2) { hits = [8, 3]; reads = 2; msg = `Follow 8 → 3, but block 3's pointer is corrupted. Blocks 2 and 3 of the file are unreachable, and <span class="bad">the rest of the file is lost</span>.`; }
-          else { hits = CHAIN.slice(0, j + 1); reads = j + 1; msg = `Start at 8 and follow the pointers stored in the data blocks along ${hits.join(' → ')}. <b>${reads} disk reads</b> to reach block ${j}.`; }
+          if (bad && j >= 2) { hits = [8, 3]; reads = 2; msg = `The lookup follows 8 → 3. However, block 3's pointer is corrupted. Blocks 2 and 3 of the file are unreachable, and <span class="bad">the rest of the file is lost</span>.`; }
+          else { hits = CHAIN.slice(0, j + 1); reads = j + 1; msg = `Start at 8 and follow the pointers stored in the data blocks along ${hits.join(' → ')}. It takes <b>${reads} disk reads</b> to reach block ${j}.`; }
         }
         else if (mode === 'fat') { hits = [CHAIN[j]]; reads = 1; extra = `${j} FAT lookups`; msg = `Walk the chain in the FAT along ${CHAIN.slice(0, j + 1).join(' → ')} (${j} lookups in the cached table), then read block ${CHAIN[j]}. <b>1 disk read.</b>`; opts.fatHits = CHAIN.slice(0, j + 1); }
-        else { hits = [IDX, CHAIN[j]]; reads = 2; msg = `Read index block 12, take entry ${j} (block ${CHAIN[j]}), read it. <b>2 disk reads</b>, for any j, or 1 if the index block is cached.`; }
+        else { hits = [IDX, CHAIN[j]]; reads = 2; msg = `Read index block 12, take entry ${j} (block ${CHAIN[j]}), and read that block. This takes <b>2 disk reads</b> for any j, or 1 if the index block is cached.`; }
       } else {
-        if (mode === 'contig') { hits = [21]; msg = '<span class="bad">Block 21 belongs to another file.</span> The file must move to a free run of 5 blocks, and there is none (the largest free run is 2). This is external fragmentation. Compact the disk first.'; }
+        if (mode === 'contig') { hits = [21]; msg = '<span class="bad">Block 21 belongs to another file.</span> Therefore, the file must move to a free run of 5 blocks. However, there is none (the largest free run is 2). This is external fragmentation. Compact the disk first.'; }
         else {
           opts.appended = 15; writes = mode === 'index' ? 2 : 2;
           if (mode === 'linked') { hits = [2, 15]; msg = 'Take free block 15, write it, and set the old last block\'s (2) pointer to 15, for <b>2 writes</b>. The header\'s end pointer now says 15.'; }
-          else if (mode === 'fat') { hits = [15]; opts.fatHits = [2, 15]; msg = 'Find the first 0 entry (15), set FAT[2] = 15 and FAT[15] = EOF, write block 15, for <b>1 data write + the FAT block</b>.'; }
-          else { hits = [IDX, 15]; msg = 'Add 15 to the index block and write block 15, for <b>2 writes</b>. No chain to walk, no data to move.'; }
+          else if (mode === 'fat') { hits = [15]; opts.fatHits = [2, 15]; msg = 'Find the first 0 entry (15), set FAT[2] = 15 and FAT[15] = EOF, and write block 15, for <b>1 data write + the FAT block</b>.'; }
+          else { hits = [IDX, 15]; msg = 'Add 15 to the index block and write block 15, for <b>2 writes</b>. There is no chain to walk and no data to move.'; }
         }
       }
       $('#al-grid').innerHTML = layout(mode, { hits, lost, appended: opts.appended });
@@ -1045,7 +1045,7 @@
           `<div class="${lvl >= 2 ? 'warn' : ''}"><div class="lab">disk reads for this block</div><div class="big">${lvl + 1}</div><div class="sub">${lvl} index block${lvl === 1 ? '' : 's'} + the data, with the inode already in memory</div></div>` +
           `<div><div class="lab">max file size</div><div class="big">${fmt(lim[3])}</div><div class="sub">(12 + ${P} + ${P}² + ${P}³) × ${fmt(B)}</div></div>`;
       $('#in-out').innerHTML = lvl < 0 ? 'This offset is past the largest file the inode can describe with this block size.'
-        : `With ${fmt(B)} blocks, one index block holds ${P} pointers. Direct pointers cover the first ${fmt(lim[0])}, single indirect reaches ${fmt(lim[1])}, and double indirect ${fmt(lim[2])}. ${OFFS[oi][0]} falls in the <b>${names[lvl]}</b> range.`;
+        : `With ${fmt(B)} blocks, one index block holds ${P} pointers. Direct pointers cover the first ${fmt(lim[0])}, the single indirect pointer reaches ${fmt(lim[1])}, and the double indirect pointer reaches ${fmt(lim[2])}. ${OFFS[oi][0]} falls in the <b>${names[lvl]}</b> range.`;
     }
     $('#in-off').addEventListener('click', (e) => { const b = e.target.closest('[data-o]'); if (b) { oi = +b.dataset.o; render(); } });
     $('#in-bs').addEventListener('input', render);
@@ -1076,7 +1076,7 @@
           'head → 2 → 3 → 4 → 8 → 9 → 10 → 11 → 12 → 15 → 18',
           'block 2: [3, 4, 8 | next 9] · block 9: [10, 11, 12 | next 15] · block 15: [18]',
           '(2, 3) · (8, 5) · (15, 1) · (18, 1)'][i]}</td><td class="mono">${c}</td><td>${how}</td></tr>`).join('') + '</tbody></table></div>';
-      $('#fs-out').innerHTML = ['Every method finds one free block fast.', 'When allocating many blocks, the plain linked list pays one disk read per block, while grouping and counting hand out several per read.', 'When finding a contiguous run, the bitmap and counting see it at once, but lists must be walked.'][r];
+      $('#fs-out').innerHTML = ['Every method finds one free block fast.', 'When allocating many blocks, the plain linked list pays one disk read per block. In contrast, grouping and counting hand out several blocks per read.', 'When finding a contiguous run, the bitmap and counting see it at once. However, lists must be walked.'][r];
     }
     const ctl = Academy.register('s3-2', { steps: 2, readStep: 0, show: (i) => { r = i; render(); } });
     $('#fs-req').addEventListener('click', (e) => { const b = e.target.closest('[data-r]'); if (b) ctl.go(+b.dataset.r); });
@@ -1118,10 +1118,10 @@
         `<div><div class="lab">undo (partial)</div><div class="big" style="color:var(--cx-ink)">${list('undo').join(', ') || '—'}</div></div>` +
         `<div><div class="lab">disk after recovery</div><div class="big" style="font-size:20px">X=${val.X} · Y=${val.Y} · Z=${val.Z}</div></div>`;
       const parts = [];
-      if (cp < 0) parts.push('No checkpoint in the log yet, so every committed transaction is redone.');
+      if (cp < 0) parts.push('There is no checkpoint in the log yet, so every committed transaction is redone.');
       else parts.push(`The latest checkpoint is record #${cp}.`);
       if (list('redo').length) parts.push(`Redo ${list('redo').join(', ')} with the new values. The commit was logged, so the program was told it succeeded.`);
-      if (list('undo').length) parts.push(`Undo ${list('undo').join(', ')} with the old values. There was no commit, so it never happened.`);
+      if (list('undo').length) parts.push(`Undo ${list('undo').join(', ')} with the old values. There was no commit, so the transaction never happened.`);
       $('#lg-out').innerHTML = parts.join(' ');
     }
     $('#lg-k').addEventListener('input', render);

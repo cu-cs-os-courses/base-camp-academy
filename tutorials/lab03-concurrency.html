@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lab03 Walkthrough · Basecamp 3</title>
-<meta name="description" content="Step-by-step walkthrough for Basecamp 3, The Trouble with Threads. It covers making a race visible in race.c, threads in /proc, designing and writing a bounded buffer with a mutex and two condition variables, testing it scenario by scenario with the instructor harness, reading make check, and submitting.">
+<meta name="description" content="Step-by-step walkthrough for Basecamp 3, The Trouble with Threads, covering a race made visible in race.c, threads in /proc, designing and writing a bounded buffer with a mutex and two condition variables, testing it scenario by scenario with the instructor harness, reading make check, the report, and submitting.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -44,12 +44,12 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="hero-inner">
     <div class="eyebrow"><span class="chip-t">walkthrough</span> &nbsp;Basecamp 3 · Weeks 5–9 · due Sun Feb 28</div>
     <h1>Watch a race, then build the <span class="accent">cure</span></h1>
-    <p class="lede">Part 1 makes a race visible, with four threads, one counter, and updates that vanish. Part 2 builds the standard cure, a bounded buffer guarded by a mutex and two condition variables. This page says what each function must guarantee, which questions to answer before writing it, and how to test each guarantee on its own with the instructor harness. It never shows code for the lab files. This page and the file headers in <code>submit/</code> are the specification, and L08–L10 are the lectures behind it.</p>
+    <p class="lede">This page walks you through Lab03 step by step. In this lab, you first make a race visible. Four threads increment one shared counter, and some of the increments vanish. Then you build the standard cure, a bounded buffer that many threads can share safely, from one mutex and two condition variables. This page and the header comment of each file in <code>labs/03-concurrency/submit/</code> are the specification for this lab.</p>
     <div class="steps-map">
-      <div><b>Step 0–2</b>The loop, race.c, and threads in /proc</div>
+      <div><b>Step 0–2</b>Get the lab, race.c, and threads in /proc</div>
       <div><b>Step 3</b>Design the array struct</div>
-      <div><b>Step 4–5</b>Write array.c and test it piece by piece</div>
-      <div><b>Step 6–7</b>make check, report, submit</div>
+      <div><b>Step 4–5</b>Write array.c, and test each guarantee</div>
+      <div><b>Step 6–8</b>make check, report, and submit</div>
     </div>
   </div>
 </div>
@@ -57,39 +57,76 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 <div class="layout">
   <nav class="rail" aria-label="steps">
     <p class="rail-title">Steps</p>
-    <a href="#s0"><span class="n">0</span>Set up the loop</a>
+    <a href="#s0"><span class="n">0</span>Get the lab</a>
     <a href="#s1"><span class="n">1</span>race.c</a>
     <a href="#s2"><span class="n">2</span>Threads in /proc</a>
     <a href="#s3"><span class="n">3</span>Design the struct</a>
     <a href="#s4"><span class="n">4</span>array.c</a>
     <a href="#s5"><span class="n">5</span>Test each guarantee</a>
     <a href="#s6"><span class="n">6</span>make check</a>
-    <a href="#s7"><span class="n">7</span>Report and submit</a>
+    <a href="#s7"><span class="n">7</span>The report</a>
+    <a href="#s8"><span class="n">8</span>Submit</a>
   </nav>
   <main>
     <details class="toc-mobile">
       <summary>Steps</summary>
       <nav>
-        <a href="#s0"><span class="n">0</span>Set up the loop</a>
+        <a href="#s0"><span class="n">0</span>Get the lab</a>
         <a href="#s1"><span class="n">1</span>race.c</a>
         <a href="#s2"><span class="n">2</span>Threads in /proc</a>
         <a href="#s3"><span class="n">3</span>Design the struct</a>
         <a href="#s4"><span class="n">4</span>array.c</a>
         <a href="#s5"><span class="n">5</span>Test each guarantee</a>
         <a href="#s6"><span class="n">6</span>make check</a>
-        <a href="#s7"><span class="n">7</span>Report and submit</a>
+        <a href="#s7"><span class="n">7</span>The report</a>
+        <a href="#s8"><span class="n">8</span>Submit</a>
       </nav>
     </details>
 
 <section class="chapter" id="s0">
   <div class="ch-head">
     <div class="ch-no">Step 0</div>
-    <h2>Set up the loop</h2>
-    <p class="ch-lede">There is one change from earlier labs. Share the <em>whole lab directory</em>, not only <code>submit/</code>, so the VM can also see the test harness in <code>check/</code>.</p>
+    <h2>Get the lab</h2>
+    <p class="ch-lede">The goal of this step is to get Lab03 into your repository, boot the VM with the whole Lab03 directory, and compile race.c once.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">SHARE=$PWD/labs/03-concurrency env/run.sh</span><span class="ln"><span class="c"># VM</span></span><span class="ln">cd /share                      <span class="c"># submit/ and check/ are both here</span></span><span class="ln">gcc -Wall -Werror -O2 -pthread -o /tmp/race submit/race.c</span></div>
-    <div class="prose"><p>Every compile in this lab uses <code>-Wall -Werror -pthread</code>, as the checks do. Therefore, a warning is a compile error. Without <code>-pthread</code> you get link errors about <code>pthread_create</code>.</p></div>
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>On your laptop, at the repository root, pull the new lab.</b></p>
+          <div class="code"><span class="ln">git pull upstream main</span><span class="ln">git push</span><span class="ln">ls labs/03-concurrency/submit     <span class="c"># array.c  array.h  race.c  report.md</span></span></div>
+          <p>Lab03 is released in the course repository, <code>upstream</code>. <code>git pull upstream main</code> copies it into your local repository, and <code>git push</code> copies it on to your private repository on GitHub. A release never touches your <code>submit/</code> directories, so your earlier work stays as it is.</p>
+          <p>In this lab, you edit the four files below.</p>
+          <div class="table-wrap">
+            <table class="t">
+              <thead><tr><th>file</th><th>what it is</th><th>step</th></tr></thead>
+              <tbody>
+                <tr><td>race.c</td><td>Part 1, four threads and one counter, with and without a lock (C)</td><td>Step 1</td></tr>
+                <tr><td>array.h</td><td>Part 2, the struct behind the bounded buffer (C header)</td><td>Step 3</td></tr>
+                <tr><td>array.c</td><td>Part 2, the four functions of the bounded buffer (C)</td><td>Step 4</td></tr>
+                <tr><td>report.md</td><td>three questions that you answer with your own numbers</td><td>Step 7</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </li>
+        <li>
+          <p><b>Boot the VM, and share the whole Lab03 directory with it.</b></p>
+          <div class="code"><span class="ln">SHARE=$PWD/labs/03-concurrency env/run.sh</span></div>
+          <p>Run it from the repository root. Note that this lab shares <code>labs/03-concurrency</code>, not only its <code>submit/</code> directory. The VM now sees <code>submit/</code> and <code>check/</code> side by side under <code>/share</code>. You need <code>check/</code> in Step 5, because it holds the test harness for Part 2.</p>
+        </li>
+        <li>
+          <p><b>In the VM, look around, and count the CPUs.</b></p>
+          <div class="code"><span class="ln">cd /share</span><span class="ln">ls                        <span class="c"># README.md  check  submit</span></span><span class="ln">nproc                     <span class="c"># 2</span></span></div>
+          <p>The VM has two CPUs. Therefore, two of your threads can run <span class="ref" data-sec="L05 §3.1" data-title="Concurrency and parallelism" data-href="../lectures/05-thread.html#s3-1">in parallel<span class="ref-body">Concurrency on a single core means the threads' instructions are interleaved over time, as the scheduler switches among them. Parallelism on multiple cores means instructions really run at the same time. Either way, a program cannot assume any order between two threads' instructions.</span></span>, at the same instant. Every command in this lab runs from <code>/share</code>.</p>
+        </li>
+        <li>
+          <p><b>In the VM, compile race.c, and run it.</b></p>
+          <div class="code"><span class="ln">gcc -Wall -Werror -O2 -pthread -o /tmp/race submit/race.c</span><span class="ln">/tmp/race racy</span><span class="ln hl">COUNT=0</span></div>
+          <p>These are exactly the flags that <code>make check</code> uses. <code>-Wall -Werror</code> turns every warning into an error. <code>-O2</code> turns on optimization. <code>-pthread</code> tells gcc that the program uses POSIX threads, so it compiles and links with thread support. <code>-o /tmp/race</code> puts the binary outside <code>/share</code>, because it is a build product, not part of your submission. The count is 0, because both <code>TODO</code> comments in race.c are still empty and no thread ever runs. From now on, you edit on your laptop, save, and then recompile and rerun in the VM.</p>
+        </li>
+      </ol>
+      <p>Lab03 opens in week 5, together with Lecture 08. Synchronization is the subject of Lectures 08 to 10, which arrive while you work on this lab. Therefore, a new idea is underlined with a dashed line where you first need it. Click it for a short explanation and a link to the lecture section.</p>
+    </div>
   </div>
 </section>
 
@@ -97,27 +134,44 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 1</div>
     <h2>race.c, making the race happen</h2>
-    <p class="ch-lede">The goal of this step is that <code>race racy</code> loses increments and prints a different wrong <code>COUNT=</code> each run, while <code>race locked</code> prints <code>COUNT=800000</code> every time.</p>
+    <p class="ch-lede">The goal of this step is to see a <span class="ref" data-sec="L05 §3.3" data-title="Data race vs. race condition" data-href="../lectures/05-thread.html#s3-3">race<span class="ref-body">A data race is two threads accessing the same memory location without synchronization, where at least one access is a write. A race condition is incorrect behavior caused by the order in which the threads run.</span></span> lose updates, and then to prevent it with a lock. Four threads (<code>NTHREADS</code>) each increment one shared counter 200,000 times (<code>NITER</code>). <code>race racy</code> increments the counter bare, and it must print a different wrong <code>COUNT=</code> on each run. <code>race locked</code> increments it under the mutex, and it must print <code>COUNT=800000</code> every time.</p>
   </div>
   <div class="sec">
+    <div class="two-up" style="align-items: start;">
     <div class="prose">
-      <p><code>counter++</code> looks atomic. However, it is several machine steps, and another thread can run between any two of them. Report question 1 asks you to name the steps.</p>
-      <p>You edit <code>submit/race.c</code>. Four threads (<code>NTHREADS</code>) each increment one shared counter 200,000 times (<code>NITER</code>). <code>./race racy</code> increments bare, and <code>./race locked</code> increments under the mutex. The output is exactly one line, <code>COUNT=&lt;n&gt;</code>.</p>
+      <ol>
+        <li>
+          <p><b>On your laptop, read the header of <code>race.c</code>, and fill in the TODO in <code>worker</code>.</b></p>
+          <p>The worker repeats <code>NITER</code> times. If <code>use_lock</code> is set, it increments the counter while it holds the <span class="ref" data-sec="L09 §3.1" data-title="POSIX mutex locks" data-href="../lectures/09-semaphore.html#s3-1">mutex<span class="ref-body">A mutex is a lock. <code>pthread_mutex_lock</code> takes it, and it sleeps if another thread holds it. <code>pthread_mutex_unlock</code> gives it back. Therefore, at most one thread at a time runs the code between the two calls.</span></span> <code>lock</code>, which race.c already declares. Otherwise it increments the counter bare. The increment is then the <span class="ref" data-sec="L08 §1.1" data-title="The critical section" data-href="../lectures/08-synchronization.html#s1-1">critical section<span class="ref-body">The part of a program that accesses a shared resource is its critical section. Mutual exclusion means that at most one thread is in its critical section at a time.</span></span>. <a href="../lectures/09-semaphore.html#s3-1">Lecture 09 §3.1</a> shows the two calls.</p>
+        </li>
+        <li>
+          <p><b>Fill in the TODO in <code>main</code>.</b></p>
+          <p>Start <code>NTHREADS</code> workers, and then wait for <em>all</em> of them, before the <code>printf</code> that is already there. <a href="https://man7.org/linux/man-pages/man3/pthread_create.3.html" target="_blank" rel="noopener">pthread_create(3)</a> starts a thread, and <a href="https://man7.org/linux/man-pages/man3/pthread_join.3.html" target="_blank" rel="noopener">pthread_join(3)</a> waits for one, as <a href="../lectures/05-thread.html#s2-1">Lecture 05 §2.1</a> showed.</p>
+        </li>
+        <li>
+          <p><b>In the VM, recompile with the gcc command of Step 0, and run the racy mode three times.</b></p>
+          <div class="code"><span class="ln">for i in 1 2 3; do /tmp/race racy; done</span></div>
+          <p>The <code>for</code> loop runs the program three times. You get three <em>different</em> counts, all below 800000. In our runs in the VM, usually 9% to 16% of the increments vanished. Once in a while, one run prints exactly 800000. Write the three counts down, because report question 1 asks for them.</p>
+        </li>
+        <li>
+          <p><b>Run the locked mode.</b></p>
+          <div class="code"><span class="ln">/tmp/race locked</span></div>
+          <p>It prints <code>COUNT=800000</code>, every time you run it.</p>
+        </li>
+        <li>
+          <p><b>Time both modes.</b></p>
+          <div class="code"><span class="ln">time /tmp/race racy</span><span class="ln">time /tmp/race locked</span></div>
+          <p><code>time</code> is a bash keyword. It runs the command, and then it prints three lines. Look at <code>real</code>, the wall-clock time. The locked run takes roughly ten times as long as the racy run. The lock makes the count correct, but it is not free.</p>
+        </li>
+      </ol>
     </div>
-    <div class="table-wrap">
-      <table class="t">
-        <thead><tr><th>TODO</th><th>what it must do</th><th>read first</th></tr></thead>
-        <tbody>
-          <tr><td>worker</td><td>Repeat <code>NITER</code> times to increment the counter, holding the mutex if <code>use_lock</code> is set and bare otherwise.</td><td><code>man 3 pthread_mutex_lock</code></td></tr>
-          <tr><td>main</td><td>Start <code>NTHREADS</code> workers, then wait for <em>all</em> of them before the print that is already there.</td><td><code>man 3 pthread_create</code>, <code>man 3 pthread_join</code></td></tr>
-        </tbody>
-      </table>
+    <figure class="fig">
+      <div class="code"><span class="ln"><span class="c"># items 3–5</span></span><span class="ln">for i in 1 2 3; do /tmp/race racy; done</span><span class="ln hl">COUNT=692331</span><span class="ln hl">COUNT=689019</span><span class="ln hl">COUNT=701345</span><span class="ln">/tmp/race locked</span><span class="ln hl">COUNT=800000</span><span class="ln">time /tmp/race racy</span><span class="ln hl">COUNT=683625</span><span class="ln"> </span><span class="ln hl">real    0m0.011s</span><span class="ln hl">user    0m0.014s</span><span class="ln hl">sys     0m0.004s</span><span class="ln">time /tmp/race locked</span><span class="ln hl">COUNT=800000</span><span class="ln"> </span><span class="ln hl">real    0m0.091s</span><span class="ln hl">user    0m0.074s</span><span class="ln hl">sys     0m0.067s</span></div>
+      <figcaption><span class="fno">Fig. 1.1</span>Sample output in the VM. Your counts and times differ, and they change from run to run.</figcaption>
+    </figure>
     </div>
-    <div class="prose"><p><b>How to check it yourself.</b> Run this experiment and write the numbers down, because the report asks for them.</p></div>
-    <div class="code"><span class="ln">for i in 1 2 3; do /tmp/race racy; done   <span class="c"># three different numbers, all below 800000</span></span><span class="ln">/tmp/race locked                          <span class="c"># COUNT=800000</span></span><span class="ln">time /tmp/race racy; time /tmp/race locked</span></div>
-    <div class="prose"><p>Three racy runs give three <em>different</em> wrong answers. On our reference VM, 10–12% of the increments vanish. The locked run gives exactly 800000 every time, and costs about 10× the wall time. Both facts go in your report.</p></div>
-    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b><code>racy</code> prints exactly 800000 every time.</b> The compiler turned your bare loop into a single addition, so there is nothing left to race. This happens at <code>-O2</code> when the bare increments sit in a loop of their own. The TODO describes <em>one</em> loop whose body makes the lock decision on every iteration, so follow that shape. (You can see which you got with <code>objdump -d /tmp/race | less</code> by searching for your worker function.) <b><code>COUNT=0</code> or a tiny number.</b> Here main printed before the workers finished, so check that every thread is joined. <b><code>locked</code> is not 800000.</b> Something touches the counter outside the lock.</p></div>
-    <div class="note"><span class="note-tag">Rule</span><p><code>racy</code> mode must actually race, and "fixing" the demo with atomics is not passing it. A check fails if <code>_Atomic</code>, <code>stdatomic</code>, <code>__atomic</code> or <code>atomic_fetch</code> appears outside <code>//</code> comments. <code>racy</code> is supposed to be broken. That is the demonstration.</p></div>
+    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b><code>racy</code> prints exactly 800000 every time.</b> <a href="../lectures/05-thread.html#s3-3">Lecture 05 §3.3</a> says the compiler may assume a data race never happens, so at <code>-O2</code> gcc may turn a loop whose only work is <code>counter++</code> into one addition. Follow the header's shape, <em>one</em> loop that decides on every iteration whether to lock. <b><code>COUNT=0</code> or a tiny number.</b> main printed before the workers finished. Check that every thread is joined. <b><code>locked</code> is not 800000.</b> Something touches the counter outside the lock.</p></div>
+    <div class="note"><span class="note-tag">Rule</span><p><code>racy</code> mode must actually race. Therefore, "fixing" the demonstration with atomic operations does not pass it. A check fails if <code>_Atomic</code>, <code>stdatomic</code>, <code>__atomic</code> or <code>atomic_fetch</code> appears in race.c outside <code>//</code> comments.</p></div>
   </div>
 </section>
 
@@ -125,16 +179,38 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 2</div>
     <h2>Threads in /proc</h2>
-    <p class="ch-lede">No code. Look at a running race with Lab01 eyes and write down what you see for report question 2.</p>
+    <p class="ch-lede">The goal of this step is to see the four workers the way the kernel sees them, and to find out what they have in common. There is no code in this step. Write down what you see, because report question 2 needs it.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln">/tmp/race locked &amp; ls /proc/$!/task/     <span class="c"># locked runs longer, so it is easier to catch</span></span><span class="ln">grep Threads: /proc/$!/status</span></div>
+    <div class="two-up" style="align-items: start;">
     <div class="prose">
-      <ul>
-        <li>Count the entries in <code>task/</code>. How many threads is that, and which one is main?</li>
-        <li>Pick two entries and compare a few files inside them, for example <code>status</code> and <code>maps</code>. What is the same, and what differs?</li>
-        <li>If the run ends before you can look, run it in a loop or run it three times in a row.</li>
-      </ul>
+      <ol>
+        <li>
+          <p><b>In the VM, start a locked run in the background, and freeze it a moment later.</b></p>
+          <div class="code"><span class="ln">/tmp/race locked &amp; sleep 0.01; kill -STOP $!</span></div>
+          <p>A locked run lasts only about a tenth of a second, which is too short to look at by hand. Therefore, you stop it. The <code>&amp;</code> starts the program in the background, and the shell prints its job number, <code>[1]</code>, and its PID. The shell keeps that PID in <code>$!</code>. <code>sleep 0.01</code> gives main 10 ms to create its workers. <code>kill -STOP</code> then sends the signal <code>SIGSTOP</code>, whose default action is stop and which cannot be caught (<a href="../lectures/04-ipc.html#s1-2">Lecture 04 §1.2</a>). The process stays frozen while you look at it. The shell reports the job as <code>Stopped</code> after your next command, as in Fig. 2.1.</p>
+        </li>
+        <li>
+          <p><b>List the tasks of the process, and read its thread count.</b></p>
+          <div class="code"><span class="ln">ls /proc/$!/task</span><span class="ln">grep Threads /proc/$!/status</span></div>
+          <p>Linux keeps one <span class="ref" data-sec="L05 §0.1" data-title="Multiple threads in one process" data-href="../lectures/05-thread.html#s0-1">task<span class="ref-body">On Linux, every thread is its own task_struct (Lecture 05 §0.1). <code>/proc/&lt;pid&gt;/task/</code> has one entry per thread.</span></span> for every thread. Count the entries, and read the <code>Threads</code> line, as in <a href="../recitations/r02-running-system.html#a">Recitation 02 Part 1</a>. If <code>Threads</code> shows fewer than 5, some workers were not created yet or had already finished. In that case, end the job as in item 4, and try item 1 again.</p>
+        </li>
+        <li>
+          <p><b>Go into the task directory, and compare the open files of two tasks.</b></p>
+          <div class="code"><span class="ln">cd /proc/$!/task</span><span class="ln">ls -l &lt;tid1&gt;/fd</span><span class="ln">ls -l &lt;tid2&gt;/fd</span></div>
+          <p>Use two of the numbers that <code>ls</code> printed. Each task directory holds the same files as a process directory. Its <code>fd</code> directory lists the open file descriptors, as links to what they refer to, as in <a href="../recitations/r02-running-system.html#a">Recitation 02 Part 1</a>. Write down whether the two lists are the same.</p>
+        </li>
+        <li>
+          <p><b>Leave the directory, and end the frozen run.</b></p>
+          <div class="code"><span class="ln">cd /share</span><span class="ln">kill -KILL %1</span><span class="ln">jobs</span></div>
+          <p><code>%1</code> names job 1, so you do not need to type the PID. <code>SIGKILL</code> ends the frozen run (<a href="../lectures/04-ipc.html#s1-2">Lecture 04 §1.2</a>). It prints no <code>COUNT</code>, which is fine. The shell may print the <code>Stopped</code> line once more. <code>jobs</code> lists your background jobs, and it reports job 1 as <code>Killed</code>.</p>
+        </li>
+      </ol>
+    </div>
+    <figure class="fig">
+      <div class="code"><span class="ln"><span class="c"># items 1 to 4</span></span><span class="ln">/tmp/race locked &amp; sleep 0.01; kill -STOP $!</span><span class="ln hl">[1] 177</span><span class="ln">ls /proc/$!/task</span><span class="ln hl">177  179  180  181  182</span><span class="ln"> </span><span class="ln hl">[1]+  Stopped                 /tmp/race locked</span><span class="ln">grep Threads /proc/$!/status</span><span class="ln hl">Threads:        5</span><span class="ln">cd /proc/$!/task</span><span class="ln">ls -l 177/fd</span><span class="ln hl">total 0</span><span class="ln hl">lrwx------ 1 root root 64 Nov  6 23:26 0 -&gt; /dev/pts/0</span><span class="ln hl">lrwx------ 1 root root 64 Nov  6 23:26 1 -&gt; /dev/pts/0</span><span class="ln hl">lrwx------ 1 root root 64 Nov  6 23:26 2 -&gt; /dev/pts/0</span><span class="ln">ls -l 180/fd</span><span class="ln hl">total 0</span><span class="ln hl">lrwx------ 1 root root 64 Nov  6 23:26 0 -&gt; /dev/pts/0</span><span class="ln hl">lrwx------ 1 root root 64 Nov  6 23:26 1 -&gt; /dev/pts/0</span><span class="ln hl">lrwx------ 1 root root 64 Nov  6 23:26 2 -&gt; /dev/pts/0</span><span class="ln">cd /share</span><span class="ln">kill -KILL %1</span><span class="ln"> </span><span class="ln hl">[1]+  Stopped                 /tmp/race locked</span><span class="ln">jobs</span><span class="ln hl">[1]+  Killed                  /tmp/race locked</span></div>
+      <figcaption><span class="fno">Fig. 2.1</span>Sample output in the VM. Your numbers and times differ.</figcaption>
+    </figure>
     </div>
   </div>
 </section>
@@ -143,25 +219,41 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 3</div>
     <h2>Design the array struct</h2>
-    <p class="ch-lede">The goal of this step is that the <code>array</code> type in <code>array.h</code> holds everything the four functions need. Decide the design on paper before you write any C.</p>
+    <p class="ch-lede">The goal of this step is to design the <code>array</code> type in <code>array.h</code>, namely to decide what the struct must hold so that the four functions of Part 2 can work. Decide the design on paper before you write any C.</p>
   </div>
   <div class="sec">
     <div class="prose">
-      <p><b>Interface and implementation.</b> An interface says <em>what</em>, and an implementation says <em>how</em>. The header/C file split keeps them apart. Here <code>array.h</code> is the interface and the struct behind it, and <code>array.c</code> is the implementation. Here is a worked example of the shape, namely the interface of a stack of ints that is <em>not</em> thread-safe.</p>
-    </div>
-    <div class="code"><span class="ln"><span class="c">/* stack.h — the interface, and the struct behind it */</span></span><span class="ln">#pragma once</span><span class="ln">#define STACK_SIZE 10</span><span class="ln"> </span><span class="ln">typedef struct {</span><span class="ln">    int array[STACK_SIZE];</span><span class="ln">    int top;</span><span class="ln">} stack;</span><span class="ln"> </span><span class="ln">int  stack_init(stack *s);</span><span class="ln">int  stack_push(stack *s, int element);</span><span class="ln">int  stack_pop (stack *s, int *element);</span><span class="ln">void stack_free(stack *s);</span></div>
-    <div class="prose">
-      <p>In this stack, <code>stack_push</code> returns -1 when the stack is full, and <code>stack_pop</code> returns -1 when it is empty. Otherwise each returns 0. Copy three conventions from it. First, <code>#pragma once</code>. Second, every fallible function returns an int status (0 = success). Third, outputs come back through pointer parameters, as in <code>stack_pop</code>'s <code>int *element</code> and <code>array_get</code>'s <code>char **hostname</code>.</p>
-      <p>Your array has the same shape, with three upgrades. First, it stores <code>char *</code> payloads. Second, it is safe under any number of threads. Third, where the stack <em>fails</em> when full or empty, your array <b>blocks</b>. The four prototypes are in <code>submit/array.h</code>, and the harness calls them exactly as declared there.</p>
-      <p>The header lists what the struct needs, namely storage for <code>ARRAY_SIZE</code> <code>char *</code> values, bookkeeping, one mutex, and two condition variables. The storage and the synchronization are fixed by the spec. The bookkeeping is your design, and it must answer the three questions below at any moment.</p>
+      <p>Part 2 is a <span class="ref" data-sec="L08 §2.1" data-title="A shared buffer" data-href="../lectures/08-synchronization.html#s2-1">bounded buffer<span class="ref-body">A bounded buffer has a fixed number of slots. A producer puts items into it, and a consumer takes them out. The producer waits when the buffer is full, and the consumer waits when it is empty.</span></span> of <code>char *</code> values, called <code>array</code>. Any number of threads may call <code>array_put</code> and <code>array_get</code> at the same time.</p>
       <ol>
-        <li>Where does the next <code>put</code> store its pointer?</li>
-        <li>Where does the next <code>get</code> take its pointer from?</li>
-        <li>How many items are held right now, so that you can tell "full" from "empty"?</li>
+        <li>
+          <p><b>On your laptop, read the header of <code>array.h</code>.</b></p>
+          <p>It gives the four prototypes, and the harness calls them exactly as declared there. It also lists what the struct needs. That is storage for <code>ARRAY_SIZE</code> <code>char *</code> values, bookkeeping, one mutex, and two <span class="ref" data-sec="L10 §1.1" data-title="wait, signal, queue" data-href="../lectures/10-monitors.html#s1-1">condition variables<span class="ref-body">A condition variable lets a thread wait until a condition is true. Its wait operation blocks the caller and releases the lock, so that others can enter. Its signal operation resumes one waiting thread, and it has no effect if no thread waits.</span></span>. The storage and the synchronization are fixed by the header. The bookkeeping is your design.</p>
+        </li>
+        <li>
+          <p><b>Read the worked example below, a stack of ints that is <em>not</em> thread-safe.</b></p>
+          <div class="code"><span class="ln"><span class="c">/* stack.h, the interface and the struct behind it */</span></span><span class="ln">#pragma once</span><span class="ln">#define STACK_SIZE 10</span><span class="ln"> </span><span class="ln">typedef struct {</span><span class="ln">    int array[STACK_SIZE];</span><span class="ln">    int top;</span><span class="ln">} stack;</span><span class="ln"> </span><span class="ln">int  stack_init(stack *s);</span><span class="ln">int  stack_push(stack *s, int element);</span><span class="ln">int  stack_pop (stack *s, int *element);</span><span class="ln">void stack_free(stack *s);</span></div>
+          <p>A header file is the interface, and it says <em>what</em> the functions do. The C file is the implementation, and it says <em>how</em>. In this stack, <code>stack_push</code> returns -1 when the stack is full, and <code>stack_pop</code> returns -1 when it is empty. Otherwise, each returns 0. Your array copies three conventions from it. First, the header starts with <code>#pragma once</code>. Second, every function that can fail returns an int status, and 0 means success. Third, an output comes back through a pointer parameter, as in <code>stack_pop</code>'s <code>int *element</code> and <code>array_get</code>'s <code>char **hostname</code>.</p>
+          <p>However, your array differs from the stack in three ways. First, it stores <code>char *</code> values. Second, it is safe under any number of threads. Third, where the stack <em>fails</em> when it is full or empty, your array <span class="ref" data-sec="L08 §4.4" data-title="Blocking vs. non-blocking" data-href="../lectures/08-synchronization.html#s4-4">blocks<span class="ref-body">A thread blocks when it gives up the CPU and sleeps until an event occurs. The scheduler runs someone else in the meantime. A thread that instead loops and checks again and again is busy waiting, and it burns CPU the whole time.</span></span>, namely it waits until the call can succeed.</p>
+        </li>
+        <li>
+          <p><b>Choose the bookkeeping. It must answer the three questions below at any moment.</b></p>
+          <ul>
+            <li>Where does the next <code>put</code> store its pointer?</li>
+            <li>Where does the next <code>get</code> take its pointer from?</li>
+            <li>How many items are held right now, so that you can tell "full" from "empty"?</li>
+          </ul>
+        </li>
+        <li>
+          <p><b>Test your design by hand.</b></p>
+          <p>Draw 8 slots, and simulate <code>put</code> ×8, <code>get</code> ×3, <code>put</code> ×3, <code>get</code> ×8. Every value of your bookkeeping must stay inside the array. The three puts in the third batch have to reuse slots that the gets freed.</p>
+        </li>
+        <li>
+          <p><b>Write the struct in <code>array.h</code>.</b></p>
+          <p>Replace the placeholder field <code>todo_delete_me</code> with your storage, your bookkeeping, the mutex, and the two condition variables. The two condition variables mean two different things, namely "there is now space" and "there is now an item". Give them names that say which is which.</p>
+        </li>
       </ol>
-      <p>Test your design by hand. Draw 8 slots and simulate <code>put</code> ×8, <code>get</code> ×3, <code>put</code> ×3, <code>get</code> ×8. Every value of your bookkeeping must stay inside the array, and the third batch (the 3 puts) has to reuse slots that the gets freed.</p>
     </div>
-    <div class="note"><span class="note-tag">What the checks require of the design</span><p>Each item put must come out exactly once. The checks do not test the order in which items come out. The array stores the <em>pointers</em> it is given and never copies the strings. The two condition variables mean two different things, namely "there is now space" and "there is now an item". Give them names that say which is which.</p></div>
+    <div class="note"><span class="note-tag">What the checks require of the design</span><p>Each item put must come out exactly once. The checks do not test the order in which items come out. The array stores the <em>pointers</em> it is given, and it never copies the strings.</p></div>
   </div>
 </section>
 
@@ -169,31 +261,48 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 4</div>
     <h2>array.c and its four functions</h2>
-    <p class="ch-lede">The goal of this step is that <code>put</code> blocks while the array is full and <code>get</code> blocks while it is empty. Both wait on a condition variable, and both return 0 on success. This is the bounded buffer from L10, written as a monitor. Blocking means a condition-variable wait, not a retry loop. A waiting thread must burn almost no CPU, and the <code>no-busy-wait</code> check measures exactly that.</p>
+    <p class="ch-lede">The goal of this step is to write the four functions in <code>array.c</code>, so that <code>array_put</code> blocks while the array is full and <code>array_get</code> blocks while it is empty. Both wait on a condition variable, and both return 0 on success. Together with the struct, they form a <span class="ref" data-sec="L10 §0.2" data-title="What a monitor is" data-href="../lectures/10-monitors.html#s0-2">monitor<span class="ref-body">A monitor keeps shared variables together with the functions that use them, and only one thread at a time is active inside it. In C, you build one yourself. Every function holds one mutex while it touches the shared variables.</span></span>.</p>
   </div>
   <div class="sec">
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>Read the lecture's rules first.</b></p>
+          <p><a href="../lectures/10-monitors.html#s3-2">Lecture 10 §3.2</a> lists the three rules, and its table says what <code>pthread_cond_wait</code> does with the mutex and whom <code>pthread_cond_signal</code> wakes. The table below gives what each function must do.</p>
+        </li>
+      </ol>
+    </div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>function</th><th>what it must do</th><th>read first</th></tr></thead>
         <tbody>
-          <tr><td>array_init</td><td>Set the bookkeeping to "empty", and initialize the mutex and both condition variables. Return 0.</td><td><code>man 3 pthread_mutex_init</code>, <code>man 3 pthread_cond_init</code></td></tr>
-          <tr><td>array_put</td><td>Wait while full, store the pointer, update the bookkeeping, let a waiting getter know. Return 0.</td><td>L10's bounded buffer and <code>man 3 pthread_cond_wait</code>, <code>pthread_cond_signal</code></td></tr>
-          <tr><td>array_get</td><td>The mirror image. Wait while empty, take a pointer out through <code>*hostname</code>, update, let a waiting putter know. Return 0.</td><td>the same</td></tr>
-          <tr><td>array_free</td><td>Release what init created.</td><td><code>pthread_mutex_destroy</code>, <code>pthread_cond_destroy</code></td></tr>
+          <tr><td>array_init</td><td>Set the bookkeeping to "empty", and initialize the mutex and both condition variables. Return 0.</td><td><a href="../lectures/09-semaphore.html#s3-1">Lecture 09 §3.1</a> for the mutex, <a href="../lectures/10-monitors.html#s3-2">Lecture 10 §3.2</a> for the condition variables</td></tr>
+          <tr><td>array_put</td><td>Wait while the array is full, store the pointer, update the bookkeeping, and let a waiting getter know. Return 0.</td><td><a href="../lectures/09-semaphore.html#s3-1">Lecture 09 §3.1</a> for the mutex, <a href="../lectures/10-monitors.html#s3-2">Lecture 10 §3.2</a> for the wait and the signal</td></tr>
+          <tr><td>array_get</td><td>The mirror image. Wait while the array is empty, take a pointer out through <code>*hostname</code>, update the bookkeeping, and let a waiting putter know. Return 0.</td><td>the same two sections</td></tr>
+          <tr><td>array_free</td><td>Release what <code>array_init</code> created.</td><td><a href="../lectures/09-semaphore.html#s3-1">Lecture 09 §3.1</a> for the mutex, <a href="../lectures/10-monitors.html#s3-2">Lecture 10 §3.2</a> for the condition variables</td></tr>
         </tbody>
       </table>
     </div>
     <div class="prose">
-      <p>Before writing <code>put</code>, answer these on paper. <code>get</code> has the same questions.</p>
-      <ol>
-        <li>Which lines read or change the shared bookkeeping? The mutex must be held for all of them.</li>
-        <li>What exactly is the condition for "I must wait"? On which of your two condition variables do you wait for it?</li>
-        <li>What does <code>pthread_cond_wait</code> do with the mutex while you sleep, and in what state is the mutex when it returns? (Read its manual page.)</li>
-        <li>When <code>wait</code> returns, is your condition guaranteed to be true? Think of two getters and one put. This is why <code>pthread_cond_wait</code> lives inside a <code>while</code> loop, not an <code>if</code>. It matters the moment there are two consumers.</li>
-        <li>After you change the state, which thread could now be able to continue, and which condition variable is it waiting on?</li>
-        <li>Is there a path out of the function that leaves the mutex locked?</li>
+      <ol start="2">
+        <li>
+          <p><b>Before you write <code>array_put</code>, answer the six questions below on paper.</b> <code>array_get</code> has the same questions.</p>
+          <ol>
+            <li>Which lines read or change the shared bookkeeping? The mutex must be held for all of them.</li>
+            <li>What exactly is the condition for "I must wait"? On which of your two condition variables do you wait for it?</li>
+            <li>What does <code>pthread_cond_wait</code> do with the mutex while the thread sleeps, and in what state is the mutex when it returns?</li>
+            <li>When the wait returns, is your condition guaranteed to be true? Think of two getters and one put. <a href="../lectures/10-monitors.html#s1-3">Lecture 10 §1.3</a> lets you step through this exact scenario, with <code>if</code> and with <code>while</code>.</li>
+            <li>After you change the state, which thread could now be able to continue, and on which condition variable is it waiting?</li>
+            <li>Is there a path out of the function that leaves the mutex locked?</li>
+          </ol>
+        </li>
+        <li>
+          <p><b>Write <code>array_init</code> and <code>array_free</code>, then <code>array_put</code>, then <code>array_get</code>.</b></p>
+          <p>Delete each <code>(void)</code> line and each <code>return -1</code> of the starter as you fill in the function. Then go to Step 5, which compiles and tests your code.</p>
+        </li>
       </ol>
     </div>
+    <div class="note note-warn"><span class="note-tag">Blocking, not polling</span><p>Blocking means a wait on a condition variable. A loop that unlocks, locks again, and rechecks the state is busy waiting, even though it uses the mutex. A waiting thread must burn almost no CPU, and the <code>no-busy-wait</code> check in Step 5 measures exactly that.</p></div>
   </div>
 </section>
 
@@ -201,26 +310,60 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 5</div>
     <h2>Test one guarantee at a time</h2>
-    <p class="ch-lede">The instructor harness <code>check/array-test.c</code> is not secret, so read it. Each scenario tests one guarantee, so run them in order and fix the first one that fails.</p>
+    <p class="ch-lede">The goal of this step is to test each promise of your array on its own, with the instructor harness <code>check/array-test.c</code>. The harness is not secret, so read it. Each scenario tests one guarantee. Run them in order, and fix the first one that fails.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln"><span class="c"># VM, in /share</span></span><span class="ln">gcc -Wall -Werror -O2 -pthread -Isubmit -o /tmp/array-test check/array-test.c submit/array.c</span><span class="ln">/tmp/array-test roundtrip       <span class="c"># OK roundtrip</span></span><span class="ln">/tmp/array-test blocks-empty    <span class="c"># CPU_MS=… then OK blocks-empty</span></span><span class="ln">/tmp/array-test blocks-full     <span class="c"># OK blocks-full</span></span><span class="ln">/tmp/array-test stress          <span class="c"># OK stress</span></span></div>
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>In the VM, in <code>/share</code>, compile the harness together with your array.c.</b></p>
+          <div class="code"><span class="ln">gcc -Wall -Werror -O2 -pthread -Isubmit -o /tmp/array-test \</span><span class="ln">    check/array-test.c submit/array.c</span></div>
+          <p><code>-Isubmit</code> adds <code>submit/</code> to the directories that gcc searches for header files. Therefore, the line <code>#include "array.h"</code> in the harness finds your header. If you run the harness with the starter files, every scenario prints <code>FAIL init</code>, because the starter's <code>array_init</code> returns -1.</p>
+        </li>
+        <li>
+          <p><b>Run <code>roundtrip</code>.</b></p>
+          <div class="code"><span class="ln">/tmp/array-test roundtrip</span><span class="ln hl">OK roundtrip</span></div>
+          <p>One thread puts three strings, gets three back, and checks that each one came out exactly once.</p>
+        </li>
+        <li>
+          <p><b>Run <code>blocks-empty</code>.</b></p>
+          <div class="code"><span class="ln">/tmp/array-test blocks-empty</span><span class="ln hl">CPU_MS=0</span><span class="ln hl">OK blocks-empty</span></div>
+          <p>A second thread calls <code>array_get</code> on the empty array. The harness sleeps for one second, and checks that the get has not returned. Then it puts one item, and checks that the waiting get returns that item. <code>CPU_MS</code> is the CPU time, in milliseconds, that the kernel charged to the whole program during that second, the CPU used in its accounting information (<a href="../lectures/03-process.html#s3-2">Lecture 03 §3.2</a>). A thread that sleeps uses almost none. The check <code>no-busy-wait</code> requires a value below 500.</p>
+        </li>
+        <li>
+          <p><b>Run <code>blocks-full</code>.</b></p>
+          <div class="code"><span class="ln">/tmp/array-test blocks-full</span><span class="ln hl">OK blocks-full</span></div>
+          <p>The harness fills all 8 slots. A second thread then makes a 9th put, which must wait. After one second, the harness gets one item, and the waiting put must then return.</p>
+        </li>
+        <li>
+          <p><b>Run <code>stress</code>, first once and then 20 times.</b></p>
+          <div class="code"><span class="ln">/tmp/array-test stress</span><span class="ln hl">OK stress</span><span class="ln">for i in $(seq 20); do /tmp/array-test stress; done | sort | uniq -c</span><span class="ln hl">     20 OK stress</span></div>
+          <p><code>stress</code> runs 2 producers and 2 consumers at once. Each producer puts 500 items (<code>PER</code> in the harness), and every item must come out exactly once. A bug in a concurrent program may show up in one run and hide in the next. Therefore, you run it 20 times. <code>seq 20</code> prints the numbers 1 to 20. <code>sort</code> puts identical lines next to each other, and <code>uniq -c</code> prints each distinct line once, with its count. A single line <code>20 OK stress</code> means that all 20 runs passed.</p>
+        </li>
+        <li>
+          <p><b>Build the harness with ThreadSanitizer, and run <code>stress</code> again.</b></p>
+          <div class="code"><span class="ln">gcc -g -O1 -fsanitize=thread -pthread -Isubmit -o /tmp/array-tsan \</span><span class="ln">    check/array-test.c submit/array.c</span><span class="ln">/tmp/array-tsan stress</span><span class="ln hl">OK stress</span></div>
+          <p><code>-fsanitize=thread</code> builds the program with ThreadSanitizer, which <a href="../recitations/r06-concurrency-bugs.html">Recitation 06</a> introduces. It watches every memory access while the program runs. When two threads touch the same location without synchronization, it prints <code>WARNING: ThreadSanitizer: data race</code>, with the file and line of both accesses. <code>-g</code> puts those line numbers into the binary. A correct array prints only <code>OK stress</code>.</p>
+        </li>
+      </ol>
+    </div>
     <div class="table-wrap">
       <table class="t">
-        <thead><tr><th>output</th><th>what it means</th><th>look at</th></tr></thead>
+        <thead><tr><th>what you see</th><th>what it means</th><th>look at</th></tr></thead>
         <tbody>
           <tr><td>FAIL init</td><td><code>array_init</code> did not return 0</td><td>the starter's <code>return -1</code> is still there</td></tr>
-          <tr><td>FAIL put / FAIL get</td><td>a call returned non-zero, or <code>get</code> gave back NULL</td><td>return values, and what you store into <code>*hostname</code></td></tr>
-          <tr><td>FAIL multiset</td><td>an item came out twice, or never</td><td>the bookkeeping. Redo the Step 3 simulation, and check that every update happens while holding the mutex</td></tr>
-          <tr><td>FAIL returned-early</td><td><code>get</code> on an empty array returned instead of waiting</td><td>question 2</td></tr>
-          <tr><td>CPU_MS near 1000</td><td>the waiting thread spins instead of sleeping (fails <code>no-busy-wait</code>, which needs under 500)</td><td>a loop that unlocks, relocks and rechecks is polling, but the wait must go through a condition variable</td></tr>
-          <tr><td>FAIL not-blocked</td><td>the 9th <code>put</code> into a full array returned</td><td>the "full" condition</td></tr>
-          <tr><td>FAIL never-woke</td><td>a <code>get</code> made space, but the blocked putter was never told</td><td>question 5</td></tr>
-          <tr><td>Alarm clock</td><td>a hang. The harness kills itself after 20 s, so in <code>make check</code> a hang is a FAIL, not a stuck grader</td><td>questions 5 and 6, which cover a missing signal, the wrong condition variable, or a mutex left locked</td></tr>
+          <tr><td>FAIL put, FAIL get</td><td>a call returned non-zero, or <code>array_get</code> gave back NULL</td><td>the return values, and what you store into <code>*hostname</code></td></tr>
+          <tr><td>FAIL multiset</td><td>an item came out twice, or never</td><td>the bookkeeping, so redo the simulation of Step 3. Then check that every update happens while the mutex is held, and go back to Step 4 question 4</td></tr>
+          <tr><td>FAIL returned-early</td><td><code>array_get</code> on an empty array returned instead of waiting</td><td>Step 4 question 2</td></tr>
+          <tr><td>FAIL wrong-item</td><td>the waiting get returned, but not with the item that was put</td><td>what you store into <code>*hostname</code></td></tr>
+          <tr><td>CPU_MS near 1000</td><td>the waiting thread spins instead of sleeping, and <code>no-busy-wait</code> fails</td><td>the note "Blocking, not polling" in Step 4</td></tr>
+          <tr><td>FAIL not-blocked</td><td>the 9th put into a full array returned</td><td>the "full" condition</td></tr>
+          <tr><td>FAIL never-woke</td><td>a thread waiting in <code>array_get</code> or <code>array_put</code> was still asleep 2 seconds after the call that should have woken it</td><td>Step 4 questions 5 and 6, which cover a missing signal and the wrong condition variable</td></tr>
+          <tr><td>Alarm clock</td><td>a hang. Every scenario sets an alarm, and the program is killed after 20 seconds. In <code>make check</code>, this is a FAIL, not a stuck check. A mutex left locked shows up this way.</td><td>Step 4 question 6, and every path that returns from <code>array_put</code> or <code>array_get</code></td></tr>
+          <tr><td>stress prints nothing</td><td>a put or a get returned non-zero, and the harness exited with status 9</td><td>the return values, and check with <code>echo $?</code></td></tr>
         </tbody>
       </table>
     </div>
-    <div class="prose"><p><code>stress</code> runs 2 producers and 2 consumers at once. Each producer puts 500 items (<code>PER</code> in the harness), and every item must arrive exactly once. It may pass nine times and fail the tenth. Run it in a loop (<code>for i in $(seq 20); do /tmp/array-test stress; done</code>), and use the ThreadSanitizer from R06 to find unprotected accesses. Add <code>-fsanitize=thread -g</code> to the compile line and run again.</p></div>
   </div>
 </section>
 
@@ -228,24 +371,41 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 6</div>
     <h2>make check, and reading a failure</h2>
+    <p class="ch-lede">The goal of this step is to run the same checks that grading runs, in a fresh VM. Therefore, a pass on your laptop is a pass in grading.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">make check LAB=03-concurrency</span></div>
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>On your laptop, at the repository root, run the checks.</b></p>
+          <div class="code"><span class="ln">make check LAB=03-concurrency</span></div>
+          <p>It boots a fresh VM, runs every check, and powers the VM off. This takes less than a minute.</p>
+        </li>
+        <li>
+          <p><b>Read the result.</b></p>
+          <p>If every check passes, the last line ends with <code>status=pass passes=15 fails=0</code>. <code>boot</code>, <code>proc-mounted</code>, and <code>gcc</code> check the VM, not your files. If one of them fails, go back to Lab00 Step 1. Each other check points to one step on this page, as the table below shows.</p>
+        </li>
+      </ol>
+    </div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>check</th><th>what it tests</th><th>go back to</th></tr></thead>
         <tbody>
-          <tr><td>boot, proc-mounted, gcc</td><td>the VM itself, and these do not depend on your code</td><td>Step 0</td></tr>
-          <tr><td>missing-race.c, missing-array.h, missing-array.c</td><td>the file is not in <code>submit/</code>, so no further checks run</td><td>Step 7, the file list</td></tr>
+          <tr><td>missing-race.c, missing-array.h, missing-array.c</td><td>the file exists in <code>submit/</code>, and if one is missing, the checker stops there</td><td>Step 0</td></tr>
           <tr><td>report-present</td><td><code>report.md</code> is not empty</td><td>Step 7</td></tr>
-          <tr><td>race-compiles, no-atomics</td><td><code>-Wall -Werror -O2 -pthread</code>, and no atomics outside <code>//</code> comments</td><td>Step 1</td></tr>
-          <tr><td>racy-loses</td><td>at least 2 of 3 racy runs print a count between 0 and 800000, exclusive</td><td>Step 1, first symptom</td></tr>
-          <tr><td>locked-exact</td><td>3 of 3 locked runs print exactly 800000</td><td>Step 1</td></tr>
+          <tr><td>race-compiles</td><td><code>gcc -Wall -Werror -O2 -pthread</code> succeeds on race.c</td><td>Step 0, item 4</td></tr>
+          <tr><td>no-atomics</td><td>no atomic operations in race.c outside <code>//</code> comments</td><td>Step 1, the rule</td></tr>
+          <tr><td>racy-loses</td><td>at least 2 of 3 racy runs print a count above 0 and below 800000</td><td>Step 1, the first symptom</td></tr>
+          <tr><td>locked-exact</td><td>all 3 locked runs print exactly 800000</td><td>Step 1, item 4</td></tr>
           <tr><td>uses-condvar</td><td><code>pthread_cond_wait</code> appears in array.c outside <code>//</code> comments</td><td>Step 4</td></tr>
-          <tr><td>harness-compiles</td><td>the harness compiles against your header and array.c</td><td>Step 5, the compile line</td></tr>
-          <tr><td>roundtrip, blocks-empty, no-busy-wait, blocks-full, stress</td><td>the four scenarios, plus CPU_MS under 500</td><td>Step 5</td></tr>
+          <tr><td>harness-compiles</td><td>the harness compiles against your array.h and array.c</td><td>Step 5, item 1</td></tr>
+          <tr><td>roundtrip, blocks-empty, blocks-full, stress</td><td>each scenario prints its <code>OK</code> line</td><td>Step 5, items 2 to 5</td></tr>
+          <tr><td>no-busy-wait</td><td><code>CPU_MS</code> of <code>blocks-empty</code> is below 500</td><td>Step 5, item 3</td></tr>
         </tbody>
       </table>
+    </div>
+    <div class="prose">
+      <p>Note that <code>stress</code> runs only once in <code>make check</code>. Therefore, a pass here does not replace the 20 runs of Step 5. Note also that <code>report-present</code> passes as soon as <code>report.md</code> is not empty, and the file already holds the three questions. Therefore, this check passing does not mean your report is done.</p>
     </div>
   </div>
 </section>
@@ -253,26 +413,58 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 <section class="chapter" id="s7">
   <div class="ch-head">
     <div class="ch-no">Step 7</div>
-    <h2>Report and submit</h2>
+    <h2>The report</h2>
+    <p class="ch-lede">The goal of this step is to answer the three questions that <code>submit/report.md</code> already holds. Each one asks you to argue from your own numbers and observations. Each item below tells you how to investigate, not what the answer is.</p>
   </div>
   <div class="sec">
     <div class="prose">
-      <p>Four questions in <code>submit/report.md</code>. Below is how to investigate, not the answers.</p>
       <ol>
-        <li><b>Inside <code>counter++</code>.</b> Paste your three racy counts. To see the machine steps, compile a small file that contains only a function incrementing a global, with <code>gcc -O1 -S</code>, and read the <code>.s</code> file. Then draw a two-thread timeline, one column per thread, that ends with one increment lost.</li>
-        <li><b>Threads in /proc.</b> Use your Step 2 notes. Compare with Lab01. After <code>fork</code>, what did parent and child <em>not</em> share?</li>
-        <li><b>The price of the lock.</b> Use your <code>time</code> numbers. Count how many lock and unlock calls the locked run makes in total, and think about what each one costs when four threads want the same lock.</li>
-        <li><b>Blocking beats polling.</b> Quote your <code>CPU_MS</code>. If you want a comparison, write a throwaway polling version outside <code>submit/</code> and measure it with the same harness. For <code>while</code> vs <code>if</code>, use your answer to Step 4 question 4.</li>
+        <li>
+          <p><b>Question 1. "Your three racy COUNTs (paste them). Why do they differ from run to run? Name the three machine steps hiding inside <code>counter++</code> and show, with a two-thread interleaving, exactly where an increment gets lost."</b></p>
+          <p>Paste the counts from Step 1, item 3. For the machine steps, use <a href="../lectures/08-synchronization.html#s2-2">Lecture 08 §2.2</a> and <a href="../recitations/r05-real-schedulers.html#c">Recitation 05 Part 3</a>, which take <code>counter++</code> apart into load, add, and store. Then draw a timeline with one column per thread, which ends with one increment lost. The widget in Lecture 08 §2.2 lets you try such interleavings.</p>
+        </li>
+        <li>
+          <p><b>Question 2. "What did <code>ls /proc/&lt;pid&gt;/task/</code> and <code>Threads:</code> show while race ran? In Lab01 terms, what do the four workers share that four <em>processes</em> would not, and what does each still own privately?"</b></p>
+          <p>Use your notes from Step 2. The fd lists show what the tasks share. For memory and for what each thread owns, use <a href="../lectures/05-thread.html#s0-1">Lecture 05 §0.1</a> and its Fig. 0.1. Then compare with Lab01, where after <code>fork</code> the parent could not see the child's change to a variable.</p>
+        </li>
+        <li>
+          <p><b>Question 3. "Why must <code>array_put</code>/<code>array_get</code> wait on a condition variable instead of looping until the state changes? One of the checks measured the CPU time your program used while its thread waited. Connect that number to your answer. And why does <code>pthread_cond_wait</code> sit inside a <code>while</code>, not an <code>if</code>?"</b></p>
+          <p>Quote your <code>CPU_MS</code> from Step 5, item 3, and compare it with the one second that the thread waited. <a href="../lectures/08-synchronization.html#s3-4">Lecture 08 §3.4</a> and <a href="../lectures/08-synchronization.html#s4-4">§4.4</a> explain what a busy-waiting thread costs. If you want a measured comparison, write a throwaway polling version outside <code>submit/</code>, and run <code>blocks-empty</code> on it. For <code>while</code> against <code>if</code>, use your answer to Step 4 question 4, and the scenario in <a href="../lectures/10-monitors.html#s1-3">Lecture 10 §1.3</a>.</p>
+        </li>
       </ol>
     </div>
-    <div class="code"><span class="ln">cd labs/03-concurrency/submit</span><span class="ln">git add race.c array.h array.c report.md</span><span class="ln">git commit -m "Lab03"</span><span class="ln">git push</span></div>
-    <ul class="check prose">
-      <li><code>make check LAB=03-concurrency</code> shows no <code>FAIL</code>.</li>
-      <li><code>stress</code> passes 20 times in a row in the VM.</li>
-      <li><code>report.md</code> contains your own counts, times and CPU_MS.</li>
-      <li>All four files are visible on GitHub, in <em>your</em> repository.</li>
-    </ul>
-    <div class="note"><span class="note-tag">Stretch, ungraded</span><p>A tiny multi-lookup. The legacy course built a whole threaded DNS resolver on this exact interface, and this is the taste without the network. Write <code>multi-lookup.c</code>. One <em>requester</em> thread reads names from a file and <code>array_put</code>s them. Two <em>resolver</em> threads <code>array_get</code> names, look each up in a local table file (<code>name ip</code> lines, no network), and append <code>name, ip</code> to a results file. Your buffer is reused unchanged. The interesting part is clean shutdown. Resolvers must terminate when the input is exhausted. Where does "no more work is coming" live in your design? Try answering that before you write any code. Nothing here is graded.</p></div>
+  </div>
+</section>
+
+<section class="chapter" id="s8">
+  <div class="ch-head">
+    <div class="ch-no">Step 8</div>
+    <h2>Submit</h2>
+    <p class="ch-lede">The goal of this step is to put your four files on GitHub. We grade what is on GitHub at the deadline.</p>
+  </div>
+  <div class="sec">
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>On your laptop, at the repository root, commit your four files, and push.</b></p>
+          <div class="code"><span class="ln">git add labs/03-concurrency/submit/race.c labs/03-concurrency/submit/array.h \</span><span class="ln">        labs/03-concurrency/submit/array.c labs/03-concurrency/submit/report.md</span><span class="ln">git commit -m "Lab03"</span><span class="ln">git push</span></div>
+          <p>Add only these four files. The compiled programs stay in the VM's <code>/tmp</code>.</p>
+        </li>
+        <li>
+          <p><b>Open your repository on GitHub, and check the files.</b></p>
+          <p>Go to <code>labs/03-concurrency/submit/</code>, and check that all four files are there with your latest changes.</p>
+        </li>
+        <li>
+          <p><b>Before the deadline, go through this list.</b></p>
+          <ul class="check">
+            <li><code>make check LAB=03-concurrency</code> shows no <code>FAIL</code>.</li>
+            <li><code>stress</code> passes 20 times in a row in the VM, and ThreadSanitizer reports nothing.</li>
+            <li><code>report.md</code> quotes your own counts and <code>CPU_MS</code>.</li>
+            <li>All four files are visible on GitHub, in <em>your</em> private repository.</li>
+          </ul>
+        </li>
+      </ol>
+    </div>
   </div>
 </section>
 
@@ -280,7 +472,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 </div>
 
 <footer class="footer">
-  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab03 walkthrough. This page and the file headers in <code>submit/</code> are the specification for Lab03.
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab03 walkthrough. This page and the header comments of the files in <code>labs/03-concurrency/submit/</code> are the specification for this lab.
 </footer>
 
 <script src="../assets/academy.js"></script>

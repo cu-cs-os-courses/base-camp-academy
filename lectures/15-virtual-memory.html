@@ -58,7 +58,7 @@
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 15 · Interactive notes</div>
     <h1>Memory as a <span class="accent">cache</span> of the disk</h1>
-    <p class="lede">Lecture 14 mapped every page of a process to a frame. But most pages are not used most of the time. Keep only the pages a process is actually using in RAM, fetch the others from disk when first touched, and the address space can be far larger than physical memory. This lecture covers how a missing page is fetched, what it costs, how fork avoids copying at all, and what happens when memory fills up.</p>
+    <p class="lede">In Lecture 14, every page of a process is mapped to a frame. However, most pages are not used most of the time. If RAM holds only the pages that a process is actually using, and the OS fetches the other pages from disk when they are first touched, the address space can be far larger than physical memory. In this lecture, we discuss how a missing page is fetched, what it costs, how fork avoids copying at all, and what happens when memory fills up.</p>
     <div class="promise">
       <span>Before you start, review</span><span class="mono">pages, frames, page tables, valid bits</span><span>from Lecture 14.</span>
     </div>
@@ -102,9 +102,9 @@
     <h3><span class="sec-no">0.1</span>Not every page needs to be in RAM</h3>
     <div class="prose">
       <ul>
-        <li>Processes, and their page tables, can be large, and keeping all of them in memory costs a lot of RAM. The key observation is that <strong>not all pages of a logical address space need to be in memory</strong> at once.</li>
-        <li>At the extreme, keep only the page the PC is executing in, and fetch every other page from disk just before it is used. That works, but it is far too slow, because it needs a disk read every time execution moves to another page.</li>
-        <li>So keep a <em>subset</em> of the process's pages in memory. Treat memory as a <strong>cache</strong> of the most frequently or most recently used pages, and load a page only when it is needed.</li>
+        <li>Processes and their page tables can be large. Keeping all of them in memory costs a lot of RAM. The key observation is that <strong>not all pages of a logical address space need to be in memory</strong> at once.</li>
+        <li>At the extreme, the OS keeps only the page that the PC is executing in, and it fetches every other page from disk just before the page is used. This approach works. However, it is far too slow, because it needs a disk read every time execution moves to another page.</li>
+        <li>Therefore, the OS keeps a <em>subset</em> of the pages of the process in memory. Specifically, it treats memory as a <strong>cache</strong> of the most frequently or most recently used pages, and it loads a page only when the page is needed.</li>
       </ul>
     </div>
   </div>
@@ -113,13 +113,13 @@
     <h3><span class="sec-no">0.2</span>Locality of reference</h3>
     <div class="two-up">
       <div class="prose">
-        <p>A cache works only if the program cooperates. Most programs exhibit <strong>locality of reference</strong>, meaning a page referenced recently is likely to be referenced again soon.</p>
+        <p>A cache works only if the program cooperates. Most programs exhibit <strong>locality of reference</strong>. In other words, a page referenced recently is likely to be referenced again soon.</p>
         <ul>
           <li>Loops run through the same instructions again and again.</li>
           <li>Branches keep returning to the same code.</li>
           <li>Execution is mostly linear. The next instruction is usually right after the last one, not a random jump.</li>
         </ul>
-        <p>So execution mostly revisits pages already in memory, and the program does not go to disk every time the PC crosses into another page.</p>
+        <p>As a result, execution mostly revisits pages that are already in memory. The program does not go to disk every time the PC crosses into another page.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -127,7 +127,7 @@
             <g id="loc-g"></g>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 0.1</span>Pages touched over time by a program running loops. It stays in a few pages for long stretches (shape after Silberschatz Fig. 10.21).</figcaption>
+        <figcaption><span class="fno">Fig. 0.1</span>The pages touched over time by a program that runs loops. The program stays in a few pages for long stretches (shape after Silberschatz Fig. 10.21).</figcaption>
       </figure>
     </div>
   </div>
@@ -155,12 +155,12 @@
   <div class="sec" id="s0-4">
     <h3><span class="sec-no">0.4</span>What virtual memory buys</h3>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">Bigger than RAM</span>A virtual address space can exceed physical memory. Only the most demanded subset of pages lives in RAM, so virtual memory is decoupled from physical memory.</div>
-      <div><span class="tag">More processes</span>Each process occupies only its active pages, so many more fit in memory, and the CPU stays busier.</div>
+      <div><span class="tag">Bigger than RAM</span>A virtual address space can exceed physical memory. Only the most demanded subset of pages lives in RAM. As such, virtual memory is decoupled from physical memory.</div>
+      <div><span class="tag">More processes</span>Each process occupies only its active pages. Therefore, many more processes fit in memory, and the CPU stays busier.</div>
       <div><span class="tag">Less to swap</span>Moving a process out means moving only its resident pages, not its whole image.</div>
       <div><span class="tag">Sparse address spaces</span>A large heap and stack that are mostly empty take no RAM until they are actually touched.</div>
     </div>
-    <p class="prose">That raises three questions, answered in turn below and in Lecture 16. How is a needed page loaded from disk? How many frames should each process get? When a process's frames are full, which page is replaced?</p>
+    <p class="prose">That raises two questions, answered below and in Lecture 16. How is a needed page loaded from disk? When no frame is free, which page is replaced?</p>
   </div>
 
   <div class="ch-nav">
@@ -190,14 +190,14 @@
       <div class="readout" id="pf-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
     <div class="prose">
-      <p>The steps in more detail are below.</p>
+      <p>We describe each step in more detail below.</p>
       <ol>
         <li>The MMU finds the page-table entry invalid and raises a <strong>page-fault trap</strong> to the OS.</li>
         <li>The OS saves the registers and process state, determines that the trap is a page fault, and jumps to the page-fault handler.</li>
-        <li>The handler checks the reference. If the address is not in the process's logical address space at all, that is an illegal access, a <strong>segmentation fault</strong>. If it is legal but not in RAM, the page is loaded.</li>
-        <li>The OS finds a free frame and schedules a disk read. <em>Other processes run meanwhile</em>, because the faulting process is blocked, just as in any I/O wait.</li>
-        <li>The disk interrupts when the read is done. The page is now in the frame. The OS updates the page table, setting the valid bit and the frame number.</li>
-        <li>The OS <strong>restarts the instruction</strong> that caused the fault. It now finds the page and runs as if nothing happened.</li>
+        <li>The handler checks the reference. If the address is not in the logical address space of the process at all, the access is illegal, namely a <strong>segmentation fault</strong>. If the address is legal but the page is not in RAM, the OS loads the page.</li>
+        <li>The OS finds a free frame and schedules a disk read. <em>Other processes run meanwhile</em>, because the faulting process is blocked, as in any I/O wait.</li>
+        <li>The disk interrupts when the read is done. The page is now in the frame. The OS updates the page table. Specifically, it sets the valid bit and the frame number.</li>
+        <li>The OS <strong>restarts the instruction</strong> that caused the fault. This time, the instruction finds the page and runs as if nothing had happened.</li>
       </ol>
     </div>
   </div>
@@ -206,9 +206,9 @@
     <h3><span class="sec-no">1.2</span>Where the page comes from</h3>
     <div class="prose">
       <ul>
-        <li>The page can come from the <strong>file system</strong>, for example the executable file, or from <strong>swap space</strong>, a disk area reserved as backing store. Swap is faster, because it needs no file-system lookup, and it can be laid out contiguously.</li>
-        <li>Pages end up in swap in two ways. Some systems copy the whole executable into swap when the program starts. And when pages are evicted from RAM, they are written to swap rather than back to the file system, so the next fault on them is quick.</li>
-        <li>Linux and Windows do something in between. Code pages are paged in directly from the executable file, and since they are never modified, they are simply dropped when evicted. Only <em>anonymous</em> pages, such as the heap and stack, which have no file behind them, go to swap.</li>
+        <li>The page can come from the <strong>file system</strong>, for example the executable file, or from <strong>swap space</strong>, which is a disk area reserved as backing store. Swap is faster, because it needs no file-system lookup and can be laid out contiguously.</li>
+        <li>Pages end up in swap in two ways. First, some systems copy the whole executable into swap when the program starts. Second, when pages are evicted from RAM, they are written to swap rather than back to the file system. As such, the next fault on them is quick.</li>
+        <li>Linux and Windows take an approach in between. Code pages are paged in directly from the executable file. Since code pages are never modified, they are simply dropped when evicted. Only <em>anonymous</em> pages go to swap. These pages, such as the heap and stack, have no file behind them.</li>
       </ul>
     </div>
   </div>
@@ -218,7 +218,7 @@
     <div class="prose">
       <p>If p is the probability that a memory reference faults, the <strong>effective access time</strong> is</p>
       <div class="formula center">EAT = (1 − p) × memory access + p × page-fault service time</div>
-      <p>With the slide's numbers, a 10 ns memory read and a 10 ms disk read, p = 0.001 gives about 10 µs, which is <strong>1000× slower</strong> than memory. Keeping EAT within 10% of 10 ns requires p below 10<sup>−7</sup>, one fault in ten million references.</p>
+      <p>The slides use a 10 ns memory read and a 10 ms disk read. With these numbers, p = 0.001 gives about 10 µs, which is <strong>1000× slower</strong> than memory. Keeping EAT within 10% of 10 ns requires p below 10<sup>−7</sup>, namely one fault in ten million references.</p>
     </div>
     <div class="widget" id="ea-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Effective access time</span><button class="w-reset" type="button" id="ea-reset">Reset</button></div>
@@ -231,7 +231,7 @@
       </div>
       <div class="readout" id="ea-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">The textbook uses 200 ns memory and an 8 ms fault. Try them, and p = 0.001 then gives about 8.2 µs, a 40× slowdown, and a 10% target needs p &lt; 2.5 × 10<sup>−6</sup>. Faster SSDs, with a fault service time of about 0.1 ms, help a lot, but a fault is still thousands of memory accesses.</p>
+    <p class="small muted prose read-only">The textbook uses a 200 ns memory access and an 8 ms fault. Try them. With these numbers, p = 0.001 gives about 8.2 µs, which is a 40× slowdown, and a 10% target needs p &lt; 2.5 × 10<sup>−6</sup>. Faster SSDs, with a fault service time of about 0.1 ms, help a lot. However, a fault still costs as much as thousands of memory accesses.</p>
   </div>
 
   <div class="sec" id="q0">
@@ -260,7 +260,7 @@
           <button type="button" class="q-opt" data-ok>A page fault, which the OS handles by giving the page a frame (zero-filled). The program never notices.</button>
           <button type="button" class="q-opt" data-why="The PTE is invalid, so the MMU cannot complete the access by itself.">Nothing. The MMU handles it without the OS.</button>
         </div>
-        <div class="q-fb ok">Right. That is the "sparse address space" advantage. Untouched heap costs no RAM.</div>
+        <div class="q-fb ok">Right. This is the "sparse address space" advantage. An untouched heap costs no RAM.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -277,16 +277,16 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 2</div>
     <h2>Copy-on-write</h2>
-    <p class="ch-lede">fork() without copying, until someone writes.</p>
+    <p class="ch-lede">fork() without copying, until one of the processes writes.</p>
   </div>
 
   <div class="sec" id="s2-1">
     <h3><span class="sec-no">2.1</span>Share, then copy on the first write</h3>
     <div class="prose">
       <ul>
-        <li><strong>Copy-on-write</strong> (COW) lets parent and child share the same frames after <code>fork()</code>. The shared pages are marked <em>read-only</em> in both page tables.</li>
-        <li>When either process writes to a shared page, the write traps. The OS copies just that page into a new frame, maps the copy into the writer's page table as writable, and restarts the write.</li>
-        <li>Only modified pages are ever copied, which makes process creation fast. In the common pattern, where the child calls <code>exec()</code> right away, almost nothing is copied at all.</li>
+        <li><strong>Copy-on-write</strong> (COW) lets the parent and the child share the same frames after <code>fork()</code>. The shared pages are marked <em>read-only</em> in both page tables.</li>
+        <li>When either process writes to a shared page, the write traps. The OS copies only that page into a new frame, maps the copy as writable into the page table of the writer, and restarts the write.</li>
+        <li>Only modified pages are ever copied. Therefore, process creation is fast. In the common pattern, in which the child calls <code>exec()</code> right away, almost nothing is copied at all.</li>
       </ul>
     </div>
     <div class="widget" id="cw-w">
@@ -304,7 +304,7 @@
   <div class="sec" id="s2-2">
     <h3><span class="sec-no">2.2</span>vfork()</h3>
     <div class="prose">
-      <p><code>vfork()</code> goes further. The parent is <strong>suspended</strong>, and the child runs directly in the parent's address space, with <em>no copy-on-write, no page-table copy at all</em>. It is designed for a child that immediately calls <code>exec()</code>, and it is very efficient. The catch is that any page the child modifies before <code>exec()</code> is modified for the parent too, so the child must do almost nothing but <code>exec()</code>.</p>
+      <p><code>vfork()</code> goes further. The parent is <strong>suspended</strong>, and the child runs directly in the address space of the parent, with <em>no copy-on-write, no page-table copy at all</em>. It is designed for a child that immediately calls <code>exec()</code>, and it is very efficient. However, any page that the child modifies before <code>exec()</code> is modified for the parent too. Therefore, the child must do almost nothing but <code>exec()</code>.</p>
     </div>
   </div>
 
@@ -316,7 +316,7 @@
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="That is an eager fork, with no COW.">1,000</button>
           <button type="button" class="q-opt" data-ok>3</button>
-          <button type="button" class="q-opt" data-why="The child's writes each trigger one copy.">0</button>
+          <button type="button" class="q-opt" data-why="Each write by the child triggers one copy.">0</button>
         </div>
         <div class="q-fb ok">Right. Only written pages are copied, and exec() then drops the child's mappings.</div>
         <div class="q-fb no">Not quite.</div>
@@ -335,7 +335,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 3</div>
     <h2>When memory is full</h2>
-    <p class="ch-lede">Page in, and first page something else out.</p>
+    <p class="ch-lede">To page in, the OS first pages something else out.</p>
   </div>
 
   <div class="sec" id="s3-1">
@@ -348,7 +348,7 @@
         <li>Read the desired page into the newly freed frame, and update the page and frame tables.</li>
         <li>Restart the instruction that caused the trap.</li>
       </ol>
-      <p>Step 2(c) is new compared with plain demand paging, and it can double the cost, because a fault may need <strong>two disk operations</strong>, a write and then a read.</p>
+      <p>Step 2(c) is new compared with plain demand paging. It can double the cost, because a fault may need <strong>two disk operations</strong>, namely a write and then a read.</p>
     </div>
   </div>
 
@@ -357,8 +357,8 @@
     <div class="prose">
       <ul>
         <li>The <strong>dirty</strong> (modify) bit in each page-table entry starts at 0, and the hardware sets it to 1 when the page is written.</li>
-        <li>A clean victim (dirty = 0) need not be written out, because an identical copy is already on disk. The fault then costs only one disk operation, the read.</li>
-        <li>So, other things being equal, prefer a clean victim over a dirty one.</li>
+        <li>A clean victim (dirty = 0) need not be written out, because an identical copy is already on disk. In this case, the fault costs only one disk operation, namely the read.</li>
+        <li>Therefore, other things being equal, the OS prefers a clean victim over a dirty one.</li>
       </ul>
     </div>
     <div class="widget" id="db-w">
@@ -375,7 +375,7 @@
       </div>
       <div class="readout" id="db-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Run both. On this string, preferring clean pages saves a write-back but evicts a page that is needed again sooner, costing an extra fault, so it takes 11 disk operations either way. Clean-first is a tiebreaker, not a policy by itself. Choosing the victim well is Lecture 16's subject.</p>
+    <p class="small muted prose read-only">Run both choices. On this string, preferring clean pages saves a write-back. However, it evicts a page that is needed again sooner, which costs an extra fault. As a result, both choices take 11 disk operations. In other words, clean-first is a tiebreaker, not a policy by itself. Lecture 16 discusses how to choose the victim well.</p>
   </div>
 
   <div class="sec" id="s3-3">
@@ -403,7 +403,7 @@
           <button type="button" class="q-opt" data-ok>Two. Write the victim back, then read the new page.</button>
           <button type="button" class="q-opt" data-why="The dirty bit only decides whether the write-back is needed.">Zero, because of the dirty bit.</button>
         </div>
-        <div class="q-fb ok">Right. With a clean victim it would be one.</div>
+        <div class="q-fb ok">Right. With a clean victim, it would be one.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -419,7 +419,7 @@
           <button type="button" class="q-opt" data-ok>Read-only. The first write to a shared page traps to the OS, which copies it.</button>
           <button type="button" class="q-opt" data-why="The pages are valid and resident. Only writing is special.">Valid</button>
         </div>
-        <div class="q-fb ok">Right. Protection bits do double duty as a mechanism for lazy work.</div>
+        <div class="q-fb ok">Right. Protection bits also serve as a mechanism for lazy work.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -442,12 +442,12 @@
     <h3><span class="sec-no">∎</span>What to take away</h3>
     <div class="prose">
       <ul>
-        <li>Only a small fraction of a logical address space needs to be in RAM. Pages are brought in on demand, which works because programs show locality.</li>
-        <li>The virtual address space can be much larger than physical memory, many more processes fit, and sparse regions cost nothing.</li>
+        <li>Only a small fraction of a logical address space needs to be in RAM. Pages are brought in on demand. This works because programs show locality.</li>
+        <li>The virtual address space can be much larger than physical memory, many more processes fit in memory, and sparse regions cost nothing.</li>
         <li>A page fault traps to the OS, which checks legality, finds a frame, reads the page (other processes run meanwhile), fixes the page table, and restarts the instruction.</li>
-        <li>Faults are enormously expensive, so the fault rate must be tiny, on the order of 10<sup>−7</sup> for under 10% overhead with the slide's numbers.</li>
+        <li>Faults are very expensive. Therefore, the fault rate must be tiny, on the order of 10<sup>−7</sup> for under 10% overhead with the numbers from the slides.</li>
         <li>Copy-on-write shares pages after fork() and copies only on write. vfork() shares the address space outright.</li>
-        <li>With no free frame, pick a victim and write it back if it is dirty. Clean victims save a disk write.</li>
+        <li>When no frame is free, the OS picks a victim and writes it back if it is dirty. A clean victim saves a disk write.</li>
       </ul>
     </div>
   </div>
@@ -460,7 +460,7 @@
         <tr><td>demand paging</td><td>Loading a page only when it is first referenced.</td></tr>
         <tr><td>locality of reference</td><td>The tendency to reuse recently referenced pages and their neighbors.</td></tr>
         <tr><td>page fault</td><td>A trap on access to a page whose entry is invalid.</td></tr>
-        <tr><td>swap space / backing store</td><td>Disk area holding pages that are not in RAM.</td></tr>
+        <tr><td>swap space / backing store</td><td>The disk area that holds pages not in RAM.</td></tr>
         <tr><td>effective access time</td><td>(1 − p) × memory time + p × fault time.</td></tr>
         <tr><td>copy-on-write</td><td>Share pages read-only, and copy a page on its first write.</td></tr>
         <tr><td>vfork()</td><td>fork where the child borrows the parent's address space until exec.</td></tr>
@@ -540,9 +540,9 @@
     const S = [
       ['The process executes <code>load M</code>. M is on page 2.', []],
       ['<b>1. Reference.</b> The MMU looks up page 2 in the page table, and the valid bit is <b>i</b>.', [1]],
-      ['<b>2. Trap.</b> An invalid entry raises a page-fault trap to the OS. The handler confirms the address is legal, so this is demand paging, not a segfault.', [1, 2]],
-      ['<b>3. The page is on the backing store.</b> The OS finds a free frame (frame 3) and schedules a disk read. The process blocks, and others run meanwhile.', [1, 2, 3]],
-      ['<b>4. Bring in the missing page.</b> The disk interrupts when done, and page 2 is now in frame 3.', [1, 2, 3, 4]],
+      ['<b>2. Trap.</b> An invalid entry raises a page-fault trap to the OS. The handler confirms that the address is legal. Therefore, this is demand paging, not a segfault.', [1, 2]],
+      ['<b>3. The page is on the backing store.</b> The OS finds a free frame (frame 3) and schedules a disk read. The process blocks, and other processes run meanwhile.', [1, 2, 3]],
+      ['<b>4. Bring in the missing page.</b> The disk interrupts when the read is done. Page 2 is now in frame 3.', [1, 2, 3, 4]],
       ['<b>5. Reset the page table.</b> Entry 2 gets frame 3 and valid bit <b>v</b>.', [1, 2, 3, 4, 5]],
       ['<b>6. Restart the instruction.</b> <code>load M</code> runs again, and this time the translation succeeds.', [1, 2, 3, 4, 5, 6]],
     ];
@@ -601,7 +601,7 @@
       if (execd && who === 'child') { log = 'The child has exec()ed, so it no longer has these pages.'; return; }
       const f = map[who][pg];
       if (ref[f] > 1) { const nf = nextF++; ref[f]--; ref[nf] = 1; map[who][pg] = nf; copies++; log = `<b>${who} writes ${pg}.</b> The page is shared and read-only, so the write traps. The OS copies frame ${f} to a new frame ${nf}, maps it writable for the ${who}, and restarts the write.${ref[f] === 1 ? ` Frame ${f} now has one user left, so it becomes writable for that process too.` : ''}`; }
-      else log = `<b>${who} writes ${pg}.</b> Frame ${f} is private to the ${who} and already writable. No trap, no copy.`;
+      else log = `<b>${who} writes ${pg}.</b> Frame ${f} is private to the ${who} and already writable. There is no trap and no copy.`;
     }
     function render() {
       $('#cw-btns').innerHTML = ['parent', 'child'].map((w) => `<span>${w} writes</span>${P.map((p) => `<button type="button" class="btn small" data-w="${w},${p}"${execd && w === 'child' ? ' disabled' : ''}>${p}</button>`).join('')}`).join('');
@@ -624,7 +624,7 @@
       $('#cw-out').innerHTML = log;
     }
     $('#cw-btns').addEventListener('click', (e) => { const b = e.target.closest('[data-w]'); if (b) { const [w, p] = b.dataset.w.split(','); write(w, p); render(); } });
-    $('#cw-exec').addEventListener('click', () => { if (execd) return; Object.values(map.child).forEach((f) => { ref[f]--; if (!ref[f]) delete ref[f]; }); execd = true; log = `<b>The child calls exec().</b> Its old mappings are dropped. ${copies} page${copies === 1 ? ' was' : 's were'} copied in total, and the parent's frames are private and writable again. For fork-then-exec, copy-on-write avoided almost all the copying.`; render(); });
+    $('#cw-exec').addEventListener('click', () => { if (execd) return; Object.values(map.child).forEach((f) => { ref[f]--; if (!ref[f]) delete ref[f]; }); execd = true; log = `<b>The child calls exec().</b> Its old mappings are dropped. ${copies} page${copies === 1 ? ' was' : 's were'} copied in total. The parent's frames are private and writable again. For fork-then-exec, copy-on-write avoids almost all the copying.`; render(); });
     $('#cw-reset').addEventListener('click', () => { init(); render(); });
     init(); render();
   })();

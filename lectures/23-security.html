@@ -64,7 +64,7 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 23 · Interactive notes</div>
     <h1>Protection assumes everyone<br>plays by the rules. Security <span class="accent">doesn't</span></h1>
-    <p class="lede">Lecture 22 built mechanisms that decide who may do what, assuming the system knows who is asking and the rules are followed. Security asks what happens when an adversary lies about who they are, feeds programs input they never expected, or listens on the network. This lecture surveys the threats at a conceptual level, then spends most of its time on the defenses, namely cryptography, authentication, and layered protection.</p>
+    <p class="lede">Lecture 22 builds mechanisms that decide who may do what. These mechanisms assume that the system knows who is asking and that the rules are followed. Security asks what happens when an adversary lies about who they are, feeds programs input they never expected, or listens on the network. In this lecture, we first survey the threats at a conceptual level. We then spend most of the time on the defenses, namely cryptography, authentication, and layered protection.</p>
     <div class="promise">
       <span>Before you start, review</span><span class="mono">protection domains and least privilege</span><span>(L22) and the network stack (L21).</span>
     </div>
@@ -112,7 +112,7 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
   <div class="ch-head">
     <div class="ch-no">Chapter 0</div>
     <h2>The security problem</h2>
-    <p class="ch-lede">A system is secure if its resources are used and accessed as intended under all circumstances. That is unachievable. The goal is to make attacks cost more than they are worth.</p>
+    <p class="ch-lede">A system is secure if its resources are used and accessed as intended under all circumstances. This is unachievable. Therefore, the goal is to make attacks cost more than they are worth.</p>
   </div>
 
   <div class="sec" id="s0-1">
@@ -120,7 +120,7 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
     <div class="prose">
       <ul>
         <li>A <strong>threat</strong> is a potential security violation, and an <strong>attack</strong> is an attempt to breach security.</li>
-        <li data-step="1">Attacks can be accidental or malicious. Protecting against accidental misuse is much easier than against malicious misuse.</li>
+        <li data-step="1">Attacks can be accidental or malicious. Protecting against accidental misuse is much easier than protecting against malicious misuse.</li>
       </ul>
     </div>
     <div class="table-wrap" data-step="2">
@@ -140,7 +140,7 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
   <div class="sec" id="s0-2">
     <h3><span class="sec-no">0.2</span>How violations happen</h3>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">Masquerading</span>Pretending to be an authorized user. It is a breach of authentication, often to escalate privileges.</div>
+      <div><span class="tag">Masquerading</span>Pretending to be an authorized user. It is a breach of authentication, and its goal is often to escalate privileges.</div>
       <div data-step="1"><span class="tag">Replay</span>Resending a captured valid message, as is or modified.</div>
       <div data-step="2"><span class="tag">Man in the middle</span>The intruder sits in the data flow, posing as the sender to the receiver and vice versa (§3.4).</div>
       <div data-step="3"><span class="tag">Session hijacking · privilege escalation</span>Taking over an already-authenticated session, or gaining access beyond what a user or resource is supposed to have.</div>
@@ -151,14 +151,14 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
     <h3><span class="sec-no">0.3</span>Four levels, one weakest link</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Absolute security is impossible, but security must hold at four levels to be effective.</p>
+        <p>Absolute security is impossible. However, to be effective, security must hold at four levels.</p>
         <ul>
-          <li><strong>physical</strong>, such as data centers, servers, terminals.</li>
+          <li><strong>physical</strong>, such as data centers, servers, and terminals.</li>
           <li><strong>application</strong>, where benign or malicious apps can cause problems.</li>
           <li><strong>operating system</strong>, with protection mechanisms and debugging.</li>
-          <li><strong>network</strong>, with intercepted communications, interruption, DoS.</li>
+          <li><strong>network</strong>, with intercepted communications, interruption, and DoS.</li>
         </ul>
-        <p data-step="1">Security is only as strong as the <strong>weakest link</strong>. Humans are a link too. Phishing and social engineering target people, not code. And too much security can backfire when users route around it.</p>
+        <p data-step="1">Security is only as strong as the <strong>weakest link</strong>. Note that humans are a link too. Phishing and social engineering target people, not code. Further, too much security can backfire when users route around it.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -185,18 +185,18 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
   <div class="ch-head">
     <div class="ch-no">Chapter 1</div>
     <h2>Threats</h2>
-    <p class="ch-lede">What attackers try to do, at the level an OS designer needs, which is enough to know what the defenses are for.</p>
+    <p class="ch-lede">This chapter covers what attackers try to do, at the level that an OS designer needs. This level is enough to know what the defenses are for.</p>
   </div>
 
   <div class="sec" id="s1-1">
     <h3><span class="sec-no">1.1</span>Program threats from malware</h3>
     <div class="prose">
-      <p><strong>Malware</strong> is software designed to exploit, disable or damage a computer. All of it tries to get around the principle of least privilege.</p>
+      <p><strong>Malware</strong> is software designed to exploit, disable, or damage a computer. All malware tries to get around the principle of least privilege.</p>
       <ul>
-        <li data-step="1">A <strong>Trojan horse</strong> is a program that looks useful but misuses the environment it runs in. It exploits the fact that one user's programs run with another user's rights. Spyware and ransomware (which encrypts data and demands payment) are variants.</li>
+        <li data-step="1">A <strong>Trojan horse</strong> is a program that looks useful but misuses the environment that it runs in. It exploits the fact that one user's programs run with another user's rights. Spyware and ransomware are variants. Ransomware encrypts data and demands payment.</li>
         <li data-step="2">A <strong>trap door</strong> (backdoor) is a hidden identifier or password that skips normal security checks. It could even be planted in a compiler, which makes it very hard to detect.</li>
         <li data-step="2">A <strong>logic bomb</strong> is code that misbehaves only when a condition is met.</li>
-        <li data-step="3">A <strong>virus</strong> is a fragment embedded in a legitimate program that replicates into other programs, usually spread by e-mail or document macros. A <strong>worm</strong> is a standalone program that spreads itself over the network (§1.3).</li>
+        <li data-step="3">A <strong>virus</strong> is a fragment embedded in a legitimate program, and it replicates into other programs. Viruses usually spread by e-mail or document macros. In contrast, a <strong>worm</strong> is a standalone program that spreads itself over the network (§1.3).</li>
       </ul>
     </div>
   </div>
@@ -204,12 +204,12 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
   <div class="sec" id="s1-2">
     <h3><span class="sec-no">1.2</span>Bugs as threats, memory-safety errors</h3>
     <div class="prose">
-      <p>Even code that is not malicious can be a threat if it has bugs. The classic example is a program that copies input into a fixed-size buffer <strong>without checking the length</strong>, written in a language like C or C++ that lets pointers reach any memory. Overlong input then overwrites whatever lies next to the buffer, which can let an attacker change what the program does. This is the family of <strong>code-injection</strong> and buffer-overflow bugs.</p>
-      <p data-step="1">Finding such a bug takes skill, but once someone publishes an attack tool, anyone can run it. The damage is bounded by the rights of the process that has the bug, which is why least privilege (Lecture 22) matters so much.</p>
+      <p>Even code that is not malicious can be a threat if it has bugs. The classic example is a program that copies input into a fixed-size buffer <strong>without checking the length</strong>. The program is written in a language like C or C++, which lets pointers reach any memory. Overlong input then overwrites whatever lies next to the buffer. As a result, an attacker can change what the program does. This is the family of <strong>code-injection</strong> and buffer-overflow bugs.</p>
+      <p data-step="1">Finding such a bug takes skill. However, once someone publishes an attack tool, anyone can run it. The damage is bounded by the rights of the process that has the bug. This is why least privilege (Lecture 22) matters so much.</p>
     </div>
     <div class="note note-key" data-step="2">
       <span class="note-tag">Defenses, layered</span>
-      <p><strong>Write safe code.</strong> Check lengths (<code>strncpy</code>, <code>snprintf</code>), review each other's code, use memory-safe languages. <strong>Let the OS and hardware help.</strong> Mark stack and heap pages <em>non-executable</em> with the page-table NX bit (Lecture 14), randomize where code and data are loaded (ASLR), and have the compiler place guard values (stack canaries) that detect corruption before a function returns. Each can be defeated alone. However, together they make attacks much harder.</p>
+      <p><strong>Write safe code.</strong> Check lengths (<code>strncpy</code>, <code>snprintf</code>), review each other's code, and use memory-safe languages. <strong>Let the OS and hardware help.</strong> Mark stack and heap pages <em>non-executable</em> with the page-table NX bit (Lecture 14), randomize where code and data are loaded (ASLR), and have the compiler place guard values (stack canaries) that detect corruption before a function returns. Each defense can be defeated alone. However, together they make attacks much harder.</p>
     </div>
     <div class="note note-lab read-only">
       <span class="note-tag">In the lab</span>
@@ -221,11 +221,11 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
     <h3><span class="sec-no">1.3</span>System and network threats</h3>
     <div class="prose">
       <ul>
-        <li>Some systems are "open" rather than secure by default. <strong>Reducing the attack surface</strong> (fewer services, fewer open ports) helps, at some cost in convenience.</li>
-        <li data-step="1">Network threats are harder to detect and prevent. There is no physical boundary once a machine is on the Internet, no easy shared secret, and an IP address is all you know about the other side.</li>
-        <li data-step="2"><strong>Worms</strong> spread by themselves. The 1988 Internet worm exploited bugs in the <code>finger</code> and <code>sendmail</code> services and the password-free trust of <code>rsh</code> between "friendly" machines, then tried password guessing.</li>
+        <li>Some systems are "open" rather than secure by default. <strong>Reducing the attack surface</strong>, namely running fewer services and opening fewer ports, helps. However, it comes at some cost in convenience.</li>
+        <li data-step="1">Network threats are harder to detect and prevent. Once a machine is on the Internet, there is no physical boundary and no easy shared secret. Further, an IP address is all you know about the other side.</li>
+        <li data-step="2"><strong>Worms</strong> spread by themselves. For example, the 1988 Internet worm exploited bugs in the <code>finger</code> and <code>sendmail</code> services, and the password-free trust of <code>rsh</code> between "friendly" machines. It then tried password guessing.</li>
         <li data-step="3"><strong>Port scanning</strong> probes which network services a host exposes. Administrators use the same tools to audit their own systems.</li>
-        <li data-step="4"><strong>Denial of service</strong> overloads a target so it cannot do useful work, and <strong>distributed</strong> DoS comes from many machines at once. It can even be accidental, such as a buggy <code>fork()</code> loop in a lab (Lecture 3). Telling an attack apart from sudden popularity is hard.</li>
+        <li data-step="4"><strong>Denial of service</strong> overloads a target so that it cannot do useful work. <strong>Distributed</strong> DoS comes from many machines at once. DoS can even be accidental, such as a buggy <code>fork()</code> loop in a lab (Lecture 3). Note that telling an attack apart from sudden popularity is hard.</li>
       </ul>
     </div>
   </div>
@@ -236,11 +236,11 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
       <div class="quiz-body">
         <div class="q-text">A web server process has a memory-safety bug. Which configuration limits the damage most if the bug is exploited?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="Running as root gives any successful attack all of root's power.">The server runs as root so it can bind port 80.</button>
+          <button type="button" class="q-opt" data-why="Running as root gives any successful attack all of root's power.">The server runs as root so that it can bind port 80.</button>
           <button type="button" class="q-opt" data-ok>The server runs as an unprivileged user with only CAP_NET_BIND_SERVICE, non-executable stack, and ASLR enabled.</button>
           <button type="button" class="q-opt" data-why="A firewall controls which packets reach the server. However, it cannot stop malformed input on an allowed port.">A firewall allows only port 80 to reach it.</button>
         </div>
-        <div class="q-fb ok">Right. Least privilege bounds what an attacker gains, and NX and ASLR make the attack itself harder. A firewall still helps, but not against this.</div>
+        <div class="q-fb ok">Right. Least privilege bounds what an attacker gains, and NX and ASLR make the attack itself harder. A firewall still helps, but not against this bug.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -257,7 +257,7 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
   <div class="ch-head">
     <div class="ch-no">Chapter 2</div>
     <h2>Cryptography</h2>
-    <p class="ch-lede">Inside one computer the OS knows who sent a message. Across a network it cannot, unless secrets are involved.</p>
+    <p class="ch-lede">Inside one computer, the OS knows who sent a message. However, across a network, it cannot know this unless secrets are involved.</p>
   </div>
 
   <div class="sec" id="s2-1">
@@ -265,8 +265,8 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
     <div class="prose">
       <ul>
         <li>Within one machine, the OS creates and protects process IDs and communication ports, so the source and destination of a message can be trusted.</li>
-        <li data-step="1">On a network they cannot. An unauthorized host can be added to a LAN, and on the Internet an IP address proves nothing.</li>
-        <li data-step="2">Cryptography constrains who can <strong>send</strong> or <strong>receive</strong> a message, based on secrets called <strong>keys</strong>. It enables confirming the source, restricting who can read, and building trust between sender and receiver.</li>
+        <li data-step="1">On a network, they cannot be trusted. An unauthorized host can be added to a LAN, and on the Internet, an IP address proves nothing.</li>
+        <li data-step="2">Cryptography constrains who can <strong>send</strong> or <strong>receive</strong> a message, based on secrets called <strong>keys</strong>. It makes it possible to confirm the source, restrict who can read, and build trust between sender and receiver.</li>
       </ul>
     </div>
   </div>
@@ -274,8 +274,8 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
   <div class="sec" id="s2-2">
     <h3><span class="sec-no">2.2</span>Encryption</h3>
     <div class="prose">
-      <p>Encryption constrains the set of possible <strong>receivers</strong>. It has a set of keys K, messages M and ciphertexts C, with efficiently computable functions E<sub>k</sub> from M to C and D<sub>k</sub> from C to M.</p>
-      <p data-step="1">The essential property is that, given ciphertext c, a computer can find m with E<sub>k</sub>(m) = c <strong>only if it has k</strong>. Since ciphertexts are exposed on the network, it must also be infeasible to derive k from them.</p>
+      <p>Encryption constrains the set of possible <strong>receivers</strong>. It consists of a set of keys K, a set of messages M, and a set of ciphertexts C, together with efficiently computable functions E<sub>k</sub> from M to C and D<sub>k</sub> from C to M.</p>
+      <p data-step="1">The essential property is that, given ciphertext c, a computer can find m with E<sub>k</sub>(m) = c <strong>only if it has k</strong>. Further, ciphertexts are exposed on the network. Therefore, it must also be infeasible to derive k from them.</p>
     </div>
   </div>
 
@@ -283,10 +283,10 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
     <h3><span class="sec-no">2.3</span>Symmetric encryption</h3>
     <div class="prose">
       <ul>
-        <li>The <strong>same key</strong> encrypts and decrypts, so it must stay secret between the two parties.</li>
-        <li data-step="1"><strong>DES</strong> was the most common block cipher, but its 56-bit keys are now far too short. Triple-DES applies it three times with two or three keys.</li>
-        <li data-step="2"><strong>AES</strong> (NIST, 2001) is the standard block cipher, with 128-bit blocks and 128-, 192- or 256-bit keys.</li>
-        <li data-step="3">Stream ciphers encrypt a stream of bytes with a key-driven pseudo-random keystream. RC4 was the most common and is now considered broken. ChaCha20 is a modern replacement.</li>
+        <li>The <strong>same key</strong> encrypts and decrypts. Therefore, the key must stay secret between the two parties.</li>
+        <li data-step="1"><strong>DES</strong> was the most common block cipher. However, its 56-bit keys are now far too short. Triple-DES applies DES three times with two or three keys.</li>
+        <li data-step="2"><strong>AES</strong> (NIST, 2001) is the standard block cipher, with 128-bit blocks and 128-, 192-, or 256-bit keys.</li>
+        <li data-step="3">Stream ciphers encrypt a stream of bytes with a key-driven pseudo-random keystream. RC4 was the most common stream cipher, and it is now considered broken. ChaCha20 is a modern replacement.</li>
       </ul>
     </div>
   </div>
@@ -294,14 +294,14 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
   <div class="sec" id="s2-4">
     <h3><span class="sec-no">2.4</span>Asymmetric encryption with RSA</h3>
     <div class="prose">
-      <p>Each user has two keys, namely a <strong>public key</strong> that anyone may use to encrypt, and a <strong>private key</strong> that only the owner uses to decrypt. The scheme must be public without revealing how to decrypt.</p>
-      <p data-step="1"><strong>RSA</strong> relies on the fact that testing whether a number is prime is efficient, but no efficient algorithm is known for factoring a large number into its primes.</p>
+      <p>Each user has two keys, namely a <strong>public key</strong> that anyone may use to encrypt, and a <strong>private key</strong> that only the owner uses to decrypt. The scheme must be public, but it must not reveal how to decrypt.</p>
+      <p data-step="1"><strong>RSA</strong> relies on two facts. First, testing whether a number is prime is efficient. Second, no efficient algorithm is known for factoring a large number into its primes.</p>
       <ul data-step="2">
         <li>Pick primes p and q, and let N = p·q.</li>
         <li>Pick k<sub>e</sub> with k<sub>e</sub>·k<sub>d</sub> mod (p−1)(q−1) = 1.</li>
         <li>Encrypt with E(m) = m<sup>k<sub>e</sub></sup> mod N, and decrypt with D(c) = c<sup>k<sub>d</sub></sup> mod N.</li>
       </ul>
-      <p class="small muted" data-step="2">Real keys use N of 2048 bits or more. Asymmetric encryption is far more expensive than symmetric, so it is rarely used for bulk data.</p>
+      <p class="small muted" data-step="2">Real keys use N of 2048 bits or more. Asymmetric encryption is far more expensive than symmetric encryption. Therefore, it is rarely used for bulk data.</p>
     </div>
   </div>
 
@@ -323,7 +323,7 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
       </div>
       <div class="readout" id="rsa-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Defaults are the textbook's example, with p = 7, q = 13, public key (5, 91), and private key (29, 91). Then 69 encrypts to 62.</p>
+    <p class="small muted prose read-only">The defaults are the example from the textbook, with p = 7, q = 13, public key (5, 91), and private key (29, 91). With these keys, 69 encrypts to 62.</p>
   </div>
 
   <div class="ch-nav">
@@ -337,29 +337,29 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
   <div class="ch-head">
     <div class="ch-no">Chapter 3</div>
     <h2>Authentication and keys</h2>
-    <p class="ch-lede">Encryption limits who can read. Authentication limits who can have sent it, and proves it was not changed.</p>
+    <p class="ch-lede">Encryption limits who can read a message. In contrast, authentication limits who can have sent it, and it proves that the message was not changed.</p>
   </div>
 
   <div class="sec" id="s3-1">
     <h3><span class="sec-no">3.1</span>Hashes, MACs, digital signatures</h3>
     <div class="prose">
-      <p>An authentication algorithm produces an authenticator S<sub>k</sub>(m) and verifies it with V<sub>k</sub>(m, a). Only a holder of k can produce an authenticator that verifies. In addition, k must not be derivable from exposed authenticators.</p>
+      <p>An authentication algorithm produces an authenticator S<sub>k</sub>(m) and verifies it with V<sub>k</sub>(m, a). Only a holder of k can produce an authenticator that verifies. Further, k must not be derivable from exposed authenticators.</p>
     </div>
     <div class="opts3">
-      <div data-step="1"><span class="tag">Hash function</span>A small, fixed-size <strong>digest</strong> H(m). Must be <strong>collision resistant</strong>, that is, it must be infeasible to find m′ ≠ m with H(m′) = H(m). Alone it is not an authenticator, because an attacker can change m and recompute H.</div>
-      <div data-step="2"><span class="tag">MAC</span>A message-authentication code is a cryptographic checksum computed with a <strong>shared secret key</strong>, usually over H(m). Anyone who can verify can also create one.</div>
-      <div data-step="3"><span class="tag">Digital signature</span>It is asymmetric. Sign with the <strong>private</strong> key, verify with the <strong>public</strong> one. RSA signing is RSA with the keys reversed, that is, S(m) = H(m)<sup>k<sub>s</sub></sup> mod N. Anyone can verify, but only the owner can sign.</div>
+      <div data-step="1"><span class="tag">Hash function</span>A hash function computes a small, fixed-size <strong>digest</strong> H(m). It must be <strong>collision resistant</strong>. In other words, it must be infeasible to find m′ ≠ m with H(m′) = H(m). Alone, a hash is not an authenticator, because an attacker can change m and recompute H.</div>
+      <div data-step="2"><span class="tag">MAC</span>A message-authentication code is a cryptographic checksum computed with a <strong>shared secret key</strong>, usually over H(m). Note that anyone who can verify a MAC can also create one.</div>
+      <div data-step="3"><span class="tag">Digital signature</span>A digital signature is asymmetric. Sign with the <strong>private</strong> key, and verify with the <strong>public</strong> one. RSA signing is RSA with the keys reversed, namely S(m) = H(m)<sup>k<sub>s</sub></sup> mod N. As such, anyone can verify, but only the owner can sign.</div>
     </div>
-    <p class="small muted prose" data-step="3">MD5 (128-bit) and SHA-1 (160-bit) are the textbook's examples. Both now have practical collisions. Use SHA-256 or newer.</p>
+    <p class="small muted prose" data-step="3">MD5 (128-bit) and SHA-1 (160-bit) are the examples in the textbook. However, both now have practical collisions. Therefore, use SHA-256 or newer.</p>
   </div>
 
   <div class="sec" id="s3-2">
     <h3><span class="sec-no">3.2</span>Why authenticate without encrypting?</h3>
     <div class="prose">
       <ul>
-        <li>It needs fewer computations (except RSA signatures), and authenticators are usually shorter than messages.</li>
-        <li data-step="1">Sometimes we want authenticity but not secrecy. A signed OS patch is public, but must be exactly what the vendor released (Lecture 22's code signing).</li>
-        <li data-step="2">Signatures can support <strong>non-repudiation</strong>, meaning the signer cannot later deny having signed.</li>
+        <li>First, authentication needs fewer computations (except RSA signatures), and authenticators are usually shorter than messages.</li>
+        <li data-step="1">Second, sometimes we want authenticity but not secrecy. For example, a signed OS patch is public, but it must be exactly what the vendor released (code signing in Lecture 22).</li>
+        <li data-step="2">Third, signatures can support <strong>non-repudiation</strong>. In other words, the signer cannot later deny having signed.</li>
       </ul>
     </div>
   </div>
@@ -368,9 +368,9 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
     <h3><span class="sec-no">3.3</span>Key distribution and certificates</h3>
     <div class="prose">
       <ul>
-        <li>Delivering a <strong>symmetric</strong> key is a huge challenge. Sometimes it is done out of band.</li>
-        <li data-step="1">Public keys can be published, but distribution still needs care. How do you know a public key really belongs to Bob?</li>
-        <li data-step="2">A <strong>digital certificate</strong> is a public key signed by a trusted party, a <strong>certificate authority</strong>, after it checked the owner's identity. Browsers ship with CA public keys, and CAs vouch for other authorities by signing their keys, forming a chain.</li>
+        <li>Delivering a <strong>symmetric</strong> key is a major challenge. Sometimes it is done out of band.</li>
+        <li data-step="1">Public keys can be published. However, their distribution still needs care, because Alice must know that a public key really belongs to Bob.</li>
+        <li data-step="2">A <strong>digital certificate</strong> is a public key signed by a trusted party, namely a <strong>certificate authority</strong>, after the authority checks the owner's identity. Browsers ship with CA public keys. CAs vouch for other authorities by signing their keys, which forms a chain.</li>
       </ul>
     </div>
   </div>
@@ -394,8 +394,8 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
     <h3><span class="sec-no">3.5</span>Where cryptography lives, in TLS</h3>
     <div class="prose">
       <ul>
-        <li>Cryptography can go at several layers, such as <strong>IPsec</strong> at the network layer (the basis of VPNs, with IKE for key exchange), <strong>TLS</strong> (formerly SSL) above the transport layer. Some things, like user authentication or e-mail delivery, need knowledge only higher layers have.</li>
-        <li data-step="1">TLS secures web traffic. The server proves its identity with a <strong>certificate</strong>. Then <strong>asymmetric</strong> cryptography establishes a fresh <strong>symmetric session key</strong>. The bulk of the session then uses fast symmetric encryption.</li>
+        <li>Cryptography can be placed at several layers, such as <strong>IPsec</strong> at the network layer (the basis of VPNs, with IKE for key exchange) and <strong>TLS</strong> (formerly SSL) above the transport layer. However, some tasks, such as user authentication or e-mail delivery, need knowledge that only higher layers have.</li>
+        <li data-step="1">TLS secures web traffic. First, the server proves its identity with a <strong>certificate</strong>. Second, <strong>asymmetric</strong> cryptography establishes a fresh <strong>symmetric session key</strong>. Third, the bulk of the session uses fast symmetric encryption.</li>
       </ul>
     </div>
   </div>
@@ -428,17 +428,17 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
   <div class="ch-head">
     <div class="ch-no">Chapter 4</div>
     <h2>User authentication</h2>
-    <p class="ch-lede">Every protection decision of Lecture 22 depends on the user ID. So the OS must be sure who you are.</p>
+    <p class="ch-lede">Every protection decision of Lecture 22 depends on the user ID. Therefore, the OS must be sure who you are.</p>
   </div>
 
   <div class="sec" id="s4-1">
     <h3><span class="sec-no">4.1</span>Passwords</h3>
     <div class="prose">
       <ul>
-        <li>Identity is most often established with a <strong>password</strong>, a special case of a key or a capability. It must stay secret. Change it, don't reuse it, make it hard to guess, and log invalid attempts (but never the passwords).</li>
-        <li data-step="1">Protecting it in transit (against sniffing) does not help against shoulder surfing or a keystroke-logging Trojan horse. And how does the system store it?</li>
-        <li data-step="2">Store only a <strong>one-way hash</strong>, which is easy to compute, hard to invert, never decrypted. At login, hash what was typed and compare. Keep even the hashes secret anyway. UNIX puts them in <code>/etc/shadow</code>, readable only by root (Lecture 22, §1.4).</li>
-        <li data-step="3">Add a random <strong>salt</strong> per user, stored next to the hash, so that the same password does not hash to the same value and precomputed tables of common-password hashes are useless.</li>
+        <li>Identity is most often established with a <strong>password</strong>, which is a special case of a key or a capability. A password must stay secret. Change it, do not reuse it, make it hard to guess, and log invalid attempts (but never the passwords).</li>
+        <li data-step="1">Protecting it in transit (against sniffing) does not help against shoulder surfing or a keystroke-logging Trojan horse. Another question is how the system stores it.</li>
+        <li data-step="2">Store only a <strong>one-way hash</strong>, which is easy to compute, hard to invert, and never decrypted. At login, the system hashes what was typed and compares the result. Even so, keep the hashes secret too. UNIX puts them in <code>/etc/shadow</code>, which is readable only by root (Lecture 22, §1.4).</li>
+        <li data-step="3">Add a random <strong>salt</strong> per user, stored next to the hash. As a result, the same password does not hash to the same value, and precomputed tables of common-password hashes are useless.</li>
       </ul>
     </div>
   </div>
@@ -462,9 +462,9 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
   <div class="sec" id="s4-3">
     <h3><span class="sec-no">4.3</span>Beyond passwords</h3>
     <div class="opts3">
-      <div><span class="tag">One-time passwords</span>User and computer compute each password from a shared seed, and a hardware token or phone app shows the current one, which changes frequently.</div>
-      <div data-step="1"><span class="tag">Biometrics</span>A physical attribute, such as fingerprint, face, hand geometry.</div>
-      <div data-step="2"><span class="tag">Multi-factor</span>Require two or more factors, namely something you know (password), have (token, phone), are (biometric). Stealing one is not enough.</div>
+      <div><span class="tag">One-time passwords</span>The user and the computer compute each password from a shared seed. A hardware token or a phone app shows the current password, which changes frequently.</div>
+      <div data-step="1"><span class="tag">Biometrics</span>A physical attribute, such as a fingerprint, a face, or hand geometry.</div>
+      <div data-step="2"><span class="tag">Multi-factor</span>Require two or more factors, namely something you know (password), something you have (token, phone), and something you are (biometric). As such, stealing one factor is not enough.</div>
     </div>
   </div>
 
@@ -495,7 +495,7 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
   <div class="ch-head">
     <div class="ch-no">Chapter 5</div>
     <h2>Defenses</h2>
-    <p class="ch-lede">No single mechanism is enough. Defense in depth stacks many.</p>
+    <p class="ch-lede">No single mechanism is enough. Therefore, defense in depth stacks many of them.</p>
   </div>
 
   <div class="sec" id="s5-1">
@@ -503,8 +503,8 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
     <div class="prose">
       <ul>
         <li>A <strong>security policy</strong> says what is being secured. A <strong>vulnerability assessment</strong> compares the real state of a system or network against that policy.</li>
-        <li data-step="1"><strong>Intrusion detection</strong> looks for attempted or successful intrusions. <em>Signature-based</em> detection spots known bad patterns, and <em>anomaly detection</em> spots departures from normal behavior and can catch never-seen ("zero-day") attacks. Both suffer false positives and false negatives.</li>
-        <li data-step="2"><strong>Virus protection</strong> scans programs for known patterns, or runs them in a sandbox. <strong>Auditing, accounting and logging</strong> record activity for later review.</li>
+        <li data-step="1"><strong>Intrusion detection</strong> looks for attempted or successful intrusions. <em>Signature-based</em> detection spots known bad patterns. <em>Anomaly detection</em> spots departures from normal behavior, and it can catch never-seen ("zero-day") attacks. However, both suffer from false positives and false negatives.</li>
+        <li data-step="2"><strong>Virus protection</strong> scans programs for known patterns, or runs them in a sandbox. <strong>Auditing, accounting, and logging</strong> record activity for later review.</li>
       </ul>
     </div>
   </div>
@@ -513,8 +513,8 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
     <h3><span class="sec-no">5.2</span>Firewalls</h3>
     <div class="prose">
       <ul>
-        <li>A <strong>network firewall</strong> sits between trusted and untrusted hosts and limits access between the two security domains, often with a <em>DMZ</em> for public servers in between.</li>
-        <li data-step="1">It can be evaded. <strong>Tunneling</strong> hides a disallowed protocol inside an allowed one, and rules based on addresses can be fooled by <strong>spoofed</strong> addresses.</li>
+        <li>A <strong>network firewall</strong> sits between trusted and untrusted hosts, and it limits access between the two security domains. A <em>DMZ</em> for public servers often sits in between.</li>
+        <li data-step="1">However, a firewall can be evaded. <strong>Tunneling</strong> hides a disallowed protocol inside an allowed one. Further, rules based on addresses can be fooled by <strong>spoofed</strong> addresses.</li>
         <li data-step="2">Variants include a <strong>personal firewall</strong> on one host, an <strong>application proxy</strong> that understands a protocol such as SMTP, and a <strong>system-call firewall</strong> that applies rules to system calls (seccomp, Lecture 22).</li>
       </ul>
     </div>
@@ -531,24 +531,24 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
       </div>
       <div class="readout" id="fw-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">This is a small office. The web server 10.0.1.5 is in the DMZ, the internal network is 10.0.2.0/24, and the Internet is everything else.</p>
+    <p class="small muted prose read-only">The example is a small office. The web server 10.0.1.5 is in the DMZ, the internal network is 10.0.2.0/24, and the Internet is everything else.</p>
   </div>
 
   <div class="sec" id="s5-4">
     <h3><span class="sec-no">5.4</span>Classifications and a real system</h3>
     <div class="prose">
-      <p>The U.S. Department of Defense's classic criteria rated systems in four divisions. <strong>D</strong> is minimal. <strong>C</strong> is discretionary protection with auditing (C1, C2). <strong>B</strong> adds sensitivity labels on objects, i.e. mandatory access control (B1–B3). <strong>A</strong> is formal design and verification. They have since been replaced by the international Common Criteria.</p>
-      <p data-step="1"><strong>Windows</strong> bases security on user accounts. Each has a unique security ID, and login creates an <strong>access token</strong> with the user's and groups' IDs and privileges, copied into every process. Each object has a <strong>security descriptor</strong> with the owner, group, a discretionary ACL, and a system ACL for auditing. Mandatory integrity labels on objects and subjects add MAC (Lecture 22, §4.2). Objects in a container inherit its permissions by default.</p>
+      <p>The classic criteria of the U.S. Department of Defense rated systems in four divisions. <strong>D</strong> is minimal. <strong>C</strong> is discretionary protection with auditing (C1, C2). <strong>B</strong> adds sensitivity labels on objects, namely mandatory access control (B1–B3). <strong>A</strong> is formal design and verification. These criteria have since been replaced by the international Common Criteria.</p>
+      <p data-step="1"><strong>Windows</strong> bases security on user accounts. Each account has a unique security ID. Login creates an <strong>access token</strong> with the IDs and privileges of the user and the user's groups, and this token is copied into every process. Each object has a <strong>security descriptor</strong> with the owner, the group, a discretionary ACL, and a system ACL for auditing. Further, mandatory integrity labels on objects and subjects add MAC (Lecture 22, §4.2). By default, objects in a container inherit its permissions.</p>
     </div>
   </div>
 
   <div class="sec" id="s5-5">
     <h3><span class="sec-no">5.5</span>Defenses, summarized</h3>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">People</span>Educate users about safe computing and phishing. Verify unusual requests another way. Use strong passphrases and never write them where they can be found.</div>
+      <div><span class="tag">People</span>Educate users about safe computing and phishing. Verify unusual requests another way. Use strong passphrases, and never write them where they can be found.</div>
       <div data-step="1"><span class="tag">Configuration</span>Minimize the attack surface, disable unused services, run daemons with least privilege, and physically protect hardware.</div>
       <div data-step="2"><span class="tag">Software</span>Use modern, patched systems. Run only trusted, code-signed applications. Use antivirus where appropriate. Encrypt disks and important files.</div>
-      <div data-step="3"><span class="tag">Watching</span>Enable logging and auditing and review it. Use intrusion detection and firewalls. Test with periodic vulnerability assessments. Keep the security policy up to date.</div>
+      <div data-step="3"><span class="tag">Watching</span>Enable logging and auditing, and review the records. Use intrusion detection and firewalls. Test with periodic vulnerability assessments. Keep the security policy up to date.</div>
     </div>
   </div>
 
@@ -562,7 +562,7 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
           <button type="button" class="q-opt" data-why="HTTPS is encrypted, but the firewall still sees addresses and ports. As such, it can enforce the rule.">Firewalls cannot filter encrypted traffic at all.</button>
           <button type="button" class="q-opt" data-why="Blocking everything would also block the service the company exists to provide.">It should block HTTPS too.</button>
         </div>
-        <div class="q-fb ok">Right. Each layer covers a different gap. That is the point of defense in depth.</div>
+        <div class="q-fb ok">Right. Each layer covers a different gap. This is the point of defense in depth.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -585,10 +585,10 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
     <h3><span class="sec-no">∎</span>What to take away</h3>
     <div class="prose">
       <ul>
-        <li>Security violations break confidentiality, integrity, availability or service. They come through masquerading, replay, man-in-the-middle, hijacking and privilege escalation, at the physical, application, OS and network levels.</li>
-        <li>Malware and memory-safety bugs threaten programs, and worms, scanning and DoS threaten systems and networks. Least privilege bounds the damage, and NX pages, ASLR and canaries raise the cost.</li>
-        <li>Symmetric ciphers (AES) are fast but need a shared key. Asymmetric ones (RSA) solve distribution but are slow. TLS combines them.</li>
-        <li>Hashes detect change, MACs add a shared key, signatures let anyone verify. Certificates bind public keys to identities and defeat man-in-the-middle.</li>
+        <li>Security violations break confidentiality, integrity, availability, or service. They come through masquerading, replay, man-in-the-middle, hijacking, and privilege escalation, at the physical, application, OS, and network levels.</li>
+        <li>Malware and memory-safety bugs threaten programs. Worms, scanning, and DoS threaten systems and networks. Least privilege bounds the damage, and NX pages, ASLR, and canaries raise the cost.</li>
+        <li>Symmetric ciphers (AES) are fast, but they need a shared key. Asymmetric ciphers (RSA) solve distribution, but they are slow. TLS combines the two.</li>
+        <li>Hashes detect change, MACs add a shared key, and signatures let anyone verify. Certificates bind public keys to identities and defeat man-in-the-middle attacks.</li>
         <li>Store passwords as salted, slow hashes, and add one-time passwords and multiple factors.</li>
         <li>Defense in depth combines policy, assessment, detection, firewalls, patching, logging, and educated users.</li>
       </ul>
@@ -605,11 +605,11 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
         <tr><td>NX, ASLR, canary</td><td>Non-executable pages / randomized load addresses / guard values that detect stack corruption.</td></tr>
         <tr><td>DoS / DDoS</td><td>Denial of service, from one source / from many.</td></tr>
         <tr><td>symmetric / asymmetric</td><td>One shared key / a public-private key pair.</td></tr>
-        <tr><td>hash, MAC, signature</td><td>Fixed-size digest / keyed checksum / private-key authenticator anyone can verify.</td></tr>
+        <tr><td>hash, MAC, signature</td><td>Fixed-size digest / keyed checksum / private-key authenticator that anyone can verify.</td></tr>
         <tr><td>certificate, CA</td><td>A public key signed by a certificate authority that vouches for its owner.</td></tr>
         <tr><td>TLS</td><td>Transport-level security with a certificate, key exchange, then symmetric encryption.</td></tr>
-        <tr><td>salt</td><td>Random per-user value hashed with the password.</td></tr>
-        <tr><td>multi-factor</td><td>Authentication requiring two or more kinds of evidence.</td></tr>
+        <tr><td>salt</td><td>A random per-user value hashed with the password.</td></tr>
+        <tr><td>multi-factor</td><td>Authentication that requires two or more kinds of evidence.</td></tr>
         <tr><td>firewall, DMZ</td><td>A filter between security domains / the zone for public servers between them.</td></tr>
       </tbody>
     </table>
@@ -687,8 +687,8 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
       const c = modpow(m, e, N), back = modpow(c, d, N), s = modpow(m, d, N), v = modpow(s, e, N);
       $('#rsa-run').innerHTML = `<b>encrypt</b> with <span class="k-pub">public</span>, ${m}<sup>${e}</sup> mod ${N} = <b>${c}</b><br><b>decrypt</b> with <span class="k-priv">private</span>, ${c}<sup>${d}</sup> mod ${N} = <b>${back}</b><br><br><b>sign</b> with <span class="k-priv">private</span>, ${m}<sup>${d}</sup> mod ${N} = <b>${s}</b><br><b>verify</b> with <span class="k-pub">public</span>, ${s}<sup>${e}</sup> mod ${N} = <b>${v}</b> ${v === m ? '✓' : '✕'}`;
       const lam = (p - 1) * (q - 1) / gcd(p - 1, q - 1);
-      const same = e % lam === d % lam ? ` <span class="bad">Note.</span> Here k<sub>d</sub> ≡ k<sub>e</sub> (mod ${lam}, the least common multiple of p−1 and q−1), so the two keys act identically. Signing and encrypting give the same number. With tiny primes that happens often, but real key generation rules it out.` : '';
-      $('#rsa-out').innerHTML = `Anyone may encrypt to the owner with (${e}, ${N}), but only the owner, holding ${d}, decrypts. Reversing the keys gives a signature anyone can verify. Breaking it means factoring ${N}, trivial here. With a 2048-bit N no known method is feasible.` + same;
+      const same = e % lam === d % lam ? ` <span class="bad">Note.</span> Here k<sub>d</sub> ≡ k<sub>e</sub> (mod ${lam}, the least common multiple of p−1 and q−1), so the two keys act identically. As a result, signing and encrypting give the same number. This happens often with tiny primes. However, real key generation rules it out.` : '';
+      $('#rsa-out').innerHTML = `Anyone may encrypt to the owner with (${e}, ${N}). However, only the owner, who holds ${d}, can decrypt. Reversing the keys gives a signature that anyone can verify. Breaking the scheme means factoring ${N}, which is trivial here. With a 2048-bit N, no known method is feasible.` + same;
     }
     $('#rsa-p').addEventListener('change', () => { fillE(5); render(); });
     $('#rsa-q').addEventListener('change', () => { fillE(5); render(); });
@@ -709,9 +709,9 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
       ],
       [ // with certificates
         { a: 'trusts the CA\'s public key (shipped with her OS/browser)', m: 'listening on the network', b: 'has a certificate, B<sub>pub</sub> signed by the CA', act: 'a', t: 'Bob earlier proved his identity to a certificate authority, which signed his public key.' },
-        { a: 'sends "Bob, your certificate?"', m: 'intercepts the request', b: 'receives the request', act: 'm', t: 'Same network position as before.' },
-        { a: 'receives a certificate for M<sub>pub</sub> claiming to be Bob, and finds the CA signature <b>invalid</b>', m: 'swaps in M<sub>pub</sub>, but cannot produce the CA\'s signature', b: 'sent the real certificate', act: 'a', good: 'a', t: 'Forging the certificate would need the CA\'s private key. Alice\'s verification fails, so she refuses to continue.' },
-        { a: 'gets the genuine certificate, verifies it, and encrypts with B<sub>pub</sub>', m: 'can relay but cannot read', b: 'decrypts, and the conversation is private', act: 'b', good: 'b', t: '<span class="ok">Attack defeated.</span> This is what a browser does in the TLS handshake (§3.5). The trust is only moved, not removed. It now rests on the CA.' },
+        { a: 'sends "Bob, your certificate?"', m: 'intercepts the request', b: 'receives the request', act: 'm', t: 'Mallory has the same network position as before.' },
+        { a: 'receives a certificate for M<sub>pub</sub> claiming to be Bob, and finds the CA signature <b>invalid</b>', m: 'swaps in M<sub>pub</sub>, but cannot produce the CA\'s signature', b: 'sent the real certificate', act: 'a', good: 'a', t: 'Forging the certificate would need the CA\'s private key. Therefore, Alice\'s verification fails, and she refuses to continue.' },
+        { a: 'gets the genuine certificate, verifies it, and encrypts with B<sub>pub</sub>', m: 'can relay but cannot read', b: 'decrypts, and the conversation is private', act: 'b', good: 'b', t: '<span class="ok">Attack defeated.</span> This is what a browser does in the TLS handshake (§3.5). Note that the trust is only moved, not removed. It now rests on the CA.' },
       ],
     ];
     let c = 0, i = 0;
@@ -772,8 +772,8 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
       }).join('') + '</tbody>';
       const dup = Object.values(counts).some((v) => v > 1);
       $('#pw-out').innerHTML = !salted
-        ? (dict ? `One table of hashes of common passwords, computed once, matches <b class="bad">${cracked} of ${USERS.length}</b> accounts instantly.` : (dup ? 'bob and carol have <b class="bad">identical hashes</b>. Anyone who reads the file learns they share a password, and cracking one cracks both.' : ''))
-        : (dict ? 'The precomputed table is useless, because every hash includes a different salt. An attacker must guess separately for each account, with the salt included.' : 'Same passwords, different salts, different hashes. The salt is not secret. Its job is to make every account a separate problem.');
+        ? (dict ? `One table of hashes of common passwords, computed once, matches <b class="bad">${cracked} of ${USERS.length}</b> accounts instantly.` : (dup ? 'bob and carol have <b class="bad">identical hashes</b>. Anyone who reads the file learns that they share a password, and cracking one cracks both.' : ''))
+        : (dict ? 'The precomputed table is useless, because every hash includes a different salt. An attacker must guess separately for each account, with the salt included.' : 'The passwords are the same, but the salts differ, so the hashes differ. The salt is not secret. Its job is to make every account a separate problem.');
     }
     $$('#pw-w [data-s]').forEach((b) => b.addEventListener('click', () => { salted = +b.dataset.s; render(); }));
     $('#pw-dict').addEventListener('change', render);
@@ -812,7 +812,7 @@ table.pw td.h { color: var(--ink2); font-size: 11.5px; }
         `<div class="r${k === hit ? ' hit' : k < hit ? ' pass' : ''}"><span>${k + 1}</span><span class="${r[4] === 'allow' ? 'al' : 'dn'}">${r[4]}</span><span>${r[1]} → ${r[2]}</span><span>${r[3]}</span><span style="font-family:var(--f-body)">${r[5]}</span></div>`).join('');
       const R = RULES[hit];
       $('#fw-out').innerHTML = `<b>${what}.</b> ${hit ? 'Rules 1–' + hit + ' do not match, and r' : 'R'}ule ${hit + 1} matches → <span class="${R[4] === 'allow' ? 'ok' : 'no'}">${R[4]}</span>. ` +
-        (p === 3 ? 'If the web server is compromised, the attacker still cannot reach the database directly, because the DMZ contains the damage.' : p === 5 ? 'No rule was written for this, so the default deny applies. A default-deny policy fails safe.' : p === 1 ? 'SSH is not exposed to the Internet, which gives a smaller attack surface.' : '');
+        (p === 3 ? 'If the web server is compromised, the attacker still cannot reach the database directly, because the DMZ contains the damage.' : p === 5 ? 'No rule was written for this packet. Therefore, the default deny applies. A default-deny policy fails safe.' : p === 1 ? 'SSH is not exposed to the Internet, which gives a smaller attack surface.' : '');
     }
     $('#fw-pk').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) { p = +b.dataset.p; render(); } });
     $('#fw-reset').addEventListener('click', () => { p = 0; render(); });

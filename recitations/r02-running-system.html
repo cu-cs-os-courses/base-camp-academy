@@ -50,7 +50,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 02 · Week 2</div>
     <h1>Two doors into the <span class="accent">kernel</span></h1>
-    <p class="lede">Lectures 01–02 said a program talks to the kernel only through system calls, and that the kernel runs in a mode your code cannot enter. Today you watch both happen. <code>/proc</code> shows the kernel's own state as files, and <code>strace</code> shows every system call a program makes. Then the second half is Lab00 help. Lab00 is due <b>Sunday</b>.</p>
+    <p class="lede">Lectures 01–02 stated two facts. First, a program talks to the kernel only through system calls. Second, the kernel runs in a mode your code cannot enter. In this recitation, you observe both. <code>/proc</code> shows the kernel's own state as files, and <code>strace</code> shows every system call a program makes. The second half is Lab00 help. Lab00 is due <b>Sunday</b>.</p>
     <div class="agenda">
       <div><b>0–5</b>Recap of modes and system calls</div>
       <div><b>5–25</b>Worked example with /proc and strace</div>
@@ -90,7 +90,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   </div>
   <div class="sec">
     <ul class="check prose">
-      <li>My VM boots (<code>make smoke</code> passes). If not, say so at the start and your TA comes to you first.</li>
+      <li>My VM boots (<code>make smoke</code> passes). If it does not, say so at the start, and your TA comes to you first.</li>
       <li>I have run <code>make check LAB=00-getting-started</code> at least once, even if some lines fail.</li>
       <li>I know which lines fail, and what I have tried.</li>
     </ul>
@@ -107,11 +107,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="code"><span class="ln">mount | grep ' /proc '            <span class="c"># proc on /proc type proc (...)</span></span><span class="ln">ls -l /proc/uptime                <span class="c"># size 0 ...</span></span><span class="ln">cat /proc/uptime                  <span class="c"># ... yet it prints text</span></span><span class="ln">sleep 2; cat /proc/uptime         <span class="c"># and the text changes</span></span></div>
     <div class="note note-key">
       <span class="note-tag">A virtual file system</span>
-      <p>Nothing in <code>/proc</code> is stored anywhere. When you read a file, the kernel generates its contents on the spot from its own data structures. That is why the size is 0 and why the numbers change. The first number in <code>uptime</code> is seconds since boot.</p>
+      <p>Nothing in <code>/proc</code> is stored anywhere. When you read a file, the kernel generates its contents at that moment from its own data structures. Therefore, the size is 0, and the numbers change. Note that the first number in <code>uptime</code> is the number of seconds since boot.</p>
     </div>
     <div class="prose"><p>Every process has a directory named by its PID.</p></div>
     <div class="code"><span class="ln">sleep 300 &amp;                       <span class="c"># start one in the background; $! is its PID</span></span><span class="ln">ls /proc/$!</span><span class="ln">grep -E '^(State|PPid|Threads)' /proc/$!/status</span><span class="ln">ls -l /proc/$!/fd                 <span class="c"># its open files</span></span><span class="ln">kill %1</span></div>
-    <div class="prose"><p><code>fd</code> holds 0, 1 and 2, pointing to your terminal, because every process starts with standard input, output and error as <strong>file descriptors</strong> 0, 1 and 2. These are the numbers behind <code>2&gt;&amp;1</code> in R01.</p></div>
+    <div class="prose"><p><code>fd</code> holds 0, 1, and 2, and all three point to your terminal. This is because every process starts with standard input, output, and error as <strong>file descriptors</strong> 0, 1, and 2. These are the numbers behind <code>2&gt;&amp;1</code> in R01.</p></div>
   </div>
 </section>
 
@@ -125,7 +125,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       <div>
         <div class="code"><span class="ln"><span class="c">/* hello.c */</span></span><span class="ln"><span class="kw">#include</span> &lt;stdio.h&gt;</span><span class="ln"><span class="kw">int</span> main(<span class="kw">void</span>) { printf("hello\n"); <span class="kw">return</span> 0; }</span></div>
         <div class="code"><span class="ln">gcc -Wall -Werror -o hello hello.c</span><span class="ln">strace -o /tmp/t.txt ./hello     <span class="c"># trace into a file</span></span><span class="ln">tail -3 /tmp/t.txt</span></div>
-        <div class="prose"><p>The last three lines of the trace are what <code>main</code> did.</p></div>
+        <div class="prose"><p>The last three lines of the trace show what <code>main</code> did.</p></div>
         <div class="code"><span class="ln hl">write(1, "hello\n", 6)                  = 6</span><span class="ln hl">exit_group(0)                           = ?</span><span class="ln">+++ exited with 0 +++</span></div>
       </div>
       <figure class="fig">
@@ -139,18 +139,18 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     </div>
     <div class="prose">
       <ul>
-        <li><code>printf</code> is a <strong>library</strong> function. The only thing that reached the kernel was a <code>write</code> to file descriptor 1. <code>return 0</code> became <code>exit_group(0)</code>.</li>
-        <li>Everything above those lines (<code>execve</code>, <code>mmap</code>, <code>openat</code> of <code>libc.so.6</code>, …) is the program being loaded, before <code>main</code> ran.</li>
+        <li><code>printf</code> is a <strong>library</strong> function. Only a <code>write</code> to file descriptor 1 reaches the kernel. <code>return 0</code> becomes <code>exit_group(0)</code>.</li>
+        <li>Everything above those lines (<code>execve</code>, <code>mmap</code>, <code>openat</code> of <code>libc.so.6</code>, …) loads the program before <code>main</code> runs.</li>
       </ul>
       <p>Now look at a program you did not write.</p>
     </div>
     <div class="code"><span class="ln">strace -o /tmp/u.txt -e trace=openat,read,write,close cat /proc/uptime</span><span class="ln">less /tmp/u.txt                  <span class="c"># q to quit</span></span></div>
     <div class="code"><span class="ln"><span class="c">… ld.so.cache and libc.so.6 (the loader), then ~30 locale files (LC_*): ignore …</span></span><span class="ln hl">openat(AT_FDCWD, "/proc/uptime", O_RDONLY) = 3</span><span class="ln hl">read(3, "1234.56 1180.02\n", 131072)      = 16</span><span class="ln hl">write(1, "1234.56 1180.02\n", 16)         = 16</span><span class="ln hl">read(3, "", 131072)                       = 0</span><span class="ln hl">close(3)                                  = 0</span><span class="ln">close(1)                                  = 0</span><span class="ln">close(2)                                  = 0</span></div>
     <div class="prose">
-      <p>That is the whole of <code>cat</code>, namely open, read, write, and read again until <code>read</code> returns 0 (end of file). <code>3</code> is the next free descriptor after 0, 1 and 2. Here is one more.</p>
+      <p>That is all <code>cat</code> does, namely open, read, write, and read again until <code>read</code> returns 0 (end of file). Note that <code>3</code> is the next free descriptor after 0, 1, and 2. Here is one more example.</p>
     </div>
     <div class="code"><span class="ln">strace -c ls / &gt; /dev/null        <span class="c"># a table: which system calls, how many times</span></span></div>
-    <p class="prose">Every use of files, memory, other processes or the network appears in <code>strace</code>. There is no other door into the kernel.</p>
+    <p class="prose">Every use of files, memory, other processes, or the network appears in <code>strace</code>. This is because there is no other door into the kernel.</p>
   </div>
 </section>
 
@@ -166,14 +166,14 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     </div>
     <div class="code"><span class="ln"><span class="c"># repository root, on the laptop</span></span><span class="ln">SHARE=$PWD/labs/00-getting-started/submit env/run.sh</span><span class="ln"><span class="c"># in the VM</span></span><span class="ln">bash /share/observe.sh</span></div>
     <div class="prose">
-      <p>Compare each line with the format in the header of <code>observe.sh</code>, which is one <code>KEY=VALUE</code> per line, in order, with nothing extra in the value.</p>
-      <p>When it passes, submit with the commands below.</p>
+      <p>Compare each line with the format in the header of <code>observe.sh</code>. The format is one <code>KEY=VALUE</code> per line, in order, with nothing extra in the value.</p>
+      <p>When the check passes, submit with the commands below.</p>
     </div>
     <div class="code"><span class="ln">git add labs/00-getting-started/submit/observe.sh labs/00-getting-started/submit/report.md</span><span class="ln">git commit -m "Lab00"</span><span class="ln">git push</span><span class="ln">git remote -v        <span class="c"># origin must be YOUR private repository</span></span></div>
-    <p class="prose">Then open your repository on GitHub and check that both files are there. We grade what is on GitHub at the deadline.</p>
+    <p class="prose">Then open your repository on GitHub and check that both files are there. Note that we grade what is on GitHub at the deadline.</p>
     <div class="note note-key">
       <span class="note-tag">How to ask a good question</span>
-      <p>Show the failing line from <code>make check</code>, what your script printed, and what you already tried. TAs will point you to a debugging step. They will not tell you which file holds the answer.</p>
+      <p>Show the failing line from <code>make check</code>, what your script printed, and what you already tried. TAs point you to a debugging step. However, they do not tell you which file holds the answer.</p>
     </div>
   </div>
 </section>
@@ -182,7 +182,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="ch-head">
     <div class="ch-no">Part 4</div>
     <h2>Exit ticket</h2>
-    <p class="ch-lede">Not graded. Answer, then check.</p>
+    <p class="ch-lede">The exit ticket is not graded. Answer each question, then check it.</p>
   </div>
   <div class="sec">
     <div class="quiz" data-quiz>
@@ -194,7 +194,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <button type="button" class="q-opt" data-ok>All four</button>
           <button type="button" class="q-opt" data-why="strace only observes. The calls still trap into the kernel.">None, because strace runs them in user mode</button>
         </div>
-        <div class="q-fb ok">Right. Each is a system call, so each switches into kernel mode. cat itself runs in user mode between them.</div>
+        <div class="q-fb ok">Right. Each one is a system call, and therefore each one switches into kernel mode. Between the calls, cat itself runs in user mode.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -207,7 +207,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <button type="button" class="q-opt" data-why="Permissions do not change the reported size.">Only root can see its real size.</button>
           <button type="button" class="q-opt" data-ok>/proc is a virtual file system, in which the kernel generates the contents when the file is read.</button>
         </div>
-        <div class="q-fb ok">Right. Nothing is stored, so there is nothing to measure in advance.</div>
+        <div class="q-fb ok">Right. Nothing is stored. Therefore, there is nothing to measure in advance.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -225,11 +225,11 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <tbody>
           <tr><td>strace ./prog</td><td>Print every system call <code>prog</code> makes, with arguments and return values.</td></tr>
           <tr><td>strace -o file …</td><td>Write the trace to a file instead of mixing it with the program's output.</td></tr>
-          <tr><td>strace -e trace=openat,read …</td><td>Only the listed system calls.</td></tr>
-          <tr><td>strace -c …</td><td>A summary table instead, with count and time per system call.</td></tr>
-          <tr><td>strace -f …</td><td>Follow child processes too (useful from Lab01 on).</td></tr>
-          <tr><td>/proc/&lt;pid&gt;/status</td><td>A process's state, parent, threads and memory, in readable form.</td></tr>
-          <tr><td>/proc/&lt;pid&gt;/fd/</td><td>Its open file descriptors, as links to what they refer to.</td></tr>
+          <tr><td>strace -e trace=openat,read …</td><td>Trace only the listed system calls.</td></tr>
+          <tr><td>strace -c …</td><td>Print a summary table instead, with the count and time per system call.</td></tr>
+          <tr><td>strace -f …</td><td>Follow child processes as well (useful from Lab01 on).</td></tr>
+          <tr><td>/proc/&lt;pid&gt;/status</td><td>The state, parent, threads, and memory of a process, in readable form.</td></tr>
+          <tr><td>/proc/&lt;pid&gt;/fd/</td><td>The open file descriptors of the process, as links to what they refer to.</td></tr>
           <tr><td>git remote -v</td><td>Where <code>git push</code> sends your work.</td></tr>
         </tbody>
       </table>

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lab02 Walkthrough · Basecamp 2</title>
-<meta name="description" content="Step-by-step walkthrough for Basecamp 2, Sharing the CPU, covering a CPU-bound spinner, watching preemption in /proc, building and validating fairshare.sh, measuring nice weights, SCHED_FIFO and real-time throttling, reading make check, and submitting.">
+<meta name="description" content="Step-by-step walkthrough for Basecamp 2, Sharing the CPU, covering a CPU-bound spinner, watching preemption in /proc, building and validating fairshare.sh, measuring nice weights, watching a SCHED_FIFO task take a CPU, reading make check, and submitting.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -44,12 +44,12 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="hero-inner">
     <div class="eyebrow"><span class="chip-t">walkthrough</span> &nbsp;Basecamp 2 · Weeks 4–7 · due Sun Feb 14</div>
     <h1>Make load, then <span class="accent">measure</span> the scheduler</h1>
-    <p class="lede">This lab is an experiment more than a program. It has a spinner that burns CPU, an instrument (<code>fairshare.sh</code>) that measures how the scheduler divides one CPU between two spinners, and a real-time spinner that breaks the rules. This page says what each piece must do and print, and how to tell whether your measurement can be trusted. It never shows code for the lab files. This page and the file headers in <code>labs/02-scheduling/submit/</code> are the specification.</p>
+    <p class="lede">This page walks you through Lab02 step by step. In this lab, you watch the Linux scheduler share one CPU. You write a spinner that always wants the CPU, and an instrument, <code>fairshare.sh</code>, that measures how the scheduler divides one CPU between two spinners. Then you start a real-time spinner and see that a scheduling policy outranks every weight. This page and the header comment of each file in <code>labs/02-scheduling/submit/</code> are the specification for this lab.</p>
     <div class="steps-map">
-      <div><b>Step 0–2</b>The loop, spin.c, and watching preemption</div>
-      <div><b>Step 3–4</b>Build and trust fairshare.sh</div>
-      <div><b>Step 5</b>Policy beats weight</div>
-      <div><b>Step 6–7</b>make check, report, submit</div>
+      <div><b>Step 0–2</b>Get the lab, spin.c, and watching preemption</div>
+      <div><b>Step 3–4</b>Build fairshare.sh, and check it against a known answer</div>
+      <div><b>Step 5</b>A real-time policy beats any weight</div>
+      <div><b>Step 6–8</b>make check, report, and submit</div>
     </div>
   </div>
 </div>
@@ -57,46 +57,71 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 <div class="layout">
   <nav class="rail" aria-label="steps">
     <p class="rail-title">Steps</p>
-    <a href="#s0"><span class="n">0</span>Set up the loop</a>
+    <a href="#s0"><span class="n">0</span>Get the lab</a>
     <a href="#s1"><span class="n">1</span>spin.c</a>
     <a href="#s2"><span class="n">2</span>Watch preemption</a>
     <a href="#s3"><span class="n">3</span>fairshare.sh</a>
     <a href="#s4"><span class="n">4</span>Predict and trust</a>
     <a href="#s5"><span class="n">5</span>Policy beats weight</a>
     <a href="#s6"><span class="n">6</span>make check</a>
-    <a href="#s7"><span class="n">7</span>Report and submit</a>
+    <a href="#s7"><span class="n">7</span>The report</a>
+    <a href="#s8"><span class="n">8</span>Submit</a>
   </nav>
   <main>
     <details class="toc-mobile">
       <summary>Steps</summary>
       <nav>
-        <a href="#s0"><span class="n">0</span>Set up the loop</a>
+        <a href="#s0"><span class="n">0</span>Get the lab</a>
         <a href="#s1"><span class="n">1</span>spin.c</a>
         <a href="#s2"><span class="n">2</span>Watch preemption</a>
         <a href="#s3"><span class="n">3</span>fairshare.sh</a>
         <a href="#s4"><span class="n">4</span>Predict and trust</a>
         <a href="#s5"><span class="n">5</span>Policy beats weight</a>
         <a href="#s6"><span class="n">6</span>make check</a>
-        <a href="#s7"><span class="n">7</span>Report and submit</a>
+        <a href="#s7"><span class="n">7</span>The report</a>
+        <a href="#s8"><span class="n">8</span>Submit</a>
       </nav>
     </details>
 
 <section class="chapter" id="s0">
   <div class="ch-head">
     <div class="ch-no">Step 0</div>
-    <h2>Set up the loop</h2>
+    <h2>Get the lab</h2>
+    <p class="ch-lede">Pull Lab02 into your repository, boot the VM with the Lab02 files, and learn the one rule that keeps every measurement in this lab honest.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">SHARE=$PWD/labs/02-scheduling/submit env/run.sh</span><span class="ln"><span class="c"># VM</span></span><span class="ln">cd /share</span><span class="ln">gcc -Wall -Werror -O2 -o /tmp/spin spin.c</span></div>
     <div class="prose">
-      <ul>
-        <li>The VM has 2 CPUs. Every experiment in this lab pins its spinners to <strong>CPU 0</strong> with <code>taskset -c 0</code>, which leaves CPU 1 free for your shell. That is why the VM stays usable while two spinners fight.</li>
-        <li>Spinners never stop on their own. Before every new experiment, make sure none is left over from the last one (<code>jobs</code>, or <code>ps -C spin</code> in the terminal), because a leftover spinner on CPU 0 silently changes every number you measure.</li>
-        <li>This is the live-VM flow from Lab00 and Lab01. Start the VM with <code>SHARE</code> pointing at your <code>submit</code> directory, then work in <code>/share</code>.</li>
-        <li>You submit three files from <code>labs/02-scheduling/submit/</code>, namely <code>spin.c</code> (Step 1), <code>fairshare.sh</code> (Step 3), and <code>report.md</code> (Step 7).</li>
-      </ul>
+      <ol>
+        <li>
+          <p><b>On your laptop, at the repository root, pull the new lab.</b></p>
+          <div class="code"><span class="ln">git pull upstream main</span><span class="ln">git push</span><span class="ln">ls labs/02-scheduling/submit     <span class="c"># fairshare.sh  report.md  spin.c</span></span></div>
+          <p>Lab02 is released in the course repository, <code>upstream</code>. <code>git pull upstream main</code> copies it into your local repository, and <code>git push</code> copies it on to your private repository on GitHub. A release never touches your <code>submit/</code> directories, so your earlier work stays as it is.</p>
+          <p>In this lab, you edit the three files below.</p>
+          <div class="table-wrap">
+            <table class="t">
+              <thead><tr><th>file</th><th>what it is</th><th>step</th></tr></thead>
+              <tbody>
+                <tr><td>spin.c</td><td>Part 1, a program that burns one CPU (C)</td><td>Step 1</td></tr>
+                <tr><td>fairshare.sh</td><td>Part 2, the instrument that measures CPU shares (shell)</td><td>Step 3</td></tr>
+                <tr><td>report.md</td><td>three questions that you answer with your own numbers</td><td>Step 7</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </li>
+        <li>
+          <p><b>Boot the VM, and share the Lab02 <code>submit/</code> directory with it.</b></p>
+          <div class="code"><span class="ln">SHARE=$PWD/labs/02-scheduling/submit env/run.sh</span></div>
+          <p>Run it from the repository root. The VM now sees <code>labs/02-scheduling/submit</code> at <code>/share</code>.</p>
+        </li>
+        <li>
+          <p><b>In the VM, count the CPUs.</b></p>
+          <div class="code"><span class="ln">nproc                     <span class="c"># 2</span></span></div>
+          <p>The VM has two CPUs, numbered 0 and 1. Every experiment in this lab runs its spinners on <strong>CPU 0 only</strong>, with <code>taskset -c 0</code>. This is called <span class="ref" data-sec="L07 §5.2" data-title="Hard affinity" data-href="../lectures/07-more-scheduling.html#s5-2">pinning<span class="ref-body">A process can name the set of CPUs it may run on. This is hard affinity. <code>taskset -c 0</code> pins a program to CPU 0, so the scheduler never moves it to another CPU.</span></span>. As a result, two spinners must share CPU 0, and the scheduler has to decide between them. CPU 1 stays free for your shell, so the VM stays responsive while the spinners fight.</p>
+        </li>
+      </ol>
+      <p>Lab02 opens before Lecture 07, which explains how Linux shares the CPU. Therefore, a new idea is underlined with a dashed line where you first need it. Click it for a short explanation and a link to the lecture section.</p>
     </div>
-    <div class="note note-key"><span class="note-tag">CFS and EEVDF</span><p>Lecture teaches CFS. However, your 6.6 kernel runs CFS's successor, <strong>EEVDF</strong>, inside the same fair scheduling class. Everything you measure in this lab (the nice weight table, vruntime accounting, and CPU shares) is identical under both. What EEVDF changed is how the next task is picked. Report question 2 asks you to make exactly this distinction, with your own data.</p></div>
+    <div class="note note-warn"><span class="note-tag">The one rule</span><p>A spinner never stops on its own. Before every new experiment, make sure that no spinner is left over from the last one. In your shell, <code>jobs</code> lists the background programs you started, and it must print nothing. A leftover spinner on CPU 0 takes part of the CPU and silently changes every number you measure.</p></div>
   </div>
 </section>
 
@@ -104,15 +129,33 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 1</div>
     <h2>spin.c, burning one CPU</h2>
-    <p class="ch-lede">The goal is a program that runs in user space forever, never sleeps, and is not optimized away.</p>
+    <p class="ch-lede">The goal of this step is to make load, namely a process that always wants the CPU. spin.c runs in user space forever and never sleeps. Every later experiment uses it to force the scheduler to make decisions.</p>
   </div>
   <div class="sec">
     <div class="prose">
-      <p>The program is a loop and nothing else. The one trap is the compiler. At <code>-O2</code> it may remove a loop whose work has no visible effect. The file's hint names the keyword that makes a variable's accesses count as visible. Look it up and decide which variable needs it.</p>
+      <ol>
+        <li>
+          <p><b>On your laptop, read the header of <code>spin.c</code>, and write the loop.</b></p>
+          <p>The program is a loop and nothing else. Watch out for the optimizer. A loop that never ends stays in the program. However, at <code>-O2</code>, the compiler may delete a loop that ends and has no visible effect, such as a loop that only counts to a large number. The program then exits at once. The hint in the header names the keyword that makes every access to a variable count as visible.</p>
+        </li>
+        <li>
+          <p><b>In the VM, compile spin.c, and start it on CPU 0 in the background.</b></p>
+          <div class="code"><span class="ln">cd /share</span><span class="ln">gcc -Wall -Werror -O2 -o /tmp/spin spin.c</span><span class="ln">taskset -c 0 /tmp/spin &amp;</span><span class="ln hl">[1] 187</span></div>
+          <p>The shell prints the job number, <code>[1]</code>, and the PID. <a href="https://man7.org/linux/man-pages/man1/taskset.1.html" target="_blank" rel="noopener">taskset</a> sets the CPU and then execs <code>/tmp/spin</code>, so the PID belongs to the spinner itself. The shell keeps that PID in <code>$!</code>.</p>
+        </li>
+        <li>
+          <p><b>Read the spinner's state and user time, wait 5 seconds, and read them again.</b></p>
+          <div class="code"><span class="ln">awk '{print $3, $14}' /proc/$!/stat</span><span class="ln hl">R 101</span><span class="ln">sleep 5</span><span class="ln">awk '{print $3, $14}' /proc/$!/stat</span><span class="ln hl">R 596</span></div>
+          <p>Field 3 of the stat file is the state, and field 14 is the user time, utime. The state is <code>R</code>, because the spinner never waits for anything. utime counts user-mode CPU time in hundredths of a second. Therefore, a spinner that owns a CPU for 5 seconds gains about 500. fairshare.sh in Step 3 makes exactly this measurement. <a href="https://man7.org/linux/man-pages/man5/proc_pid_stat.5.html" target="_blank" rel="noopener">proc_pid_stat(5)</a> lists every field.</p>
+        </li>
+        <li>
+          <p><b>Stop the spinner, and check that nothing is left.</b></p>
+          <div class="code"><span class="ln">kill %1</span><span class="ln">jobs                      <span class="c"># prints nothing once it is gone</span></span></div>
+          <p><code>%1</code> names job 1, so you do not need to type the PID.</p>
+        </li>
+      </ol>
     </div>
-    <div class="prose"><p><b>How to check it yourself.</b> Run it alone on CPU 0 and measure its user time growth, the same measurement fairshare.sh will make.</p></div>
-    <div class="code"><span class="ln">taskset -c 0 /tmp/spin &amp;</span><span class="ln">awk '{print $3, $14}' /proc/$!/stat     <span class="c"># state, utime in ticks</span></span><span class="ln">sleep 5</span><span class="ln">awk '{print $3, $14}' /proc/$!/stat     <span class="c"># utime grew by about 500</span></span><span class="ln">kill %1</span></div>
-    <div class="note"><span class="note-tag">Reading the number</span><p>utime counts in clock ticks, 100 per second. A spinner that owns a CPU for 5 seconds gains about 500. <code>make check</code> demands at least 300 and state <code>R</code>. If the growth is near 0, the loop is not running. Either it was optimized away and the program exited, or it is sleeping.</p></div>
+    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>The growth is near 0.</b> The loop is not running. Either the optimizer deleted it and the program exited, or the program sleeps. <b><code>/proc/…/stat</code> does not exist.</b> The program has already exited, which is the same problem. <code>make check</code> demands a growth of at least 300, that is 3 s of CPU, in 5 s, and state <code>R</code>.</p></div>
   </div>
 </section>
 
@@ -120,24 +163,69 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 2</div>
     <h2>Two spinners on one CPU, watching preemption</h2>
-    <p class="ch-lede">No code in this step. Run two spinners pinned to the same CPU, observe them from the outside with Lab01 skills, and write down what you see, because you will need it for the report.</p>
+    <p class="ch-lede">The goal of this step is to watch the scheduler share one CPU between two processes, and to see the numbers it keeps to do so. There is no code in this step. Write down every value, because the report needs them.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln"><span class="c"># VM, after compiling /tmp/spin in Step 0</span></span><span class="ln">taskset -c 0 /tmp/spin &amp;</span><span class="ln">taskset -c 0 /tmp/spin &amp;</span><span class="ln">cat /proc/&lt;pid&gt;/stat                    <span class="c"># field 3: the state</span></span><span class="ln">grep nr_involuntary /proc/&lt;pid&gt;/sched   <span class="c"># times forced off the CPU</span></span><span class="ln">grep se.load.weight /proc/&lt;pid&gt;/sched   <span class="c"># the weight behind "fairness"</span></span><span class="ln">kill %1 %2</span></div>
-    <div class="table-wrap">
-      <table class="t">
-        <thead><tr><th>look at</th><th>what to record</th></tr></thead>
-        <tbody>
-          <tr><td>/proc/&lt;pid&gt;/stat field 3</td><td>The state of each spinner. Both are on one CPU. What state is each in?</td></tr>
-          <tr><td>nr_involuntary_switches</td><td>Read it twice, a few seconds apart, in <code>/proc/&lt;pid&gt;/sched</code>. How fast does it grow?</td></tr>
-          <tr><td>se.load.weight</td><td>The weight of a nice-0 task. Note the value, because Step 4 uses it.</td></tr>
-          <tr><td>se.vruntime</td><td>Read it for both spinners, twice. How do the two values move relative to each other?</td></tr>
-        </tbody>
-      </table>
+    <div class="two-up" style="align-items: start;">
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>In the VM, start two spinners on CPU 0.</b></p>
+          <div class="code"><span class="ln">taskset -c 0 /tmp/spin &amp;</span><span class="ln">taskset -c 0 /tmp/spin &amp;</span><span class="ln">jobs -l</span></div>
+          <p><code>jobs -l</code> lists both jobs with their PIDs. Use these PIDs in the items below.</p>
+        </li>
+        <li>
+          <p><b>Read the state of each spinner.</b></p>
+          <div class="code"><span class="ln">awk '{print $3}' /proc/&lt;pid&gt;/stat</span></div>
+          <p>Both show <code>R</code>, although only one of them can run on CPU 0 at a time. <span class="ref" data-sec="L03 §3.1" data-title="Process states" data-href="../lectures/03-process.html#s3-1">State R<span class="ref-body">Linux shows a process state as a letter. As the R03 cheat sheet says, <code>R</code> means running or ready, namely waiting only for a CPU. A process that waits for an event, such as a timer, is in state <code>S</code>.</span></span> covers both.</p>
+        </li>
+        <li>
+          <p><b>Read how often each spinner was forced off the CPU. Read it again a few seconds later.</b></p>
+          <div class="code"><span class="ln">grep nr_involuntary /proc/&lt;pid&gt;/sched</span></div>
+          <p>A spinner never gives up the CPU by itself. Therefore, every switch away from it is involuntary, and the count keeps growing while both spinners run. This is <span class="ref" data-sec="L06 §0.3" data-title="Preemption" data-href="../lectures/06-scheduling.html#s0-3">preemption<span class="ref-body">A preemptive scheduler may take the CPU away from a running process and give it to another ready process. Linux is preemptive.</span></span>. Two processes share one CPU, and neither starves.</p>
+        </li>
+        <li>
+          <p><b>Read the virtual run time of both spinners. Read both again a few seconds later.</b></p>
+          <div class="code"><span class="ln">grep se.vruntime /proc/&lt;pid&gt;/sched</span></div>
+          <p>The <span class="ref" data-sec="L07 §3.3" data-title="Virtual run time" data-href="../lectures/07-more-scheduling.html#s3-3">vruntime<span class="ref-body">The scheduler keeps a virtual run time, vruntime, for every task. It grows while the task runs, and it grows more slowly for a heavier task. CFS always runs the task with the smallest vruntime.</span></span> is in milliseconds. Compare how the two values move relative to each other.</p>
+        </li>
+        <li>
+          <p><b>Stop both spinners.</b></p>
+          <div class="code"><span class="ln">kill %1 %2</span><span class="ln">jobs           <span class="c"># empty</span></span></div>
+        </li>
+        <li>
+          <p><b>Start a nice 0 spinner and a nice 10 spinner on CPU 0.</b></p>
+          <div class="code"><span class="ln">taskset -c 0 /tmp/spin &amp;</span><span class="ln">taskset -c 0 nice -n 10 /tmp/spin &amp;</span><span class="ln">jobs -l</span></div>
+          <p><a href="https://man7.org/linux/man-pages/man1/nice.1.html" target="_blank" rel="noopener">nice</a> <code>-n 10</code> sets the <span class="ref" data-sec="L07 §2.1" data-title="nice" data-href="../lectures/07-more-scheduling.html#s2-1">nice value<span class="ref-body">A normal task's priority comes from its nice value, from −20 to +19. A lower value means a higher priority. A process at nice +10 is "nicer" to the others, so it gets less of the CPU.</span></span> to 10 and then execs the spinner, as taskset does. The first spinner keeps the default, nice 0. The scheduler turns each nice value into a <span class="ref" data-sec="L07 §3.4" data-title="Priorities are weights" data-href="../lectures/07-more-scheduling.html#s3-4">weight<span class="ref-body">Each nice value maps to a weight. Nice 0 is 1024, and each nice step changes the weight by a factor of about 1.25. Over time, each task gets the CPU in proportion to its weight divided by the sum of all weights.</span></span>.</p>
+        </li>
+        <li>
+          <p><b>Read the vruntime and the utime of both spinners, wait 10 seconds, and read them again.</b></p>
+          <div class="code"><span class="ln">grep se.vruntime /proc/&lt;A&gt;/sched /proc/&lt;B&gt;/sched</span><span class="ln">awk '{print $14}' /proc/&lt;A&gt;/stat /proc/&lt;B&gt;/stat</span><span class="ln">sleep 10</span><span class="ln">grep se.vruntime /proc/&lt;A&gt;/sched /proc/&lt;B&gt;/sched</span><span class="ln">awk '{print $14}' /proc/&lt;A&gt;/stat /proc/&lt;B&gt;/stat</span></div>
+          <p>Here <code>&lt;A&gt;</code> is the PID of the nice 0 spinner and <code>&lt;B&gt;</code> the PID of the nice 10 spinner. Given two files, grep puts the file name in front of each line, and awk prints one line per file, A first. Write down how much each of the four values grew, because report question 2 asks you to explain them.</p>
+        </li>
+        <li>
+          <p><b>Stop both spinners.</b></p>
+          <div class="code"><span class="ln">kill %1 %2</span><span class="ln">jobs           <span class="c"># empty</span></span></div>
+        </li>
+      </ol>
+      <p><code>make check</code> repeats the experiment of items 1 to 3. It requires at least 5 involuntary switches in 5 seconds.</p>
     </div>
-    <div class="prose"><p>Record all four before the final <code>kill %1 %2</code>. Two processes share one CPU and neither starves. You are watching timeslicing. <code>make check</code> repeats this experiment and requires at least 5 involuntary switches in 5 seconds.</p></div>
-    <div class="prose"><p><b>Look deeper (ungraded).</b> The kernel can narrate every context switch it makes. The commands below let you watch your two spinners take turns, timestamped at microsecond resolution. Every line that <code>trace-cmd report</code> prints is one decision by the scheduler you measure in this lab. <code>/sys/kernel/tracing/</code> is the raw interface underneath, and the graduate course, KernelLens, works at that level.</p></div>
-    <div class="code"><span class="ln">taskset -c 0 /tmp/spin &amp;  taskset -c 0 /tmp/spin &amp;</span><span class="ln">trace-cmd record -e sched_switch -- sleep 2</span><span class="ln">trace-cmd report | grep spin | head -20</span><span class="ln">kill %1 %2</span></div>
+    <div>
+    <figure class="fig">
+      <div class="code"><span class="ln"><span class="c"># item 1</span></span><span class="ln">jobs -l</span><span class="ln hl">[1]- 171 Running  taskset -c 0 /tmp/spin &amp;</span><span class="ln hl">[2]+ 172 Running  taskset -c 0 /tmp/spin &amp;</span><span class="ln"> </span><span class="ln"><span class="c"># items 3 and 4 for PID 171, then 3 s later</span></span><span class="ln">grep -E 'nr_inv|se.vrun' /proc/171/sched</span><span class="ln hl">se.vruntime              :    3149.985554</span><span class="ln hl">nr_involuntary_switches  :            398</span><span class="ln"> </span><span class="ln hl">se.vruntime              :    4639.410547</span><span class="ln hl">nr_involuntary_switches  :            991</span></div>
+      <figcaption><span class="fno">Fig. 2.1</span>Sample output in the VM. Your PIDs and numbers differ. In 3 seconds, the spinner was preempted about 590 times. Its vruntime grew by about 1489 ms, which is half of 3 seconds, because it ran only half of the time. The other spinner's values move the same way.</figcaption>
+    </figure>
+    <figure class="fig">
+      <div class="code"><span class="ln"><span class="c"># items 6 and 7</span></span><span class="ln">jobs -l</span><span class="ln hl">[1]- 194 Running  taskset -c 0 /tmp/spin &amp;</span><span class="ln hl">[2]+ 195 Running  taskset -c 0 nice -n 10 /tmp/spin &amp;</span><span class="ln">grep se.vruntime /proc/194/sched /proc/195/sched</span><span class="ln hl">/proc/194/sched:se.vruntime   :    7377.214539</span><span class="ln hl">/proc/195/sched:se.vruntime   :    7382.185965</span><span class="ln">awk '{print $14}' /proc/194/stat /proc/195/stat</span><span class="ln hl">273</span><span class="ln hl">29</span><span class="ln">sleep 10</span><span class="ln">grep se.vruntime /proc/194/sched /proc/195/sched</span><span class="ln hl">/proc/194/sched:se.vruntime   :   16423.826524</span><span class="ln hl">/proc/195/sched:se.vruntime   :   16441.839240</span><span class="ln">awk '{print $14}' /proc/194/stat /proc/195/stat</span><span class="ln hl">1177</span><span class="ln hl">125</span></div>
+      <figcaption><span class="fno">Fig. 2.2</span>Sample output in the VM. Your PIDs and numbers differ. PID 194 is the nice 0 spinner and PID 195 the nice 10 spinner.</figcaption>
+    </figure>
+    </div>
+    </div>
+    <details class="fold"><summary>Look deeper (ungraded). Watch every switch the scheduler makes.</summary><div class="prose">
+      <p>The kernel can record every context switch it makes, with a timestamp in microseconds. Start two spinners on CPU 0 as in item 1, and run the commands below.</p>
+      <div class="code"><span class="ln">trace-cmd record -e sched_switch -o /tmp/trace.dat -- sleep 1</span><span class="ln">trace-cmd report -i /tmp/trace.dat | grep spin | head</span><span class="ln hl">spin-169 [000] 5.775576: sched_switch: spin:169 [120] R ==&gt; spin:168 [120]</span><span class="ln">kill %1 %2</span></div>
+      <p>Each line is one switch on CPU <code>[000]</code>. The task on the left of <code>==&gt;</code> leaves the CPU, and the task on the right gets it. The <code>R</code> means the leaving task was still ready to run, so the switch was a preemption. The <code>[120]</code> is the priority, 120 + nice. The <code>-o /tmp/trace.dat</code> keeps the trace file out of <code>/share</code>. Nothing in <code>make check</code> or the report depends on this fold.</p>
+    </div></details>
   </div>
 </section>
 
@@ -145,26 +233,38 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 3</div>
     <h2>fairshare.sh, building the instrument</h2>
-    <p class="ch-lede">The goal is that <code>fairshare.sh &lt;niceA&gt; &lt;niceB&gt; &lt;seconds&gt;</code> prints exactly one line, <code>A=&lt;ticks&gt; B=&lt;ticks&gt; RATIO=&lt;A/B, two decimals&gt;</code>, where the ticks are each spinner's utime <em>growth</em> during the window.</p>
+    <p class="ch-lede">The goal of this step is to build an instrument that measures how the scheduler divides one CPU between two tasks with different nice values. <code>fairshare.sh &lt;niceA&gt; &lt;niceB&gt; &lt;seconds&gt;</code> prints exactly one line, <code>A=&lt;n&gt; B=&lt;n&gt; RATIO=&lt;A/B, two decimals&gt;</code>. The two numbers are each spinner's utime <em>growth</em> during the window.</p>
   </div>
   <div class="sec">
-    <div class="prose"><p>The script is a timeline. Write it in this order, and run it after each stage.</p></div>
-    <div class="table-wrap">
-      <table class="t">
-        <thead><tr><th>stage</th><th>what happens</th><th>what the file header gives you</th></tr></thead>
-        <tbody>
-          <tr><td>1 start</td><td>Start spinner A at nice <code>$na</code> and spinner B at nice <code>$nb</code>, both on CPU 0, both in the background. Keep each PID.</td><td>The exact start command, and where the PID comes from.</td></tr>
-          <tr><td>2 cleanup</td><td>Arrange for both spinners to be killed when the script exits, however it exits.</td><td>The <code>trap … EXIT</code> hint. Do this right after starting them, not at the end.</td></tr>
-          <tr><td>3 warm up</td><td>Wait 2–3 seconds before measuring anything.</td><td>Why? Startup cost should not pollute the window.</td></tr>
-          <tr><td>4 sample</td><td>Read field 14 of each spinner's stat file.</td><td>Field 14. You read fields with awk in Step 1.</td></tr>
-          <tr><td>5 window</td><td>Sleep <code>$secs</code>.</td><td></td></tr>
-          <tr><td>6 sample again</td><td>Read both again. Each growth is "after minus before".</td><td></td></tr>
-          <tr><td>7 print</td><td>Print the line, with the ratio to two decimals.</td><td>awk does floating point, and its <code>printf</code> controls the number of decimals.</td></tr>
-        </tbody>
-      </table>
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>On your laptop, read the header of <code>fairshare.sh</code>.</b></p>
+          <p>It gives the exact output format and the start command. It also gives the one rule. The script reads only <code>/proc</code>, so the words <code>top</code> and <code>ps</code> must not appear in it outside comments.</p>
+        </li>
+        <li>
+          <p><b>Start the two spinners, and keep their PIDs.</b></p>
+          <p>Start spinner A at nice <code>$na</code> and spinner B at nice <code>$nb</code>, both on CPU 0 and both in the background, with the command in the header. As in Step 2, <code>nice</code> sets the nice value and then execs the next program. Therefore, <code>$!</code> is again the spinner's own PID. The checker sets <code>SPIN=/tmp/spin</code>, so start the binary through <code>$SPIN</code>.</p>
+        </li>
+        <li>
+          <p><b>Arrange for both spinners to be killed when the script exits, right after you start them.</b></p>
+          <p>The header's hint, <code>trap '…' EXIT</code>, runs a command whenever the script exits, normally or with an error. Then test it. Run the script, let it finish, and check in the VM that no spinner is left.</p>
+          <div class="code"><span class="ln">bash /share/fairshare.sh 0 0 5</span><span class="ln">ps -C spin                <span class="c"># prints only its header line</span></span></div>
+        </li>
+        <li>
+          <p><b>Wait 2 to 3 seconds, then read field 14 of each spinner's stat file.</b></p>
+          <p>The wait keeps the startup cost out of the measurement. For a test, print the two raw samples, and compare them with a <code>cat</code> of the same stat files.</p>
+        </li>
+        <li>
+          <p><b>Sleep <code>$secs</code>, read both again, and compute each growth as "after minus before".</b></p>
+        </li>
+        <li>
+          <p><b>Print the line, with the ratio to two decimals.</b></p>
+          <p>The shell does only integer arithmetic. However, awk computes with fractions, and its <code>printf</code> controls the number of decimals. The header shows how to pass the two growths into awk.</p>
+        </li>
+      </ol>
     </div>
-    <div class="prose"><p>A good intermediate test is this. After stage 4, print the raw samples and compare them with a <code>cat</code> of the same stat files. After stage 2, run the script, let it finish, and check that no spinner is left (<code>ps -C spin</code> prints only its header).</p></div>
-    <div class="note note-warn"><span class="note-tag">Format details the check enforces</span><p>A and B are whole numbers, and RATIO has exactly two digits after the point (<code>9.30</code>, not <code>9.3</code>). The script may read only <code>/proc</code>, so the words <code>top</code> and <code>ps</code> must not appear in it outside comments. The checker runs it with <code>SPIN=/tmp/spin</code>, so start the binary through <code>$SPIN</code>, as the header does.</p></div>
+    <div class="note note-warn"><span class="note-tag">Format details the check enforces</span><p>A and B are whole numbers, and RATIO has exactly two digits after the point, so <code>9.30</code> is right and <code>9.3</code> is wrong. The checker reads only the last line of the output.</p></div>
   </div>
 </section>
 
@@ -172,21 +272,39 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 4</div>
     <h2>Predict, measure, and decide whether to trust it</h2>
-    <p class="ch-lede">An instrument is only useful once you have checked it against a case whose answer you know.</p>
+    <p class="ch-lede">The goal of this step is to check your instrument against cases whose answer you know, before you trust it with one you do not know.</p>
   </div>
   <div class="sec">
-    <div class="prose"><p><code>nice</code> is not a polite suggestion. It indexes a weight table, and the scheduler divides the CPU in proportion to weight. The weight for nice 0 is 1024, and for nice 10 it is 110. Each nice level is a factor of about 1.25, which is geometric, not linear. Therefore, before you trust your number, predict it.</p></div>
+    <div class="prose">
+      <p>Nice is not a polite suggestion. It selects a weight from the table in <a href="../lectures/07-more-scheduling.html#s3-4">L07 §3.4</a>, and the scheduler divides the CPU in proportion to the weights. The weight for nice 0 is 1024, and for nice 10 it is 110. Each nice step is a factor of about 1.25.</p>
+      <ol>
+        <li>
+          <p><b>Predict the ratio for two equal nice values. Then measure it.</b></p>
+          <div class="code"><span class="ln">bash /share/fairshare.sh 0 0 10</span><span class="ln hl">A=498 B=498 RATIO=1.00</span></div>
+          <p>Equal weights give equal shares, so RATIO is near 1. Each spinner's utime grows by about 50 per second, half of CPU 0.</p>
+        </li>
+        <li>
+          <p><b>Predict the ratio for nice 0 against nice 10. Then measure it.</b></p>
+          <div class="code"><span class="ln">bash /share/fairshare.sh 0 10 15</span></div>
+          <p>The prediction is the ratio of the two weights, 1024 / 110 ≈ 9.3. Write your measured ratio down, because report question 1 asks for it.</p>
+        </li>
+        <li>
+          <p><b>Predict the ratio for nice 0 against nice 5, and for nice 10 against nice 15. Then measure both.</b></p>
+          <div class="code"><span class="ln">bash /share/fairshare.sh 0 5 15</span><span class="ln">bash /share/fairshare.sh 10 15 15</span></div>
+          <p>Predict each ratio from the weight table in L07 §3.4 before you run it. The table does not list nice 15, so start from nice 10 and apply the factor of about 1.25 per step. These runs are not checked, but report question 1 asks for both predictions and both measurements.</p>
+        </li>
+      </ol>
+    </div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>run</th><th>prediction</th><th>make check accepts</th></tr></thead>
         <tbody>
-          <tr><td>bash fairshare.sh 0 0 10</td><td>Equal weights, so RATIO is near 1.</td><td>0.60 – 1.60</td></tr>
-          <tr><td>bash fairshare.sh 0 10 15</td><td>The ratio of the two weights, 1024/110 ≈ 9.3.</td><td>6.0 – 13.0</td></tr>
-          <tr><td>a pair of your choice</td><td>Predict it from "each nice level is a factor of about 1.25" <em>before</em> you run it.</td><td>not checked, but good for the report</td></tr>
+          <tr><td>fairshare.sh 0 0 10</td><td>near 1</td><td>0.60 to 1.60</td></tr>
+          <tr><td>fairshare.sh 0 10 15</td><td>1024 / 110 ≈ 9.3</td><td>6.0 to 13.0</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>RATIO near 1 for nice 0 vs 10.</b> The two spinners are not competing. Either they are not both on CPU 0, or the nice value never reached the spinner. Check with <code>taskset -p &lt;pid&gt;</code> and field 19 of each stat file. <b>RATIO wildly off, or a division error.</b> A sample came from the wrong PID or was empty. Print the four raw samples. <b>Results drift between runs.</b> Look for a leftover spinner from an earlier run.</p></div>
+    <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>RATIO near 1 for nice 0 against nice 10.</b> The two spinners are not competing. Either they are not both on CPU 0, or the nice value never reached the spinner. Check with <code>taskset -p &lt;pid&gt;</code>, which prints the affinity mask 1 for CPU 0, and with field 19 of each stat file, which is the nice value. <b>RATIO wildly off, or a division error.</b> A sample came from the wrong PID, or it was empty. Print the four raw samples. <b>Results drift between runs.</b> Look for a leftover spinner from an earlier run.</p></div>
   </div>
 </section>
 
@@ -194,18 +312,50 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 5</div>
     <h2>Policy beats weight</h2>
-    <p class="ch-lede">The goal is to measure the share a normal spinner gets next to a <code>SCHED_FIFO</code> spinner, then find the setting that explains it. No code to submit here.</p>
+    <p class="ch-lede">The goal of this step is to see that a real-time scheduling policy outranks every weight. You measure by hand, and there is no code to submit. Write down the numbers, because report question 3 asks for them.</p>
   </div>
   <div class="sec">
-    <div class="prose"><p>Weights share, but <strong>policies rank</strong>. A <code>SCHED_FIFO</code> task outranks every fair-class task, categorically. These are the two spinners for this step.</p></div>
-    <div class="code"><span class="ln">taskset -c 0 /tmp/spin &amp;                 <span class="c"># a normal citizen</span></span><span class="ln">taskset -c 0 chrt -f 50 /tmp/spin &amp;      <span class="c"># a real-time task, priority 50</span></span></div>
-    <ol class="prose">
-      <li><b>Predict first</b>, from lecture. A real-time task outranks every fair-class task. What share should the normal one get?</li>
-      <li><b>Measure by hand.</b> Start the two spinners above, then use the fairshare method manually, with two samples of each utime, some seconds apart. Compute the normal spinner's share, its growth divided by the total. The answer is not 0%. The normal spinner clings to a small, suspiciously round share.</li>
-      <li><b>Find the setting.</b> It lives in <code>/proc/sys/kernel/</code>. List that directory and look at the names about real-time scheduling. <code>man 7 sched</code> has a section on limiting the CPU usage of real-time processes. Read it and match its numbers with your measured share.</li>
-      <li><b>Clean up</b> both spinners at once. A stray FIFO-50 spinner makes the VM miserable.</li>
-    </ol>
-    <div class="note"><span class="note-tag">What make check expects</span><p>The checker repeats this itself (your code is not involved) and expects the normal spinner's share between 2% and 10%. Your hand measurement should land in the same range. If the console becomes sluggish, remember the FIFO spinner is pinned to CPU 0 and your shell can still run on CPU 1, so <code>kill %2</code> works.</p></div>
+    <div class="prose"><p>Weights share the CPU. However, <strong>policies rank</strong> tasks. A <span class="ref" data-sec="L07 §4.3" data-title="Real-time classes in Linux" data-href="../lectures/07-more-scheduling.html#s4-3"><code>SCHED_FIFO</code><span class="ref-body"><code>SCHED_FIFO</code> is a real-time policy, first-come first-served. Real-time tasks use the priorities 0 to 99, and every real-time task outranks every normal task.</span></span> task outranks every normal task.</p></div>
+    <div class="two-up" style="align-items: start;">
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>In the VM, pin your shell to CPU 1.</b></p>
+          <div class="code"><span class="ln">taskset -pc 1 $$</span></div>
+          <p><code>$$</code> is the PID of your shell. <code>taskset -p</code> changes the CPUs of a process that is already running, and <code>-c 1</code> names CPU 1. This is the hard affinity of <a href="../lectures/07-more-scheduling.html#s5-2">L07 §5.2</a> again, now for your shell. From here on, the shell and every command you type run only on CPU 1, so they never wait behind a spinner on CPU 0. A program that you start with <code>taskset -c 0</code> still runs on CPU 0. The pinning lasts until you leave this shell.</p>
+        </li>
+        <li>
+          <p><b>Predict first.</b></p>
+          <p>A real-time spinner and a normal spinner share CPU 0. From <a href="../lectures/07-more-scheduling.html#s4-3">L07 §4.3</a>, what share of CPU 0 should the normal one get? Write your prediction down.</p>
+        </li>
+        <li>
+          <p><b>Start a normal spinner, and then a real-time spinner, both on CPU 0.</b></p>
+          <div class="code"><span class="ln">taskset -c 0 /tmp/spin &amp;</span><span class="ln">taskset -c 0 chrt -f 50 /tmp/spin &amp;</span><span class="ln">jobs -l</span></div>
+          <p><a href="https://man7.org/linux/man-pages/man1/chrt.1.html" target="_blank" rel="noopener">chrt</a> <code>-f 50</code> makes the spinner a <code>SCHED_FIFO</code> real-time task. The first spinner stays a normal task. Job 1 is the normal spinner, and job 2 is the real-time one.</p>
+        </li>
+        <li>
+          <p><b>Read the utime of both spinners, wait 5 seconds, and read it again.</b></p>
+          <div class="code"><span class="ln">awk '{print $14}' /proc/&lt;N&gt;/stat /proc/&lt;F&gt;/stat</span><span class="ln">sleep 5</span><span class="ln">awk '{print $14}' /proc/&lt;N&gt;/stat /proc/&lt;F&gt;/stat</span></div>
+          <p>Here <code>&lt;N&gt;</code> is the PID of the normal spinner and <code>&lt;F&gt;</code> the PID of the real-time one. The first line of each pair is the normal spinner, and the second is the real-time one. Compute each growth. The real-time spinner gains about 500, all of CPU 0. The normal spinner gains about 0, as L07 §4.3 predicts. Notice that your shell kept working the whole time.</p>
+        </li>
+        <li>
+          <p><b>Stop both spinners at once.</b></p>
+          <div class="code"><span class="ln">kill %1 %2</span><span class="ln">jobs           <span class="c"># empty</span></span></div>
+        </li>
+      </ol>
+    </div>
+    <figure class="fig">
+      <div class="code"><span class="ln"><span class="c"># items 1, 3 and 4</span></span><span class="ln">taskset -pc 1 $$</span><span class="ln hl">pid 149's current affinity list: 0,1</span><span class="ln hl">pid 149's new affinity list: 1</span><span class="ln">jobs -l</span><span class="ln hl">[1]- 230 Running  taskset -c 0 /tmp/spin &amp;</span><span class="ln hl">[2]+ 231 Running  taskset -c 0 chrt -f 50 /tmp/spin &amp;</span><span class="ln">awk '{print $14}' /proc/230/stat /proc/231/stat</span><span class="ln hl">1</span><span class="ln hl">101</span><span class="ln">sleep 5</span><span class="ln">awk '{print $14}' /proc/230/stat /proc/231/stat</span><span class="ln hl">1</span><span class="ln hl">602</span></div>
+      <figcaption><span class="fno">Fig. 5.1</span>Sample output in the VM. Your PIDs and numbers differ. PID 230 is the normal spinner and PID 231 the real-time one.</figcaption>
+    </figure>
+    </div>
+    <div class="note"><span class="note-tag">What make check expects</span><p>The checker repeats this experiment itself, without your code. It first pins itself to CPU 1. Over 5 seconds, it expects the normal spinner's utime to grow by at most 2, and the real-time spinner's by at least 300.</p></div>
+    <details class="fold"><summary>Look deeper (ungraded). The share that stock Linux keeps for normal tasks.</summary><div class="prose">
+      <p>A stock Linux kernel does not let real-time tasks take a CPU completely. By default, it keeps a small part of every second for normal tasks. This is called real-time throttling. The course VM boots with it turned off, so that Step 5 behaves as L07 §4.3 describes. Nothing in <code>make check</code> or the report depends on this fold.</p>
+      <p>To see the throttling, keep your shell pinned to CPU 1 as in item 1, and run the commands below.</p>
+      <div class="code"><span class="ln">cat /proc/sys/kernel/sched_rt_runtime_us</span><span class="ln hl">-1</span><span class="ln">echo 950000 &gt; /proc/sys/kernel/sched_rt_runtime_us</span><span class="ln"><span class="c"># repeat items 3 to 5 of Step 5</span></span><span class="ln">echo -1 &gt; /proc/sys/kernel/sched_rt_runtime_us</span></div>
+      <p>The value <code>-1</code> means no limit. The value 950000 lets real-time tasks use at most 950000 µs, namely 0.95 s, of every second. With the limit on, the normal spinner's utime grows by about 25 in 5 s, about 5% of CPU 0, and the real-time spinner's by about 475. Set the value back to <code>-1</code> before you go on. The VM also turns the limit off again at every boot.</p>
+    </div></details>
   </div>
 </section>
 
@@ -213,50 +363,105 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 6</div>
     <h2>make check, and reading a failure</h2>
+    <p class="ch-lede"><code>make check</code> runs the same checks that grading runs, in a fresh VM. Therefore, a pass on your laptop is a pass in grading.</p>
   </div>
   <div class="sec">
-    <div class="code"><span class="ln"><span class="c"># laptop, repository root</span></span><span class="ln">make check LAB=02-scheduling</span></div>
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>On your laptop, at the repository root, run the checks.</b></p>
+          <div class="code"><span class="ln">make check LAB=02-scheduling</span></div>
+          <p>It takes one to two minutes, most of it inside your fairshare windows.</p>
+        </li>
+        <li>
+          <p><b>Read the result.</b></p>
+          <p>If every check passes, the last line ends with <code>status=pass passes=16 fails=0</code>. <code>boot</code>, <code>proc-mounted</code>, <code>gcc</code>, and <code>sched-tools</code> check the VM, not your files. If one of them fails, go back to Lab00 Step 1. Each other check points to one step on this page, as the table below shows.</p>
+        </li>
+      </ol>
+    </div>
     <div class="table-wrap">
       <table class="t">
         <thead><tr><th>check</th><th>what it tests</th><th>go back to</th></tr></thead>
         <tbody>
           <tr><td>missing-spin.c, missing-fairshare.sh</td><td>the file exists in <code>submit/</code>, and if one is missing, the checker stops there</td><td>Step 0</td></tr>
           <tr><td>report-present</td><td><code>report.md</code> is not empty</td><td>Step 7</td></tr>
-          <tr><td>no-top, no-ps, uses-proc</td><td>with comments removed, fairshare.sh contains neither word and reads <code>/proc</code></td><td>Step 3</td></tr>
-          <tr><td>spin-compiles</td><td><code>gcc -Wall -Werror -O2</code> succeeds</td><td>Step 1</td></tr>
-          <tr><td>spin-pegs-cpu, spin-state-R</td><td>alone on CPU 0, at least 300 ticks in 5 s, and state R</td><td>Step 1</td></tr>
-          <tr><td>preemption-visible</td><td>two spinners on CPU 0, at least 5 involuntary switches in 5 s</td><td>Step 2</td></tr>
-          <tr><td>fair-format</td><td>the last line matches <code>A=… B=… RATIO=x.xx</code></td><td>Step 3</td></tr>
-          <tr><td>fair-equal, fair-nice10</td><td>the two ratios fall in their bands</td><td>Step 4</td></tr>
-          <tr><td>fifo-throttle</td><td>the normal spinner keeps 2–10%</td><td>Step 5</td></tr>
+          <tr><td>no-top, no-ps, uses-proc</td><td>with comments removed, fairshare.sh contains neither word, and it reads <code>/proc</code></td><td>Step 3, item 1</td></tr>
+          <tr><td>spin-compiles</td><td><code>gcc -Wall -Werror -O2</code> succeeds</td><td>Step 1, item 2</td></tr>
+          <tr><td>spin-pegs-cpu, spin-state-R</td><td>alone on CPU 0, a utime growth of at least 300 in 5 s, and state R</td><td>Step 1, item 3</td></tr>
+          <tr><td>preemption-visible</td><td>two spinners on CPU 0, at least 5 involuntary switches in 5 s</td><td>Step 2, item 3</td></tr>
+          <tr><td>fair-format</td><td>the last line matches <code>A=… B=… RATIO=x.xx</code></td><td>Step 3, item 6</td></tr>
+          <tr><td>fair-equal, fair-nice10</td><td>the two ratios fall in their ranges</td><td>Step 4</td></tr>
+          <tr><td>fifo-starves</td><td>with the checker on CPU 1, the normal spinner's utime grows by at most 2 in 5 s, and the SCHED_FIFO spinner's by at least 300</td><td>Step 5</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="prose"><p>The bands are wide on purpose, and a correct implementation passes with margin. The checks take about a minute, most of it inside your fairshare windows. If <code>fair-format</code> fails, every other fairshare check is meaningless. Fix the format first.</p></div>
+    <div class="prose">
+      <ol start="3">
+        <li>
+          <p><b>If <code>fair-format</code> fails, fix the format first.</b></p>
+          <p>Every other fairshare check reads the RATIO from that line, so they are meaningless until the format is right. The ranges are wide on purpose, and a correct implementation passes with margin.</p>
+        </li>
+      </ol>
+      <p>Note that <code>report-present</code> passes as soon as <code>report.md</code> is not empty, and the file already holds the three questions. Therefore, this check passing does not mean your report is done.</p>
+    </div>
   </div>
 </section>
 
 <section class="chapter" id="s7">
   <div class="ch-head">
     <div class="ch-no">Step 7</div>
-    <h2>Report and submit</h2>
+    <h2>The report</h2>
+    <p class="ch-lede"><code>submit/report.md</code> already holds three questions. Each one asks you to argue from your own numbers. Each item below tells you how to investigate, not what the answer is.</p>
   </div>
   <div class="sec">
     <div class="prose">
-      <p>The three questions in <code>submit/report.md</code> ask you to argue from your own numbers. Below is how to investigate, not the answers.</p>
       <ol>
-        <li><b>The geometry of nice.</b> Quote your measured ratio and how far it is from 9.3. For the "why geometric" part, take the hint in <code>report.md</code> literally. With 100 runnable tasks already on the system, compute what share one task gains or loses from one nice step under a table that <em>adds</em> a fixed amount per level, and under one that <em>multiplies</em>. Which keeps its meaning?</li>
-        <li><b>CFS vs EEVDF.</b> Use the <code>se.load.weight</code> and <code>se.vruntime</code> values you recorded in Step 2. Lecture tells you what CFS does with them. Then connect them to the CFS and EEVDF note in Step 0. Your ratio measures how much CPU each task gets over 15 seconds, not which task runs next. Explain, from your data, why that makes your ratio the same under both.</li>
-        <li><b>The safety valve.</b> Name the setting from Step 5, quote its value (and the value it is measured against), and show that it matches your measured share. For the "why", imagine the FIFO spinner with no limit on a machine with one CPU. What could no longer run, including anything you would use to stop it?</li>
+        <li>
+          <p><b>Question 1. "Compare your measured <code>fairshare.sh 0 10 15</code> ratio with the prediction 1024/110 ≈ 9.3 from the weight table in L07 §3.4. How close did you land? Then predict, from the same table, the ratios for <code>fairshare.sh 0 5 15</code> and <code>fairshare.sh 10 15 15</code>, and measure both. Why are those two ratios nearly equal? What would a table that subtracts the same amount of weight at every nice step predict for them instead?"</b></p>
+          <p>Quote your three ratios from Step 4, and how far each one is from its prediction. Each prediction is one weight divided by the other. The table in <a href="../lectures/07-more-scheduling.html#s3-4">L07 §3.4</a> does not list nice 15, so start from nice 10 and apply the factor of about 1.25 per step. Then look at what the two pairs, 0 and 5, and 10 and 15, have in common. For the last part, make up such a table, for example one that starts at 1024 for nice 0 and subtracts 50 at every step, and compute the same two ratios from it.</p>
+        </li>
+        <li>
+          <p><b>Question 2. "Start a nice 0 spinner and a nice 10 spinner on CPU 0 as in Step 2. Read <code>se.vruntime</code> from <code>/proc/&lt;pid&gt;/sched</code> and utime from <code>/proc/&lt;pid&gt;/stat</code> for both, wait 10 seconds, and read them again. Quote how much each value grew. One spinner ran about nine times as long as the other, yet the two vruntimes grew by about the same amount. Use the formula in L07 §3.4 to show why, and explain how the rule of running the task with the smallest vruntime produces the ratio your <code>fairshare.sh</code> measured."</b></p>
+          <p>Use the numbers you wrote down in Step 2, item 7. A utime growth of 100 is one second of CPU, and the vruntime is in milliseconds. Put each spinner's run time and weight into the formula Δvruntime = Δ(actual run time) × 1024 / weight from <a href="../lectures/07-more-scheduling.html#s3-4">L07 §3.4</a>. For the second part, ask what the scheduler does as soon as one vruntime falls behind the other, and what that forces the two vruntimes to do over 10 seconds.</p>
+        </li>
+        <li>
+          <p><b>Question 3. "In Step 5 a SCHED_FIFO spinner and a normal spinner shared CPU 0. Quote the utime growth of each and the normal spinner's share. Use L07 §4.3 to explain that share. Would starting the normal spinner at nice −20 have changed it? Why or why not? Your shell kept working the whole time. Use L07 §5.1 and §5.2 to explain why."</b></p>
+          <p>Use the numbers from Step 5, item 4. The share is the normal spinner's growth divided by the sum of both growths. For nice −20, compare what a nice value changes, in <a href="../lectures/07-more-scheduling.html#s3-4">L07 §3.4</a>, with what decides between a real-time task and a normal task, in <a href="../lectures/07-more-scheduling.html#s4-3">L07 §4.3</a>. For the shell, recall which CPU you pinned it to in Step 5, item 1, and how many ready queues Linux keeps in <a href="../lectures/07-more-scheduling.html#s5-1">L07 §5.1</a>.</p>
+        </li>
       </ol>
     </div>
-    <div class="code"><span class="ln">cd labs/02-scheduling/submit</span><span class="ln">git add spin.c fairshare.sh report.md</span><span class="ln">git commit -m "Lab02"</span><span class="ln">git push</span></div>
-    <ul class="check prose">
-      <li><code>make check LAB=02-scheduling</code> shows no <code>FAIL</code>.</li>
-      <li>Running fairshare.sh leaves no spinner behind.</li>
-      <li><code>report.md</code> quotes your own measured numbers.</li>
-      <li>All three files are visible on GitHub, in <em>your</em> repository.</li>
-    </ul>
+  </div>
+</section>
+
+<section class="chapter" id="s8">
+  <div class="ch-head">
+    <div class="ch-no">Step 8</div>
+    <h2>Submit</h2>
+    <p class="ch-lede">We grade what is on GitHub at the deadline.</p>
+  </div>
+  <div class="sec">
+    <div class="prose">
+      <ol>
+        <li>
+          <p><b>On your laptop, at the repository root, commit your three files, and push.</b></p>
+          <div class="code"><span class="ln">git add labs/02-scheduling/submit/spin.c labs/02-scheduling/submit/fairshare.sh \</span><span class="ln">        labs/02-scheduling/submit/report.md</span><span class="ln">git commit -m "Lab02"</span><span class="ln">git push</span></div>
+          <p>Add only these three files. The compiled spinner stays in the VM's <code>/tmp</code>.</p>
+        </li>
+        <li>
+          <p><b>Open your repository on GitHub, and check the files.</b></p>
+          <p>Go to <code>labs/02-scheduling/submit/</code>, and check that all three files are there with your latest changes.</p>
+        </li>
+        <li>
+          <p><b>Before the deadline, go through this list.</b></p>
+          <ul class="check">
+            <li><code>make check LAB=02-scheduling</code> shows no <code>FAIL</code>.</li>
+            <li>Running fairshare.sh leaves no spinner behind.</li>
+            <li><code>report.md</code> quotes your own measured numbers.</li>
+            <li>All three files are visible on GitHub, in <em>your</em> private repository.</li>
+          </ul>
+        </li>
+      </ol>
+    </div>
   </div>
 </section>
 
@@ -264,7 +469,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
 </div>
 
 <footer class="footer">
-  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab02 walkthrough. This page and the file headers in <code>labs/02-scheduling/submit/</code> are the specification of the lab.
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Lab02 walkthrough. This page and the header comments of the files in <code>labs/02-scheduling/submit/</code> are the specification for this lab.
 </footer>
 
 <script src="../assets/academy.js"></script>

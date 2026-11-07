@@ -70,7 +70,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 09 · Interactive notes</div>
     <h1>A counter that <span class="accent">remembers</span></h1>
-    <p class="lede">Lecture 08 ended with a lost wakeup, where a signal sent before anyone waited was simply forgotten. Dijkstra's semaphore fixes it with an integer that counts, plus a queue of sleepers. One primitive gives you locks, counting of free slots and full slots, and a correct bounded buffer. It also gives you new ways to deadlock.</p>
+    <p class="lede">Lecture 08 ended with a lost wakeup, in which a signal sent before anyone waited was forgotten. Dijkstra's semaphore fixes this problem with an integer that counts and a queue of sleeping processes. This one primitive gives you locks, counts of free slots and full slots, and a correct bounded buffer. However, it also gives you new ways to deadlock.</p>
     <div class="promise">
       <span>Before you start, review</span><span class="mono">critical sections, spinlocks, sleep/wakeup</span><span>from Lecture 08.</span>
     </div>
@@ -116,12 +116,12 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       <div class="prose">
         <ul>
           <li>A <strong>semaphore</strong> S is an abstract data type proposed by Edsger Dijkstra. It is more than an atomic variable, because it also holds a <strong>queue</strong> of waiting processes.</li>
-          <li>It is used only through two operations, each <strong>atomic</strong>.
+          <li>It is accessed only through two operations, and each operation is <strong>atomic</strong>.
             <ul>
               <li><code>wait()</code>, originally <strong>P()</strong>, from the Dutch <em>proberen</em>, "to test", and</li>
               <li><code>signal()</code>, originally <strong>V()</strong>, from <em>verhogen</em>, "to increase".</li>
             </ul></li>
-          <li>P decrements the value. If the result is negative, the caller joins the queue and sleeps. V increments the value. If the result is still ≤ 0, someone is waiting, so V wakes one of them.</li>
+          <li>P decrements the value. If the result is negative, the caller joins the queue and sleeps. V increments the value. If the result is still ≤ 0, at least one process is waiting. Therefore, V wakes one of them.</li>
           <li>A negative value <strong>−n</strong> means n processes are waiting. A positive value is the number of P's that can pass without sleeping.</li>
         </ul>
       </div>
@@ -129,11 +129,11 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
     </div>
     <div class="note note-key">
       <span class="note-tag">Why the wakeup is no longer lost</span>
-      <p>The value <em>remembers</em>. A V that comes before any P raises the value, and the later P finds it positive and does not sleep. Because P runs atomically, "check and go to sleep" is a single step. Both flaws of Lecture 08's sleep/wakeup are gone.</p>
+      <p>The value <em>remembers</em>. A V that comes before any P raises the value. The later P then finds the value positive and does not sleep. In addition, P runs atomically, so "check and go to sleep" is a single step. As such, both flaws of Lecture 08's sleep/wakeup are gone.</p>
     </div>
     <div class="note note-honest">
       <span class="note-tag">Where the spinning went</span>
-      <p>P and V must themselves be atomic, so they are built from more basic primitives, namely a spinlock or disabled interrupts on one core, held only while the few instructions of P or V run. Some busy waiting remains, but it is bounded and short, no longer as long as a whole critical section.</p>
+      <p>P and V must themselves be atomic. Therefore, they are built from more basic primitives, namely a spinlock, or disabled interrupts on one core. This primitive is held only while the few instructions of P or V run. As a result, some busy waiting remains. However, it is short and bounded, and it no longer lasts as long as a whole critical section.</p>
     </div>
   </div>
 
@@ -152,20 +152,20 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       </div>
       <div class="readout" id="sp-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Click P() to request and V() to release. A process that has passed P is "inside" until it calls V. The starvation script comes back in §2.2.</p>
+    <p class="small muted prose read-only">Click P() to request and V() to release. A process that has passed P is "inside" until it calls V. We use the starvation script again in §2.2.</p>
   </div>
 
   <div class="sec" id="s0-3">
     <h3><span class="sec-no">0.3</span>Binary semaphores are locks</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Initialize S to 1 and bracket the critical section with <code>P(S)</code> and <code>V(S)</code>. The first process through drops S to 0. Any other process that arrives drops it below 0 and sleeps, <strong>without busy waiting</strong>. A semaphore whose value stays 0 or 1 like this is a <strong>binary semaphore</strong>. It works like a mutex lock. The general kind, which can go above 1, is a <strong>counting semaphore</strong>.</p>
+        <p>Initialize S to 1, and bracket the critical section with <code>P(S)</code> and <code>V(S)</code>. The first process to pass drops S to 0. Any other process that arrives drops S below 0 and sleeps, <strong>without busy waiting</strong>. A semaphore whose value stays at 0 or 1 in this way is a <strong>binary semaphore</strong>. It works like a mutex lock. In contrast, the general kind, whose value can go above 1, is a <strong>counting semaphore</strong>.</p>
       </div>
       <div class="code"><span class="ln">semaphore S;  S.value = 1;</span><span class="ln"><span class="kw">int</span> counter;</span><span class="ln"> </span><span class="ln"><span class="c">// Producer        // Consumer</span></span><span class="ln">P(S);              P(S);</span><span class="ln cs">counter++;         counter--;</span><span class="ln">V(S);              V(S);</span></div>
     </div>
     <div class="note note-honest">
       <span class="note-tag">Same as a mutex? Almost</span>
-      <p>A mutex has an <strong>owner</strong>. Only the thread that locked it may unlock it, and POSIX can detect violations. A semaphore has no owner. Any process may call V, which is exactly what makes semaphores useful for signaling between processes. The next chapter relies on that.</p>
+      <p>A mutex has an <strong>owner</strong>. Only the thread that locked it may unlock it, and POSIX can detect violations of this rule. In contrast, a semaphore has no owner. Any process may call V. This property makes semaphores useful for signaling between processes, and the next chapter relies on it.</p>
     </div>
   </div>
 
@@ -177,9 +177,9 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="A negative value is not an error in this implementation. It counts sleepers.">It is corrupted, because values cannot be negative.</button>
           <button type="button" class="q-opt" data-ok>Two processes are asleep in its queue, and the next two V's will each wake one.</button>
-          <button type="button" class="q-opt" data-why="The number that can pass freely is the positive value, and here it is zero.">Two more processes can pass P without sleeping.</button>
+          <button type="button" class="q-opt" data-why="The number of processes that can pass freely is the positive value, and here it is zero.">Two more processes can pass P without sleeping.</button>
         </div>
-        <div class="q-fb ok">Right. In this version of P and V, −value is the queue length. (POSIX's <code>sem_getvalue</code> may report 0 instead.)</div>
+        <div class="q-fb ok">Right. In this version of P and V, −value is the queue length. Note that POSIX's <code>sem_getvalue</code> may report 0 instead.</div>
         <div class="q-fb no">Not quite. Try it in §0.2.</div>
       </div>
     </div>
@@ -205,21 +205,21 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       <p>An ideal bounded-buffer solution meets the three goals below.</p>
     </div>
     <div class="opts3">
-      <div><span class="tag">Goal 1</span>The producer sleeps when the buffer is full. <b>space_avail</b> is a counting semaphore initialized to MAX that counts empty slots. Each produce takes one, and at 0 the producer blocks.</div>
-      <div><span class="tag">Goal 2</span>The consumer sleeps when the buffer is empty. <b>item_avail</b> is a counting semaphore initialized to 0 that counts full slots. The producer increments it, each consume takes one, and at 0 the consumer blocks.</div>
-      <div><span class="tag">Goal 3</span>Mutual exclusion on the buffer while it is partially full. <b>mutex</b> is a binary semaphore initialized to 1 that protects <code>buffer</code>, <code>in</code> and <code>out</code>.</div>
+      <div><span class="tag">Goal 1</span>The producer sleeps when the buffer is full. <b>space_avail</b> is a counting semaphore initialized to MAX that counts empty slots. Each produce takes one, and when the value reaches 0, the producer blocks.</div>
+      <div><span class="tag">Goal 2</span>The consumer sleeps when the buffer is empty. <b>item_avail</b> is a counting semaphore initialized to 0 that counts full slots. The producer increments it, and each consume takes one. When the value reaches 0, the consumer blocks.</div>
+      <div><span class="tag">Goal 3</span>Mutual exclusion on the buffer while it is partially full. <b>mutex</b> is a binary semaphore initialized to 1 that protects <code>buffer</code>, <code>in</code>, and <code>out</code>.</div>
     </div>
     <div class="pair">
       <div class="code"><span class="ln">semaphore mutex = 1;</span><span class="ln">semaphore space_avail = MAX;</span><span class="ln">semaphore item_avail = 0;</span><span class="ln"><span class="c">// Producer</span></span><span class="ln"><span class="kw">while</span> (true) {</span><span class="ln">    produce(next_produced);</span><span class="ln">    P(space_avail);</span><span class="ln">    P(mutex);</span><span class="ln cs">    buffer[in] = next_produced;</span><span class="ln cs">    in = (in + 1) % MAX;</span><span class="ln">    V(mutex);</span><span class="ln">    V(item_avail);</span><span class="ln">}</span></div>
       <div class="code"><span class="ln"> </span><span class="ln"> </span><span class="ln"> </span><span class="ln"><span class="c">// Consumer</span></span><span class="ln"><span class="kw">while</span> (true) {</span><span class="ln">    P(item_avail);</span><span class="ln">    P(mutex);</span><span class="ln cs">    next_consumed = buffer[out];</span><span class="ln cs">    out = (out + 1) % MAX;</span><span class="ln">    V(mutex);</span><span class="ln">    V(space_avail);</span><span class="ln">    consume(next_consumed);</span><span class="ln">}</span></div>
     </div>
-    <p class="prose">No busy waiting anywhere. Notice the pairing. The producer <em>waits</em> on space and <em>signals</em> items, and the consumer does the reverse. This is the no-owner property of §0.3 at work.</p>
+    <p class="prose">There is no busy waiting anywhere. Note the pairing. The producer <em>waits</em> on space and <em>signals</em> items, and the consumer does the reverse. This pairing relies on the no-owner property of §0.3.</p>
   </div>
 
   <div class="sec" id="s1-2">
     <h3><span class="sec-no">1.2</span>Run it, with many producers and consumers</h3>
     <div class="prose">
-      <p>Does the solution still work with several producers and several consumers? Step each one yourself, or let a random scheduler interleave them. Then break it by removing the mutex or swapping the producer's two P's.</p>
+      <p>In this section, we check whether the solution still works with several producers and several consumers. Step each process yourself, or let a random scheduler interleave them. Then break the solution by removing the mutex or by swapping the producer's two P's.</p>
     </div>
     <div class="widget" id="bb-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Bounded buffer with semaphores, MAX = 4</span><button class="w-reset" type="button" id="bb-reset">Reset</button></div>
@@ -237,7 +237,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       </div>
       <div class="readout" id="bb-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Each line is one atomic step. A blocked process's button is disabled until a V wakes it. It then continues after its P. "Random ×50" stops early at the first error or deadlock.</p>
+    <p class="small muted prose read-only">Each line is one atomic step. A blocked process's button is disabled until a V wakes it, and the process then continues after its P. "Random ×50" stops early at the first error or deadlock.</p>
   </div>
 
   <div class="sec" id="s1-3">
@@ -246,11 +246,11 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       <div class="code"><span class="ln"><span class="c">// Producer</span></span><span class="ln"><span class="kw">while</span> (true) {</span><span class="ln">    produce(next_produced);</span><span class="ln">    <span class="kw">while</span> ((in + 1) % MAX == out);</span><span class="ln">    buffer[in] = next_produced;</span><span class="ln">    in = (in + 1) % MAX;</span><span class="ln">}</span></div>
       <div class="code"><span class="ln"><span class="c">// Consumer</span></span><span class="ln"><span class="kw">while</span> (true) {</span><span class="ln">    <span class="kw">while</span> (in == out);</span><span class="ln">    next_consumed = buffer[out];</span><span class="ln">    out = (out + 1) % MAX;</span><span class="ln">    consume(next_consumed);</span><span class="ln">}</span></div>
     </div>
-    <p class="prose">There is no counter and there are no locks. The producer writes only <code>in</code>, and the consumer writes only <code>out</code>. Think about each question before opening it.</p>
-    <details class="fold"><summary>Does it work for one producer and one consumer?</summary><div class="prose"><p>Yes. Each shared variable has exactly one writer, so there is no read-modify-write race. The producer fills a slot <em>before</em> advancing <code>in</code>, so the consumer never reads a slot that is not ready. (On modern hardware this needs memory-ordering guarantees, the same caveat as Peterson's solution in Lecture 08.)</p></div></details>
-    <details class="fold"><summary>What are its limitations?</summary><div class="prose"><p>It <strong>busy-waits</strong> in both <code>while</code> loops. It holds only <strong>MAX − 1</strong> items. The test for "full" is <code>(in + 1) % MAX == out</code>, because <code>in == out</code> already means "empty", so one slot is always unused.</p></div></details>
-    <details class="fold"><summary>Does it work for several producers or consumers?</summary><div class="prose"><p>No. Two producers can both see a free slot, both write <code>buffer[in]</code>, and both advance <code>in</code>. One item is overwritten and one slot is skipped, exactly the "no mutex" failure in §1.2.</p></div></details>
-    <details class="fold"><summary>Which solution is more general?</summary><div class="prose"><p>The semaphore solution. It handles any number of producers and consumers, uses all MAX slots, and sleeps instead of spinning. The lock-free version is a clever special case for exactly one of each.</p></div></details>
+    <p class="prose">This solution has no counter and no locks. The producer writes only <code>in</code>, and the consumer writes only <code>out</code>. Think about each question below before you open it.</p>
+    <details class="fold"><summary>Does it work for one producer and one consumer?</summary><div class="prose"><p>Yes. Each shared variable has exactly one writer. Therefore, there is no read-modify-write race. The producer fills a slot <em>before</em> it advances <code>in</code>, so the consumer never reads a slot that is not ready. Note that on modern hardware, this solution needs memory-ordering guarantees, which is the same caveat as for Peterson's solution in Lecture 08.</p></div></details>
+    <details class="fold"><summary>What are its limitations?</summary><div class="prose"><p>First, it <strong>busy-waits</strong> in both <code>while</code> loops. Second, it holds only <strong>MAX − 1</strong> items. The test for "full" is <code>(in + 1) % MAX == out</code>, because <code>in == out</code> already means "empty". As a result, one slot is always unused.</p></div></details>
+    <details class="fold"><summary>Does it work for several producers or consumers?</summary><div class="prose"><p>No. Two producers can both see a free slot, both write <code>buffer[in]</code>, and both advance <code>in</code>. As a result, one item is overwritten and one slot is skipped. This is exactly the "no mutex" failure in §1.2.</p></div></details>
+    <details class="fold"><summary>Which solution is more general?</summary><div class="prose"><p>The semaphore solution is more general. It handles any number of producers and consumers, uses all MAX slots, and sleeps instead of spinning. In contrast, the lock-free version is a special case for exactly one producer and one consumer.</p></div></details>
   </div>
 
   <div class="sec" id="q1">
@@ -259,11 +259,11 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       <div class="quiz-body">
         <div class="q-text">Why is <code>item_avail</code> initialized to 0 and <code>space_avail</code> to MAX?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-ok>At the start the buffer holds 0 items and MAX free slots, and each semaphore counts one of those.</button>
+          <button type="button" class="q-opt" data-ok>At the start, the buffer holds 0 items and MAX free slots, and each semaphore counts one of the two.</button>
           <button type="button" class="q-opt" data-why="Both are counting semaphores. Neither is used as a lock.">item_avail is a lock and space_avail is a counter.</button>
           <button type="button" class="q-opt" data-why="With item_avail = MAX, the consumer would read MAX slots that were never written.">They could be swapped with no effect.</button>
         </div>
-        <div class="q-fb ok">Right. Their sum is always MAX, give or take the items in transit between a P and a V.</div>
+        <div class="q-fb ok">Right. Their sum is always MAX, apart from the items in transit between a P and a V.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -280,14 +280,14 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
   <div class="ch-head">
     <div class="ch-no">Chapter 2</div>
     <h2>What can go wrong</h2>
-    <p class="ch-lede">Semaphores are powerful and unstructured. Nothing checks that P and V are used correctly.</p>
+    <p class="ch-lede">Semaphores are powerful but unstructured. Nothing checks whether P and V are used correctly.</p>
   </div>
 
   <div class="sec" id="s2-1">
     <h3><span class="sec-no">2.1</span>Deadlock</h3>
     <div class="prose">
-      <p>Two shared resources, R1 and R2, each guarded by a binary semaphore, Q for R1 and S for R2. P1 locks S then Q, and P2 locks Q then S. If each gets its first lock, each blocks on the other's. The V's that would wake them never run.</p>
-      <p>No rule enforces the order in which P and V are called. With more processes sharing more semaphores, the potential for deadlock grows. Lecture 12 treats deadlock in full.</p>
+      <p>Consider two shared resources, R1 and R2. Each is guarded by a binary semaphore, namely Q for R1 and S for R2. P1 locks S and then Q, and P2 locks Q and then S. If each process gets its first lock, each blocks on the other's lock. As a result, the V's that would wake them never run.</p>
+      <p>No rule enforces the order in which P and V are called. As more processes share more semaphores, the potential for deadlock grows. Lecture 12 covers deadlock in full.</p>
     </div>
     <div class="widget" id="dl-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Opposite lock order</span><button class="w-reset" type="button" id="dl-reset">Reset</button></div>
@@ -307,7 +307,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
   <div class="sec" id="s2-2">
     <h3><span class="sec-no">2.2</span>Starvation</h3>
     <div class="prose">
-      <p>Three processes share one binary semaphore S that guards R1 and R2. The resource can bounce back and forth between P1 and P2 while P3 never gets it. Which one wakes depends on how the semaphore picks from its queue, and on scheduling. Run the starvation script in §0.2 with each wake order.</p>
+      <p>Three processes share one binary semaphore S, which guards R1 and R2. The resource can pass back and forth between P1 and P2 while P3 never gets it. Which process wakes depends on how the semaphore picks from its queue and on scheduling. Run the starvation script in §0.2 with each wake order.</p>
       <ul>
         <li><strong>LIFO</strong> (newest first). P1 and P2 hand S to each other forever. P3, which queued first, <strong>starves</strong>.</li>
         <li><strong>FIFO</strong> (oldest first). P3 is woken at the first V. A FIFO queue gives bounded waiting.</li>
@@ -318,7 +318,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
   <div class="sec" id="s2-3">
     <h3><span class="sec-no">2.3</span>Simple mistakes, big consequences</h3>
     <div class="prose">
-      <p>P1 below is correct, while P2 contains one of the classic programming mistakes. Pick one and run it.</p>
+      <p>In the widget below, P1 is correct, and P2 contains one of the classic programming mistakes. Pick a mistake and run it.</p>
     </div>
     <div class="widget" id="mu-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">One wrong line</span><button class="w-reset" type="button" id="mu-reset">Reset</button></div>
@@ -342,8 +342,8 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
         <div class="q-text">A producer does <code>P(mutex); P(space_avail);</code> instead of the reverse. What happens when the buffer is full?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="The mutex is still held, so nothing else can touch the buffer.">Items get overwritten.</button>
-          <button type="button" class="q-opt" data-ok>Deadlock, because the producer sleeps on space_avail while holding mutex, and the consumer blocks on mutex, so no one can free a slot.</button>
-          <button type="button" class="q-opt" data-why="The order matters, because sleeping while holding a lock blocks everyone else.">Nothing, because the order of P's doesn't matter.</button>
+          <button type="button" class="q-opt" data-ok>Deadlock. The producer sleeps on space_avail while holding mutex, and the consumer blocks on mutex, so no process can free a slot.</button>
+          <button type="button" class="q-opt" data-why="The order matters, because sleeping while holding a lock blocks everyone else.">Nothing, because the order of P's does not matter.</button>
         </div>
         <div class="q-fb ok">Right. Never sleep on a counting semaphore while holding the mutex. Check it with "P's swapped" in §1.2.</div>
         <div class="q-fb no">Not quite. Try "P's swapped" in §1.2.</div>
@@ -394,19 +394,19 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
         <thead><tr><th>call</th><th>meaning</th></tr></thead>
         <tbody>
           <tr><td>#include &lt;semaphore.h&gt;</td><td></td></tr>
-          <tr><td>sem_init(sem_t *sem, int pshared, unsigned value)</td><td>Initialize an unnamed semaphore to <code>value</code>. With <code>pshared = 0</code>, it is shared among the threads of one process. With a nonzero value, it is shared among processes, in which case <code>sem</code> must live in shared memory (Lecture 04).</td></tr>
+          <tr><td>sem_init(sem_t *sem, int pshared, unsigned value)</td><td>Initialize an unnamed semaphore to <code>value</code>. With <code>pshared = 0</code>, it is shared among the threads of one process. With a nonzero value, it is shared among processes. In this case, <code>sem</code> must live in shared memory (Lecture 04).</td></tr>
           <tr><td>sem_wait(sem_t *sem)</td><td>P(), or wait(). <code>sem_trywait</code> is the non-blocking form (<code>EAGAIN</code>).</td></tr>
           <tr><td>sem_post(sem_t *sem)</td><td>V(), or signal().</td></tr>
-          <tr><td>sem_getvalue(sem_t *sem, int *sval)</td><td>Read the current value into <code>*sval</code>. With waiters, Linux reports 0 rather than a negative number.</td></tr>
-          <tr><td>sem_destroy(sem_t *sem)</td><td>Done with an unnamed semaphore.</td></tr>
-          <tr><td>sem_open / sem_close / sem_unlink</td><td>The named-semaphore family, which opens one by name ("/mysem") so unrelated processes can share it, closes it, and removes the name.</td></tr>
+          <tr><td>sem_getvalue(sem_t *sem, int *sval)</td><td>Read the current value into <code>*sval</code>. If processes are waiting, Linux reports 0 rather than a negative number.</td></tr>
+          <tr><td>sem_destroy(sem_t *sem)</td><td>Release an unnamed semaphore that is no longer in use.</td></tr>
+          <tr><td>sem_open / sem_close / sem_unlink</td><td>The named-semaphore family. These calls open a semaphore by name ("/mysem") so that unrelated processes can share it, close it, and remove the name.</td></tr>
         </tbody>
       </table>
     </div>
     <div class="code" style="max-width:560px;margin-top:12px"><span class="ln">sem_t items;</span><span class="ln">sem_init(&amp;items, 0, 0);    <span class="c">// threads only, starts at 0</span></span><span class="ln">sem_post(&amp;items);          <span class="c">// producer: one more item</span></span><span class="ln">sem_wait(&amp;items);          <span class="c">// consumer: sleep until there is one</span></span><span class="ln">sem_destroy(&amp;items);</span></div>
     <div class="note note-lab">
       <span class="note-tag">In the lab</span>
-      <p>Basecamp 3, Part 2 builds a thread-safe bounded buffer from a mutex and <em>condition variables</em>, the tool of Lecture 10, rather than semaphores. Compare the two designs when you get there.</p>
+      <p>Basecamp 3, Part 2 builds a thread-safe bounded buffer from a mutex and <em>condition variables</em>, which are the tool of Lecture 10, rather than from semaphores. Compare the two designs when you reach that part.</p>
     </div>
   </div>
 
@@ -416,8 +416,8 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       <div class="quiz-body">
         <div class="q-text">Two processes created by <code>fork()</code> want to share an unnamed semaphore. What do they need?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="With pshared = 0, the semaphore is for the threads of one process. After fork, each process has its own copy.">sem_init(&amp;s, 0, 1) before fork is enough.</button>
-          <button type="button" class="q-opt" data-ok>pshared nonzero, and the sem_t placed in memory both can see, such as a shared mmap region.</button>
+          <button type="button" class="q-opt" data-why="With pshared = 0, the semaphore is only for the threads of one process. After fork, each process has its own copy.">sem_init(&amp;s, 0, 1) before fork is enough.</button>
+          <button type="button" class="q-opt" data-ok>A nonzero pshared, and a sem_t placed in memory that both processes can see, such as a shared mmap region.</button>
           <button type="button" class="q-opt" data-why="An ordinary global is copied by fork (copy-on-write), not shared.">A global sem_t variable.</button>
         </div>
         <div class="q-fb ok">Right. Alternatively, use a named semaphore with sem_open.</div>
@@ -443,11 +443,11 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
     <h3><span class="sec-no">∎</span>What to take away</h3>
     <div class="prose">
       <ul>
-        <li>A semaphore is an integer plus a queue. P decrements the value and sleeps if it goes negative. V increments it and wakes a sleeper if any. Both are atomic.</li>
-        <li>The value counts, so early wakeups are not lost, and −value is the number of waiters.</li>
+        <li>A semaphore is an integer plus a queue. P decrements the value and sleeps if it goes negative. V increments it and wakes a sleeping process if there is one. Both operations are atomic.</li>
+        <li>The value counts. Therefore, early wakeups are not lost, and −value is the number of waiting processes.</li>
         <li>A binary semaphore (initialized to 1) acts as a lock without busy waiting. Counting semaphores count resources.</li>
         <li>The bounded buffer uses <code>space_avail = MAX</code>, <code>item_avail = 0</code>, and <code>mutex = 1</code>. It works for any number of producers and consumers.</li>
-        <li>Semaphores are unstructured, which allows deadlock from lock order, starvation from wake order, and ME violations or hangs from a single misplaced P or V.</li>
+        <li>Semaphores are unstructured. As a result, lock order can cause deadlock, wake order can cause starvation, and a single misplaced P or V can cause ME violations or hangs.</li>
         <li>POSIX offers <code>pthread_mutex_*</code>, <code>sem_init/wait/post/getvalue/destroy</code>, and <code>sem_open/close/unlink</code> for named semaphores.</li>
       </ul>
     </div>
@@ -457,7 +457,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
     <table class="glossary">
       <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
       <tbody>
-        <tr><td>semaphore</td><td>An integer value plus a queue, used only via atomic P and V.</td></tr>
+        <tr><td>semaphore</td><td>An integer value plus a queue, used only through atomic P and V.</td></tr>
         <tr><td>P / wait / sem_wait</td><td>Decrement, and sleep if the value is negative.</td></tr>
         <tr><td>V / signal / sem_post</td><td>Increment, and wake a waiter if the value is ≤ 0.</td></tr>
         <tr><td>binary / counting semaphore</td><td>Value 0 or 1, used as a lock / any value, used as a counter.</td></tr>
@@ -526,7 +526,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       P(0); P(2); P(1);            // P1 inside; P3 queues first, then P2
       let holder = st[0] === 'in' ? 0 : -1, p3 = false;
       for (let r = 0; r < 6; r++) { const h = st.findIndex((s) => s === 'in'); if (h === 2) { p3 = true; break; } V(h); if (st[2] === 'in') { p3 = true; break; } P(h); }
-      render(p3 ? `<b>P3 got in.</b> With FIFO, the process that queued first is woken first. ` : `<b class="bad">P3 starves.</b> After 6 rounds P1 and P2 are still passing S back and forth, because LIFO always wakes the newest waiter. `);
+      render(p3 ? `<b>P3 got in.</b> With FIFO, the process that queued first is woken first. ` : `<b class="bad">P3 starves.</b> After 6 rounds, P1 and P2 are still passing S back and forth, because LIFO always wakes the newest waiter. `);
     });
     $('#sp-reset').addEventListener('click', () => { $('#sp-init').value = '1'; order = 'fifo'; init(); render(); });
     init(); render();
@@ -637,7 +637,7 @@ table.api td:first-child { font-family: var(--f-mono); font-size: 12.5px; white-
       E = Engine({ sems: { S: 1 }, actors: [{ name: 'P1 (correct)', prog: ok }, { name: 'P2 (buggy)', prog: BAD[kind] }],
         check: (E2) => (E2.actors.every((a) => a.prog[a.pc].k === 'cs' && !a.blk) ? '<b class="bad">Mutual exclusion violated.</b> Both processes are in the critical section.' : null) });
     }
-    const NOTE = { pp: 'P2 calls P twice, so it blocks on its own lock and never releases it.', noP: 'P2 enters without asking, and its V also pushes S above 1.', noV: 'P2 leaves without releasing. S stays 0, and the next P blocks forever.', rev: 'V first raises S to 2, and both can pass.' };
+    const NOTE = { pp: 'P2 calls P twice, so it blocks on its own lock and never releases it.', noP: 'P2 enters without calling P, and its V also pushes S above 1.', noV: 'P2 leaves without releasing. S stays 0, and the next P blocks forever.', rev: 'The V comes first and raises S to 2, so both processes can pass.' };
     function render() {
       $$('#mu-k [data-k]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === kind)));
       renderEngine(E, $('#mu-act'), $('#mu-sem'), render);

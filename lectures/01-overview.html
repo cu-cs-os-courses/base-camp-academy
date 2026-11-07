@@ -64,7 +64,7 @@
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 01 · Interactive notes</div>
     <h1>The one program<br>that is <span class="accent">always running</span></h1>
-    <p class="lede">Every program you have written asked the computer for something, such as memory, a file, the screen, or the CPU itself. Something decided whether and when to say yes. That something is the operating system. This first lecture places it between users and hardware, reviews the hardware it manages, and names the jobs the rest of the course takes apart one by one.</p>
+    <p class="lede">Every program you have written asks the computer for something, such as memory, a file, the screen, or the CPU itself. The operating system decides whether and when to grant each request. In this lecture, we first place the OS between users and hardware. Second, we review the hardware it manages. Third, we name the jobs of the OS, which the rest of the course studies one by one.</p>
     <div class="promise">
       <span>Before you start, you need</span><span class="mono">some C and a computer-organization course</span><span>Everything OS-specific is introduced here.</span>
     </div>
@@ -112,7 +112,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 0</div>
     <h2>What an operating system is</h2>
-    <p class="ch-lede">There is no universally accepted definition. Start with where it sits.</p>
+    <p class="ch-lede">There is no universally accepted definition. Therefore, we start with where the OS sits.</p>
   </div>
 
   <div class="sec" id="s0-1">
@@ -140,8 +140,8 @@
   <div class="sec" id="s0-2">
     <h3><span class="sec-no">0.2</span>What operating systems do</h3>
     <div class="prose">
-      <p>An OS is a program that acts as an <strong>intermediary</strong> between a user of a computer and the hardware. It has three goals. It executes user programs and makes solving problems easier, it makes the computer convenient to use, and it uses the hardware efficiently.</p>
-      <p data-step="1">What that means depends on the point of view.</p>
+      <p>An OS is a program that acts as an <strong>intermediary</strong> between a user of a computer and the hardware. It has three goals. First, it executes user programs and makes solving problems easier. Second, it makes the computer convenient to use. Third, it uses the hardware efficiently.</p>
+      <p data-step="1">What these goals mean depends on the point of view.</p>
       <ul data-step="1">
         <li>A <strong>user at a laptop</strong> wants convenience, ease of use, and good performance, and does not care about resource utilization.</li>
         <li>A <strong>shared computer</strong> (mainframe, minicomputer, server) must keep all its users happy. Therefore, the OS is a <strong>resource allocator</strong> and a <strong>control program</strong> that uses the hardware efficiently and manages the execution of user programs.</li>
@@ -156,9 +156,9 @@
     <h3><span class="sec-no">0.3</span>Defining the operating system</h3>
     <div class="prose">
       <ul>
-        <li>"Everything a vendor ships when you order an operating system" is a good approximation, but it varies wildly.</li>
+        <li>"Everything a vendor ships when you order an operating system" is a good approximation. However, what vendors ship varies widely.</li>
         <li data-step="1">"The one program running at all times on the computer" is the <strong>kernel</strong>, part of the OS. Everything else is either a <strong>system program</strong> (ships with the OS, not part of the kernel) or an <strong>application program</strong>.</li>
-        <li data-step="2">General-purpose and mobile OSes today also include <strong>middleware</strong>, that is, frameworks that give application developers extra services such as databases, multimedia and graphics.</li>
+        <li data-step="2">General-purpose and mobile OSes today also include <strong>middleware</strong>, namely frameworks that give application developers extra services such as databases, multimedia and graphics.</li>
       </ul>
     </div>
     <div class="note note-key" data-step="2">
@@ -172,8 +172,8 @@
     <div class="prose">
       <ul>
         <li>Early OSes were written in assembly, then in system programming languages like Algol and PL/1, and now in C, C++, and increasingly Rust.</li>
-        <li data-step="1">Usually it is a mix, with the lowest levels in assembly, the main body in C, system programs in C, C++ and scripting languages (Perl, Python, shell).</li>
-        <li data-step="2">A higher-level language is easier to port to other hardware, but slower. Emulation can let an OS run on non-native hardware.</li>
+        <li data-step="1">Usually, an OS is written in a mix of languages. The lowest levels are in assembly, and the main body is in C. System programs are in C, C++, and scripting languages (Perl, Python, shell).</li>
+        <li data-step="2">A higher-level language is easier to port to other hardware. However, it is slower. Note that emulation can let an OS run on non-native hardware.</li>
       </ul>
     </div>
   </div>
@@ -200,7 +200,7 @@
           <li>One or more CPUs and device controllers connect through a common <strong>bus</strong> that gives access to shared memory.</li>
           <li data-step="1">CPUs and devices execute <strong>concurrently</strong>, competing for memory cycles.</li>
           <li data-step="2">Each <strong>device controller</strong> is in charge of one device type and has a local buffer. Each controller type has an OS <strong>device driver</strong> to manage it.</li>
-          <li data-step="3">The CPU moves data between main memory and the controllers' buffers. I/O itself moves data between the device and its controller's buffer. The controller tells the CPU it has finished by causing an <strong>interrupt</strong>.</li>
+          <li data-step="3">The CPU moves data between main memory and the controllers' buffers. I/O itself moves data between the device and its controller's buffer. The controller tells the CPU that it has finished by causing an <strong>interrupt</strong>.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -258,10 +258,10 @@
   <div class="sec" id="s1-4">
     <h3><span class="sec-no">1.4</span>Two ways to wait for I/O</h3>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">Return only when I/O completes</span>A wait instruction idles the CPU until the next interrupt, or a wait loop spins (contending for memory). At most one I/O request is outstanding at a time, so there is no simultaneous I/O.</div>
-      <div data-step="1"><span class="tag">Return without waiting</span>The program continues, and a <strong>system call</strong> lets it wait for completion when it wants. A <strong>device-status table</strong> has an entry per device with its type, address and state. The OS updates the entry when the device interrupts.</div>
+      <div><span class="tag">Return only when I/O completes</span>A wait instruction idles the CPU until the next interrupt, or a wait loop spins (contending for memory). At most one I/O request is outstanding at a time. Therefore, there is no simultaneous I/O.</div>
+      <div data-step="1"><span class="tag">Return without waiting</span>The program continues, and a <strong>system call</strong> lets it wait for completion when it chooses. A <strong>device-status table</strong> has an entry per device with its type, address, and state. The OS updates the entry when the device interrupts.</div>
     </div>
-    <p class="prose small muted" data-step="1">Lectures 17 and 18 take these apart as polling, interrupt-driven I/O, and DMA.</p>
+    <p class="prose small muted" data-step="1">Lectures 17 and 18 study these two approaches in detail as polling, interrupt-driven I/O, and DMA.</p>
   </div>
 
   <div class="sec" id="q1">
@@ -270,9 +270,9 @@
       <div class="quiz-body">
         <div class="q-text">How does a disk controller tell the CPU that a transfer it was asked to do has finished?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="The OS could poll, but that wastes CPU time. The normal mechanism is for the device to signal.">The OS checks the controller every millisecond.</button>
+          <button type="button" class="q-opt" data-why="The OS could poll. However, polling wastes CPU time. In the normal mechanism, the device signals the CPU.">The OS checks the controller every millisecond.</button>
           <button type="button" class="q-opt" data-ok>It raises an interrupt. The CPU saves its state and jumps, through the interrupt vector, to the disk's service routine.</button>
-          <button type="button" class="q-opt" data-why="Traps are software-generated, by the running program. A device completing work is a hardware interrupt.">It executes a trap instruction.</button>
+          <button type="button" class="q-opt" data-why="Traps are generated in software by the running program. In contrast, a device that completes its work raises a hardware interrupt.">It executes a trap instruction.</button>
         </div>
         <div class="q-fb ok">Right. That is why the OS is called interrupt driven.</div>
         <div class="q-fb no">Not quite.</div>
@@ -291,16 +291,16 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 2</div>
     <h2>Storage</h2>
-    <p class="ch-lede">Fast storage is small, expensive and forgets. Big storage is slow and remembers. The OS lives with both.</p>
+    <p class="ch-lede">Fast storage is small, expensive, and volatile. Large storage is slow and non-volatile. The OS manages both.</p>
   </div>
 
   <div class="sec" id="s2-1">
     <h3><span class="sec-no">2.1</span>Main memory and secondary storage</h3>
     <div class="prose">
       <ul>
-        <li><strong>Main memory</strong> is the only large storage the CPU can access directly. It is random access, typically <strong>volatile</strong>, usually dynamic RAM (DRAM).</li>
+        <li><strong>Main memory</strong> is the only large storage the CPU can access directly. It is random access and typically <strong>volatile</strong>, and it is usually dynamic RAM (DRAM).</li>
         <li data-step="1"><strong>Secondary storage</strong> extends main memory with large <strong>non-volatile</strong> capacity.</li>
-        <li data-step="2"><strong>Hard disk drives</strong> (HDDs) use rigid platters coated with magnetic material, divided into tracks and sectors. The disk controller manages the interaction with the computer. <strong>Non-volatile memory</strong> (NVM) devices, such as flash SSDs, are faster and becoming more popular as capacity and performance rise and prices fall (Lecture 19).</li>
+        <li data-step="2"><strong>Hard disk drives</strong> (HDDs) use rigid platters coated with magnetic material, divided into tracks and sectors. The disk controller manages the interaction with the computer. <strong>Non-volatile memory</strong> (NVM) devices, such as flash SSDs, are faster. They are becoming more popular as capacity and performance rise and prices fall (Lecture 19).</li>
       </ul>
     </div>
   </div>
@@ -308,7 +308,7 @@
   <div class="sec" id="s2-2">
     <h3><span class="sec-no">2.2</span>The storage hierarchy</h3>
     <div class="prose">
-      <p>Storage is organized in a hierarchy by <strong>speed</strong>, <strong>cost</strong> and <strong>volatility</strong>. <strong>Caching</strong> copies information into faster storage. Main memory can be viewed as a cache for secondary storage. Click a level.</p>
+      <p>Storage is organized in a hierarchy by <strong>speed</strong>, <strong>cost</strong>, and <strong>volatility</strong>. <strong>Caching</strong> copies information into faster storage. Note that main memory can be viewed as a cache for secondary storage. Click a level in the widget below.</p>
     </div>
     <div class="widget" id="hy-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">If a register access took one second…</span><button class="w-reset" type="button" id="hy-reset">Reset</button></div>
@@ -322,9 +322,9 @@
     <h3><span class="sec-no">2.3</span>Caching</h3>
     <div class="prose">
       <ul>
-        <li>An important principle, applied at many levels, namely hardware, OS, and software.</li>
-        <li data-step="1">Information in use is copied temporarily from slower to faster storage. The cache is checked first. If the information is there, use it directly (fast). If not, copy it into the cache and use it there.</li>
-        <li data-step="2">The cache is smaller than what it caches, so <strong>cache management</strong> (its size and its replacement policy) is an important design problem. You will meet it as the TLB (L14), page replacement (L16), and the buffer cache (L20).</li>
+        <li>Caching is an important principle. It is applied at many levels, namely hardware, OS, and software.</li>
+        <li data-step="1">Information in use is copied temporarily from slower to faster storage. The cache is checked first. If the information is there, it is used directly (fast). Otherwise, it is copied into the cache and used there.</li>
+        <li data-step="2">The cache is smaller than the storage it caches. Therefore, <strong>cache management</strong> (its size and its replacement policy) is an important design problem. You will see it again as the TLB (L14), page replacement (L16), and the buffer cache (L20).</li>
       </ul>
     </div>
   </div>
@@ -334,7 +334,7 @@
     <div class="two-up">
       <div class="prose">
         <p>In a <strong>von Neumann</strong> architecture, instructions and data share memory. The CPU fetches an instruction, executes it, and moves data between memory and its registers.</p>
-        <p data-step="1">Devices move data either one word at a time through the CPU (after an interrupt), or in bulk by <strong>DMA</strong>, straight into memory, with a single interrupt at the end.</p>
+        <p data-step="1">Devices move data in one of two ways. First, a device moves one word at a time through the CPU (after an interrupt). Second, a device moves data in bulk by <strong>DMA</strong>, directly into memory, with a single interrupt at the end.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -367,7 +367,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 3</div>
     <h2>Running many programs</h2>
-    <p class="ch-lede">From boot to multiprogramming to timesharing, and why the OS switches between programs at all.</p>
+    <p class="ch-lede">This chapter goes from boot to multiprogramming to timesharing, and it explains why the OS switches between programs at all.</p>
   </div>
 
   <div class="sec" id="s3-1">
@@ -376,7 +376,7 @@
       <ol>
         <li>A small <strong>bootstrap program</strong> initializes the system and loads the kernel.</li>
         <li data-step="1">The <strong>kernel</strong> loads and starts <strong>system daemons</strong>, which are services provided outside the kernel.</li>
-        <li data-step="2">From then on the kernel is <strong>interrupt driven</strong>, by hardware interrupts from devices and by software interrupts (exceptions or traps). Software interrupts come from software errors such as division by zero, requests for OS service (<strong>system calls</strong>), and other process problems such as infinite loops or processes modifying each other or the OS.</li>
+        <li data-step="2">From then on, the kernel is <strong>interrupt driven</strong>. It is driven by hardware interrupts from devices and by software interrupts (exceptions or traps). Software interrupts come from software errors such as division by zero, requests for OS service (<strong>system calls</strong>), and other process problems such as infinite loops or processes modifying each other or the OS.</li>
       </ol>
     </div>
   </div>
@@ -386,8 +386,8 @@
     <div class="prose">
       <ul>
         <li>A single user cannot keep the CPU and I/O devices busy all the time.</li>
-        <li data-step="1"><strong>Multiprogramming</strong> (batch systems) keeps several jobs (code and data) in memory so the CPU always has one to run. One is selected by <strong>job scheduling</strong>. When it has to wait, for I/O for example, the OS switches to another.</li>
-        <li data-step="2"><strong>Multitasking</strong> (timesharing) is the logical extension. The CPU switches so often that users can interact with each job while it runs. Response time should be under a second. Each user has at least one program in memory, a <strong>process</strong>. Choosing among ready processes is <strong>CPU scheduling</strong>, and <strong>swapping</strong> and <strong>virtual memory</strong> handle processes that do not fit in memory.</li>
+        <li data-step="1"><strong>Multiprogramming</strong> (batch systems) keeps several jobs (code and data) in memory, so that the CPU always has one to run. <strong>Job scheduling</strong> selects one of them. When that job has to wait, for example for I/O, the OS switches to another job.</li>
+        <li data-step="2"><strong>Multitasking</strong> (timesharing) is the logical extension of multiprogramming. The CPU switches jobs so frequently that users can interact with each job while it runs. Response time should be under a second. Each user has at least one program in memory, namely a <strong>process</strong>. Choosing among ready processes is <strong>CPU scheduling</strong>. <strong>Swapping</strong> and <strong>virtual memory</strong> handle processes that do not fit in memory.</li>
       </ul>
     </div>
   </div>
@@ -410,7 +410,7 @@
       </div>
       <div class="readout" id="mp-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Each job alternates CPU bursts and I/O. Timesharing here uses a 1-unit time slice.</p>
+    <p class="small muted prose read-only">Each job alternates between CPU bursts and I/O. In this widget, timesharing uses a 1-unit time slice.</p>
   </div>
 
   <div class="ch-nav">
@@ -424,17 +424,17 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 4</div>
     <h2>Dual mode and the timer</h2>
-    <p class="ch-lede">If many programs share one machine, the OS must protect itself and them from each other. Two pieces of hardware make that possible.</p>
+    <p class="ch-lede">When many programs share one machine, the OS must protect itself and the programs from each other. Two hardware features make this protection possible.</p>
   </div>
 
   <div class="sec" id="s4-1">
     <h3><span class="sec-no">4.1</span>User mode and kernel mode</h3>
     <div class="prose">
       <ul>
-        <li><strong>Dual-mode operation</strong> lets the OS protect itself and other components, with <strong>user mode</strong> and <strong>kernel mode</strong>.</li>
+        <li><strong>Dual-mode operation</strong> lets the OS protect itself and other components. It has two modes, <strong>user mode</strong> and <strong>kernel mode</strong>.</li>
         <li data-step="1">A <strong>mode bit</strong>, provided by hardware, says whether user code or kernel code is running.</li>
-        <li data-step="2">Some instructions are <strong>privileged</strong>, that is, executable only in kernel mode.</li>
-        <li data-step="3">How do we guarantee a user program never sets the mode bit to "kernel" itself? It can't, because only a <strong>system call</strong> (a trap) switches to kernel mode, and it jumps to kernel code the OS chose. Returning from the call sets user mode again.</li>
+        <li data-step="2">Some instructions are <strong>privileged</strong>. In other words, they are executable only in kernel mode.</li>
+        <li data-step="3">Note that a user program cannot set the mode bit to "kernel" itself. Only a <strong>system call</strong> (a trap) switches to kernel mode, and the trap jumps to kernel code that the OS chose. Returning from the call sets user mode again.</li>
       </ul>
     </div>
   </div>
@@ -444,8 +444,8 @@
     <div class="prose">
       <ul>
         <li>A <strong>timer</strong> prevents an infinite loop, or a process hogging resources, from keeping the CPU forever.</li>
-        <li data-step="1">The OS sets a counter (a privileged instruction), which the physical clock decrements. When it reaches zero, the hardware raises an interrupt.</li>
-        <li data-step="2">The OS sets it before scheduling a process, to regain control, or to terminate a program that exceeds its allotted time.</li>
+        <li data-step="1">The OS sets a counter (a privileged instruction), which the physical clock decrements. When the counter reaches zero, the hardware raises an interrupt.</li>
+        <li data-step="2">The OS sets the timer before it schedules a process. As such, the OS can regain control, or terminate a program that exceeds its allotted time.</li>
       </ul>
     </div>
   </div>
@@ -475,7 +475,7 @@
         <div class="q-text">A user program tries to execute the instruction that sets the timer. What happens?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="If it worked, any program could turn the timer off and keep the CPU forever.">The timer is set, and the program gets more CPU time.</button>
-          <button type="button" class="q-opt" data-ok>It is a privileged instruction in user mode, so the hardware traps to the OS, which typically terminates the program.</button>
+          <button type="button" class="q-opt" data-ok>It is a privileged instruction executed in user mode. Therefore, the hardware traps to the OS, which typically terminates the program.</button>
           <button type="button" class="q-opt" data-why="The mode bit cannot be flipped by user code. Only a trap enters kernel mode, and it jumps to the OS, not to the program.">The CPU switches to kernel mode and executes it.</button>
         </div>
         <div class="q-fb ok">Right. That is how dual mode and the timer protect each other.</div>
@@ -495,16 +495,16 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 5</div>
     <h2>What the OS manages</h2>
-    <p class="ch-lede">A map of the rest of the semester.</p>
+    <p class="ch-lede">This chapter maps the rest of the semester.</p>
   </div>
 
   <div class="sec" id="s5-1">
     <h3><span class="sec-no">5.1</span>Process management</h3>
     <div class="prose">
       <ul>
-        <li>A <strong>process</strong> is a program in execution, a unit of work. A program is a <em>passive</em> entity, and a process is <em>active</em>.</li>
-        <li data-step="1">It needs resources (CPU, memory, I/O, files, initialization data), and its termination must reclaim the reusable ones.</li>
-        <li data-step="2">A single-threaded process has one <strong>program counter</strong> and executes instructions one at a time. A multi-threaded process has one per thread. Many processes, user and OS, run concurrently by <strong>multiplexing</strong> the CPUs.</li>
+        <li>A <strong>process</strong> is a program in execution, a unit of work. A program is a <em>passive</em> entity. In contrast, a process is <em>active</em>.</li>
+        <li data-step="1">A process needs resources (CPU, memory, I/O, files, initialization data). When it terminates, the reusable resources must be reclaimed.</li>
+        <li data-step="2">A single-threaded process has one <strong>program counter</strong> and executes instructions one at a time. A multi-threaded process has one program counter per thread. Many processes, user and OS, run concurrently by <strong>multiplexing</strong> the CPUs.</li>
         <li data-step="3">The OS creates and deletes processes, suspends and resumes them, and provides mechanisms for <strong>synchronization</strong>, <strong>communication</strong>, and <strong>deadlock</strong> handling. <span class="muted">(Lectures 3–12.)</span></li>
       </ul>
     </div>
@@ -514,8 +514,8 @@
     <h3><span class="sec-no">5.2</span>Memory management</h3>
     <div class="prose">
       <ul>
-        <li>To execute, all or part of a program's instructions and data must be in memory. Memory management decides what is in memory and when, to optimize CPU utilization and response time.</li>
-        <li data-step="1">It keeps track of which parts of memory are in use and by whom, decides which processes and data move in and out, and allocates and frees memory. <span class="muted">(Lectures 13–16.)</span></li>
+        <li>To execute a program, all or part of its instructions and data must be in memory. Memory management decides what is in memory and when. Its goal is to optimize CPU utilization and response time.</li>
+        <li data-step="1">Specifically, it keeps track of which parts of memory are in use and by whom, decides which processes and data move in and out, and allocates and frees memory. <span class="muted">(Lectures 13–16.)</span></li>
       </ul>
     </div>
   </div>
@@ -523,9 +523,9 @@
   <div class="sec" id="s5-3">
     <h3><span class="sec-no">5.3</span>Storage, files and I/O</h3>
     <div class="opts3">
-      <div><span class="tag">File systems</span>A uniform, logical view of storage, in which the <strong>file</strong> abstracts the physical medium. Directories, access control, creating and deleting files and directories, mapping them onto secondary storage, backups. (L20)</div>
-      <div data-step="1"><span class="tag">Mass storage</span>The speed of the whole computer can hinge on the disk subsystem, which handles mounting, free-space management, allocation, disk scheduling, partitioning, protection. (L19)</div>
-      <div data-step="2"><span class="tag">I/O subsystem</span>Hide the peculiarities of devices, with buffering, caching, spooling (overlapping one job's output with another's input), a general driver interface, and specific drivers. (L17–18)</div>
+      <div><span class="tag">File systems</span>The file system gives a uniform, logical view of storage, in which the <strong>file</strong> abstracts the physical medium. It covers directories, access control, creating and deleting files and directories, mapping them onto secondary storage, and backups. (L20)</div>
+      <div data-step="1"><span class="tag">Mass storage</span>The speed of the whole computer can depend on the disk subsystem. This subsystem handles mounting, free-space management, allocation, disk scheduling, partitioning, and protection. (L19)</div>
+      <div data-step="2"><span class="tag">I/O subsystem</span>The I/O subsystem hides the peculiarities of devices. It uses buffering, caching, spooling (overlapping one job's output with another's input), a general driver interface, and specific drivers. (L17–18)</div>
     </div>
   </div>
 
@@ -533,11 +533,11 @@
     <h3><span class="sec-no">5.4</span>Structuring an operating system</h3>
     <div class="two-up">
       <div class="prose">
-        <p>A general-purpose OS is a very large program, and there are several ways to structure it.</p>
+        <p>A general-purpose OS is a very large program. There are several ways to structure it.</p>
         <ul>
           <li><strong>Monolithic</strong> (UNIX, Linux). The whole kernel is one program in one address space.</li>
-          <li data-step="1"><strong>Microkernel</strong> (Mach). A small kernel has only communication, basic memory and CPU scheduling. File systems and drivers run as user-level servers that talk by messages.</li>
-          <li data-step="2">This course focuses on <strong>monolithic plus modular</strong> design, namely Linux, with loadable kernel modules, like the driver you write in Basecamp 5.</li>
+          <li data-step="1"><strong>Microkernel</strong> (Mach). The small kernel provides only communication, basic memory management, and CPU scheduling. File systems and drivers run as user-level servers that communicate through messages.</li>
+          <li data-step="2">This course focuses on <strong>monolithic plus modular</strong> design, namely Linux, with loadable kernel modules, such as the driver you write in Basecamp 5.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -569,14 +569,14 @@
     <h3><span class="sec-no">5.5</span>Policy and mechanism</h3>
     <div class="prose">
       <ul>
-        <li><strong>Policy</strong>. <em>What</em> needs to be done? For example, interrupt every 100 seconds.</li>
-        <li data-step="1"><strong>Mechanism</strong>. <em>How</em> to do it? For example, the timer.</li>
-        <li data-step="2">Separate them. Then a policy decision can change later (100 becomes 200) without touching the mechanism, which gives maximum flexibility.</li>
+        <li><strong>Policy</strong> defines <em>what</em> needs to be done. For example, interrupt every 100 seconds.</li>
+        <li data-step="1"><strong>Mechanism</strong> defines <em>how</em> to do it. For example, the timer.</li>
+        <li data-step="2">The two should be kept separate. As such, a policy decision can change later (100 becomes 200) without changing the mechanism. This separation gives maximum flexibility.</li>
       </ul>
     </div>
     <div class="note note-key" data-step="2">
       <span class="note-tag">Watch for it</span>
-      <p>This split recurs all semester, in the timer vs. the scheduling policy (L6), paging vs. the replacement policy (L16), the access matrix vs. who may use what (L22).</p>
+      <p>This split recurs throughout the semester, for example, in the timer vs. the scheduling policy (L6), paging vs. the replacement policy (L16), and the access matrix vs. who may use what (L22).</p>
     </div>
   </div>
 
@@ -629,16 +629,16 @@
     <div class="prose">
       <ul>
         <li>The OS sits between applications and hardware, as a resource allocator and control program. Its core, the kernel, is the one program always running.</li>
-        <li>CPUs and device controllers run concurrently on a shared bus. Devices report with interrupts, and the OS is interrupt driven.</li>
-        <li>Storage forms a hierarchy of speed, cost and volatility, and caching makes it look fast.</li>
-        <li>Multiprogramming keeps the CPU busy while jobs wait for I/O, and timesharing switches often enough for interaction.</li>
+        <li>CPUs and device controllers run concurrently on a shared bus. Devices report through interrupts. As such, the OS is interrupt driven.</li>
+        <li>Storage forms a hierarchy of speed, cost, and volatility. Caching makes the hierarchy look fast.</li>
+        <li>Multiprogramming keeps the CPU busy while jobs wait for I/O. Timesharing switches often enough for interaction.</li>
         <li>Dual-mode operation and the timer let the OS protect itself and keep control.</li>
-        <li>The OS manages processes, memory, files, storage and I/O. It is structured monolithically, as microkernels, or modularly. Policy is kept apart from mechanism.</li>
+        <li>The OS manages processes, memory, files, storage, and I/O. It is structured monolithically, as a microkernel, or modularly. Policy is kept separate from mechanism.</li>
       </ul>
     </div>
     <div class="note note-lab" data-step="1">
       <span class="note-tag">In the lab</span>
-      <p>Basecamp 0 has you read <code>/proc</code> inside the course VM. It is the kernel's own view of the processes, memory and devices this lecture lists.</p>
+      <p>In Basecamp 0, you read <code>/proc</code> inside the course VM. This directory is the kernel's own view of the processes, memory, and devices that this lecture lists.</p>
     </div>
   </div>
 
@@ -648,14 +648,14 @@
       <tbody>
         <tr><td>kernel</td><td>The part of the OS that runs at all times, in kernel mode.</td></tr>
         <tr><td>system / application program</td><td>Ships with the OS but runs outside the kernel / everything else.</td></tr>
-        <tr><td>middleware</td><td>Frameworks giving applications extra services (databases, graphics).</td></tr>
+        <tr><td>middleware</td><td>Frameworks that give applications extra services (databases, graphics).</td></tr>
         <tr><td>device controller / driver</td><td>Hardware in charge of one device type / the OS code that manages it.</td></tr>
         <tr><td>interrupt, interrupt vector</td><td>A signal that transfers control to a service routine / the table of their addresses.</td></tr>
         <tr><td>trap, exception</td><td>A software-generated interrupt, caused by an error or a request for OS service.</td></tr>
         <tr><td>volatile</td><td>Loses its contents when power is removed.</td></tr>
         <tr><td>caching</td><td>Copying information into faster storage while it is in use.</td></tr>
         <tr><td>multiprogramming / timesharing</td><td>Keep several jobs in memory so the CPU is busy / switch often enough for interactive use.</td></tr>
-        <tr><td>mode bit, privileged instruction</td><td>Hardware state distinguishing user and kernel mode / an instruction allowed only in kernel mode.</td></tr>
+        <tr><td>mode bit, privileged instruction</td><td>Hardware state that distinguishes user mode from kernel mode / an instruction allowed only in kernel mode.</td></tr>
         <tr><td>system call</td><td>A trap that asks the OS for a service and enters kernel mode.</td></tr>
         <tr><td>process</td><td>A program in execution.</td></tr>
         <tr><td>policy / mechanism</td><td>What should be done / how it is done.</td></tr>
@@ -743,11 +743,11 @@
     const DEV = [[0, 0.4, 'idle'], [0.4, 2, 'xfer'], [2, 3, 'idle'], [3, 5, 'xfer'], [5, 10.5, 'idle']];
     const EV = [
       { t: 0, cap: 'The user program runs on the CPU, and the I/O device is idle.' },
-      { t: 0.4, cap: 'The program requests output. The device starts transferring, while the CPU keeps running the program. They work <b>concurrently</b>.' },
+      { t: 0.4, cap: 'The program requests output. The device starts transferring, while the CPU keeps running the program. In other words, they work <b>concurrently</b>.' },
       { t: 2, cap: 'The transfer is done, and the device raises an <span class="bad">interrupt</span>. The CPU saves the program\'s state and runs the interrupt service routine.' },
       { t: 2.5, cap: 'The service routine finishes. The CPU restores the program\'s state and resumes it exactly where it stopped.' },
       { t: 3, cap: 'A second I/O request follows, and the device transfers again, still in parallel with the program.' },
-      { t: 5, cap: 'Another interrupt, another short trip through the service routine. The CPU spends only brief moments on I/O.' },
+      { t: 5, cap: 'The device raises another interrupt, and the CPU runs the service routine again for a short time. Note that the CPU spends only brief moments on I/O.' },
     ];
     let i = 0;
     function show(k) {
@@ -791,7 +791,7 @@
     function render() {
       $('#hy-l').innerHTML = L.map(([n, sz, ns, vol], i) => `<div class="lv${vol ? ' vol' : ''}" data-i="${i}" role="button" tabindex="0" aria-pressed="${i === sel}"><span class="nm">${n}</span><span class="t">~${fmt(ns)} · ${sz}</span><span class="bar" style="width:${Math.max(3, (Math.log10(ns) + 1) / 8 * 100)}%"></span><span class="hu">${human(ns)}</span></div>`).join('');
       const [n, sz, ns, vol] = L[sel];
-      $('#hy-out').innerHTML = `If a register access took <b>1 second</b>, one ${n} access would take <b>${human(ns)}</b>. ${sel >= 3 ? 'This is why the CPU never waits for storage directly. The OS schedules another process instead (Chapter 3).' : sel === 2 ? 'Main memory is the last level the CPU reaches directly, and the first that is large. It is still volatile.' : 'Small and fast. It is managed by hardware and invisible to the OS.'} ${vol ? '' : 'It is non-volatile, so it keeps data without power.'}`;
+      $('#hy-out').innerHTML = `If a register access took <b>1 second</b>, one ${n} access would take <b>${human(ns)}</b>. ${sel >= 3 ? 'Therefore, the CPU never waits for this storage directly. Instead, the OS schedules another process (Chapter 3).' : sel === 2 ? 'Main memory is the last level the CPU reaches directly, and the first level that is large. However, it is still volatile.' : 'This level is small and fast. It is managed by hardware and invisible to the OS.'} ${vol ? '' : 'It is non-volatile. Therefore, it keeps data without power.'}`;
     }
     $('#hy-l').addEventListener('click', (e) => { const d = e.target.closest('[data-i]'); if (d) { sel = +d.dataset.i; render(); } });
     $('#hy-l').addEventListener('keydown', (e) => { const d = e.target.closest('[data-i]'); if (d && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); sel = +d.dataset.i; render(); } });
@@ -860,7 +860,7 @@
       for (let t = 0; t <= r.t; t += 2) svg.appendChild(el('text', { x: X(t), y: 180, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, t));
       const util = Math.round(r.busy / r.t * 100);
       $('#mp-stats').innerHTML = `<div><div class="lab">all jobs finish at</div><div class="big">t = ${r.t}</div></div><div class="${util < 60 ? 'warn' : ''}"><div class="lab">CPU utilization</div><div class="big">${util}%</div></div>`;
-      $('#mp-out').innerHTML = ['One job runs at a time. Whenever the running job waits for I/O, the CPU sits idle, and the others wait even though they could run.', 'With multiprogramming, when a job starts I/O, the OS switches to another ready job. Same work, much less idle CPU, everything finishes sooner.', 'With timesharing, the OS also switches every time slice, even while a job still wants the CPU. The finishing time barely changes, but no job waits long for its next turn, and that is what makes interaction possible.'][m];
+      $('#mp-out').innerHTML = ['One job runs at a time. Whenever the running job waits for I/O, the CPU is idle. The other jobs wait even though they could run.', 'With multiprogramming, when a job starts I/O, the OS switches to another ready job. The work is the same. However, the CPU is idle much less often, and all jobs finish sooner.', 'With timesharing, the OS also switches at every time slice, even while a job still wants the CPU. The finishing time barely changes. However, no job waits long for its next turn. As such, interaction becomes possible.'][m];
     }
     const ctl = Academy.register('s3-3', { steps: 2, readStep: 0, show: (i) => { m = i; render(); } });
     $('#mp-m').addEventListener('click', (e) => { const b = e.target.closest('[data-m]'); if (b) ctl.go(+b.dataset.m); });
@@ -874,20 +874,20 @@
     const SC = [
       { n: 'System call', steps: [
         ['u', 'user process runs', 'The process runs in user mode (mode bit = 1).'],
-        ['t', 'calls read() and traps', 'It needs the OS, so the system call executes a trap instruction. The hardware sets the mode bit to 0 and jumps to the kernel\'s system-call handler, an address the OS chose.'],
+        ['t', 'calls read() and traps', 'The process needs the OS. Therefore, the system call executes a trap instruction. The hardware sets the mode bit to 0 and jumps to the kernel\'s system-call handler, an address the OS chose.'],
         ['k', 'kernel executes the call', 'In kernel mode, the OS may run privileged instructions and touch any memory, on the process\'s behalf.'],
         ['r', 'return, mode bit = 1', 'Returning from the call sets user mode again, and the process continues after the call.'],
       ] },
       { n: 'Privileged instruction', steps: [
         ['u', 'user process runs', 'User mode.'],
-        ['t', 'tries a privileged instruction', 'The program tries, say, to disable interrupts. In user mode the hardware refuses. It raises an exception, which traps to the OS.'],
-        ['k', 'kernel handles the exception', 'The OS decides what to do. Normally it terminates the process (on Linux, SIGILL or SIGSEGV). The program never ran its instruction.'],
+        ['t', 'tries a privileged instruction', 'For example, the program tries to disable interrupts. In user mode, the hardware refuses. Instead, it raises an exception, which traps to the OS.'],
+        ['k', 'kernel handles the exception', 'The OS decides what to do. Normally it terminates the process (on Linux, SIGILL or SIGSEGV). The instruction itself never executes.'],
       ] },
       { n: 'Timer interrupt', steps: [
-        ['u', 'while (1) ;', 'A buggy program loops forever in user mode. It never makes a system call, so it never gives the CPU back.'],
-        ['t', 'timer reaches zero', 'The counter the OS set before scheduling it runs out, and the hardware interrupts, entering kernel mode.'],
+        ['u', 'while (1) ;', 'A buggy program loops forever in user mode. It never makes a system call. Therefore, it never gives the CPU back.'],
+        ['t', 'timer reaches zero', 'The counter that the OS set before scheduling the process runs out. The hardware raises an interrupt and enters kernel mode.'],
         ['k', 'scheduler runs', 'The OS has control again. It can run another process, or terminate this one for exceeding its time.'],
-        ['r', 'another process runs', 'Back to user mode, with a different process and a freshly set timer. The loop could not hold the machine.'],
+        ['r', 'another process runs', 'The CPU returns to user mode, with a different process and a newly set timer. As such, the loop cannot hold the machine.'],
       ] },
     ];
     let sc = 0, i = 0;

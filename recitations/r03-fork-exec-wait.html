@@ -50,7 +50,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 03 · Week 3</div>
     <h1>One call, <span class="accent">two</span> returns</h1>
-    <p class="lede">Lecture 03 introduced the three calls every process lives by. <code>fork</code> copies a process, <code>exec</code> replaces its program, and <code>wait</code> collects its child's exit status. Today you predict what <code>fork</code> does before running it, watch a shell use all three, and make a zombie without writing any C. Then Lab01 help.</p>
+    <p class="lede">Lecture 03 introduced three calls that every process depends on. <code>fork</code> copies a process, <code>exec</code> replaces its program, and <code>wait</code> collects the exit status of a child. In this recitation, you do three things. First, you predict what <code>fork</code> does before you run it. Second, you watch a shell use all three calls. Third, you make a zombie without writing any C. Then we hold Lab01 help.</p>
     <div class="agenda">
       <div><b>0–5</b>Recap of processes, fork/exec/wait, IPC</div>
       <div><b>5–25</b>Worked example (predict, run, watch)</div>
@@ -110,9 +110,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <details class="fold"><summary>What you should see, and why</summary><div class="prose">
       <div class="code"><span class="ln">child:  pid=412  fork returned 0  x=10</span><span class="ln">parent: pid=411  fork returned 412  x=1</span></div>
       <ul>
-        <li><code>fork</code> is called once and <strong>returns twice</strong>. It returns 0 in the child and the child's PID in the parent. That value is how each copy knows which one it is.</li>
-        <li>The child changed <code>x</code>, but the parent did not see it. After <code>fork</code>, the two have <strong>separate copies</strong> of all memory.</li>
-        <li>Delete <code>wait(NULL)</code> and run it several times. The order of the two lines is no longer fixed. The scheduler decides.</li>
+        <li><code>fork</code> is called once and <strong>returns twice</strong>. It returns 0 in the child and the child's PID in the parent. Therefore, each copy knows which one it is from this value.</li>
+        <li>The child changes <code>x</code>, but the parent does not see the change. This is because, after <code>fork</code>, the two processes have <strong>separate copies</strong> of all memory.</li>
+        <li>Delete <code>wait(NULL)</code> and run the program several times. The order of the two lines is no longer fixed. Instead, the scheduler decides the order.</li>
       </ul>
     </div></details>
     <div class="two-up" style="margin-top:1.2em">
@@ -129,8 +129,8 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
       </figure>
     </div>
     <details class="fold"><summary>What you should see, and why</summary><div class="prose">
-      <p><code>AB</code>, twice. <code>printf("A")</code> ran once, but it only put <code>A</code> in the stdio <strong>buffer</strong>, which lives in the process's memory. <code>fork</code> copied that memory, buffer included, and each process flushed its own copy when it exited.</p>
-      <p>Change it to <code>printf("A\n")</code>. On the terminal, <code>A</code> now prints once. A terminal is <em>line-buffered</em>, so the newline flushed it before the fork. Now run <code>./fork2 &gt; out.txt; cat out.txt</code>. It is twice again, because a file is <em>fully buffered</em>. Remember this when Lab01 warns you about buffering.</p>
+      <p>The program prints <code>AB</code> twice. <code>printf("A")</code> runs once. However, it only puts <code>A</code> in the stdio <strong>buffer</strong>, which lives in the memory of the process. <code>fork</code> copies that memory, including the buffer, and each process flushes its own copy when it exits.</p>
+      <p>Change the call to <code>printf("A\n")</code>. On the terminal, <code>A</code> now prints once. This is because a terminal is <em>line-buffered</em>, and therefore the newline flushes the buffer before the fork. Now run <code>./fork2 &gt; out.txt; cat out.txt</code>. It prints twice again, because a file is <em>fully buffered</em>. Remember this when Lab01 warns you about buffering.</p>
     </div></details>
   </div>
 </section>
@@ -145,10 +145,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="code"><span class="ln">195   clone(…)                          = 196</span><span class="ln">195   wait4(-1,  &lt;unfinished ...&gt;</span><span class="ln hl">196   execve("/bin/true", ["/bin/true"], …) = 0</span><span class="ln hl">196   exit_group(0)                     = ?</span><span class="ln">195   &lt;... wait4 resumed&gt;[{WIFEXITED(s) &amp;&amp; WEXITSTATUS(s) == 0}], 0, NULL) = 196</span><span class="ln">195   --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=196, …} ---</span><span class="ln">195   clone(…)                          = 197</span><span class="ln">195   wait4(-1,  &lt;unfinished ...&gt;</span><span class="ln hl">197   execve("/bin/false", ["/bin/false"], …) = 0</span><span class="ln hl">197   exit_group(1)                     = ?</span><span class="ln">195   &lt;... wait4 resumed&gt;[{WIFEXITED(s) &amp;&amp; WEXITSTATUS(s) == 1}], 0, NULL) = 197</span><span class="ln"><span class="c">… (a few lines shortened; your PIDs differ)</span></span></div>
     <div class="prose">
       <ul>
-        <li><code>clone</code> is how Linux implements <code>fork</code>, and the C library's <code>fork()</code> calls it. <code>-f</code> makes strace follow the children, and each line starts with the PID that made the call. <code>-o</code> keeps the trace out of the shell's own output.</li><li><code>&lt;unfinished ...&gt;</code> … <code>resumed</code> means the parent blocked in <code>wait4</code> while the child ran.</li>
+        <li><code>clone</code> is the system call behind <code>fork</code> in Linux. Specifically, the C library function <code>fork()</code> calls it. <code>-f</code> makes strace follow the children. Each line starts with the PID that made the call. <code>-o</code> keeps the trace out of the shell's own output.</li><li><code>&lt;unfinished ...&gt;</code> … <code>resumed</code> means that the parent blocks in <code>wait4</code> while the child runs.</li>
         <li>For each command, the shell forks. The <strong>child</strong> calls <code>execve</code> and becomes <code>/bin/true</code>. The <strong>parent</strong> waits in <code>wait4</code> and gets back the exit status, first 0 and then 1.</li>
-        <li><code>echo</code> is built into the shell, so it needs no fork at all.</li>
-        <li>You may also see <code>--- SIGCHLD … ---</code> lines. That is the kernel <strong>signaling</strong> the shell that a child finished, one of Thursday's IPC mechanisms.</li>
+        <li><code>echo</code> is built into the shell. Therefore, it needs no fork at all.</li>
+        <li>You may also see <code>--- SIGCHLD … ---</code> lines. These lines show the kernel <strong>signaling</strong> the shell that a child finished. Signals are one of the IPC mechanisms from Thursday.</li>
       </ul>
     </div>
   </div>
@@ -162,7 +162,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="code"><span class="ln">bash -c 'sleep 2 &amp; exec sleep 60' &amp;</span><span class="ln">sleep 3; ps -o pid,ppid,stat,comm --ppid $!</span><span class="ln">kill %1                 <span class="c"># clean up</span></span></div>
     <div class="prose">
-      <p>bash starts <code>sleep 2</code> in the background, then <code>exec</code>s itself into <code>sleep 60</code>, a program that never calls <code>wait</code>. When <code>sleep 2</code> exits, it cannot disappear, because its exit status is still waiting to be collected. <code>ps</code> shows it in state <strong>Z</strong>, a <strong>zombie</strong> that is dead but still in the process table.</p>
+      <p>bash starts <code>sleep 2</code> in the background. Then it <code>exec</code>s itself into <code>sleep 60</code>, a program that never calls <code>wait</code>. When <code>sleep 2</code> exits, it cannot disappear, because nobody has collected its exit status yet. <code>ps</code> shows it in state <strong>Z</strong>. In other words, it is a <strong>zombie</strong>, a process that is dead but still in the process table.</p>
     </div>
   </div>
 </section>
@@ -177,14 +177,14 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="code"><span class="ln"><span class="c"># repository root, on the laptop</span></span><span class="ln">SHARE=$PWD/labs/01-processes/submit env/run.sh</span><span class="ln"><span class="c"># in the VM</span></span><span class="ln">cd /share</span><span class="ln">gcc -Wall -Werror -O2 -o /tmp/spawn spawn.c &amp;&amp; /tmp/spawn /bin/echo hi</span><span class="ln">bash ptree.sh $$</span></div>
     <div class="prose">
       <ul>
-        <li>The manual pages <a href="https://man7.org/linux/man-pages/man2/fork.2.html" target="_blank" rel="noopener">fork(2)</a>, <a href="https://man7.org/linux/man-pages/man3/exec.3.html" target="_blank" rel="noopener">exec(3)</a>, and <a href="https://man7.org/linux/man-pages/man2/wait.2.html" target="_blank" rel="noopener">wait(2)</a> answer most questions. The VM has no manual pages, so these links go to their online copies. <a href="https://man7.org/linux/man-pages/man2/wait.2.html" target="_blank" rel="noopener">wait(2)</a> documents <code>WIFEXITED</code> and <code>WEXITSTATUS</code>.</li>
-        <li>Use <code>strace -f</code> on your own <code>spawn</code>, like Part 2, to see which calls it really makes.</li>
-        <li>Part 1 above is a reminder about <strong>buffers</strong>. Think about it when you print before a <code>fork</code> or a <code>sleep</code>.</li>
+        <li>The manual pages <a href="https://man7.org/linux/man-pages/man2/fork.2.html" target="_blank" rel="noopener">fork(2)</a>, <a href="https://man7.org/linux/man-pages/man3/exec.3.html" target="_blank" rel="noopener">exec(3)</a>, and <a href="https://man7.org/linux/man-pages/man2/wait.2.html" target="_blank" rel="noopener">wait(2)</a> answer most questions. The VM has no manual pages. Therefore, these links go to their online copies. Note that <a href="https://man7.org/linux/man-pages/man2/wait.2.html" target="_blank" rel="noopener">wait(2)</a> documents <code>WIFEXITED</code> and <code>WEXITSTATUS</code>.</li>
+        <li>Use <code>strace -f</code> on your own <code>spawn</code>, as in Part 2, to see which calls it actually makes.</li>
+        <li>Part 1 above is a reminder about <strong>buffers</strong>. Keep it in mind when you print before a <code>fork</code> or a <code>sleep</code>.</li>
       </ul>
     </div>
     <div class="note note-key">
       <span class="note-tag">How to ask a good question</span>
-      <p>Show the failing check, what your program printed, and what you already tried. TAs will point you to a manual page, a demo from today, or a debugging step. They will not write your lab.</p>
+      <p>Show the failing check, what your program printed, and what you already tried. TAs point you to a manual page, a demo from today, or a debugging step. However, they do not write your lab.</p>
     </div>
   </div>
 </section>
@@ -193,7 +193,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="ch-head">
     <div class="ch-no">Part 5</div>
     <h2>Exit ticket</h2>
-    <p class="ch-lede">Not graded. Answer, then check.</p>
+    <p class="ch-lede">The exit ticket is not graded. Answer each question, then check it.</p>
   </div>
   <div class="sec">
     <div class="quiz" data-quiz>
@@ -205,7 +205,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <button type="button" class="q-opt" data-why="The second fork runs in both processes that exist after the first.">3</button>
           <button type="button" class="q-opt" data-ok>4</button>
         </div>
-        <div class="q-fb ok">Right. 1 process becomes 2 after the first fork, and each of those forks again, making 4.</div>
+        <div class="q-fb ok">Right. 1 process becomes 2 after the first fork. Then each of those 2 forks again, which makes 4.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -216,7 +216,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <div class="q-opts">
           <button type="button" class="q-opt" data-ok>0</button>
           <button type="button" class="q-opt" data-why="That is what the parent receives.">The child's PID</button>
-          <button type="button" class="q-opt" data-why="The child can find its parent with getppid(), and fork returns 0 to it.">The parent's PID</button>
+          <button type="button" class="q-opt" data-why="The child finds its parent with getppid(). fork returns 0 to the child.">The parent's PID</button>
         </div>
         <div class="q-fb ok">Right. The child gets 0, the parent gets the child's PID, and −1 means the fork failed.</div>
         <div class="q-fb no">Not quite.</div>
@@ -234,13 +234,13 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="table-wrap">
       <table class="cs">
         <tbody>
-          <tr><td>pid_t fork(void)</td><td>Copy the calling process. Returns 0 in the child, the child's PID in the parent, −1 on failure.</td></tr>
-          <tr><td>exec…()</td><td>Replace the current program. Returns only if it failed.</td></tr>
+          <tr><td>pid_t fork(void)</td><td>Copy the calling process. It returns 0 in the child, the child's PID in the parent, and −1 on failure.</td></tr>
+          <tr><td>exec…()</td><td>Replace the current program. It returns only if it fails.</td></tr>
           <tr><td>wait / waitpid</td><td>Wait for a child to end and collect its status. See <a href="https://man7.org/linux/man-pages/man2/wait.2.html" target="_blank" rel="noopener">wait(2)</a>.</td></tr>
           <tr><td>getpid() · getppid()</td><td>My PID · my parent's PID.</td></tr>
           <tr><td>strace -f</td><td>Trace a program and every child it forks.</td></tr>
-          <tr><td>ps -o pid,ppid,stat,comm</td><td>Show chosen columns. <code>STAT</code> is the state (R running, S sleeping, Z zombie).</td></tr>
-          <tr><td>cmd &amp; · $! · kill %1</td><td>Run in background · its PID · kill background job 1.</td></tr>
+          <tr><td>ps -o pid,ppid,stat,comm</td><td>Show chosen columns. <code>STAT</code> is the state (R running or ready, S sleeping, Z zombie).</td></tr>
+          <tr><td>cmd &amp; · $! · kill %1</td><td>Run in the background · its PID · kill background job 1.</td></tr>
         </tbody>
       </table>
     </div>

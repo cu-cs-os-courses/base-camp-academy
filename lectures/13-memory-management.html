@@ -72,7 +72,7 @@ table.st tr.hot td { background: var(--cx-soft); }
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 13 · Interactive notes</div>
     <h1>Where does a program <span class="accent">live</span>?</h1>
-    <p class="lede">A process uses addresses, and memory has addresses, but they need not be the same numbers. This lecture follows an address from source code to a memory chip. It covers when it is bound, how hardware checks and relocates it, how the OS carves physical memory among processes, and what goes wrong when it does so in contiguous pieces. That failure motivates paging in Lecture 14.</p>
+    <p class="lede">A process uses addresses, and memory has addresses. However, they need not be the same numbers. In this lecture, we follow an address from source code to a memory chip. Specifically, we discuss when the address is bound, how hardware checks and relocates it, how the OS divides physical memory among processes, and what goes wrong when the OS does so in contiguous pieces. This failure motivates paging in Lecture 14.</p>
     <div class="promise">
       <span>Before you start, review</span><span class="mono">processes, context switches, kernel mode</span><span>from Lectures 02–03.</span>
     </div>
@@ -113,7 +113,7 @@ table.st tr.hot td { background: var(--cx-soft); }
   <div class="ch-head">
     <div class="ch-no">Chapter 0</div>
     <h2>Background</h2>
-    <p class="ch-lede">The CPU can only touch registers and main memory, and memory is slow.</p>
+    <p class="ch-lede">The CPU can directly access only registers and main memory. However, memory is slow.</p>
   </div>
 
   <div class="sec" id="s0-1">
@@ -121,10 +121,10 @@ table.st tr.hot td { background: var(--cx-soft); }
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li>A program must be brought from disk into memory, and placed within a process, before it can run.</li>
-          <li>Main memory and registers are the only storage the CPU accesses directly. The memory unit just sees a stream of <em>address + read</em> requests and <em>address + data + write</em> requests. It does not know which is code, data or stack.</li>
-          <li>A register access takes one CPU clock or less. Main memory can take many cycles and stall the CPU. <strong>Caches</strong> sit in between.</li>
-          <li>Memory must be <strong>protected</strong>, so that a process touches only its own addresses (§2).</li>
+          <li>Before a program can run, it must be brought from disk into memory and placed within a process.</li>
+          <li>Main memory and registers are the only storage the CPU accesses directly. The memory unit only sees a stream of <em>address + read</em> requests and <em>address + data + write</em> requests. It does not know which is code, data, or stack.</li>
+          <li>A register access takes one CPU clock or less. In contrast, a main memory access can take many cycles and stall the CPU. <strong>Caches</strong> sit in between.</li>
+          <li>Memory must be <strong>protected</strong>, so that a process accesses only its own addresses (§2).</li>
         </ul>
       </div>
       <figure class="fig">
@@ -133,7 +133,7 @@ table.st tr.hot td { background: var(--cx-soft); }
             <g id="bus-g"></g>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 0.1</span>The CPU, memory and I/O on their buses.</figcaption>
+        <figcaption><span class="fno">Fig. 0.1</span>The CPU, memory, and I/O on their buses.</figcaption>
       </figure>
     </div>
   </div>
@@ -141,7 +141,7 @@ table.st tr.hot td { background: var(--cx-soft); }
   <div class="sec" id="s0-2">
     <h3><span class="sec-no">0.2</span>The memory hierarchy</h3>
     <div class="prose">
-      <p>Keep frequently used instructions and data in local memory that is faster but smaller and more expensive per byte. Going down the hierarchy, each level is slower, bigger, and cheaper. Typical rough figures, in CPU cycles, are shown below.</p>
+      <p>The system keeps frequently used instructions and data in local memory that is faster, but smaller and more expensive per byte. Going down the hierarchy, each level is slower, bigger, and cheaper. The widget below shows typical rough figures in CPU cycles.</p>
     </div>
     <div class="widget" id="lt-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">How far away is each level?</span><button class="w-reset" type="button" id="lt-reset">Reset</button></div>
@@ -151,7 +151,7 @@ table.st tr.hot td { background: var(--cx-soft); }
       <div class="widget-body"><div class="lat" id="lt-rows"></div></div>
       <div class="readout" id="lt-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">The register-to-RAM figures are the slide's. Disk figures assume a 3 GHz clock, with an SSD read of about 100 µs and a hard-disk access of about 10 ms. Real numbers vary by an order of magnitude between machines.</p>
+    <p class="small muted prose read-only">The register-to-RAM figures come from the slides. The disk figures assume a 3 GHz clock, an SSD read of about 100 µs, and a hard-disk access of about 10 ms. Real numbers vary by an order of magnitude between machines.</p>
   </div>
 
   <div class="ch-nav">
@@ -165,7 +165,7 @@ table.st tr.hot td { background: var(--cx-soft); }
   <div class="ch-head">
     <div class="ch-no">Chapter 1</div>
     <h2>Address binding</h2>
-    <p class="ch-lede">A name in source code becomes a number in memory. The question is when.</p>
+    <p class="ch-lede">A name in source code becomes a number in memory. The question is when this happens.</p>
   </div>
 
   <div class="sec" id="s1-1">
@@ -173,12 +173,12 @@ table.st tr.hot td { background: var(--cx-soft); }
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li>Programs on disk waiting to be brought into memory form an <strong>input queue</strong>. Without hardware support, a program would have to be loaded at physical address 0000, which is inconvenient because only one program could live there.</li>
-          <li>Addresses take different forms at different stages of a program's life.
+          <li>Programs on disk waiting to be brought into memory form an <strong>input queue</strong>. Without hardware support, a program would have to be loaded at physical address 0000. This is inconvenient, because only one program could reside there.</li>
+          <li>Addresses take different forms at different stages of a program's lifetime.
             <ul>
-              <li>In source code they are <strong>symbolic</strong>, like <code>count</code>.</li>
+              <li>In source code, they are <strong>symbolic</strong>, such as <code>count</code>.</li>
               <li>The compiler binds them to <strong>relocatable</strong> addresses, such as "14 bytes from the beginning of this module".</li>
-              <li>The linker or loader binds those to <strong>absolute</strong> addresses, such as 74014.</li>
+              <li>The linker or loader binds these to <strong>absolute</strong> addresses, such as 74014.</li>
             </ul></li>
           <li>Each binding maps one address space to another.</li>
         </ul>
@@ -198,8 +198,8 @@ table.st tr.hot td { background: var(--cx-soft); }
     <h3><span class="sec-no">1.2</span>Three binding times</h3>
     <div class="opts3">
       <div><span class="tag">Compile time</span>If the memory location is known in advance, the compiler generates <strong>absolute code</strong>. If the starting location changes, you must recompile.</div>
-      <div><span class="tag">Load time</span>If the location is not known at compile time, the compiler generates <strong>relocatable code</strong>, and the loader fixes the addresses. To move the program, reload it.</div>
-      <div><span class="tag">Execution time</span>Binding is delayed until run time, so the process can be <strong>moved during execution</strong> from one memory region to another. This needs hardware support, namely base and limit registers, or an MMU (§2). Nearly every modern OS works this way.</div>
+      <div><span class="tag">Load time</span>If the location is not known at compile time, the compiler generates <strong>relocatable code</strong>, and the loader fixes the addresses. To move the program, you must reload it.</div>
+      <div><span class="tag">Execution time</span>Binding is delayed until run time. Therefore, the process can be <strong>moved during execution</strong> from one memory region to another. This approach needs hardware support, namely base and limit registers, or an MMU (§2). Nearly every modern OS uses this approach.</div>
     </div>
     <div class="widget" id="bd-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Move a running program</span><button class="w-reset" type="button" id="bd-reset">Reset</button></div>
@@ -216,9 +216,9 @@ table.st tr.hot td { background: var(--cx-soft); }
     <h3><span class="sec-no">1.3</span>Logical vs. physical addresses</h3>
     <div class="prose">
       <ul>
-        <li>A <strong>logical address</strong>, also called a <em>virtual address</em>, is generated by the CPU. A <strong>physical address</strong> is what the memory unit sees.</li>
-        <li>With compile-time and load-time binding they are the same. With execution-time binding they <strong>differ</strong>.</li>
-        <li>The <em>logical address space</em> is the set of all logical addresses a program generates. The <em>physical address space</em> is the set of physical addresses those correspond to.</li>
+        <li>A <strong>logical address</strong>, also called a <em>virtual address</em>, is generated by the CPU. A <strong>physical address</strong> is the address that the memory unit sees.</li>
+        <li>With compile-time and load-time binding, they are the same. However, with execution-time binding, they <strong>differ</strong>.</li>
+        <li>The <em>logical address space</em> is the set of all logical addresses that a program generates. The <em>physical address space</em> is the set of physical addresses that correspond to them.</li>
       </ul>
     </div>
   </div>
@@ -226,8 +226,8 @@ table.st tr.hot td { background: var(--cx-soft); }
   <div class="sec" id="s1-4">
     <h3><span class="sec-no">1.4</span>Dynamic loading and dynamic linking</h3>
     <div class="pair">
-      <div class="note note-key" style="margin:0"><span class="note-tag">Dynamic loading</span><p>The whole program does <strong>not</strong> need to be in memory to run. A routine is loaded only when it is first called. Unused routines, such as rare error handlers, are never loaded. Routines wait on disk in relocatable form. No special OS support is required, because it is done by program design, perhaps with OS-provided library help (e.g. <code>dlopen()</code>).</p></div>
-      <div class="note note-key" style="margin:0"><span class="note-tag">Dynamic linking</span><p><em>Static</em> linking copies library code into the binary image. <em>Dynamic</em> linking postpones linking until run time. A small <strong>stub</strong> locates the memory-resident library routine, replaces itself with the routine's address, and calls it. The OS maps the library into the process if it is not already there. These are <strong>shared libraries</strong> (<code>.so</code>, <code>.dll</code>). One copy serves every process, and patching the library fixes every program, which is why versioning is needed.</p></div>
+      <div class="note note-key" style="margin:0"><span class="note-tag">Dynamic loading</span><p>The whole program does <strong>not</strong> need to be in memory to run. A routine is loaded only when it is first called. Unused routines, such as rare error handlers, are never loaded. Routines are kept on disk in relocatable form. No special OS support is required, because dynamic loading is implemented by program design, perhaps with help from an OS-provided library (e.g. <code>dlopen()</code>).</p></div>
+      <div class="note note-key" style="margin:0"><span class="note-tag">Dynamic linking</span><p><em>Static</em> linking copies library code into the binary image. In contrast, <em>dynamic</em> linking postpones linking until run time. A small <strong>stub</strong> locates the memory-resident library routine, replaces itself with the routine's address, and calls the routine. If the library is not already in the process, the OS maps it in. Such libraries are <strong>shared libraries</strong> (<code>.so</code>, <code>.dll</code>). One copy serves every process, and patching the library fixes every program. Therefore, versioning is needed.</p></div>
     </div>
   </div>
 
@@ -265,8 +265,8 @@ table.st tr.hot td { background: var(--cx-soft); }
     <h3><span class="sec-no">2.1</span>Base and limit</h3>
     <div class="prose">
       <ul>
-        <li>A process must access only addresses in its own address space. A pair of registers defines that space, namely <strong>base</strong>, the smallest legal physical address, and <strong>limit</strong>, the size of the range.</li>
-        <li>The CPU checks <em>every</em> memory access made in user mode, requiring base ≤ address &lt; base + limit. Anything else traps to the OS as an addressing error.</li>
+        <li>A process must access only addresses in its own address space. A pair of registers defines this space, namely <strong>base</strong>, the smallest legal physical address, and <strong>limit</strong>, the size of the range.</li>
+        <li>The CPU checks <em>every</em> memory access made in user mode and requires base ≤ address &lt; base + limit. Any other address traps to the OS as an addressing error.</li>
         <li>The instructions that load base and limit are <strong>privileged</strong>. Only the kernel sets them, as part of each context switch.</li>
       </ul>
     </div>
@@ -277,8 +277,8 @@ table.st tr.hot td { background: var(--cx-soft); }
     <div class="prose">
       <ul>
         <li>The <strong>MMU</strong> is the hardware that maps virtual addresses to physical ones at run time. It must do two things, namely <strong>translate</strong> addresses and <strong>check bounds</strong>.</li>
-        <li>The simplest scheme generalizes the base register into a <strong>relocation register</strong>. Its value is added to every address a user process generates, at the moment the address is sent to memory. With a limit register as well, each logical address must be less than the limit, and physical = logical + relocation.</li>
-        <li>The user program deals only with logical addresses and never sees the physical ones. Binding happens at the moment of each memory reference. This is execution-time binding.</li>
+        <li>The simplest scheme generalizes the base register into a <strong>relocation register</strong>. The MMU adds its value to every address that a user process generates, at the moment the address is sent to memory. With an additional limit register, each logical address must be less than the limit, and physical = logical + relocation.</li>
+        <li>The user program deals only with logical addresses and never sees the physical ones. In other words, binding happens at the moment of each memory reference. This is execution-time binding.</li>
       </ul>
     </div>
     <div class="widget" id="mu-w">
@@ -292,17 +292,17 @@ table.st tr.hot td { background: var(--cx-soft); }
       </div>
       <div class="readout" id="mu-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Defaults are the textbook's, with base 300040 and limit 120900 in the first scheme, and relocation 14000 and logical address 346 in the second.</p>
+    <p class="small muted prose read-only">The defaults come from the textbook. The first scheme uses base 300040 and limit 120900. The second scheme uses relocation 14000 and logical address 346.</p>
   </div>
 
   <div class="sec" id="q1">
     <div class="quiz" data-quiz>
       <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Relocation</span></div>
       <div class="quiz-body">
-        <div class="q-text">Relocation register 14000, limit 5000. The process issues logical address 5200. What happens?</div>
+        <div class="q-text">The relocation register is 14000, and the limit is 5000. The process issues logical address 5200. What happens?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="The limit check comes first, and 5200 is not less than 5000.">It accesses physical 19200.</button>
-          <button type="button" class="q-opt" data-ok>A trap, an addressing error, since 5200 ≥ limit.</button>
+          <button type="button" class="q-opt" data-ok>A trap, namely an addressing error, because 5200 ≥ limit.</button>
           <button type="button" class="q-opt" data-why="The MMU never passes an unchecked logical address straight to memory.">It accesses physical 5200.</button>
         </div>
         <div class="q-fb ok">Right. The check is done on the logical address, before relocation.</div>
@@ -322,16 +322,16 @@ table.st tr.hot td { background: var(--cx-soft); }
   <div class="ch-head">
     <div class="ch-no">Chapter 3</div>
     <h2>Contiguous allocation</h2>
-    <p class="ch-lede">Give each process one piece of memory, then watch memory crumble.</p>
+    <p class="ch-lede">Each process gets one piece of memory. Over time, free memory breaks into pieces.</p>
   </div>
 
   <div class="sec" id="s3-1">
     <h3><span class="sec-no">3.1</span>Partitions and holes</h3>
     <div class="prose">
       <ul>
-        <li>Main memory holds both the OS and user processes, and it is limited, so it must be allocated efficiently. <strong>Contiguous allocation</strong> is an early method. The resident OS is usually in low memory, with the interrupt vector. User processes are in high memory, each in a <strong>single contiguous section</strong>.</li>
-        <li>Relocation and limit registers protect processes from each other and from the OS. They are loaded only in kernel mode, during context switches. Because the MMU maps addresses dynamically, even the kernel can change size.</li>
-        <li><strong>Variable partitions</strong> are sized to each process's needs. A <strong>hole</strong> is a block of available memory, and holes of various sizes are scattered through memory. A new process gets part of a hole large enough for it. When a process exits, its partition becomes a hole, merged with any adjacent holes. The OS tracks allocated partitions and free holes.</li>
+        <li>Main memory holds both the OS and user processes. Memory is limited, so it must be allocated efficiently. <strong>Contiguous allocation</strong> is an early method. The resident OS is usually in low memory, with the interrupt vector. User processes are in high memory, each in a <strong>single contiguous section</strong>.</li>
+        <li>Relocation and limit registers protect processes from each other and from the OS. They are loaded only in kernel mode, during context switches. Note that, because the MMU maps addresses dynamically, even the kernel can change size.</li>
+        <li><strong>Variable partitions</strong> are sized to each process's needs. A <strong>hole</strong> is a block of available memory. Holes of various sizes are scattered throughout memory. A new process gets part of a hole that is large enough for it. When a process exits, its partition becomes a hole and is merged with any adjacent holes. The OS keeps track of allocated partitions and free holes.</li>
       </ul>
     </div>
   </div>
@@ -339,9 +339,9 @@ table.st tr.hot td { background: var(--cx-soft); }
   <div class="sec" id="s3-2">
     <h3><span class="sec-no">3.2</span>Which hole?</h3>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">First fit</span>Take the first hole that is big enough. It is fast.</div>
-      <div><span class="tag">Best fit</span>Take the smallest hole that is big enough. It must search the whole list unless the list is sorted, and it leaves the smallest leftover.</div>
-      <div><span class="tag">Worst fit</span>Take the largest hole. It also searches everything, and it leaves the largest leftover, hoping that piece is still useful.</div>
+      <div><span class="tag">First fit</span>Take the first hole that is big enough. This strategy is fast.</div>
+      <div><span class="tag">Best fit</span>Take the smallest hole that is big enough. This strategy must search the whole list unless the list is sorted. It leaves the smallest leftover.</div>
+      <div><span class="tag">Worst fit</span>Take the largest hole. This strategy also searches the whole list. It leaves the largest leftover, in the hope that this piece is still useful.</div>
       <div><span class="tag">Next fit</span>Treat the holes as a circular list, and start the first-fit search just after the hole chosen last time.</div>
     </div>
     <div class="widget" id="fa-w">
@@ -360,7 +360,7 @@ table.st tr.hot td { background: var(--cx-soft); }
       </div>
       <div class="readout" id="fa-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">The preset is the textbook exercise, with holes of 100, 500, 200, 300 and 600 KB, in that order, and requests for 212, 417, 112 and 426 KB. Grey partitions between the holes belong to other processes. The blue underline marks where next fit will start searching.</p>
+    <p class="small muted prose read-only">The preset is the textbook exercise. It has holes of 100, 500, 200, 300, and 600 KB, in that order, and requests for 212, 417, 112, and 426 KB. Grey partitions between the holes belong to other processes. The blue underline marks where next fit will start searching.</p>
   </div>
 
   <div class="sec" id="s3-3">
@@ -368,9 +368,9 @@ table.st tr.hot td { background: var(--cx-soft); }
     <div class="prose">
       <ul>
         <li>As processes come and go, free memory breaks into pieces.</li>
-        <li><strong>External fragmentation.</strong> There is enough total free memory for a request, but it is not contiguous. You saw it above when 426 KB failed.</li>
-        <li><strong>Internal fragmentation.</strong> Memory is handed out in fixed-size units, so an allocation can be slightly larger than the request. The unused difference is inside a partition and wasted. For example, consider a request for 18,462 bytes against a 18,464-byte hole. Keeping track of the 2-byte leftover would cost more than it saves, so the OS gives the whole hole.</li>
-        <li>Both first fit and best fit suffer external fragmentation. Best fit leaves many slivers too small to use. First fit tends to fragment the low end of memory, where it always starts. Statistically, with first fit, about half as much memory again as is allocated is lost to fragments. This is the <strong>50-percent rule</strong>, which means up to a third of memory may be unusable.</li>
+        <li><strong>External fragmentation.</strong> There is enough total free memory for a request. However, this memory is not contiguous. The widget above shows this case when the 426 KB request fails.</li>
+        <li><strong>Internal fragmentation.</strong> Memory is allocated in fixed-size units, so an allocation can be slightly larger than the request. The unused difference is inside a partition and is wasted. For example, consider a request for 18,462 bytes and an 18,464-byte hole. Tracking the 2-byte leftover would cost more than it saves. Therefore, the OS allocates the whole hole.</li>
+        <li>Both first fit and best fit suffer from external fragmentation. Best fit leaves many slivers that are too small to use. First fit tends to fragment the low end of memory, where its search always starts. Statistically, with first fit, the memory lost to fragments is about half of the allocated memory. This is the <strong>50-percent rule</strong>. In other words, up to a third of memory may be unusable.</li>
       </ul>
     </div>
   </div>
@@ -379,9 +379,9 @@ table.st tr.hot td { background: var(--cx-soft); }
     <h3><span class="sec-no">3.4</span>Compaction</h3>
     <div class="prose">
       <ul>
-        <li>Reduce external fragmentation by <strong>compaction</strong>, that is, shuffle memory contents so that all free memory forms one large block. It is expensive, since every moved byte is copied.</li>
-        <li>It is possible only if relocation is dynamic, done at execution time, because moving a process just updates its relocation register.</li>
-        <li>I/O complicates it. A device doing DMA into a process's buffer uses physical addresses, so that job must be <strong>latched</strong> in memory while the I/O is in progress. The alternative is to do I/O only into OS buffers.</li>
+        <li>The OS can reduce external fragmentation by <strong>compaction</strong>. In other words, it shuffles memory contents so that all free memory forms one large block. Compaction is expensive, because every moved byte is copied.</li>
+        <li>Compaction is possible only if relocation is dynamic, namely done at execution time. In that case, moving a process only updates its relocation register.</li>
+        <li>I/O complicates compaction. A device doing DMA into a process's buffer uses physical addresses. Therefore, that job must be <strong>latched</strong> in memory while the I/O is in progress. The alternative is to do I/O only into OS buffers.</li>
       </ul>
     </div>
   </div>
@@ -396,7 +396,7 @@ table.st tr.hot td { background: var(--cx-soft); }
           <button type="button" class="q-opt" data-ok>Best fit</button>
           <button type="button" class="q-opt" data-why="Worst fit breaks up the 600 for 212, and 426 no longer fits anywhere.">Worst fit</button>
         </div>
-        <div class="q-fb ok">Right. This time best fit keeps the 600 whole for 426, though no algorithm wins on every workload.</div>
+        <div class="q-fb ok">Right. This time, best fit keeps the 600 whole for 426. However, no algorithm wins on every workload.</div>
         <div class="q-fb no">Not quite. Run each algorithm in §3.2.</div>
       </div>
     </div>
@@ -412,7 +412,7 @@ table.st tr.hot td { background: var(--cx-soft); }
           <button type="button" class="q-opt" data-why="The waste is inside the allocated block, not between blocks.">3 KB, which is external fragmentation.</button>
           <button type="button" class="q-opt" data-why="9 KB is not a multiple of 4 KB, so it rounds up to 12 KB.">Nothing.</button>
         </div>
-        <div class="q-fb ok">Right. Fixed-size units trade internal waste for simpler bookkeeping, and paging (Lecture 14) makes exactly that trade.</div>
+        <div class="q-fb ok">Right. Fixed-size units trade internal waste for simpler bookkeeping. Paging (Lecture 14) makes exactly this trade.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -429,19 +429,19 @@ table.st tr.hot td { background: var(--cx-soft); }
   <div class="ch-head">
     <div class="ch-no">Chapter 4</div>
     <h2>Swapping</h2>
-    <p class="ch-lede">When memory runs out, move a whole process to disk.</p>
+    <p class="ch-lede">When memory runs out, the OS moves a whole process to disk.</p>
   </div>
 
   <div class="sec" id="s4-1">
     <h3><span class="sec-no">4.1</span>Swap out, swap in</h3>
     <div class="two-up">
       <div class="prose">
-        <p>When the scheduler selects P2, the dispatcher checks whether P2 is in memory. If it is not and there is not enough free memory, it <strong>swaps out</strong> some process, say P3, to the backing store and <strong>swaps in</strong> P2.</p>
+        <p>When the scheduler selects P2, the dispatcher checks whether P2 is in memory. If P2 is not in memory and there is not enough free memory, the dispatcher <strong>swaps out</strong> some process, say P3, to the backing store and <strong>swaps in</strong> P2.</p>
         <ul>
-          <li>It is slow. Disk access takes about 10–100 ms, and transferring a whole process adds size ÷ bandwidth. A 100 MB process at 50 MB/s takes 2 s each way, so 4 s to swap one out and another in.</li>
-          <li>Try to hide the latency. In round robin, swap out the process that just ran, and keep enough other processes in memory to run while the swap-in completes. It cannot be hidden if the in-memory processes are all blocked on I/O.</li>
+          <li>Swapping is slow. Disk access takes about 10–100 ms, and transferring a whole process adds size ÷ bandwidth. For example, a 100 MB process at 50 MB/s takes 2 s each way. Therefore, swapping one process out and another in takes 4 s.</li>
+          <li>The OS tries to hide the latency. In round robin, it swaps out the process that just ran and keeps enough other processes in memory to run while the swap-in completes. However, the latency cannot be hidden if the in-memory processes are all blocked on I/O.</li>
           <li>A process with <strong>pending I/O</strong> is a problem, because the device may still write into its memory. One simple rule is to never swap such a process.</li>
-          <li>Swapping fragments main memory, and the backing store too.</li>
+          <li>Swapping fragments main memory, and it fragments the backing store too.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -455,7 +455,7 @@ table.st tr.hot td { background: var(--cx-soft); }
     </div>
     <div class="note note-key">
       <span class="note-tag">Today</span>
-      <p>Modern systems avoid swapping whole processes unless memory use crosses a threshold. Instead they swap <em>portions</em> of processes, pages, together with virtual memory and demand paging (Lectures 14–16). Mobile systems such as iOS and Android usually do not swap at all. They ask apps to free memory, or terminate them.</p>
+      <p>Modern systems avoid swapping whole processes unless memory use crosses a threshold. Instead, they swap <em>portions</em> of processes, namely pages, together with virtual memory and demand paging (Lectures 14–16). Mobile systems such as iOS and Android usually do not swap at all. They ask apps to free memory or terminate the apps.</p>
     </div>
   </div>
 
@@ -470,17 +470,17 @@ table.st tr.hot td { background: var(--cx-soft); }
   <div class="ch-head">
     <div class="ch-no">Chapter 5</div>
     <h2>Segmentation</h2>
-    <p class="ch-lede">Instead of one big contiguous piece, several smaller ones, each with its own base and limit.</p>
+    <p class="ch-lede">Instead of one big contiguous piece, a process uses several smaller pieces, each with its own base and limit.</p>
   </div>
 
   <div class="sec" id="s5-1">
     <h3><span class="sec-no">5.1</span>A program is a collection of segments</h3>
     <div class="prose">
       <ul>
-        <li>A programmer thinks of a program as a main function, other functions, a library, a stack, a heap and data, not as one flat array. <strong>Segmentation</strong> gives each of these its own <strong>segment</strong>, placed anywhere in physical memory.</li>
-        <li>A logical address is a pair <strong>(s, d)</strong>, a segment number and an offset. A <strong>segment table</strong> gives each segment's <em>base</em> and <em>limit</em>.</li>
-        <li>Check d &lt; limit[s], or trap. Otherwise physical = base[s] + d. It is the relocation-and-limit MMU of §2, once per segment.</li>
-        <li>Segments are smaller than whole processes, so they fit into holes more easily. But segments still vary in size, so external fragmentation remains. Fixed-size pieces, pages, fix that in Lecture 14.</li>
+        <li>A programmer thinks of a program as a main function, other functions, a library, a stack, a heap, and data, not as one flat array. <strong>Segmentation</strong> gives each of these parts its own <strong>segment</strong>, which can be placed anywhere in physical memory.</li>
+        <li>A logical address is a pair <strong>(s, d)</strong>, namely a segment number and an offset. A <strong>segment table</strong> gives each segment's <em>base</em> and <em>limit</em>.</li>
+        <li>The MMU checks d &lt; limit[s] and traps if the check fails. Otherwise, physical = base[s] + d. In other words, this is the relocation-and-limit MMU of §2, applied once per segment.</li>
+        <li>Segments are smaller than whole processes, so they fit into holes more easily. However, segments still vary in size, so external fragmentation remains. Fixed-size pieces, namely pages, fix this problem in Lecture 14.</li>
       </ul>
     </div>
     <div class="widget" id="sg-w">
@@ -529,7 +529,7 @@ table.st tr.hot td { background: var(--cx-soft); }
           <button type="button" class="q-opt" data-ok>External fragmentation. Variable-size segments still leave holes of awkward sizes.</button>
           <button type="button" class="q-opt" data-why="Each segment has its own limit, which gives protection.">Protection between processes.</button>
         </div>
-        <div class="q-fb ok">Right. That is what paging's fixed-size frames eliminate.</div>
+        <div class="q-fb ok">Right. Paging's fixed-size frames eliminate this problem.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -552,12 +552,12 @@ table.st tr.hot td { background: var(--cx-soft); }
     <h3><span class="sec-no">∎</span>What to take away</h3>
     <div class="prose">
       <ul>
-        <li>The CPU accesses only registers and memory. Caches bridge the speed gap in a hierarchy that gets slower, bigger and cheaper as it goes down.</li>
+        <li>The CPU accesses only registers and memory. Caches bridge the speed gap in a hierarchy that gets slower, bigger, and cheaper as it goes down.</li>
         <li>Addresses go from symbolic to relocatable to absolute. Binding can happen at compile time, at load time, or at execution time, which needs an MMU.</li>
         <li>Base and limit registers, loaded only by the kernel, check every user access. A relocation register adds a base to every logical address.</li>
-        <li>Dynamic loading loads routines when first called, and dynamic linking shares libraries through stubs.</li>
-        <li>Contiguous allocation takes holes by first, best, worst or next fit, and suffers external fragmentation, which compaction can reduce. Allocating in fixed units causes internal fragmentation.</li>
-        <li>Swapping moves whole processes to disk, and it is slow. Segmentation splits a process into variable-size segments, each with its own base and limit, which leads to paging.</li>
+        <li>Dynamic loading loads a routine when it is first called. Dynamic linking shares libraries through stubs.</li>
+        <li>Contiguous allocation selects holes by first, best, worst, or next fit. It suffers from external fragmentation, which compaction can reduce. Allocating in fixed units causes internal fragmentation.</li>
+        <li>Swapping moves whole processes to disk, and it is slow. Segmentation splits a process into variable-size segments, each with its own base and limit, and it leads to paging.</li>
       </ul>
     </div>
   </div>
@@ -643,7 +643,7 @@ table.st tr.hot td { background: var(--cx-soft); }
       $$('#lt-s [data-s]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.s === mode)));
       const mx = Math.log10(3e7) + 0.5;
       $('#lt-rows').innerHTML = L.map(([n, c, sz]) => `<div class="row"><span>${n}</span><span class="track"><span class="fill" style="width:${Math.max(2, (Math.log10(c) + 0.5) / mx * 100).toFixed(1)}%"></span></span><span class="v">${mode === 'cyc' ? fmt(c) + ' cycles' : human(c)} · ${sz}</span></div>`).join('');
-      $('#lt-out').innerHTML = mode === 'cyc' ? 'Each bar is on a <b>log scale</b>. Every tenth of the width is 10× slower. RAM is 200× slower than L1, and a hard disk is 150,000× slower than RAM.' : 'If an L1 hit took one second, a RAM access would take over <b>3 minutes</b>, an SSD read <b>3.5 days</b>, and a hard-disk access almost <b>a year</b>. That is why the OS works so hard to keep what you need close.';
+      $('#lt-out').innerHTML = mode === 'cyc' ? 'Each bar is on a <b>log scale</b>. Every tenth of the width is 10× slower. RAM is 200× slower than L1, and a hard disk is 150,000× slower than RAM.' : 'If an L1 hit took one second, a RAM access would take over <b>3 minutes</b>, an SSD read <b>3.5 days</b>, and a hard-disk access almost <b>a year</b>. Therefore, the OS works hard to keep what you need close.';
     }
     $('#lt-s').addEventListener('click', (e) => { const b = e.target.closest('[data-s]'); if (b) { mode = b.dataset.s; render(); } });
     $('#lt-reset').addEventListener('click', () => { mode = 'cyc'; render(); });
@@ -669,7 +669,7 @@ table.st tr.hot td { background: var(--cx-soft); }
       const addr = { compile: '74014', load: moved ? '74014 (stale)' : '74014', exec: '14' }[k];
       $('#bd-code').innerHTML = [`<span class="c">// in the binary, after ${k === 'compile' ? 'compiling' : k === 'load' ? 'loading' : 'compiling'}</span>`, `load R1, ${addr}`, `add  R1, 1`, `store R1, ${addr}`, k === 'exec' ? `<span class="c">// relocation register = ${base}</span>` : `<span class="c">// absolute addresses baked in</span>`].map((t) => `<span class="ln">${t}</span>`).join('');
       $('#bd-mem').innerHTML = [`<span class="c">// physical memory</span>`, `${base}  start of program`, `${base + 14}  count`, moved && k !== 'exec' ? `<span class="c">74014  (someone else's memory now!)</span>` : `<span class="c">   </span>`].map((t) => `<span class="ln">${t}</span>`).join('');
-      const MSG = { compile: moved ? '<b class="bad">Broken.</b> The code still says 74014, but <code>count</code> is now at 90014. To move it, you must recompile.' : 'The compiler knew the program would start at 74000 and wrote absolute addresses.', load: moved ? '<b class="bad">Broken until reloaded.</b> The loader patched 74014 in once, so moving the image in memory leaves stale addresses. Reload from disk to fix them.' : 'The compiler left "count is 14 bytes in", and the loader added the load address 74000 when loading.', exec: moved ? '<b>Still correct.</b> The code says 14, and the MMU adds the relocation register, now 90000, on every access. Moving the process only changed one register.' : 'The code keeps the logical address 14. At every access, the MMU adds the relocation register.' };
+      const MSG = { compile: moved ? '<b class="bad">Broken.</b> The code still says 74014. However, <code>count</code> is now at 90014. To move the program, you must recompile.' : 'The compiler knew the program would start at 74000 and wrote absolute addresses.', load: moved ? '<b class="bad">Broken until reloaded.</b> The loader patched in 74014 once. Therefore, moving the image in memory leaves stale addresses. Reloading from disk fixes them.' : 'The compiler left "count is 14 bytes in", and the loader added the load address 74000 at load time.', exec: moved ? '<b>Still correct.</b> The code says 14, and the MMU adds the relocation register, now 90000, on every access. Moving the process only changed one register.' : 'The code keeps the logical address 14. At every access, the MMU adds the relocation register.' };
       $('#bd-out').innerHTML = MSG[k];
       $('#bd-move').textContent = moved ? 'Move it back to 74000' : 'Move it to 90000';
     }
@@ -704,7 +704,7 @@ table.st tr.hot td { background: var(--cx-soft); }
       svg.appendChild(el('text', { x: X(hi), y: 64, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:10px' }, hi));
       svg.appendChild(el('text', { x: 24, y: 16, class: 'lbl', style: 'font-size:10.5px' }, 'physical memory, with this process in green'));
       const px = X(Math.max(0, phys)); svg.appendChild(el('path', { d: `M${px} 12 V58`, class: 'wire' + (ok ? '' : ' m'), style: 'stroke-width:2.5' }));
-      $('#mu-out').innerHTML = k === 'bl' ? (ok ? `${a} lies in [${b}, ${b + c}), so the access goes ahead unchanged. This scheme only <em>checks</em>. The program must already use physical addresses.` : `<b class="bad">Trap.</b> ${a} is outside [${b}, ${b + c}). The OS gets control, and usually kills the process ("segmentation fault").`) : (ok ? `${a} &lt; ${c}, so it is legal, and ${a} + ${b} = <b>${phys}</b>. The process believes it starts at 0.` : `<b class="bad">Trap.</b> ${a} ≥ limit ${c}. The check happens before relocation, so the process cannot reach anyone else's memory.`);
+      $('#mu-out').innerHTML = k === 'bl' ? (ok ? `${a} lies in [${b}, ${b + c}), so the access goes ahead unchanged. This scheme only <em>checks</em>. The program must already use physical addresses.` : `<b class="bad">Trap.</b> ${a} is outside [${b}, ${b + c}). The OS gets control and usually kills the process ("segmentation fault").`) : (ok ? `${a} &lt; ${c}, so the address is legal, and ${a} + ${b} = <b>${phys}</b>. The process believes it starts at 0.` : `<b class="bad">Trap.</b> ${a} ≥ limit ${c}. The check happens before relocation. Therefore, the process cannot reach the memory of any other process.`);
     }
     $('#mu-k').addEventListener('click', (e) => { const bt = e.target.closest('[data-k]'); if (bt) { k = bt.dataset.k; build(); } });
     $('#mu-reset').addEventListener('click', () => { V.bl = { a: 300040, b: 300040, c: 120900 }; V.rl = { a: 346, b: 14000, c: 5000 }; k = 'bl'; build(); });
@@ -744,7 +744,7 @@ table.st tr.hot td { background: var(--cx-soft); }
       if (qi >= queue.length) return false;
       const q = queue[qi], before = holes().map((i) => mem[i].size);
       if (alloc(q.s)) { q.st = 'ok'; const left = mem[mem.indexOf(fresh) + 1]; msg = `${q.s} KB placed by ${alg} fit${left && left.t === 'hole' ? `, leaving a ${left.size} KB hole` : ''}. Holes were ${before.join(', ')}.`; }
-      else { q.st = 'fail'; const tot = before.reduce((a, b) => a + b, 0); msg = `<b class="bad">${q.s} KB cannot be placed.</b> Total free memory is ${tot} KB${tot >= q.s ? ` (enough!), but the largest hole is ${Math.max(...before)} KB. This is <b>external fragmentation</b>. Try Compact` : ''}.`; }
+      else { q.st = 'fail'; const tot = before.reduce((a, b) => a + b, 0); msg = `<b class="bad">${q.s} KB cannot be placed.</b> Total free memory is ${tot} KB${tot >= q.s ? `, which is enough. However, the largest hole is ${Math.max(...before)} KB. This is <b>external fragmentation</b>. Try Compact` : ''}.`; }
       qi++; return true;
     }
     function render() {
@@ -760,7 +760,7 @@ table.st tr.hot td { background: var(--cx-soft); }
     $('#fa-a').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) { alg = b.dataset.a; const extra = queue.slice(REQ0.length).map((q) => q.s); init(); extra.forEach((s) => queue.push({ s, st: 'wait' })); render(); } });
     $('#fa-go').addEventListener('click', () => { step(); render(); });
     $('#fa-all').addEventListener('click', () => { while (step()); const f = queue.filter((q) => q.st === 'fail').length; msg += ` <br><b>${alg} fit</b> placed ${queue.length - f} of ${queue.length} requests.`; render(); });
-    $('#fa-compact').addEventListener('click', () => { const used = mem.filter((b) => b.t !== 'hole'), free = mem.filter((b) => b.t === 'hole').reduce((a, b) => a + b.size, 0); mem = used.concat(free ? [{ t: 'hole', size: free }] : []); nextPtr = 0; fresh = null; msg = `Compacted. Every allocation slid down, and the free memory became one ${free} KB hole. That meant copying every moved byte and updating each moved process's relocation register.`; const failed = queue.filter((q) => q.st === 'fail'); failed.forEach((q) => { q.st = 'wait'; }); if (failed.length) { queue = queue.filter((q) => q.st !== 'wait').concat(failed); qi = queue.length - failed.length; } render(); });
+    $('#fa-compact').addEventListener('click', () => { const used = mem.filter((b) => b.t !== 'hole'), free = mem.filter((b) => b.t === 'hole').reduce((a, b) => a + b.size, 0); mem = used.concat(free ? [{ t: 'hole', size: free }] : []); nextPtr = 0; fresh = null; msg = `Memory is compacted. Every allocation slid down, and the free memory became one ${free} KB hole. Compaction copied every moved byte and updated the relocation register of each moved process.`; const failed = queue.filter((q) => q.st === 'fail'); failed.forEach((q) => { q.st = 'wait'; }); if (failed.length) { queue = queue.filter((q) => q.st !== 'wait').concat(failed); qi = queue.length - failed.length; } render(); });
     $('#fa-mem').addEventListener('click', (e) => { const d = e.target.closest('[data-i]'); if (!d) return; const b = mem[+d.dataset.i]; if (b.t === 'used' || b.t === 'other') { const sz = b.size; b.t = 'hole'; b.n = null; if (b === fresh) fresh = null; coalesce(); msg = `Freed ${sz} KB, and adjacent holes merged.`; render(); } });
     $('#fa-add').addEventListener('click', () => { const s = Math.max(1, Math.min(999, +$('#fa-n').value || 1)); queue.push({ s, st: 'wait' }); render(); });
     $('#fa-reset').addEventListener('click', () => { alg = 'first'; init(); render(); });

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>File Systems Inside · R12</title>
-<meta name="description" content="CSCI 3753 Recitation 12, covering inodes and directories on a real ext4 file system, hard and symbolic links, finding a file's data blocks with debugfs and reading them raw with dd, and Lab05 help.">
+<meta name="description" content="CSCI 3753 Recitation 12 covers inodes and directories on a real ext4 file system, hard and symbolic links, how to find the data blocks of a file with debugfs and read them raw with dd, and Lab05 help.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -46,9 +46,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Recitation 12 · Week 14</div>
     <h1>A file is an inode and some <span class="accent">blocks</span></h1>
-    <p class="lede">Lecture 20 described how a file system lays files out on disk. Today you look at the real thing, the course VM's own ext4 disk. You see an inode and a directory, give one file two names, make a link that dangles, then find exactly which disk block holds a file's bytes and read that block straight off the device. Then there is Lab05 help, because it is due Sunday.</p>
+    <p class="lede">Lecture 20 described how a file system lays files out on disk. In this recitation, you look at a real one, namely the ext4 disk of the course VM. First, you inspect an inode and a directory. Second, you give one file two names and make a link that dangles. Third, you find exactly which disk block holds the bytes of a file, and you read that block directly from the device. The rest of the session is Lab05 help, because Lab05 is due Sunday.</p>
     <div class="agenda">
-      <div><b>0–5</b>Recap of inodes, allocation, journaling</div>
+      <div><b>0–5</b>Recap of inodes, allocation, and journaling</div>
       <div><b>5–25</b>Worked example with an inode, links, and raw blocks</div>
       <div><b>25–45</b>Lab05 help (due Sun Apr 11)</div>
       <div><b>45–50</b>Exit ticket</div>
@@ -89,9 +89,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     <div class="code"><span class="ln"><span class="c"># from the course VM (your numbers may differ)</span></span><span class="ln">  File: a.txt</span><span class="ln">  Size: 6         	Blocks: 8          IO Block: 4096   regular file</span><span class="ln hl">Device: 253,0	Inode: 9485        Links: 1</span><span class="ln">Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)</span><span class="ln">…</span><span class="ln">9485 a.txt</span></div>
     <div class="prose">
       <ul>
-        <li>The <strong>inode</strong> holds the metadata, namely size, owner, mode, timestamps and the block map. It does <em>not</em> hold the name.</li>
-        <li><code>ls -ia</code> shows a directory's entries, including <code>.</code> and <code>..</code>. A directory is a file whose contents are pairs of (name, inode number).</li>
-        <li><code>Size: 6</code> but <code>Blocks: 8</code> means 8 × 512 bytes, one whole 4 KB block, for 6 bytes of data. The smallest allocation is a block.</li>
+        <li>The <strong>inode</strong> holds the metadata, namely the size, owner, mode, timestamps, and block map. It does <em>not</em> hold the name.</li>
+        <li><code>ls -ia</code> shows the entries of a directory, including <code>.</code> and <code>..</code>. A directory is a file whose contents are pairs of (name, inode number).</li>
+        <li><code>Size: 6</code> with <code>Blocks: 8</code> means that 6 bytes of data occupy 8 × 512 bytes, namely one whole 4 KB block. In other words, the smallest unit of allocation is a block.</li>
       </ul>
     </div>
   </div>
@@ -112,10 +112,10 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
     </div>
     <details class="fold"><summary>What you should see, and why</summary><div class="prose">
       <ul>
-        <li>After <code>ln</code>, both names show inode <b>9485</b> and link count <b>2</b>. That is two directory entries and one file.</li>
+        <li>After <code>ln</code>, both names show inode <b>9485</b> and link count <b>2</b>. In other words, there are two directory entries and one file.</li>
         <li>After <code>rm a.txt</code>, <code>cat b.txt</code> still prints <code>hello</code>. <code>rm</code> removes a <em>name</em>. The inode and its blocks are freed only when the link count reaches 0 and no process has the file open.</li>
         <li><code>c.txt</code> is a <b>different</b> inode (9486), type <code>l</code>, size <b>5</b>. Its data is the five characters <code>b.txt</code>.</li>
-        <li>After <code>rm b.txt</code>, <code>cat c.txt</code> fails with <code>No such file or directory</code>, but <code>ls -l c.txt</code> still shows <code>c.txt -&gt; b.txt</code>. A symbolic link is a path, looked up at every open, and it can dangle.</li>
+        <li>After <code>rm b.txt</code>, <code>cat c.txt</code> fails with <code>No such file or directory</code>, but <code>ls -l c.txt</code> still shows <code>c.txt -&gt; b.txt</code>. A symbolic link is a path, which is looked up at every open. As such, it can dangle.</li>
       </ul>
     </div></details>
   </div>
@@ -129,13 +129,13 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="code"><span class="ln">cd /root</span><span class="ln">echo "hello, disk" &gt; note.txt</span><span class="ln">sync                                          <span class="c"># make sure it reached the disk</span></span><span class="ln">debugfs -R "stat /root/note.txt" /dev/vda     <span class="c"># read-only by default</span></span><span class="ln">debugfs -R "blocks /root/note.txt" /dev/vda</span></div>
     <div class="code"><span class="ln"><span class="c"># from the course VM</span></span><span class="ln">Inode: 9485   Type: regular    Mode:  0644   Flags: 0x80000</span><span class="ln">User:     0   Group:     0   Project:     0   Size: 12</span><span class="ln">Links: 1   Blockcount: 8</span><span class="ln">…</span><span class="ln">EXTENTS:</span><span class="ln hl">(0):186368</span></div>
-    <div class="prose"><p>Logical block 0 of the file is physical block <b>186368</b> of the disk. Read that block straight from the device, bypassing the file system (use the number <em>your</em> VM printed) with the command below.</p></div>
+    <div class="prose"><p>Logical block 0 of the file is physical block <b>186368</b> of the disk. Read that block directly from the device with the command below, which bypasses the file system. Use the number that <em>your</em> VM printed.</p></div>
     <div class="code"><span class="ln">dd if=/dev/vda bs=4096 skip=186368 count=1 2&gt;/dev/null | head -c 12; echo</span><span class="ln hl">hello, disk</span></div>
-    <div class="prose"><p>There is nothing magic about a file. It is bytes in known blocks, and the inode is the map. Next come a large file and a directory read straight from disk.</p></div>
+    <div class="prose"><p>A file is not magic. It is bytes in known blocks, and the inode is the map to these blocks. Next, we read a large file and a directory directly from the disk.</p></div>
     <div class="code"><span class="ln">filefrag -v /usr/bin/bash</span><span class="ln">debugfs -R "ls -l /root" /dev/vda</span></div>
     <div class="code"><span class="ln">File size of /usr/bin/bash is 1265648 (309 blocks of 4096 bytes)</span><span class="ln"> ext:     logical_offset:        physical_offset: length:   expected: flags:</span><span class="ln hl">   0:        0..     308:       9372..      9680:    309:             last,eof</span><span class="ln">/usr/bin/bash: 1 extent found</span></div>
-    <div class="prose"><p>309 blocks in <b>one extent</b> form a single contiguous run, which is what ext4's extent-based allocation aims for (Lecture 20). <code>debugfs ls -l</code> lists the directory's entries with their inode numbers, read from the disk rather than through the kernel's caches.</p></div>
-    <p class="small muted prose">Clean up afterwards with <code>rm /root/note.txt</code>, because <code>/root</code> persists in your VM image, while <code>/tmp</code> is cleared at every boot.</p>
+    <div class="prose"><p>The 309 blocks in <b>one extent</b> form a single contiguous run. This is the goal of the extent-based allocation in ext4 (Lecture 20). <code>debugfs ls -l</code> lists the entries of the directory with their inode numbers. It reads them from the disk rather than through the caches of the kernel.</p></div>
+    <p class="small muted prose">Clean up afterwards with <code>rm /root/note.txt</code>. The reason is that <code>/root</code> persists in your VM image, whereas <code>/tmp</code> is cleared at every boot.</p>
   </div>
 </section>
 
@@ -148,9 +148,9 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
   <div class="sec">
     <div class="prose">
       <ul>
-        <li>If Part 1 and Part 2 each pass but the <strong>capstone</strong> fails, run the same filetest commands against a regular file and against your device, and compare the outputs line by line. The first difference names the bug.</li>
+        <li>If Part 1 and Part 2 each pass but the <strong>capstone</strong> fails, run the same filetest commands against a regular file and against your device. Then, compare the outputs line by line. The first difference points to the bug.</li>
         <li>R10 and R11 cover the common Part 1 and Part 2 problems.</li>
-        <li><b>PS4.</b> TAs explain rules and definitions, but they do not work its problems.</li>
+        <li><b>PS4.</b> TAs explain rules and definitions. However, they do not solve its problems.</li>
       </ul>
     </div>
   </div>
@@ -169,7 +169,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
         <div class="q-text"><code>a.txt</code> and <code>b.txt</code> are hard links to the same file. You delete <code>a.txt</code>. What happens to the data?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="rm removes one name. The other name still reaches the inode.">It is freed, and b.txt becomes empty.</button>
-          <button type="button" class="q-opt" data-ok>Nothing. The link count drops to 1 and b.txt still reaches it.</button>
+          <button type="button" class="q-opt" data-ok>Nothing. The link count drops to 1, and b.txt still reaches the data.</button>
           <button type="button" class="q-opt" data-why="That is what happens to a symbolic link whose target is deleted.">b.txt becomes a dangling link.</button>
         </div>
         <div class="q-fb ok">Right. The blocks are freed only when the count reaches 0.</div>
@@ -185,7 +185,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <button type="button" class="q-opt" data-ok>In the directory that contains it, as a (name, inode) entry</button>
           <button type="button" class="q-opt" data-why="The data blocks hold only the file's contents.">In its first data block</button>
         </div>
-        <div class="q-fb ok">Right. The output of debugfs ls -l showed exactly those entries.</div>
+        <div class="q-fb ok">Right. The output of debugfs ls -l shows exactly these entries.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -204,7 +204,7 @@ table.cs td:first-child { font-family: var(--f-mono); font-size: 13px; white-spa
           <tr><td>stat f · ls -i f</td><td>Inode number, size, blocks, link count, times.</td></tr>
           <tr><td>ln a b · ln -s a b</td><td>Hard link (same inode) · symbolic link (new inode holding the path).</td></tr>
           <tr><td>debugfs -R "stat /path" /dev/vda</td><td>The inode as stored on disk, including its extents.</td></tr>
-          <tr><td>debugfs -R "blocks /path" /dev/vda</td><td>Just the file's physical block numbers.</td></tr>
+          <tr><td>debugfs -R "blocks /path" /dev/vda</td><td>Only the physical block numbers of the file.</td></tr>
           <tr><td>filefrag -v f</td><td>How many extents (contiguous runs) a file uses.</td></tr>
           <tr><td>dd if=/dev/vda bs=4096 skip=N count=1</td><td>Read disk block N directly.</td></tr>
           <tr><td>sync</td><td>Flush cached writes to the disk.</td></tr>

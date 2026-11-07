@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Synchronization Examples · L11</title>
-<meta name="description" content="CSCI 3753 Lecture 11, interactive edition, on the readers-writers problem in four solutions, and the dining philosophers with deadlock, three fixes, a monitor solution, and starvation.">
+<meta name="description" content="CSCI 3753 Lecture 11, interactive edition. It covers the readers-writers problem in four solutions, and the dining philosophers problem with deadlock, three fixes, a monitor solution, and starvation.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -63,7 +63,7 @@
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 11 · Interactive notes</div>
     <h1>Two classic <span class="accent">puzzles</span></h1>
-    <p class="lede">New synchronization schemes are tested on a few classic problems. The bounded buffer is done. This lecture solves the other two, namely readers and writers, where the difficulty is fairness, and the dining philosophers, where it is deadlock. Each solution fixes one flaw of the one before, and you can run all of them.</p>
+    <p class="lede">New synchronization schemes are tested on a few classic problems. We have already solved the bounded buffer. In this lecture, we solve the other two, namely readers and writers, where the difficulty is fairness, and the dining philosophers, where the difficulty is deadlock. Each solution fixes one flaw of the previous one, and you can run all of them.</p>
     <div class="promise">
       <span>Before you start, review</span><span class="mono">semaphores, monitors, condition variables</span><span>from Lectures 09–10.</span>
     </div>
@@ -96,22 +96,22 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 0</div>
     <h2>The readers–writers problem</h2>
-    <p class="ch-lede">Readers may share, but writers may not. Four attempts, each fixing one flaw.</p>
+    <p class="ch-lede">Readers may share the object, but writers may not. We make four attempts, and each one fixes one flaw.</p>
   </div>
 
   <div class="sec" id="s0-1">
     <h3><span class="sec-no">0.1</span>The problem</h3>
     <div class="two-up">
       <div class="prose">
-        <p>A data object, such as a file, a database or a shared document, is used by many concurrent processes. <strong>Readers</strong> only read it. <strong>Writers</strong> can read and write.</p>
+        <p>A data object, such as a file, a database, or a shared document, is used by many concurrent processes. <strong>Readers</strong> only read it. <strong>Writers</strong> can read and write.</p>
         <ul>
           <li><b>Goal 1.</b> A writer must have exclusive access.</li>
           <li><b>Goal 2.</b> Readers can share access with other readers.</li>
         </ul>
-        <p>Two further requirements pull in opposite directions.</p>
+        <p>Two further requirements conflict with each other.</p>
         <ul>
           <li><b>Requirement 1.</b> No reader is kept waiting unless a writer has already seized the object.</li>
-          <li><b>Requirement 2.</b> A pending writer is not kept waiting indefinitely by readers that arrived <em>after</em> it. A pending writer cannot starve.</li>
+          <li><b>Requirement 2.</b> A pending writer is not kept waiting indefinitely by readers that arrived <em>after</em> it. In other words, a pending writer cannot starve.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -128,31 +128,31 @@
   <div class="sec" id="s0-2">
     <h3><span class="sec-no">0.2</span>Four solutions</h3>
     <div class="prose">
-      <p>In all four, the writer is the same, namely <code>wait(wrt); // writing; signal(wrt);</code>. Only the fourth adds to it. The readers change as shown below.</p>
+      <p>In all four solutions, the writer is the same, namely <code>wait(wrt); // writing; signal(wrt);</code>. Only the fourth solution adds to it. The readers change as shown below.</p>
     </div>
     <div class="pair">
       <div>
         <div class="sub-lab">1st, every reader takes wrt</div>
         <div class="code"><span class="ln">wait(wrt);</span><span class="ln cs">// reading</span><span class="ln">signal(wrt);</span></div>
-        <p class="small"><b class="bad">Goal 2 fails.</b> The first reader grabs the lock and shuts out the other readers. Only the <em>first</em> reader needs to take the lock, and only the <em>last</em> should release it.</p>
+        <p class="small"><b class="bad">Goal 2 fails.</b> The first reader takes the lock and shuts out the other readers. However, only the <em>first</em> reader needs to take the lock, and only the <em>last</em> reader should release it.</p>
       </div>
       <div>
         <div class="sub-lab">2nd, count readers</div>
         <div class="code"><span class="ln new">readcount++;</span><span class="ln new">if (readcount == 1) wait(wrt);</span><span class="ln cs">// reading</span><span class="ln new">readcount--;</span><span class="ln new">if (readcount == 0) signal(wrt);</span></div>
-        <p class="small"><b class="bad">Race conditions</b> on <code>readcount++</code> and <code>readcount--</code> (Lecture 08, §2.2). They need a second mutex around them.</p>
+        <p class="small"><b class="bad">Race conditions</b> occur on <code>readcount++</code> and <code>readcount--</code> (Lecture 08, §2.2). Therefore, these updates need a second mutex around them.</p>
       </div>
       <div>
         <div class="sub-lab">3rd, protect readcount (readers-preference)</div>
         <div class="code"><span class="ln new">wait(mutex);</span><span class="ln">readcount++;</span><span class="ln">if (readcount == 1) wait(wrt);</span><span class="ln new">signal(mutex);</span><span class="ln cs">// reading</span><span class="ln new">wait(mutex);</span><span class="ln">readcount--;</span><span class="ln">if (readcount == 0) signal(wrt);</span><span class="ln new">signal(mutex);</span></div>
-        <p class="small">Correct, and it meets requirement 1. But <b class="bad">writers can starve</b>. As long as readers keep overlapping, <code>readcount</code> never reaches 0 and <code>wrt</code> is never released.</p>
+        <p class="small">This solution is correct, and it meets requirement 1. However, <b class="bad">writers can starve</b>. As long as readers keep overlapping, <code>readcount</code> never reaches 0, and <code>wrt</code> is never released.</p>
       </div>
       <div>
         <div class="sub-lab">4th, add readBlock (starvation-free)</div>
         <div class="code"><span class="ln c">// writer</span><span class="ln new">wait(readBlock);</span><span class="ln">wait(wrt);  // writing;  signal(wrt);</span><span class="ln new">signal(readBlock);</span><span class="ln c">// reader</span><span class="ln new">wait(readBlock);</span><span class="ln">wait(mutex); readcount++;</span><span class="ln">if (readcount == 1) wait(wrt);</span><span class="ln">signal(mutex);</span><span class="ln new">signal(readBlock);</span><span class="ln cs">// reading</span><span class="ln">… exit as in the 3rd</span></div>
-        <p class="small">A waiting writer holds <code>readBlock</code>, so readers arriving after it queue behind it. Readers already reading finish, then the writer gets <code>wrt</code>. It is a small variant of the <em>3rd</em> solution. It meets requirement 2 by giving up requirement 1. A new reader now waits for a writer that is only pending.</p>
+        <p class="small">A waiting writer holds <code>readBlock</code>, so readers that arrive after it queue behind it. The readers that are already reading finish, and then the writer gets <code>wrt</code>. This solution is a small variant of the <em>3rd</em> solution. It meets requirement 2 by giving up requirement 1. In other words, a new reader now waits for a writer that is only pending.</p>
       </div>
     </div>
-    <p class="prose small muted">All semaphores here start at 1, and <code>readcount</code> starts at 0. "Starvation-free" assumes the semaphore queues are FIFO (Lecture 09, §2.2).</p>
+    <p class="prose small muted">All semaphores here start at 1, and <code>readcount</code> starts at 0. The term "starvation-free" assumes that the semaphore queues are FIFO (Lecture 09, §2.2).</p>
   </div>
 
   <div class="sec" id="s0-3">
@@ -172,7 +172,7 @@
       </div>
       <div class="readout" id="rw-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Each line is one atomic step. In the 2nd solution, <code>readcount++</code> and <code>readcount--</code> are shown as their separate load and store. "Overlapping readers" is an adversarial scheduler. Writers step whenever they can, and a reader leaves only while another reader is still reading, so reading never pauses unless it has to.</p>
+    <p class="small muted prose read-only">Each line is one atomic step. In the 2nd solution, <code>readcount++</code> and <code>readcount--</code> are each shown as a separate load and store. "Overlapping readers" runs an adversarial scheduler. Writers step whenever they can, and a reader leaves only while another reader is still reading. As such, reading never pauses unless it has to.</p>
   </div>
 
   <div class="sec" id="s0-4">
@@ -188,7 +188,7 @@
         </tbody>
       </table>
     </div>
-    <p class="prose">Real systems package this as a <strong>reader–writer lock</strong>, for example POSIX <code>pthread_rwlock_rdlock()</code>, <code>pthread_rwlock_wrlock()</code> and <code>pthread_rwlock_unlock()</code>. Whether readers or writers are preferred is a property of the implementation. Reader–writer locks pay off when reads far outnumber writes.</p>
+    <p class="prose">Real systems provide this as a <strong>reader–writer lock</strong>, for example POSIX <code>pthread_rwlock_rdlock()</code>, <code>pthread_rwlock_wrlock()</code>, and <code>pthread_rwlock_unlock()</code>. Whether readers or writers are preferred depends on the implementation. Reader–writer locks are most useful when reads far outnumber writes.</p>
   </div>
 
   <div class="sec" id="q0">
@@ -199,7 +199,7 @@
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="That is the 1st solution, which loses Goal 2.">Every reader waits and every reader signals.</button>
           <button type="button" class="q-opt" data-ok>The first reader in (readcount becomes 1) waits, and the last reader out (readcount becomes 0) signals.</button>
-          <button type="button" class="q-opt" data-why="Readers must lock writers out, or a writer could enter mid-read.">No reader touches wrt. Only writers do.</button>
+          <button type="button" class="q-opt" data-why="Readers must lock writers out. Otherwise, a writer could enter in the middle of a read.">No reader touches wrt. Only writers do.</button>
         </div>
         <div class="q-fb ok">Right. The readers take the lock as a group.</div>
         <div class="q-fb no">Not quite.</div>
@@ -214,10 +214,10 @@
         <div class="q-text">Under the 3rd solution, reads are constant and overlapping. What happens to a writer?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-ok>It may wait forever. The readcount never drops to 0, so wrt is never released.</button>
-          <button type="button" class="q-opt" data-why="Readers never wait for a pending writer in the 3rd solution. That is its preference.">New readers wait for it, so it gets in soon.</button>
+          <button type="button" class="q-opt" data-why="In the 3rd solution, readers never wait for a pending writer. This is its preference.">New readers wait for it, so it gets in soon.</button>
           <button type="button" class="q-opt" data-why="Mutual exclusion is kept. The problem is fairness.">It writes while readers are reading.</button>
         </div>
-        <div class="q-fb ok">Right. Try "Overlapping readers ×300" with the 3rd, then the 4th.</div>
+        <div class="q-fb ok">Right. Try "Overlapping readers ×300" with the 3rd solution, and then with the 4th.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -234,7 +234,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 1</div>
     <h2>The dining philosophers</h2>
-    <p class="ch-lede">Five philosophers, five chopsticks, and a deadlock waiting to happen.</p>
+    <p class="ch-lede">Five philosophers share five chopsticks, and a deadlock can occur.</p>
   </div>
 
   <div class="sec" id="s1-1">
@@ -242,24 +242,24 @@
     <div class="prose">
       <ul>
         <li>N philosophers sit at a round table with a bowl of rice in the middle. They spend their lives alternating between thinking and eating, and they do not interact with their neighbors.</li>
-        <li>Occasionally one gets hungry and picks up two chopsticks, the ones to its immediate left and right, <strong>one at a time</strong>. It needs both to eat, and releases both when done.</li>
-        <li>With 5 philosophers, the shared data is the bowl plus <code>semaphore chopstick[5]</code>, all initialized to 1. Philosopher i grabs chopstick i with <code>P(chopstick[i])</code> and releases it with <code>V(chopstick[i])</code>.</li>
+        <li>Occasionally, a philosopher gets hungry and picks up two chopsticks, namely the ones to its immediate left and right, <strong>one at a time</strong>. It needs both chopsticks to eat, and it releases both when it is done.</li>
+        <li>With 5 philosophers, the shared data is the bowl and <code>semaphore chopstick[5]</code>, all initialized to 1. Philosopher i picks up chopstick i with <code>P(chopstick[i])</code> and releases it with <code>V(chopstick[i])</code>.</li>
       </ul>
     </div>
     <div class="code" style="max-width:560px"><span class="ln"><span class="kw">while</span> (1) {</span><span class="ln">    <span class="c">// think</span></span><span class="ln">    P(chopstick[i]);             <span class="c">// left</span></span><span class="ln">    P(chopstick[(i + 1) % N]);   <span class="c">// right</span></span><span class="ln cs">    <span class="c">// eat</span></span><span class="ln">    V(chopstick[(i + 1) % N]);</span><span class="ln">    V(chopstick[i]);</span><span class="ln">}</span></div>
-    <p class="prose"><b class="bad">Problem.</b> If every philosopher picks up the left chopstick, every one waits forever for the right. That is a <strong>deadlock</strong>, a cycle of waiting (Lecture 12).</p>
+    <p class="prose"><b class="bad">Problem.</b> If every philosopher picks up the left chopstick, every philosopher waits forever for the right one. This is a <strong>deadlock</strong>, namely a cycle of waiting (Lecture 12).</p>
   </div>
 
   <div class="sec" id="s1-2">
     <h3><span class="sec-no">1.2</span>Three ways out</h3>
     <div class="opts3">
       <div><span class="tag">At most 4 at the table</span>With 5 chopsticks and at most 4 seated philosophers, at least one of them can get two chopsticks (pigeonhole). Implement it with a counting semaphore <code>room = 4</code>.</div>
-      <div><span class="tag">Asymmetry</span>Odd philosophers pick up left then right, and even ones pick up right then left. The circular wait can no longer close.</div>
-      <div><span class="tag">Both or nothing</span>Pick up chopsticks only if both are free. Testing both must itself be a critical section. That is the monitor solution in §1.3.</div>
+      <div><span class="tag">Asymmetry</span>Odd philosophers pick up left and then right, and even philosophers pick up right and then left. As a result, the circular wait can no longer form.</div>
+      <div><span class="tag">Both or nothing</span>A philosopher picks up chopsticks only if both are free. Testing both must itself be a critical section. This is the monitor solution in §1.3.</div>
     </div>
     <div class="note note-warn">
       <span class="note-tag">Deadlock-free ≠ starvation-free</span>
-      <p>A solution in which no one is ever stuck <em>all together</em> can still let one philosopher go hungry forever while the others keep eating. The monitor solution below is an example (§1.4).</p>
+      <p>A solution in which the philosophers are never stuck <em>all together</em> can still let one philosopher go hungry forever while the others keep eating. The monitor solution below is an example (§1.4).</p>
     </div>
   </div>
 
@@ -267,8 +267,8 @@
     <h3><span class="sec-no">1.3</span>The monitor solution</h3>
     <div class="prose">
       <ul>
-        <li><strong>Insight 1.</strong> Pick up two chopsticks only if both are free. Equivalently, a philosopher begins eating only if neither neighbor is eating. That needs a <em>state</em> per philosopher.</li>
-        <li><strong>Insight 2.</strong> If I am hungry and a neighbor is eating, ask the neighbor to <code>signal()</code> me when done. The states are <strong>thinking</strong>, <strong>hungry</strong> and <strong>eating</strong>, with a condition variable <code>self[i]</code> per philosopher.</li>
+        <li><strong>Insight 1.</strong> Pick up two chopsticks only if both are free. In other words, a philosopher begins eating only if neither neighbor is eating. This requires a <em>state</em> per philosopher.</li>
+        <li><strong>Insight 2.</strong> If a philosopher is hungry and a neighbor is eating, it asks the neighbor to <code>signal()</code> it when the neighbor is done. The states are <strong>thinking</strong>, <strong>hungry</strong>, and <strong>eating</strong>, with a condition variable <code>self[i]</code> per philosopher.</li>
       </ul>
     </div>
     <div class="pair">
@@ -277,9 +277,9 @@
     </div>
     <div class="prose" style="margin-top:1em">
       <ul>
-        <li>In <code>pickup</code>, the <code>signal()</code> inside <code>test(i)</code> finds no waiter and has no effect. That is harmless, because the state is already EATING and <code>pickup</code> skips the wait. A signal before the wait does not matter here.</li>
-        <li>The real wakeup comes from a neighbor's <code>putdown</code>. Philosophers who finish eating turn hungry neighbors into eating ones.</li>
-        <li>Why <code>(i + 4) % 5</code> rather than <code>(i − 1) % 5</code>? In C, <code>-1 % 5</code> is <code>-1</code>, so philosopher 0's left neighbor would index <code>state[-1]</code>.</li>
+        <li>In <code>pickup</code>, the <code>signal()</code> inside <code>test(i)</code> finds no waiter and has no effect. This is harmless, because the state is already EATING, and <code>pickup</code> skips the wait. Therefore, a signal before the wait does not matter here.</li>
+        <li>The actual wakeup comes from a neighbor's <code>putdown</code>. A philosopher that finishes eating moves its hungry neighbors to the eating state.</li>
+        <li>The code uses <code>(i + 4) % 5</code> rather than <code>(i − 1) % 5</code>. The reason is that, in C, <code>-1 % 5</code> is <code>-1</code>, so the left neighbor of philosopher 0 would index <code>state[-1]</code>.</li>
         <li>The <code>if</code> is safe even under Mesa semantics, because only a neighbor's <code>test</code> sets <code>state[i] = EATING</code>, and nothing can undo that before philosopher i runs.</li>
       </ul>
     </div>
@@ -306,9 +306,9 @@
       </div>
       <div class="readout" id="dp-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Chopstick i lies between philosopher P(i) and P(i+1), counting from P0. A held chopstick is drawn next to its holder. In "monitor" each call to pickup or putdown is one step, because monitor functions run atomically.</p>
+    <p class="small muted prose read-only">Chopstick i lies between philosopher P(i) and P(i+1), counting from P0. A held chopstick is drawn next to its holder. In "monitor" mode, each call to pickup or putdown is one step, because monitor functions run atomically.</p>
     <div class="prose">
-      <p><b>Starvation in the monitor solution</b> (the script button above, in "monitor" mode). P0 and P2 start eating, so P1, between them, is hungry and waits. When P0 puts down, it tests P1, but P2 is still eating, so nothing happens. P0 thinks, gets hungry, and eats again. Then P2 does the same. If P0 and P2 always overlap, <strong>P1 never eats</strong>, although the system as a whole never deadlocks.</p>
+      <p><b>Starvation in the monitor solution</b> (the script button above, in "monitor" mode). P0 and P2 start eating, so P1, which sits between them, is hungry and waits. When P0 puts down its chopsticks, it tests P1. However, P2 is still eating, so nothing happens. P0 thinks, gets hungry, and eats again. Then P2 does the same. If P0 and P2 always overlap, <strong>P1 never eats</strong>, although the system as a whole never deadlocks.</p>
     </div>
   </div>
 
@@ -318,11 +318,11 @@
       <div class="quiz-body">
         <div class="q-text">Why can "at most 4 philosophers at the table" never deadlock with 5 chopsticks?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-ok>Four philosophers holding one chopstick each leave a fifth chopstick free, and one of them can pick it up and eat.</button>
-          <button type="button" class="q-opt" data-why="Order of pickup is unchanged. The bound on seats is what matters.">They pick up chopsticks in a different order.</button>
+          <button type="button" class="q-opt" data-ok>If four philosophers each hold one chopstick, a fifth chopstick is left free. One of them can pick it up and eat.</button>
+          <button type="button" class="q-opt" data-why="The pickup order is unchanged. What matters is the bound on seats.">They pick up chopsticks in a different order.</button>
           <button type="button" class="q-opt" data-why="Four of five still run concurrently. There is no global lock.">Only one philosopher eats at a time.</button>
         </div>
-        <div class="q-fb ok">Right. By the pigeonhole principle, fewer competitors than resources breaks the cycle.</div>
+        <div class="q-fb ok">Right. By the pigeonhole principle, having fewer competitors than resources breaks the cycle.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -334,7 +334,7 @@
       <div class="quiz-body">
         <div class="q-text">In <code>pickup(i)</code>, <code>test(i)</code> may call <code>self[i].signal()</code> before philosopher i ever waits. Why is that harmless here, unlike §1.4 of Lecture 10?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="Condition variables have no memory, here as anywhere.">The monitor saves the signal for later.</button>
+          <button type="button" class="q-opt" data-why="Condition variables have no memory, here or anywhere else.">The monitor saves the signal for later.</button>
           <button type="button" class="q-opt" data-ok>test also set state[i] = EATING, and pickup checks the state before waiting, so it never waits.</button>
           <button type="button" class="q-opt" data-why="pickup does call wait when the state is not EATING.">pickup never calls wait.</button>
         </div>
@@ -354,7 +354,7 @@
           <button type="button" class="q-opt" data-ok>No. Two neighbors that keep overlapping can keep the philosopher between them hungry forever.</button>
           <button type="button" class="q-opt" data-why="It is a monitor, so mutual exclusion holds. The problem is fairness.">No, because two neighbors can eat at once.</button>
         </div>
-        <div class="q-fb ok">Right. Fixing it needs something like aging, or a queue of hungry philosophers.</div>
+        <div class="q-fb ok">Right. A fix needs a mechanism such as aging, or a queue of hungry philosophers.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -377,9 +377,9 @@
     <h3><span class="sec-no">∎</span>What to take away</h3>
     <div class="prose">
       <ul>
-        <li>The classic problems are the bounded buffer, readers–writers and the dining philosophers.</li>
-        <li>In readers–writers, the first reader in takes <code>wrt</code> and the last reader out releases it, with <code>readcount</code> protected by a mutex. That version prefers readers, so writers can starve. Adding <code>readBlock</code> lets a pending writer hold back new readers.</li>
-        <li>In dining philosophers, grabbing left then right can deadlock. The fixes are at most N−1 seated, asymmetric order, or both-or-nothing in a monitor.</li>
+        <li>The classic problems are the bounded buffer, readers–writers, and the dining philosophers.</li>
+        <li>In readers–writers, the first reader in takes <code>wrt</code>, and the last reader out releases it. A mutex protects <code>readcount</code>. This version prefers readers, so writers can starve. Adding <code>readBlock</code> lets a pending writer hold back new readers.</li>
+        <li>In dining philosophers, picking up left and then right can deadlock. There are three fixes, namely at most N−1 seated philosophers, an asymmetric order, and both-or-nothing in a monitor.</li>
         <li>The monitor solution uses states (thinking, hungry, eating) and one condition per philosopher. It is deadlock-free but not starvation-free.</li>
       </ul>
     </div>
@@ -390,12 +390,12 @@
       <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
       <tbody>
         <tr><td>readers–writers problem</td><td>Readers may share access, but writers need exclusive access.</td></tr>
-        <tr><td>readcount</td><td>Number of readers currently reading.</td></tr>
+        <tr><td>readcount</td><td>The number of readers that are currently reading.</td></tr>
         <tr><td>readers-preference</td><td>New readers never wait for a pending writer (3rd solution).</td></tr>
-        <tr><td>readBlock</td><td>Semaphore that lets a pending writer stop new readers (4th solution).</td></tr>
+        <tr><td>readBlock</td><td>A semaphore that lets a pending writer stop new readers (4th solution).</td></tr>
         <tr><td>reader–writer lock</td><td>A lock with shared (read) and exclusive (write) modes.</td></tr>
-        <tr><td>dining philosophers</td><td>N processes, N shared resources, each needing two neighbors'.</td></tr>
-        <tr><td>deadlock</td><td>A cycle of processes each waiting for another's resource.</td></tr>
+        <tr><td>dining philosophers</td><td>N processes share N resources, and each process needs the two resources next to it.</td></tr>
+        <tr><td>deadlock</td><td>A cycle of processes, each waiting for a resource that another one holds.</td></tr>
         <tr><td>starvation</td><td>One process waits forever while others make progress.</td></tr>
       </tbody>
     </table>
@@ -517,7 +517,7 @@
       $('#rw-stats').innerHTML = `<span>steps <b>${E.steps}</b></span><span>reads <b>${S.reads}</b></span><span>writes <b>${S.writes}</b></span><span>readcount <b>${v === '1' ? 'n/a' : S.rc}</b></span><span>most readers at once <b>${S.maxR}</b></span><span>longest writer wait <b>${Math.max(S.wwait, S.wcur)}</b> steps</span>`;
       $('#rw-sem').innerHTML = semHTML(E);
       $('#rw-act').innerHTML = E.actors.map((a, i) => { const inCS = !a.blk && a.prog[a.pc].cs; return `<div class="actor"><div class="top"><b>${a.name}</b><span class="chipt ${a.blk ? 'blk' : inCS ? 'in' : 'run'}">${a.blk ? 'asleep' : inCS ? (a.reader ? 'reading' : 'writing') : 'ready'}</span><button type="button" class="btn small" data-a="${i}"${a.blk || E.err ? ' disabled' : ''}>Step</button></div><div class="code">${a.prog.map((o, k) => `<span class="ln${k === a.pc ? ' cur' : ''}${o.cs ? ' cs' : ''}">${esc(o.t)}</span>`).join('')}</div></div>`; }).join('');
-      const TIP = { 1: 'Watch "most readers at once". It never exceeds 1. Goal 2 fails.', 2: 'Keep stepping two readers through readcount together. A lost update can let a writer in beside a reader, or leave wrt held forever.', 3: 'Correct. Readers share. Now press "Overlapping readers ×300" and count the writes.', 4: 'Press "Overlapping readers ×300" and compare with the 3rd.' };
+      const TIP = { 1: 'Watch "most readers at once". It never exceeds 1, so Goal 2 fails.', 2: 'Keep stepping two readers through readcount together. A lost update can let a writer in beside a reader, or leave wrt held forever.', 3: 'This solution is correct, and readers share. Now press "Overlapping readers ×300" and count the writes.', 4: 'Press "Overlapping readers ×300" and compare with the 3rd.' };
       $('#rw-out').innerHTML = E.err || (E.dead ? '<b class="bad">Everyone is asleep.</b>' : note || TIP[v]);
       $('#rw-r1').disabled = $('#rw-r50').disabled = $('#rw-heavy').disabled = !!E.err;
     }
@@ -540,7 +540,7 @@
       for (let k = 0; k < 40 && E.actors.filter((x) => x.reader && x.prog[x.pc].cs).length < 2; k++) { const a = R.filter((x) => !x.blk && !x.prog[x.pc].cs)[0]; if (!a) break; E.step(a); }
       for (let k = 0; k < 300 && !E.err && !E.dead; k++) { const a = pick(); if (!a) break; E.step(a); }
       const n = E.S.writes - w0;
-      render(v === '3' ? (n ? `${n} writes in 300 steps. ` : `<b class="bad">0 writes in 300 steps.</b> W1 and W2 are asleep on wrt the whole time. Some reader always holds it for the group, and readcount never reaches 0. `) : v === '4' ? `<b>${n} writes</b> in 300 steps, under the same adversarial schedule. A pending writer holds readBlock, new readers queue behind it, and the current readers drain out. ` : `${n} writes and ${E.S.reads} reads in 300 steps. `);
+      render(v === '3' ? (n ? `${n} writes in 300 steps. ` : `<b class="bad">0 writes in 300 steps.</b> W1 and W2 are asleep on wrt the whole time. Some reader always holds it for the group, and readcount never reaches 0. `) : v === '4' ? `<b>${n} writes</b> in 300 steps, under the same adversarial schedule. A pending writer holds readBlock, new readers queue behind it, and the current readers finish. ` : `${n} writes and ${E.S.reads} reads in 300 steps. `);
     });
     $('#rw-reset').addEventListener('click', () => { v = '3'; build(); render(); });
     build(); render();
@@ -613,8 +613,8 @@
       draw();
       $('#dp-meals').innerHTML = `meals ${E.S.meals.map((m, i) => `P${i}=<b>${m}</b>`).join(' ')}<br>steps ${E.steps}${v === 'room' ? ` · room = ${E.sems.room.v}` : ''}`;
       $('#dp-act').innerHTML = E.actors.map((a, i) => { const s = stateOf(a); return `<div class="actor"><div class="top"><b>${a.name}</b><span class="chipt ${a.blk ? 'blk' : s === 'eating' ? 'in' : 'run'}">${a.blk ? 'asleep' : s}</span><button type="button" class="btn small" data-a="${i}"${a.blk || E.err || E.dead ? ' disabled' : ''}>Step</button></div><div class="code">${a.prog.map((o, k) => `<span class="ln${k === a.pc ? ' cur' : ''}${o.cs ? ' cs' : ''}">${esc(o.t)}</span>`).join('')}</div></div>`; }).join('');
-      const TIP = { naive: 'Random runs deadlock only occasionally, but "Everyone grabs left" forces it.', room: 'Even if everyone grabs a first chopstick, the fifth philosopher is held at P(room), so someone can always eat.', asym: 'The odd and even philosophers reach for their first chopstick in opposite directions, so the circle of waiting cannot close.', mon: 'No philosopher ever holds one chopstick while waiting for the other. Try the starvation script.' };
-      $('#dp-out').innerHTML = E.dead ? `<b class="bad">Deadlock.</b> Every philosopher holds one chopstick and waits for the next one, which the neighbor holds. A cycle of five waits.` : note || TIP[v];
+      const TIP = { naive: 'Random runs deadlock only occasionally. However, "Everyone grabs left" forces it.', room: 'Even if everyone grabs a first chopstick, the fifth philosopher is held at P(room), so someone can always eat.', asym: 'The odd and even philosophers reach for their first chopstick in opposite directions, so the circle of waiting cannot close.', mon: 'No philosopher ever holds one chopstick while waiting for the other. Try the starvation script.' };
+      $('#dp-out').innerHTML = E.dead ? `<b class="bad">Deadlock.</b> Every philosopher holds one chopstick and waits for the next one, which the neighbor holds. This is a cycle of five waits.` : note || TIP[v];
       $('#dp-r1').disabled = $('#dp-r100').disabled = E.dead;
     }
     $('#dp-act').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) { E.step(E.actors[+b.dataset.a]); render(); } });
@@ -627,7 +627,7 @@
         const s = (i, n) => { for (let k = 0; k < n; k++) E.step(A[i]); };
         s(0, 2); s(2, 2); s(1, 2);        // P0 eats, P2 eats, P1 hungry and waits
         for (let r = 0; r < 8; r++) { s(0, 2); s(0, 2); s(2, 2); s(2, 2); }   // each: eat, putdown, think, pickup
-        render(`<b class="bad">P1 starves.</b> After 8 rounds P0 and P2 have eaten ${E.S.meals[0]} and ${E.S.meals[2]} times. P1 is still hungry, because one of its neighbors is always eating. `);
+        render(`<b class="bad">P1 starves.</b> After 8 rounds, P0 and P2 have eaten ${E.S.meals[0]} and ${E.S.meals[2]} times. P1 is still hungry, because one of its neighbors is always eating. `);
       } else {
         A.forEach((a) => { E.step(a); if (v === 'room' && !a.blk) E.step(a); });   // think → (P(room))
         A.forEach((a) => { if (!a.blk) E.step(a); });                               // first chopstick

@@ -44,7 +44,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="hero-inner">
     <div class="eyebrow"><span class="chip-t">walkthrough</span> &nbsp;Basecamp 1 · Weeks 3–5 · due Sun Jan 31</div>
     <h1>Birth, family, death, and <span class="accent">afterlife</span></h1>
-    <p class="lede">This page walks you through Lab01 step by step. In this lab, you follow one process through its whole life. It is born with <code>fork</code> and <code>exec</code>. It has a family, namely its parent and the process tree. Finally, it dies, and its parent collects its exit status, which brings in zombies and orphans. For each program, this page says exactly what it must print and how to check it yourself before <code>make check</code> does. Note that it never shows code for the lab files. This page and the header comment of each file in <code>labs/01-processes/submit/</code> are the specification for this lab.</p>
+    <p class="lede">This page walks you through Lab01 step by step. In this lab, you follow one process through its whole life. It is born with <code>fork</code> and <code>exec</code>. It has a family, namely its parent and the process tree. Finally, it dies, and its parent collects its exit status, which brings in zombies and orphans. This page and the header comment of each file in <code>labs/01-processes/submit/</code> are the specification for this lab.</p>
     <div class="steps-map">
       <div><b>Step 0–1</b>Get the lab, and read a status file by hand</div>
       <div><b>Step 2</b>ptree.sh, the family tree (shell)</div>
@@ -127,7 +127,6 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       </ol>
       <p>Lab01 opens before Lecture 03, which introduces processes. Therefore, a new idea is underlined with a dashed line where you first need it. Click it for a short explanation and a link to the lecture section.</p>
     </div>
-    <div class="note"><span class="note-tag">Manual pages</span><p>The VM has no manual pages, so <code>man fork</code> does not work there. This page links each manual page it names to its online copy at <a href="https://man7.org/linux/man-pages/" target="_blank" rel="noopener">man7.org</a>, the Linux man-pages project. The notation <code>fork(2)</code> means the page for <code>fork</code> in section 2, the section for system calls. Section 3 holds C library functions.</p></div>
   </div>
 </section>
 
@@ -159,7 +158,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
               </tbody>
             </table>
           </div>
-          <p>Your shell is in <span class="ref" data-sec="L03 §3.1" data-title="Process states" data-href="../lectures/03-process.html#s3-1">state<span class="ref-body">The lecture names five states, namely new, ready, running, waiting, and terminated. Linux shows them as letters. <code>R</code> covers both running and ready. <code>S</code> (sleeping) is waiting for an event, such as a timer or a key press. <code>Z</code> (zombie) has terminated, but its parent has not yet collected its exit status (Step 4).</span></span> <code>S</code>, because it is waiting for <code>head</code> to finish.</p>
+          <p>Your shell is in <span class="ref" data-sec="L03 §3.1" data-title="Process states" data-href="../lectures/03-process.html#s3-1">state<span class="ref-body">The lecture names five states, namely new, ready, running, waiting, and terminated. Linux shows a state as a letter. <code>S</code> (sleeping) is the waiting state, for example waiting for a timer or a key press. <code>Z</code> (zombie) is a process that has terminated, but whose parent has not yet called <code>wait()</code> (Step 4).</span></span> <code>S</code>, because it is waiting for <code>head</code> to finish.</p>
         </li>
         <li>
           <p><b>Follow the chain by hand up to PID 1.</b></p>
@@ -254,7 +253,6 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
       </ol>
     </div>
     <div class="note note-warn"><span class="note-tag">What the symptom tells you</span><p><b>Status 256 instead of 1.</b> You printed the packed status without unpacking it. <b>Two CHILD lines for a missing program.</b> After <code>exec</code> failed, the child kept going and ran the parent's code too. <b>A status other than 127 for a missing program.</b> The failure path does not exit with 127. <b><code>hello</code> is missing.</b> Look again at what you passed as the argument vector.</p></div>
-    <details class="fold"><summary>Why does the TODO say <code>_exit</code>, not <code>exit</code>?</summary><div class="prose"><p>Read the Buffering note in Step 4 first. Then think about what <code>fork</code> copies, including any output still sitting in the parent's buffer. Finally, compare <a href="https://man7.org/linux/man-pages/man3/exit.3.html" target="_blank" rel="noopener">exit(3)</a> with <a href="https://man7.org/linux/man-pages/man2/_exit.2.html" target="_blank" rel="noopener">_exit(2)</a>. One of them flushes that buffer, and the other does not.</p></div></details>
   </div>
 </section>
 
@@ -409,18 +407,18 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
         <li>
           <p><b>Question 1. "In <code>undead zombie</code>, the child is dead for 10 seconds but still has an entry in <code>/proc</code>. What is the kernel keeping alive, and for whom? What single line of parent code makes it disappear?"</b></p>
           <p>Run the zombie act as in Step 4. During the 10 seconds, compare the zombie's status file with a live process's status file.</p>
-          <div class="code"><span class="ln">cat /proc/&lt;zombie pid&gt;/status</span><span class="ln">cat /proc/self/status             <span class="c"># a live process: cat itself</span></span></div>
+          <div class="code"><span class="ln">cat /proc/&lt;zombie pid&gt;/status</span><span class="ln">cat /proc/$$/status               <span class="c"># a live process, your shell</span></span></div>
           <p>Ask what is still there and what is missing. Then reread the zombie card in Step 4, and ask what the parent gets from <code>wait</code> that it could get no other way.</p>
         </li>
         <li>
-          <p><b>Question 2. "Between <code>fork</code> and <code>exec</code> in <code>spawn.c</code>, the child briefly was a copy of its parent. What did <code>exec</code> replace, and name two things that survive exec."</b></p>
-          <p>Pick properties to test, such as the PID, the parent, the current directory, the open files, and the command line. For each one, design a probe that runs a program through spawn and lets that program report on itself through <code>/proc/self</code>.</p>
-          <div class="code"><span class="ln">/tmp/spawn /bin/cat /proc/self/&lt;some file&gt;</span></div>
-          <p>Compare what the program reports with what the child had before <code>exec</code>, which you can work out from spawn's own output and from your shell. Report only what you actually showed.</p>
+          <p><b>Question 2. "Run <code>/tmp/spawn /bin/sleep 20</code> in the background, read <code>/proc/&lt;pid&gt;/status</code> of the sleeping child from your shell, and compare its <code>Name</code>, <code>Pid</code> and <code>PPid</code> lines with the <code>CHILD</code> line that spawn prints when the sleep ends. Using L03 §1.4, say what exec replaced and which values it kept, and why."</b></p>
+          <p>spawn waits for its child, so start it in the background with <code>&amp;</code>. Then <code>$!</code> is spawn's PID, and <code>ps --ppid</code> lists spawn's children, as in <a href="../recitations/r03-fork-exec-wait.html#c">Recitation 03, Part 3</a>.</p>
+          <div class="code"><span class="ln">/tmp/spawn /bin/sleep 20 &amp;</span><span class="ln">ps -o pid,ppid,stat,comm --ppid $!    <span class="c"># the sleeping child, with its PID</span></span><span class="ln">head -8 /proc/&lt;that pid&gt;/status</span><span class="ln">wait                                  <span class="c"># the CHILD line, when the sleep ends</span></span></div>
+          <p>Right after <code>fork</code>, the child was a copy of spawn. For each of the three lines, ask whether it would have looked the same before <code>exec</code>. Then reread <a href="../lectures/03-process.html#s1-4">L03 §1.4</a> and the exec card in Step 3.</p>
         </li>
         <li>
-          <p><b>Question 3. "Who adopted your orphan, and how did you verify it? Would the answer be the same on a system where PID 1 is not systemd?"</b></p>
-          <p>Your output from Step 5 answers the first part. For the second part, reread the orphan rule in <a href="../lectures/03-process.html#s2-2">L03 §2.2</a>, and decide whether it depends on which program runs as PID 1. Linux has one exception to this rule, described in <a href="https://man7.org/linux/man-pages/man2/PR_SET_CHILD_SUBREAPER.2const.html" target="_blank" rel="noopener">PR_SET_CHILD_SUBREAPER(2const)</a>.</p>
+          <p><b>Question 3. "Who adopted your orphan, and which two observations from your own run show it? According to L03 §2.2, would the adopter change if PID 1 ran a program other than systemd?"</b></p>
+          <p>Step 5, item 3, looked at the orphan in two ways. Write down what each one printed. For the second part, reread the orphan rule in <a href="../lectures/03-process.html#s2-2">L03 §2.2</a>, and decide whether it names a program or a PID.</p>
         </li>
       </ol>
     </div>

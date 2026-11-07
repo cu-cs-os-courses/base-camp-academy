@@ -90,7 +90,7 @@
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 02 · Interactive notes</div>
     <h1>How a program<br><span class="accent">asks</span> the kernel</h1>
-    <p class="lede">Lecture 01 said the kernel protects itself with a mode bit, so user programs cannot simply call into it. This lecture shows the three ways in, namely the boot chain that puts the kernel in charge in the first place, the system calls through which every program asks for a service, and loadable kernel modules that add new code to a running kernel.</p>
+    <p class="lede">In Lecture 01, we saw that the kernel protects itself with a mode bit. As such, user programs cannot simply call into it. In this lecture, we discuss the three ways into the kernel, namely the boot chain that puts the kernel in charge in the first place, the system calls through which every program asks for a service, and the loadable kernel modules that add new code to a running kernel.</p>
     <div class="promise">
       <span>Before you start, review</span><span class="mono">dual mode, traps, the interrupt vector</span><span>from Lecture 01.</span>
     </div>
@@ -127,7 +127,7 @@
     <div class="sec present-only title-slide" id="title">
       <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 02</div>
       <h1>Operating System Services</h1>
-      <p class="lede">The boot loader that starts them, system calls that reach them, and kernel modules that extend them.</p>
+      <p class="lede">The boot loader that starts them, the system calls that reach them, and the kernel modules that extend them.</p>
       <div class="meta">Instructor Yueqi Chen · Textbook Silberschatz, Ch. 2</div>
     </div>
 
@@ -136,27 +136,27 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 0</div>
     <h2>Operating-system services</h2>
-    <p class="ch-lede">An OS provides an environment for executing programs, and services to programs and users.</p>
+    <p class="ch-lede">An OS provides an environment for executing programs. It also provides services to programs and users.</p>
   </div>
 
   <div class="sec" id="s0-1">
     <h3><span class="sec-no">0.1</span>Services that help the user</h3>
     <div class="opts3" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <div><span class="tag">User interface</span>Almost every OS has one, such as a command line (CLI), graphical (GUI), touch screen, or batch interface.</div>
-      <div><span class="tag">Program execution</span>Load a program into memory, run it, and end it, normally or abnormally (with an error).</div>
-      <div><span class="tag">I/O operations</span>A running program may need I/O to a file or a device, but it cannot drive devices itself.</div>
-      <div data-step="1"><span class="tag">File-system manipulation</span>Read and write files and directories, create and delete them, search, list information, manage permissions.</div>
+      <div><span class="tag">Program execution</span>The OS loads a program into memory, runs it, and ends it, either normally or abnormally (with an error).</div>
+      <div><span class="tag">I/O operations</span>A running program may need I/O to a file or a device. However, it cannot drive devices itself.</div>
+      <div data-step="1"><span class="tag">File-system manipulation</span>Programs read and write files and directories, create and delete them, search them, list their information, and manage their permissions.</div>
       <div data-step="1"><span class="tag">Communications</span>Processes exchange information on one computer or across a network, through shared memory or message passing.</div>
-      <div data-step="1"><span class="tag">Error detection</span>Errors occur in the CPU and memory, in devices, and in user programs. Take the right action for each, and offer debugging facilities.</div>
+      <div data-step="1"><span class="tag">Error detection</span>Errors occur in the CPU and memory, in devices, and in user programs. The OS takes the right action for each error and offers debugging facilities.</div>
     </div>
   </div>
 
   <div class="sec" id="s0-2">
     <h3><span class="sec-no">0.2</span>Services that keep the system efficient</h3>
     <div class="opts3">
-      <div><span class="tag">Resource allocation</span>With many users or jobs at once, share out CPU cycles, main memory, file storage, and devices.</div>
-      <div data-step="1"><span class="tag">Logging</span>Keep track of which users use how much of which resources.</div>
-      <div data-step="2"><span class="tag">Protection and security</span>Control all access to system resources, keep concurrent processes from interfering, and authenticate users against outsiders.</div>
+      <div><span class="tag">Resource allocation</span>When many users or jobs run at once, the OS shares out CPU cycles, main memory, file storage, and devices.</div>
+      <div data-step="1"><span class="tag">Logging</span>The OS keeps track of which users use how much of which resources.</div>
+      <div data-step="2"><span class="tag">Protection and security</span>The OS controls all access to system resources, keeps concurrent processes from interfering with each other, and authenticates users to defend against outsiders.</div>
     </div>
   </div>
 
@@ -172,7 +172,7 @@
           <rect x="20" y="284" width="720" height="36" class="fbox"/><text x="380" y="307" text-anchor="middle">hardware</text>
         </svg>
       </div>
-      <figcaption><span class="fno">Fig. 0.1</span>Programs reach every service through the system-call layer. The grey row of user interfaces is the <b>shell</b>, and everything from the system calls down is the <span class="os">kernel</span> (after Silberschatz Fig. 2.1).</figcaption>
+      <figcaption><span class="fno">Fig. 0.1</span>Programs reach every service through the system-call layer. The grey row of user interfaces is the <b>shell</b>. Everything from the system calls down is the <span class="os">kernel</span> (after Silberschatz Fig. 2.1).</figcaption>
     </figure>
   </div>
 
@@ -194,9 +194,9 @@
     <h3><span class="sec-no">1.1</span>Bootstrapping</h3>
     <div class="prose">
       <ul>
-        <li><strong>Booting</strong> ("bootstrapping") is loading and starting the operating system.</li>
+        <li><strong>Booting</strong> ("bootstrapping") is the process of loading and starting the operating system.</li>
         <li data-step="1">A <strong>bootstrap program</strong> (bootstrap loader) locates the kernel, loads it into memory, and starts it.</li>
-        <li data-step="2">It is usually a <strong>two-step</strong> process. A simple bootstrap loader runs first, which fetches a more complex one, which loads the kernel from disk and jumps to it.</li>
+        <li data-step="2">It is usually a <strong>two-step</strong> process. First, a simple bootstrap loader runs and fetches a more complex one. Second, the complex loader loads the kernel from disk and jumps to it.</li>
         <li data-step="3">The first loader must be inside the machine, not on an external device. It lives in <strong>ROM</strong> or flash firmware.</li>
       </ul>
     </div>
@@ -219,7 +219,7 @@
     </div>
     <div class="note note-honest read-only">
       <span class="note-tag">BIOS or UEFI</span>
-      <p>In the classic picture, BIOS firmware reads the first sector of the disk (the MBR), whose 446 bytes of code load the second stage. Modern PCs use <strong>UEFI</strong> firmware, which reads a small FAT partition and runs the boot loader directly from a file. Either way, GRUB is the second stage, and LILO is now rarely used.</p>
+      <p>In the classic picture, BIOS firmware reads the first sector of the disk (the MBR), whose 446 bytes of code load the second stage. In contrast, modern PCs use <strong>UEFI</strong> firmware, which reads a small FAT partition and runs the boot loader directly from a file. In both cases, GRUB is the second stage. LILO is now rarely used.</p>
     </div>
   </div>
 
@@ -234,7 +234,7 @@
   <div class="ch-head">
     <div class="ch-no">Chapter 2</div>
     <h2>System calls, or accessing the services</h2>
-    <p class="ch-lede">The programming interface to the kernel, and the only door from user mode into kernel mode.</p>
+    <p class="ch-lede">The programming interface to the kernel, which is the only way from user mode into kernel mode.</p>
   </div>
 
   <div class="sec" id="s2-1">
@@ -243,7 +243,7 @@
       <ul>
         <li>A <strong>system call</strong> is the programming interface to a service provided by the OS. The kernel side is typically written in C or C++.</li>
         <li data-step="1">Programs mostly reach system calls through a high-level <strong>application programming interface (API)</strong> rather than directly.</li>
-        <li data-step="2">The three most common are the <strong>Win32 API</strong> for Windows, the <strong>POSIX API</strong> for POSIX systems (virtually every UNIX, Linux, macOS), and the <strong>Java API</strong> for the JVM.</li>
+        <li data-step="2">The three most common APIs are the <strong>Win32 API</strong> for Windows, the <strong>POSIX API</strong> for POSIX systems (virtually every UNIX, Linux, macOS), and the <strong>Java API</strong> for the JVM.</li>
       </ul>
     </div>
   </div>
@@ -251,7 +251,7 @@
   <div class="sec" id="s2-2">
     <h3><span class="sec-no">2.2</span>How many system calls does <code>cp</code> make?</h3>
     <div class="prose">
-      <p>Copying one file to another sounds like one operation. Watch it below as a sequence of system calls.</p>
+      <p>Copying one file to another sounds like one operation. However, it is a sequence of system calls, as the widget below shows.</p>
     </div>
     <div class="widget" id="cp-w">
       <div class="widget-head"><span class="chip">Step through</span><span class="w-title"><code>cp in.txt out.txt</code>, call by call</span><button class="w-reset" type="button" id="cp-reset">Reset</button></div>
@@ -268,7 +268,7 @@
       </div>
       <div class="readout" id="cp-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">A simplified trace in the style of <code>strace</code>, with a 4096-byte buffer. Try <code>strace cp in.txt out.txt</code> in the course VM to see the real one. It has many more calls, most of them from loading the C library.</p>
+    <p class="small muted prose read-only">This is a simplified trace in the style of <code>strace</code>, with a 4096-byte buffer. To see the real trace, run <code>strace cp in.txt out.txt</code> in the course VM. The real trace has many more calls, and most of them come from loading the C library.</p>
   </div>
 
   <div class="sec" id="s2-3">
@@ -283,10 +283,10 @@ ssize_t read(int fd, void *buf, size_t count);</div>
       <div class="prose">
         <ul>
           <li><code>int fd</code> is the file descriptor to read from.</li>
-          <li><code>void *buf</code> is the buffer the data goes into.</li>
-          <li><code>size_t count</code> is the most bytes to read.</li>
+          <li><code>void *buf</code> is the buffer that receives the data.</li>
+          <li><code>size_t count</code> is the maximum number of bytes to read.</li>
         </ul>
-        <p>It returns the number of bytes read. <strong>0</strong> means end of file, and <strong>−1</strong> means an error (with the reason in <code>errno</code>).</p>
+        <p>The call returns the number of bytes read. A return value of <strong>0</strong> means end of file, and <strong>−1</strong> means an error, with the reason in <code>errno</code>.</p>
       </div>
     </div>
   </div>
@@ -297,8 +297,8 @@ ssize_t read(int fd, void *buf, size_t count);</div>
       <div class="prose">
         <ul>
           <li>Each system call has a <strong>number</strong>. The system-call interface keeps a table indexed by these numbers.</li>
-          <li data-step="1">It invokes the intended call in the kernel and returns its status and any return values.</li>
-          <li data-step="2">The caller needs to know nothing about how the call is implemented. It obeys the API and understands what the OS will do. The details are hidden by the <strong>run-time support library</strong> (for C, libc).</li>
+          <li data-step="1">The interface invokes the intended call in the kernel and returns the status of the call and any return values.</li>
+          <li data-step="2">The caller does not need to know how the call is implemented. It only obeys the API and understands what the OS will do. The <strong>run-time support library</strong> (libc, for C) hides the details.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -321,7 +321,7 @@ ssize_t read(int fd, void *buf, size_t count);</div>
             <g data-step="2"><path d="M320 240 V200 H270 V126" class="wire f" marker-end="url(#ah-f)"/><text x="276" y="190" class="lbl t-f" style="font-size:11px">return fd</text></g>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 2.1</span>The number indexes the trap table, and control returns to the instruction after the trap.</figcaption>
+        <figcaption><span class="fno">Fig. 2.1</span>The system-call number indexes the trap table. Control then returns to the instruction after the trap.</figcaption>
       </figure>
     </div>
   </div>
@@ -334,9 +334,9 @@ ssize_t read(int fd, void *buf, size_t count);</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="printf is not a system call. It is a C-library function running in user mode.">printf is itself a system call that traps into the kernel.</button>
           <button type="button" class="q-opt" data-ok>printf is a library (API) function in user mode. It formats the text into a buffer and eventually calls the write() system call to output it.</button>
-          <button type="button" class="q-opt" data-why="User code cannot drive the terminal hardware directly. That is exactly why the write() system call exists.">printf writes directly to the terminal hardware.</button>
+          <button type="button" class="q-opt" data-why="User code cannot drive the terminal hardware directly. This is why the write() system call exists.">printf writes directly to the terminal hardware.</button>
         </div>
-        <div class="q-fb ok">Right. The API hides the system call, and <code>strace</code> would show one <code>write(1, "hi\n", 3)</code>.</div>
+        <div class="q-fb ok">Right. The API hides the system call. In this case, <code>strace</code> would show one <code>write(1, "hi\n", 3)</code>.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -359,12 +359,12 @@ ssize_t read(int fd, void *buf, size_t count);</div>
   <div class="sec" id="s3-1">
     <h3><span class="sec-no">3.1</span>Passing parameters</h3>
     <div class="prose">
-      <p>A call usually needs more than its number. What and how much depends on the OS and the call. There are three general methods.</p>
+      <p>A system call usually needs more than its number. Which parameters it needs, and how many, depend on the OS and the call. There are three general methods to pass them.</p>
     </div>
     <div class="opts3">
-      <div><span class="tag">1 · Registers</span>Put the parameters in CPU registers. Fast, but there may be more parameters than registers.</div>
-      <div data-step="1"><span class="tag">2 · Block + pointer</span>Store the parameters in a block in memory and pass its address in a register. Used by Linux and Solaris for calls with many or large arguments.</div>
-      <div data-step="2"><span class="tag">3 · Stack</span>The program pushes the parameters, and the OS pops them. Like the pointer method, it limits neither the number nor the length of parameters.</div>
+      <div><span class="tag">1 · Registers</span>The parameters go in CPU registers. This method is fast. However, there may be more parameters than registers.</div>
+      <div data-step="1"><span class="tag">2 · Block + pointer</span>The parameters are stored in a block in memory, and the address of the block is passed in a register. Linux and Solaris use this method for calls with many or large arguments.</div>
+      <div data-step="2"><span class="tag">3 · Stack</span>The program pushes the parameters, and the OS pops them. Like the pointer method, this method limits neither the number nor the length of parameters.</div>
     </div>
   </div>
 
@@ -374,7 +374,7 @@ ssize_t read(int fd, void *buf, size_t count);</div>
       <ul>
         <li>The trap instruction is <code>syscall</code> on x86-64 (<code>int 0x80</code> on 32-bit x86).</li>
         <li data-step="1">The system-call <strong>number</strong> goes in <code>rax</code>. Up to six arguments go in <code>rdi</code>, <code>rsi</code>, <code>rdx</code>, <code>r10</code>, <code>r8</code>, <code>r9</code>. The result comes back in <code>rax</code>.</li>
-        <li data-step="2">Complex arguments, such as a structure or a buffer, are passed as <strong>user-space pointers</strong>, using method 2 for the data and method 1 for the pointer.</li>
+        <li data-step="2">Complex arguments, such as a structure or a buffer, are passed as <strong>user-space pointers</strong>. Specifically, the data uses method 2, and the pointer uses method 1.</li>
       </ul>
     </div>
   </div>
@@ -395,13 +395,13 @@ ssize_t read(int fd, void *buf, size_t count);</div>
       </div>
       <div class="readout" id="sc-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">Numbers are from Linux's x86-64 table (<code>arch/x86/entry/syscalls/syscall_64.tbl</code>).</p>
+    <p class="small muted prose read-only">The system-call numbers come from the Linux x86-64 table (<code>arch/x86/entry/syscalls/syscall_64.tbl</code>).</p>
   </div>
 
   <div class="sec" id="s3-4">
     <h3><span class="sec-no">3.4</span>When the pointer is bad</h3>
     <div class="prose">
-      <p>What if <code>buf</code> in <code>read(fd, buf, count)</code> points somewhere invalid, or into the kernel? The kernel must never trust a user pointer. It uses the special functions below to touch user memory.</p>
+      <p>Suppose that <code>buf</code> in <code>read(fd, buf, count)</code> points somewhere invalid, or into the kernel. The kernel must never trust a user pointer. Therefore, it uses the special functions below to access user memory.</p>
     </div>
     <div class="table-wrap" data-step="1">
       <table class="glossary" style="max-width:none">
@@ -448,9 +448,9 @@ ssize_t read(int fd, void *buf, size_t count);</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="If the kernel wrote there, any program could overwrite kernel memory just by choosing the pointer.">The kernel copies 100 bytes to that address, because the program asked for it.</button>
           <button type="button" class="q-opt" data-ok>copy_to_user refuses the range, and read() returns −1 with errno = EFAULT.</button>
-          <button type="button" class="q-opt" data-why="A bad pointer from user space is an expected error, and a correct kernel reports it without crashing.">The kernel crashes.</button>
+          <button type="button" class="q-opt" data-why="A bad pointer from user space is an expected error. A correct kernel reports it without crashing.">The kernel crashes.</button>
         </div>
-        <div class="q-fb ok">Right. Checking user pointers is what keeps a system call from becoming a way into the kernel's memory.</div>
+        <div class="q-fb ok">Right. The check on user pointers keeps a system call from becoming a way into the kernel's memory.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -475,8 +475,8 @@ ssize_t read(int fd, void *buf, size_t count);</div>
     <div class="prose">
       <ul>
         <li>A <strong>loadable kernel module (LKM)</strong> is an object file with code that extends a running kernel. It can be loaded and unloaded on demand at run time, without rebuilding or recompiling the kernel.</li>
-        <li data-step="1">Windows has kernel-mode drivers, Linux has LKMs, macOS had kernel extensions (kexts).</li>
-        <li data-step="2">Most device drivers are written as modules. The installed ones live under <code>/lib/modules/$(uname -r)</code>, and <code>lsmod</code> lists the loaded ones.</li>
+        <li data-step="1">Windows has kernel-mode drivers, and Linux has LKMs. macOS had kernel extensions (kexts).</li>
+        <li data-step="2">Most device drivers are written as modules. The installed modules live under <code>/lib/modules/$(uname -r)</code>. The command <code>lsmod</code> lists the loaded ones.</li>
       </ul>
     </div>
   </div>
@@ -486,11 +486,11 @@ ssize_t read(int fd, void *buf, size_t count);</div>
     <div class="two-up" style="align-items:start">
       <div class="prose">
         <ul>
-          <li>Modules are written in C and built against a <strong>Linux kernel source tree</strong>, into a <code>.ko</code> (kernel object) file.</li>
-          <li data-step="1">The running kernel must be the <strong>same version</strong> the module was built for.</li>
+          <li>Modules are written in C. They are built against a <strong>Linux kernel source tree</strong> into a <code>.ko</code> (kernel object) file.</li>
+          <li data-step="1">The running kernel must be the <strong>same version</strong> as the kernel the module was built for.</li>
           <li data-step="1">A module declares <code>MODULE_AUTHOR</code> and <code>MODULE_LICENSE</code>.</li>
-          <li data-step="2">The <strong>init</strong> function runs when the module loads. It initializes everything, typically by registering a handler with the kernel. It returns 0 on success, negative on failure.</li>
-          <li data-step="2">The <strong>exit</strong> function runs when it unloads. It frees everything.</li>
+          <li data-step="2">The <strong>init</strong> function runs when the module loads. It initializes everything, typically by registering a handler with the kernel. It returns 0 on success and a negative value on failure.</li>
+          <li data-step="2">The <strong>exit</strong> function runs when the module unloads. It frees everything.</li>
         </ul>
       </div>
       <div class="code" aria-label="hello.c"><span class="kw">#include</span> &lt;linux/kernel.h&gt;
@@ -523,7 +523,7 @@ module_exit(hello_exit);   <span class="c">/* older style: cleanup_module()     
       <div class="widget-body"><div class="shell" id="km-sh" aria-live="polite"></div></div>
       <div class="readout" id="km-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only"><code>printk</code> writes to the kernel log, not to your terminal. Read it with <code>dmesg</code> or <code>journalctl -k</code>. (The slides' <code>/var/log/system.log</code> is the macOS path.)</p>
+    <p class="small muted prose read-only"><code>printk</code> writes to the kernel log, not to your terminal. You read the log with <code>dmesg</code> or <code>journalctl -k</code>. Note that <code>/var/log/system.log</code> in the slides is the macOS path.</p>
   </div>
 
   <div class="sec" id="q3">
@@ -536,7 +536,7 @@ module_exit(hello_exit);   <span class="c">/* older style: cleanup_module()     
           <button type="button" class="q-opt" data-why="A module runs in kernel mode with full privileges. It is not isolated like a user process.">The driver runs in user mode, so a bug cannot crash the system.</button>
           <button type="button" class="q-opt" data-why="A module must match the kernel version it was built for.">The same .ko file works with any kernel version.</button>
         </div>
-        <div class="q-fb ok">Right. And that also means a buggy module is as dangerous as any kernel code, because it runs with full privilege.</div>
+        <div class="q-fb ok">Right. Note that this also makes a buggy module as dangerous as any kernel code, because it runs with full privilege.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -552,7 +552,7 @@ module_exit(hello_exit);   <span class="c">/* older style: cleanup_module()     
           <button type="button" class="q-opt" data-ok>rax, set to 1 (write)</button>
           <button type="button" class="q-opt" data-why="rsp is the stack pointer. x86-64 Linux passes system-call arguments in registers, not on the stack.">rsp</button>
         </div>
-        <div class="q-fb ok">Right. The values are rax = 1, rdi = 1 (fd), rsi = buf, and rdx = 3, and the result comes back in rax. Step through it in §3.3.</div>
+        <div class="q-fb ok">Right. The values are rax = 1, rdi = 1 (fd), rsi = buf, and rdx = 3. The result comes back in rax. You can step through this call in §3.3.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -577,14 +577,14 @@ module_exit(hello_exit);   <span class="c">/* older style: cleanup_module()     
       <ul>
         <li>The OS offers services to users (UI, program execution, I/O, files, communication, error detection) and to itself (allocation, logging, protection).</li>
         <li>Booting runs firmware, then a small loader, then a second-stage loader such as GRUB, which loads the kernel.</li>
-        <li>Programs reach services through APIs (POSIX, Win32, Java), which make system calls. A system call is a number and arguments, a trap into kernel mode, a table lookup, and a return.</li>
-        <li>On Linux x86-64, the pieces are <code>syscall</code>, number in <code>rax</code>, arguments in registers, pointers for complex data, checked with <code>copy_*_user</code>.</li>
-        <li>Loadable kernel modules add code, such as drivers, to a running kernel. They must match its version and run with full privilege.</li>
+        <li>Programs reach services through APIs (POSIX, Win32, Java), which make system calls. A system call consists of a number and arguments, a trap into kernel mode, a table lookup, and a return.</li>
+        <li>On Linux x86-64, the trap instruction is <code>syscall</code>, the number goes in <code>rax</code>, and the arguments go in registers. Complex data is passed by pointers, which the kernel checks with <code>copy_*_user</code>.</li>
+        <li>Loadable kernel modules add code, such as drivers, to a running kernel. A module must match the version of the kernel, and it runs with full privilege.</li>
       </ul>
     </div>
     <div class="note note-lab" data-step="1">
       <span class="note-tag">In the lab</span>
-      <p>Basecamp 0 boots the course VM through exactly this chain, headless, under QEMU. Basecamp 5 has you write a module. It uses the same <code>module_init</code> / <code>module_exit</code> skeleton, plus a <code>file_operations</code> table that makes your code the target of <code>read()</code> and <code>write()</code> system calls.</p>
+      <p>Basecamp 0 boots the course VM through this same chain, headless, under QEMU. In Basecamp 5, you write a module. It uses the same <code>module_init</code> / <code>module_exit</code> skeleton, plus a <code>file_operations</code> table that makes your code the target of <code>read()</code> and <code>write()</code> system calls.</p>
     </div>
   </div>
 
@@ -592,12 +592,12 @@ module_exit(hello_exit);   <span class="c">/* older style: cleanup_module()     
     <table class="glossary">
       <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
       <tbody>
-        <tr><td>bootstrap loader</td><td>Firmware or small program that locates, loads and starts the kernel.</td></tr>
+        <tr><td>bootstrap loader</td><td>Firmware or a small program that locates, loads, and starts the kernel.</td></tr>
         <tr><td>GRUB</td><td>A second-stage boot loader that can choose among several OSes.</td></tr>
-        <tr><td>system call</td><td>The programming interface to an OS service, which is a trap into kernel mode.</td></tr>
+        <tr><td>system call</td><td>The programming interface to an OS service. It is a trap into kernel mode.</td></tr>
         <tr><td>API</td><td>The library interface programs use (POSIX, Win32, Java), which makes the system calls.</td></tr>
         <tr><td>system-call number, table</td><td>The index identifying a call / the kernel's array of handlers indexed by it.</td></tr>
-        <tr><td>run-time support library</td><td>libc and friends, that is, the code that turns API calls into system calls.</td></tr>
+        <tr><td>run-time support library</td><td>libc and similar libraries, namely the code that turns API calls into system calls.</td></tr>
         <tr><td>copy_to_user / copy_from_user</td><td>Kernel functions that move data across the user/kernel boundary safely.</td></tr>
         <tr><td>EFAULT</td><td>The error a system call returns for a bad user pointer.</td></tr>
         <tr><td>LKM, .ko</td><td>Loadable kernel module / its object file.</td></tr>
@@ -683,12 +683,12 @@ module_exit(hello_exit);   <span class="c">/* older style: cleanup_module()     
       ['kernel', 'load the kernel from that OS\'s partition and start it', 'vmlinuz'],
     ];
     const TXT = [
-      'Power on. The CPU starts executing code at a fixed address in ROM or flash on the motherboard, which is the only code that exists yet.',
-      'The firmware runs diagnostics to make sure the CPU and memory work before trusting them.',
-      'It looks for a device to boot from, in a configured order, such as disk, flash, DVD, network…',
-      'It loads the primitive boot loader from that device (on a BIOS machine, the 512-byte master boot record) and transfers control to it.',
+      'Power on. The CPU starts executing code at a fixed address in ROM or flash on the motherboard. At this point, this code is the only code that exists.',
+      'The firmware runs diagnostics to check that the CPU and memory work before it trusts them.',
+      'The firmware looks for a device to boot from in a configured order, such as disk, flash, DVD, network…',
+      'The firmware loads the primitive boot loader from that device and transfers control to it. On a BIOS machine, this loader is the 512-byte master boot record.',
       'The primitive loader loads the second-stage loader, GRUB. GRUB can offer several OSes on different partitions, which is called dual booting. Pick one.',
-      'GRUB goes to the chosen OS\'s partition, loads its kernel into memory, and jumps to it. The kernel initializes itself and starts the first process (init / systemd), which starts the system daemons. The OS is running.',
+      'GRUB goes to the chosen OS\'s partition, loads its kernel into memory, and jumps to it. The kernel initializes itself and starts the first process (init / systemd), which starts the system daemons. At this point, the OS is running.',
     ];
     const OS = ['Ubuntu 24.04 (Linux 6.6.87)', 'Ubuntu, recovery mode', 'Windows Boot Manager'];
     let i = 0, os = 0;
@@ -727,10 +727,10 @@ module_exit(hello_exit);   <span class="c">/* older style: cleanup_module()     
         return;
       }
       L.push(['openat(AT_FDCWD, "in.txt", O_RDONLY)', '= 3', 'Open the input file as file descriptor 3.', '']);
-      L.push(['openat(AT_FDCWD, "out.txt", O_WRONLY|O_CREAT|O_EXCL, 0644)', '= 4', 'Create the output file (O_EXCL means abort if it already exists).', '']);
+      L.push(['openat(AT_FDCWD, "out.txt", O_WRONLY|O_CREAT|O_EXCL, 0644)', '= 4', 'Create the output file. O_EXCL means abort if the file already exists.', '']);
       let left = sz;
       while (left > 0) { const n = Math.min(4096, left); L.push([`read(3, buf, 4096)`, '= ' + n, 'Read from the input file…', 'rw']); L.push([`write(4, buf, ${n})`, '= ' + n, '…write to the output file.', 'rw']); left -= n; }
-      L.push(['read(3, buf, 4096)', '= 0', 'read returns 0 at end of file. The loop ends.', 'rw']);
+      L.push(['read(3, buf, 4096)', '= 0', 'read returns 0 at end of file, so the loop ends.', 'rw']);
       L.push(['close(4)', '= 0', 'Close the output file.', '']);
       L.push(['close(3)', '= 0', 'Close the input file.', '']);
       L.push(['write(1, "Done.\\n", 6)', '= 6', 'Write a completion message.', 'io']);
@@ -779,10 +779,10 @@ module_exit(hello_exit);   <span class="c">/* older style: cleanup_module()     
       $('#sc-flow').innerHTML = hops.map(([cls, k, d], j) => `${j ? '<span class="arr">→</span>' : ''}<div class="hop ${j <= s ? cls : ''}" style="${j > s ? 'opacity:.35' : ''}"><span class="k">${k}</span>${d}</div>`).join('');
       const T = [
         `The C library puts the number of <code>${x.n}</code> (<b>${x.nr}</b>) in <code>rax</code> and the arguments in <code>rdi</code>, <code>rsi</code>, <code>rdx</code>… in order.`,
-        'The <code>syscall</code> instruction switches to kernel mode and jumps to the single entry point the kernel registered at boot. The program cannot choose where to land.',
+        'The <code>syscall</code> instruction switches to kernel mode and jumps to the single entry point the kernel registered at boot. As such, the program cannot choose where it enters the kernel.',
         `The entry code uses <code>rax</code> as an index into the system-call table. Entry ${x.nr} points to the handler.`,
         `The handler runs in kernel mode (${x.h}).`,
-        x.n === 'exit' ? 'exit never returns. The kernel tears the process down and schedules another.' : `The result (${x.rets} = <b>${x.ret}</b>) goes back in <code>rax</code>, and <code>sysret</code> returns to user mode at the instruction after <code>syscall</code>. On error, the kernel returns a negative errno, which libc turns into −1 and sets <code>errno</code>.`,
+        x.n === 'exit' ? 'exit never returns. The kernel tears down the process and schedules another one.' : `The result (${x.rets} = <b>${x.ret}</b>) goes back in <code>rax</code>, and <code>sysret</code> returns to user mode at the instruction after <code>syscall</code>. On error, the kernel returns a negative errno value. libc turns it into a return value of −1 and sets <code>errno</code>.`,
       ];
       $('#sc-out').innerHTML = T[s];
       $('#sc-prev').disabled = s === 0; $('#sc-next').disabled = s === STEPS.length - 1;
@@ -818,8 +818,8 @@ module_exit(hello_exit);   <span class="c">/* older style: cleanup_module()     
       ];
       $('#cu-flow').innerHTML = hops.map(([cls, k, d], j) => `${j ? '<span class="arr">→</span>' : ''}<div class="hop ${cls}" style="${cls === '' ? 'opacity:.35' : ''}"><span class="k">${k}</span>${d}</div>`).join('');
       $('#cu-out').innerHTML = ok ? 'This is the normal case. The data lands in the program\'s buffer.'
-        : kern ? 'Without this check, a program could make the kernel overwrite its own memory just by passing a kernel address. <code>access_ok</code> stops it before any copy.'
-        : 'The address is in the user range but nothing is mapped there. <code>copy_to_user</code> is written so that the resulting page fault is caught and turned into an error return instead of crashing the kernel.';
+        : kern ? 'Without this check, a program could make the kernel overwrite its own memory just by passing a kernel address. <code>access_ok</code> stops the call before any copy.'
+        : 'The address is in the user range, but nothing is mapped there. <code>copy_to_user</code> is written so that the kernel catches the resulting page fault and turns it into an error return instead of crashing.';
     }
     $('#cu-b').addEventListener('click', (e) => { const x = e.target.closest('[data-b]'); if (x) { b = +x.dataset.b; render(); } });
     $('#cu-reset').addEventListener('click', () => { b = 0; render(); });
@@ -850,8 +850,8 @@ module_exit(hello_exit);   <span class="c">/* older style: cleanup_module()     
       else if (k === 1) { if (loaded) { out.push('<span class="er">insmod: ERROR: could not insert module hello.ko: File exists</span>'); note = 'A module with that name is already loaded.'; } else { loaded = true; log.push(stamp() + ' Hello world: I am a developer in CS3753 speaking from the Kernel'); note = 'insmod loads the object file into the kernel and calls its init function. Nothing appears in the terminal, because printk writes to the kernel log.'; } }
       else if (k === 2) { out.push('Module                  Size  Used by'); if (loaded) out.push('hello                  12288  0'); out.push('char_driver            16384  0'); note = loaded ? 'hello is now part of the running kernel.' : 'hello is not loaded.'; }
       else if (k === 3) { (log.length ? log.slice(-2) : ['(no messages from hello)']).forEach((l) => out.push(l)); note = 'dmesg prints the kernel\'s ring buffer, where printk wrote.'; }
-      else if (k === 4) { if (!loaded) { out.push('<span class="er">rmmod: ERROR: Module hello is not currently loaded</span>'); note = ''; } else { loaded = false; log.push(stamp() + ' Goodbye from a developer in CS3753, I am exiting the Kernel'); note = 'rmmod calls the exit function and removes the code from the kernel. Run dmesg to see the goodbye.'; } }
-      else if (k === 5) { out.push('<span class="er">insmod: ERROR: could not insert module hello.ko: Operation not permitted</span>'); note = 'Loading kernel code is privileged (CAP_SYS_MODULE, Lecture 22), so an ordinary user cannot.'; }
+      else if (k === 4) { if (!loaded) { out.push('<span class="er">rmmod: ERROR: Module hello is not currently loaded</span>'); note = ''; } else { loaded = false; log.push(stamp() + ' Goodbye from a developer in CS3753, I am exiting the Kernel'); note = 'rmmod calls the exit function and removes the code from the kernel. Run dmesg to see the goodbye message.'; } }
+      else if (k === 5) { out.push('<span class="er">insmod: ERROR: could not insert module hello.ko: Operation not permitted</span>'); note = 'Loading kernel code is privileged (CAP_SYS_MODULE, Lecture 22). Therefore, an ordinary user cannot load a module.'; }
       out = out.slice(-18);
       $('#km-sh').innerHTML = out.join('\n') + '\n' + P;
       $('#km-sh').scrollTop = 1e6;

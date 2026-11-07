@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Device Manager · L17</title>
-<meta name="description" content="CSCI 3753 Lecture 17, interactive edition. It covers buses and exceptions, the device manager, the device system-call interface, drivers and controllers, polling I/O.">
+<meta name="description" content="CSCI 3753 Lecture 17, interactive edition. It covers buses and exceptions, the device manager, the device system-call interface, drivers and controllers, and polling I/O.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -80,9 +80,9 @@ table.devs .mm { color: var(--co); font-weight: 600; }
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 17 · Interactive notes</div>
     <h1>Devices speak in registers,<br>programs speak in <span class="accent">files</span></h1>
-    <p class="lede">A disk, a keyboard and a network card have nothing in common electrically, yet a program reads all three with the same <code>read()</code>. This lecture follows that call down. It passes through the exception mechanism that carries it into the kernel, the device manager that routes it, the driver that knows one device's registers, and the controller that finally does the work. It ends with the simplest way to wait for a device, polling, and why it wastes the CPU.</p>
+    <p class="lede">A disk, a keyboard, and a network card have nothing in common electrically. However, a program reads all three with the same <code>read()</code>. In this lecture, we follow that call down. It passes through the exception mechanism that carries it into the kernel, the device manager that routes it, the driver that knows the registers of one device, and the controller that finally does the work. The lecture ends with the simplest way to wait for a device, namely polling, and explains why polling wastes the CPU.</p>
     <div class="promise">
-      <span>Before you start, review</span><span class="mono">system calls, traps, and kernel mode</span><span>from Lecture 2. Everything else is built here.</span>
+      <span>Before you start, review</span><span class="mono">system calls, traps, and kernel mode</span><span>from Lecture 2. This lecture builds everything else.</span>
     </div>
     <div class="cta-row">
       <a class="btn primary" href="#ch0">Begin ↓</a>
@@ -119,7 +119,7 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     <div class="sec present-only title-slide" id="title">
       <div class="eyebrow">CSCI 3753 Operating Systems · Lecture 17</div>
       <h1>Device Management</h1>
-      <p class="lede">Devices speak in registers, programs speak in files. The device manager translates.</p>
+      <p class="lede">Devices speak in registers, and programs speak in files. The device manager translates between them.</p>
       <div class="meta">Instructor Yueqi Chen · Textbook Silberschatz, Ch. 12</div>
     </div>
 
@@ -128,15 +128,15 @@ table.devs .mm { color: var(--co); font-weight: 600; }
   <div class="ch-head">
     <div class="ch-no">Chapter 0</div>
     <h2>Where devices plug in</h2>
-    <p class="ch-lede">Before the OS can manage a device, the device has to be wired to the CPU. Three pictures, from 1945 to today.</p>
+    <p class="ch-lede">Before the OS can manage a device, the device has to be wired to the CPU. This chapter shows three pictures, from 1945 to today.</p>
   </div>
 
   <div class="sec" id="s0-1">
     <h3><span class="sec-no">0.1</span>The von Neumann computer</h3>
     <div class="two-up">
       <div class="prose">
-        <p>In 1945, von Neumann described a <strong>stored-program</strong> computer, in which memory holds both instructions <em>and</em> data. Loading a new program meant writing memory, not rewiring the machine.</p>
-        <p data-step="1">Then came more devices, such as card readers, magnetic tape, printers, displays, and disk storage. A shared <strong>system bus</strong> evolved to connect them all. It is really three buses, namely <strong>control</strong>, <strong>address</strong> and <strong>data</strong>.</p>
+        <p>In 1945, von Neumann described a <strong>stored-program</strong> computer, in which memory holds both instructions <em>and</em> data. As such, loading a new program meant writing memory, not rewiring the machine.</p>
+        <p data-step="1">Then, more devices came, such as card readers, magnetic tape, printers, displays, and disk storage. A shared <strong>system bus</strong> evolved to connect them all. The system bus is actually three buses, namely <strong>control</strong>, <strong>address</strong>, and <strong>data</strong>.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -160,7 +160,7 @@ table.devs .mm { color: var(--co); font-weight: 600; }
             </g>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 0.1</span>Stored program, shared bus. Every device hangs off the same three sets of wires.</figcaption>
+        <figcaption><span class="fno">Fig. 0.1</span>A stored program and a shared bus. Every device is attached to the same three sets of wires.</figcaption>
       </figure>
     </div>
   </div>
@@ -199,11 +199,11 @@ table.devs .mm { color: var(--co); font-weight: 600; }
           <path d="M470 310 V340 M630 310 V340" class="wire thin"/>
         </svg>
       </div>
-      <figcaption><span class="fno">Fig. 0.2</span>Every device sits behind a <span class="f">controller</span>, and every controller sits on a <span class="p">bus</span>. The CPU never touches a disk platter. It talks to the disk's controller.</figcaption>
+      <figcaption><span class="fno">Fig. 0.2</span>Every device sits behind a <span class="f">controller</span>, and every controller sits on a <span class="p">bus</span>. The CPU never touches a disk platter. Instead, it talks to the controller of the disk.</figcaption>
     </figure>
     <div class="note note-honest read-only">
       <span class="note-tag">Dated, on purpose</span>
-      <p>PCI, IDE, SCSI, parallel and serial ports are the textbook's classic picture. A laptop today has PCI Express links, NVMe SSDs and USB instead. The idea this chapter needs has not changed. Devices hang off buses behind controllers, and the CPU talks only to the controllers.</p>
+      <p>PCI, IDE, SCSI, and parallel and serial ports form the classic picture of the textbook. A laptop today has PCI Express links, NVMe SSDs, and USB instead. However, the idea that this chapter needs has not changed. Devices are attached to buses behind controllers, and the CPU talks only to the controllers.</p>
     </div>
   </div>
 
@@ -211,9 +211,9 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     <h3><span class="sec-no">0.3</span>How devices get the CPU's attention</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Today the CPU reaches memory over a memory bus and devices over an <strong>I/O bus</strong>, joined by an I/O bridge.</p>
+        <p>Today, the CPU reaches memory over a memory bus and devices over an <strong>I/O bus</strong>. An I/O bridge joins the two buses.</p>
         <p data-step="1">Devices signal the CPU with <span class="bad">device interrupts</span>, such as "the disk read you asked for is done" or "a packet arrived".</p>
-        <p data-step="2">The CPU is also interrupted from inside. It is interrupted by the <span class="bad">timer</span> (that is how the scheduler of Lecture 6 regains control) and by the running instruction itself, through <span class="bad">traps and faults</span>.</p>
+        <p data-step="2">The CPU is also interrupted from inside. It is interrupted by the <span class="bad">timer</span> (this is how the scheduler of Lecture 6 regains control) and by the running instruction itself, through <span class="bad">traps and faults</span>.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -267,7 +267,7 @@ table.devs .mm { color: var(--co); font-weight: 600; }
   <div class="ch-head">
     <div class="ch-no">Chapter 1</div>
     <h2>Exceptions, the four ways the CPU is interrupted</h2>
-    <p class="ch-lede">Every device request and every device reply crosses into the kernel through the same mechanism. It has four flavors, and they differ in one question that matters, namely where execution continues afterward.</p>
+    <p class="ch-lede">Every device request and every device reply crosses into the kernel through the same mechanism. The mechanism has four classes. They differ in one important respect, namely where execution continues afterward.</p>
   </div>
 
   <div class="sec" id="s1-1">
@@ -283,7 +283,7 @@ table.devs .mm { color: var(--co); font-weight: 600; }
         </tbody>
       </table>
     </div>
-    <p class="prose small muted" data-step="3"><strong>Synchronous</strong> means the running instruction caused it, so it happens at the same point every time the program runs. An interrupt is <strong>asynchronous</strong>. The device picks the moment, and the instruction it lands on has nothing to do with it.</p>
+    <p class="prose small muted" data-step="3"><strong>Synchronous</strong> means that the running instruction caused the exception. Therefore, it happens at the same point every time the program runs. In contrast, an interrupt is <strong>asynchronous</strong>. The device picks the moment, and the instruction that the interrupt lands on has nothing to do with it.</p>
   </div>
 
   <div class="sec" id="s1-2">
@@ -305,9 +305,9 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     <h3><span class="sec-no">1.3</span>The x86 exception table</h3>
     <div class="two-up">
       <div class="prose">
-        <p>An x86 CPU numbers its exceptions 0 to 255. Numbers 0–31 are reserved for the CPU's own exceptions (divide by zero, protection violations, page faults). The OS assigns the rest to device interrupts and traps.</p>
-        <p data-step="1">An <strong>exception-table base register</strong> points to the table, so the OS can put it anywhere in memory. On x86 this is the IDTR, and the table is the interrupt descriptor table (IDT).</p>
-        <p data-step="2">When exception <em>n</em> happens, the CPU reads entry <em>n</em> of the table and jumps to the handler it names. The exception numbers are offsets that form the <strong>interrupt vector</strong>.</p>
+        <p>An x86 CPU numbers its exceptions from 0 to 255. Numbers 0–31 are reserved for the exceptions of the CPU itself (divide by zero, protection violations, page faults). The OS assigns the rest to device interrupts and traps.</p>
+        <p data-step="1">An <strong>exception-table base register</strong> points to the table. Therefore, the OS can put the table anywhere in memory. On x86, this register is the IDTR, and the table is the interrupt descriptor table (IDT).</p>
+        <p data-step="2">When exception <em>n</em> happens, the CPU reads entry <em>n</em> of the table and jumps to the handler that the entry names. The exception numbers are offsets, and they form the <strong>interrupt vector</strong>.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -334,7 +334,7 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     <details class="fold">
       <summary>Does Linux still make system calls with exception 128?</summary>
       <div class="fold-body">
-        <p>32-bit Linux did. A program executed <code>int 0x80</code> (0x80 = 128), which raises exception 128 and lands in the system-call handler. 64-bit x86 programs use a dedicated <code>syscall</code> instruction instead, which jumps to a handler address the kernel stores in a model-specific register. It is faster, but it is still a trap. It is intentional and synchronous, and it returns to the next instruction.</p>
+        <p>32-bit Linux did. A program executed <code>int 0x80</code> (0x80 = 128), which raises exception 128 and lands in the system-call handler. In contrast, 64-bit x86 programs use a dedicated <code>syscall</code> instruction, which jumps to a handler address that the kernel stores in a model-specific register. It is faster. However, it is still a trap. It is intentional and synchronous, and it returns to the next instruction.</p>
       </div>
     </details>
   </div>
@@ -345,12 +345,12 @@ table.devs .mm { color: var(--co); font-weight: 600; }
       <div class="quiz-body">
         <div class="q-text">A program loads from a valid address whose page is currently on disk. What happens, and where does execution continue?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="A trap is intentional, like a system call. The program did not ask for this. The load instruction just could not finish.">A trap. Execution continues at the next instruction.</button>
+          <button type="button" class="q-opt" data-why="A trap is intentional, like a system call. The program did not ask for this event. The load instruction simply could not finish.">A trap. Execution continues at the next instruction.</button>
           <button type="button" class="q-opt" data-ok>A fault. After the OS brings the page in, the same load instruction runs again.</button>
-          <button type="button" class="q-opt" data-why="An interrupt comes from a device, at a moment the device picks. This event is caused by the running instruction, so it is synchronous.">An interrupt. Execution continues at the next instruction.</button>
+          <button type="button" class="q-opt" data-why="An interrupt comes from a device, at a moment that the device picks. This event is caused by the running instruction. Therefore, it is synchronous.">An interrupt. Execution continues at the next instruction.</button>
           <button type="button" class="q-opt" data-why="An abort is for unrecoverable hardware errors. A page on disk is completely recoverable.">An abort. The program never resumes.</button>
         </div>
-        <div class="q-fb ok">Right. That is a page fault (exception 14). The handler loads the page and returns to the <em>same</em> instruction, which now succeeds. Lecture 15 walked through exactly this.</div>
+        <div class="q-fb ok">Right. This is a page fault (exception 14). The handler loads the page and returns to the <em>same</em> instruction, which now succeeds. Lecture 15 walked through exactly this case.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -367,15 +367,15 @@ table.devs .mm { color: var(--co); font-weight: 600; }
   <div class="ch-head">
     <div class="ch-no">Chapter 2</div>
     <h2>The device manager</h2>
-    <p class="ch-lede">The part of the kernel that owns every I/O device, and the reason one program can read a disk and a keyboard with the same call.</p>
+    <p class="ch-lede">The device manager is the part of the kernel that owns every I/O device. It is also the reason why one program can read a disk and a keyboard with the same call.</p>
   </div>
 
   <div class="sec" id="s2-1">
     <h3><span class="sec-no">2.1</span>Its place in the kernel</h3>
     <div class="two-up">
       <div class="prose">
-        <p>The kernel divides the hardware among managers. The scheduler owns the CPU and the memory manager owns RAM.</p>
-        <p data-step="1">The <strong>device manager</strong> owns everything else, such as disks, displays, mice, and network cards. The file system is one of its most important clients, because every file read ends as a disk request.</p>
+        <p>The kernel divides the hardware among managers. The scheduler owns the CPU, and the memory manager owns RAM.</p>
+        <p data-step="1">The <strong>device manager</strong> owns everything else, such as disks, displays, mice, and network cards. The file system is one of its most important clients, because every file read ends up as a disk request.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -398,7 +398,7 @@ table.devs .mm { color: var(--co); font-weight: 600; }
             </g>
           </svg>
         </div>
-        <figcaption><span class="fno">Fig. 2.1</span>Who owns what. The file system reaches the disk through the device manager.</figcaption>
+        <figcaption><span class="fno">Fig. 2.1</span>Which manager owns which hardware. The file system reaches the disk through the device manager.</figcaption>
       </figure>
     </div>
   </div>
@@ -412,12 +412,12 @@ table.devs .mm { color: var(--co); font-weight: 600; }
         <li data-step="1">It catches their interrupts.</li>
         <li data-step="1">It handles their errors.</li>
         <li data-step="2">It provides a simple, easy-to-use interface to programs.</li>
-        <li data-step="2">It provides <strong>device independence</strong>, which means the same interface for all devices.</li>
+        <li data-step="2">It provides <strong>device independence</strong>, which means that all devices have the same interface.</li>
       </ul>
     </div>
     <div class="note note-key" data-step="2">
       <span class="note-tag">Key idea</span>
-      <p>Device independence is the whole point. A program that copies its input to its output should not care whether the input is a file on disk, a keyboard, or a network connection.</p>
+      <p>Device independence is the main goal. A program that copies its input to its output should not need to know whether the input is a file on disk, a keyboard, or a network connection.</p>
     </div>
   </div>
 
@@ -425,10 +425,10 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     <h3><span class="sec-no">2.3</span>How it is organized</h3>
     <div class="two-up">
       <div class="prose">
-        <p>Programs enter through the <span class="p">system-call interface</span>, which offers <code>open</code>, <code>close</code>, <code>read</code>, <code>write</code>, <code>set</code>… Some requests go through the file manager first.</p>
-        <p data-step="1">The device manager (the <strong>I/O subsystem</strong>) has two layers. The <span class="os">device-independent</span> top is shared by all devices.</p>
-        <p data-step="2">The <span class="os">device-dependent</span> bottom is a set of <strong>device drivers</strong>, one per kind of device, behind a common device-driver interface.</p>
-        <p data-step="3">Drivers talk across the <span class="f">hardware interface</span> to a device controller's command, status and data registers.</p>
+        <p>Programs enter through the <span class="p">system-call interface</span>, which offers <code>open</code>, <code>close</code>, <code>read</code>, <code>write</code>, <code>set</code>, and so on. Some requests go through the file manager first.</p>
+        <p data-step="1">The device manager (the <strong>I/O subsystem</strong>) has two layers. The <span class="os">device-independent</span> top layer is shared by all devices.</p>
+        <p data-step="2">The <span class="os">device-dependent</span> bottom layer is a set of <strong>device drivers</strong>, one per kind of device, behind a common device-driver interface.</p>
+        <p data-step="3">Drivers talk across the <span class="f">hardware interface</span> to the command, status, and data registers of a device controller.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -479,25 +479,25 @@ table.devs .mm { color: var(--co); font-weight: 600; }
   <div class="ch-head">
     <div class="ch-no">Chapter 3</div>
     <h2>The system-call interface</h2>
-    <p class="ch-lede">One small set of calls has to fit every device. Four ways devices differ decide how those calls behave.</p>
+    <p class="ch-lede">One small set of calls has to fit every device. Devices differ in four ways, and these differences decide how the calls behave.</p>
   </div>
 
   <div class="sec" id="s3-1">
     <h3><span class="sec-no">3.1</span>One interface for every device</h3>
     <div class="prose">
-      <p>The goal is a simple, standard interface that reaches most devices. Every I/O device driver should support <code>open</code>, <code>close</code>, <code>read</code>, <code>write</code>, <code>set</code> (<code>ioctl</code> in UNIX), <code>stop</code>, and so on. Devices still differ in the four ways below.</p>
+      <p>The goal is a simple, standard interface that reaches most devices. Every I/O device driver should support <code>open</code>, <code>close</code>, <code>read</code>, <code>write</code>, <code>set</code> (<code>ioctl</code> in UNIX), <code>stop</code>, and so on. However, devices still differ in the four ways below.</p>
     </div>
     <div class="opts3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div><span class="tag">Block vs. character</span>This is how we talk to the device, either in fixed-size blocks that can be addressed (disk), or a stream of bytes (keyboard, serial port).</div>
-      <div data-step="1"><span class="tag">Sequential vs. random access</span>Old tape must be read in order. A disk can jump straight to any block.</div>
-      <div data-step="2"><span class="tag">Blocking vs. non-blocking</span><strong>Blocking</strong> means the process waits on a wait queue until the I/O completes. <strong>Non-blocking</strong> means the call returns immediately with however many bytes were ready (keyboard, mouse, network).</div>
-      <div data-step="3"><span class="tag">Synchronous vs. asynchronous</span><strong>Asynchronous</strong> means the call returns immediately, and the full number of bytes requested is transferred at some later time.</div>
+      <div><span class="tag">Block vs. character</span>This difference is how we talk to the device, either in addressable fixed-size blocks (disk) or in a stream of bytes (keyboard, serial port).</div>
+      <div data-step="1"><span class="tag">Sequential vs. random access</span>Old tape must be read in order. In contrast, a disk can jump directly to any block.</div>
+      <div data-step="2"><span class="tag">Blocking vs. non-blocking</span><strong>Blocking</strong> means that the process waits on a wait queue until the I/O completes. <strong>Non-blocking</strong> means that the call returns immediately with however many bytes were ready (keyboard, mouse, network).</div>
+      <div data-step="3"><span class="tag">Synchronous vs. asynchronous</span><strong>Asynchronous</strong> means that the call returns immediately, and the full number of requested bytes is transferred at some later time.</div>
     </div>
   </div>
 
   <div class="sec" id="s3-2">
     <h3><span class="sec-no">3.2</span>Three ways to wait for the same bytes</h3>
-    <p class="prose read-only">A program asks for 100 bytes from a network connection. The bytes trickle in, with 40 at t = 2, 30 at t = 5, and 30 at t = 8. Compare what the program experiences.</p>
+    <p class="prose read-only">A program asks for 100 bytes from a network connection. The bytes arrive in parts, namely 40 at t = 2, 30 at t = 5, and 30 at t = 8. Compare what the program experiences in each mode.</p>
     <div class="widget" id="io-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title"><code>read(fd, buf, 100)</code> three ways</span><button class="w-reset" type="button" id="io-reset">Reset</button></div>
       <div class="controls">
@@ -521,13 +521,13 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     <div class="quiz" data-quiz>
       <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Which kind of call?</span></div>
       <div class="quiz-body">
-        <div class="q-text">A program calls <code>read()</code> on a network socket. The call returns right away with 0 bytes and the error <code>EAGAIN</code> ("try again"), and the program must call again later. What kind of call is this?</div>
+        <div class="q-text">A program calls <code>read()</code> on a network socket. The call returns immediately with 0 bytes and the error <code>EAGAIN</code> ("try again"). The program must call again later. What kind of call is this?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="A blocking call would not have returned until data arrived.">Blocking</button>
           <button type="button" class="q-opt" data-ok>Non-blocking</button>
-          <button type="button" class="q-opt" data-why="An asynchronous call also returns right away, but the kernel then finishes the whole transfer on its own and notifies the program. Here the program has to ask again.">Asynchronous</button>
+          <button type="button" class="q-opt" data-why="An asynchronous call also returns immediately. However, the kernel then finishes the whole transfer on its own and notifies the program. Here, the program has to ask again.">Asynchronous</button>
         </div>
-        <div class="q-fb ok">Right. Non-blocking calls return whatever is ready, possibly nothing, and leave it to the program to try again.</div>
+        <div class="q-fb ok">Right. Non-blocking calls return whatever is ready, possibly nothing. It is up to the program to try again.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -537,9 +537,9 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     <h3><span class="sec-no">3.3</span>Beyond read and write with <code>ioctl</code> and <code>fcntl</code></h3>
     <div class="two-up" style="align-items:start">
       <div class="prose">
-        <p>Programs need a richer interface than <code>open</code>, <code>close</code>, <code>read</code>, <code>write</code>. They need to set a device's speed, eject a disk, or ask a terminal how wide it is.</p>
-        <p data-step="1"><code>int ioctl(int fd, int cmd, ...)</code> makes a system call that runs a device-specific command <code>cmd</code> on the device behind <code>fd</code>. The kernel directs it to that device's driver. New devices and new device functions need no new system calls, so the kernel stays extensible. UNIX, Linux and macOS support <code>ioctl</code>, and Windows has its own version.</p>
-        <p data-step="2"><code>fcntl</code> (file control) is related. It configures file parameters, and since UNIX models each device as a file, that often means I/O behavior. It is part of POSIX, so it is portable across platforms.</p>
+        <p>Programs need a richer interface than <code>open</code>, <code>close</code>, <code>read</code>, and <code>write</code>. For example, they need to set the speed of a device, eject a disk, or ask a terminal how wide it is.</p>
+        <p data-step="1"><code>int ioctl(int fd, int cmd, ...)</code> makes a system call that runs a device-specific command <code>cmd</code> on the device behind <code>fd</code>. The kernel directs the command to the driver of that device. New devices and new device functions need no new system calls. As such, the kernel stays extensible. UNIX, Linux, and macOS support <code>ioctl</code>, and Windows has its own version.</p>
+        <p data-step="2"><code>fcntl</code> (file control) is a related call. It configures file parameters. Since UNIX models each device as a file, these parameters often control I/O behavior. This call is part of POSIX. Therefore, it is portable across platforms.</p>
       </div>
       <div data-step="1">
         <div class="code" aria-label="ioctl and fcntl examples">
@@ -555,7 +555,7 @@ table.devs .mm { color: var(--co); font-weight: 600; }
           <span class="ln">int fl = fcntl(sock, F_GETFL);</span>
           <span class="ln">fcntl(sock, F_SETFL, fl | O_NONBLOCK);</span>
         </div>
-        <p class="small muted" style="margin-top:8px">The last two lines turn the blocking read of §3.2 into the non-blocking one.</p>
+        <p class="small muted" style="margin-top:8px">The last two lines turn the blocking read of §3.2 into the non-blocking read.</p>
       </div>
     </div>
   </div>
@@ -563,10 +563,10 @@ table.devs .mm { color: var(--co); font-weight: 600; }
   <div class="sec" id="s3-4">
     <h3><span class="sec-no">3.4</span>Every device is a file</h3>
     <div class="prose">
-      <p>In UNIX, each device appears as a file under <code>/dev</code>. The first letter of <code>ls -l</code> says <strong>c</strong>haracter or <strong>b</strong>lock device, and two numbers replace the file size.</p>
+      <p>In UNIX, each device appears as a file under <code>/dev</code>. The first letter in the output of <code>ls -l</code> marks a <strong>c</strong>haracter or <strong>b</strong>lock device, and two numbers replace the file size.</p>
       <ul>
-        <li>the <span class="os">major number</span> picks the <strong>driver</strong>, because the kernel keeps a table of drivers indexed by it.</li>
-        <li>the <span class="os">minor number</span> tells that driver <strong>which of its devices</strong> this is.</li>
+        <li>The <span class="os">major number</span> picks the <strong>driver</strong>, because the kernel keeps a table of drivers indexed by this number.</li>
+        <li>The <span class="os">minor number</span> tells that driver <strong>which of its devices</strong> this device is.</li>
       </ul>
       <p class="read-only">Click a device to follow a <code>read()</code> on it down to the function that runs.</p>
     </div>
@@ -586,13 +586,13 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     <div class="quiz" data-quiz>
       <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Major and minor</span></div>
       <div class="quiz-body">
-        <div class="q-text">What is a device's <strong>minor</strong> number?</div>
+        <div class="q-text">What is the <strong>minor</strong> number of a device?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="That describes the major number, which picks the driver.">A unique number for every device driver.</button>
           <button type="button" class="q-opt" data-ok>A number that tells apart the devices belonging to one driver.</button>
-          <button type="button" class="q-opt" data-why="The two numbers do different jobs. Only one of these descriptions fits the minor number.">Both of the above.</button>
+          <button type="button" class="q-opt" data-why="The two numbers have different roles. Only one of these descriptions fits the minor number.">Both of the above.</button>
         </div>
-        <div class="q-fb ok">Right. <code>/dev/null</code> (1, 3) and <code>/dev/zero</code> (1, 5) share major 1, the memory-devices driver. The minor number tells that driver which one you opened.</div>
+        <div class="q-fb ok">Right. <code>/dev/null</code> (1, 3) and <code>/dev/zero</code> (1, 5) share major 1, namely the memory-devices driver. The minor number tells that driver which device you opened.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -609,24 +609,24 @@ table.devs .mm { color: var(--co); font-weight: 600; }
   <div class="ch-head">
     <div class="ch-no">Chapter 4</div>
     <h2>Drivers and controllers</h2>
-    <p class="ch-lede">The driver is software that knows one kind of device. The controller is the hardware it talks to.</p>
+    <p class="ch-lede">The driver is software that knows one kind of device. The controller is the hardware that the driver talks to.</p>
   </div>
 
   <div class="sec" id="s4-1">
     <h3><span class="sec-no">4.1</span>Device drivers</h3>
     <div class="prose">
-      <p>An I/O device has two high-level parts, namely <strong>mechanical</strong> components, and <strong>electronic</strong> components, the <span class="f">device controller</span> that operates the mechanics. The OS deals with the controller, through a device driver.</p>
+      <p>An I/O device has two high-level parts, namely <strong>mechanical</strong> components and <strong>electronic</strong> components. The electronic components form the <span class="f">device controller</span>, which operates the mechanics. The OS deals with the controller through a device driver.</p>
       <p data-step="1">A <strong>device driver</strong> does the four things below.</p>
       <ul data-step="1">
-        <li>implements the device system-call interface (<code>open</code>, <code>read</code>, <code>write</code>, …) for that device.</li>
+        <li>It implements the device system-call interface (<code>open</code>, <code>read</code>, <code>write</code>, …) for that device.</li>
         <li>It interacts directly with the device controller.</li>
-        <li>It knows the details, such as which commands the device accepts and which bits to set and read in the controller's registers.</li>
+        <li>It knows the details, such as which commands the device accepts and which bits to set and read in the registers of the controller.</li>
         <li>It is the device-dependent part of the device manager.</li>
       </ul>
     </div>
     <div class="note note-key" data-step="2">
       <span class="note-tag">Control flow</span>
-      <p>An I/O system call traps into the kernel. The trap handler for I/O, the device manager, indexes into a table with the call's arguments to find and run the correct device driver. In Linux, that table is indexed by the major number of §3.4, and each entry is a <code>struct file_operations</code>.</p>
+      <p>An I/O system call traps into the kernel. The trap handler for I/O, namely the device manager, indexes into a table with the arguments of the call. In this way, it finds and runs the correct device driver. In Linux, that table is indexed by the major number of §3.4, and each entry is a <code>struct file_operations</code>.</p>
     </div>
   </div>
 
@@ -634,13 +634,13 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     <h3><span class="sec-no">4.2</span>The device controller interface</h3>
     <div class="two-up">
       <div class="prose">
-        <p>The driver sees a controller as a handful of registers.</p>
+        <p>The driver sees a controller as a small set of registers.</p>
         <ul>
-          <li><strong>command</strong> says what to do next.</li>
+          <li><strong>command</strong> specifies what to do next.</li>
           <li data-step="1"><strong>status</strong> holds a <span class="f">busy</span> bit, a <span class="f">done</span> bit, and an error code.</li>
-          <li data-step="2"><strong>data 0 … n−1</strong> holds the bytes going to or coming from the device.</li>
+          <li data-step="2"><strong>data 0 … n−1</strong> holds the bytes that go to or come from the device.</li>
         </ul>
-        <p data-step="3">The controller's own logic turns a command into motor steps, voltages, or light.</p>
+        <p data-step="3">The logic of the controller itself turns a command into motor steps, voltages, or light.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -673,7 +673,7 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     <details class="fold">
       <summary>How does the CPU actually reach those registers?</summary>
       <div class="fold-body">
-        <p>Two ways, and real machines use both. With <strong>port-mapped I/O</strong>, registers live in a separate I/O address space reached by special instructions (<code>in</code> and <code>out</code> on x86). With <strong>memory-mapped I/O</strong>, registers appear at physical addresses, and an ordinary load or store reaches the controller instead of RAM. The page tables of Lecture 14 mark those pages uncacheable, so every access really goes to the device. <a href="18-device-strategies.html#ch3">Lecture 18, Chapter 3</a> takes both apart.</p>
+        <p>There are two ways, and real machines use both. With <strong>port-mapped I/O</strong>, registers live in a separate I/O address space, which special instructions reach (<code>in</code> and <code>out</code> on x86). With <strong>memory-mapped I/O</strong>, registers appear at physical addresses, and an ordinary load or store reaches the controller instead of RAM. The page tables of Lecture 14 mark those pages uncacheable. Therefore, every access actually goes to the device. <a href="18-device-strategies.html#ch3">Lecture 18, Chapter 3</a> examines both in detail.</p>
       </div>
     </details>
   </div>
@@ -681,10 +681,10 @@ table.devs .mm { color: var(--co); font-weight: 600; }
   <div class="sec" id="s4-3">
     <h3><span class="sec-no">4.3</span>Three states in two bits</h3>
     <div class="prose">
-      <p>The status register must distinguish three states, namely <strong>idle</strong> (no app is using the device), <strong>working</strong> (exactly one app is using it), and <strong>finished</strong> (the results are ready for that one app). Two bits, BUSY and DONE, are enough.</p>
+      <p>The status register must distinguish three states, namely <strong>idle</strong> (no app is using the device), <strong>working</strong> (exactly one app is using it), and <strong>finished</strong> (the results are ready for that one app). Two bits, BUSY and DONE, are sufficient.</p>
     </div>
     <div class="widget" id="st-w">
-      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Drive the controller's state machine</span><button class="w-reset" type="button" id="st-reset">Reset</button></div>
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Drive the state machine of the controller</span><button class="w-reset" type="button" id="st-reset">Reset</button></div>
       <div class="controls">
         <button type="button" class="btn" data-ev="cmd">Driver writes a command</button>
         <button type="button" class="btn" data-ev="fin">Device finishes</button>
@@ -713,12 +713,12 @@ table.devs .mm { color: var(--co); font-weight: 600; }
       <div class="quiz-body">
         <div class="q-text">To start an I/O operation, the device driver loads the appropriate registers within the ______.</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="The CPU's registers belong to the running code. The driver runs on the CPU, but the command has to reach the device.">CPU</button>
-          <button type="button" class="q-opt" data-why="Main memory holds data and code. With memory-mapped I/O a register can look like a memory address, but it lives in the controller.">main memory</button>
+          <button type="button" class="q-opt" data-why="The registers of the CPU belong to the running code. The driver runs on the CPU, but the command has to reach the device.">CPU</button>
+          <button type="button" class="q-opt" data-why="Main memory holds data and code. With memory-mapped I/O, a register can look like a memory address. However, it lives in the controller.">main memory</button>
           <button type="button" class="q-opt" data-ok>device controller</button>
           <button type="button" class="q-opt" data-why="Secondary storage is one kind of device. The registers are in the controller in front of it.">secondary storage</button>
         </div>
-        <div class="q-fb ok">Right. Command, status and data registers live in the device controller (Fig. 4.1).</div>
+        <div class="q-fb ok">Right. The command, status, and data registers live in the device controller (Fig. 4.1).</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -747,7 +747,7 @@ table.devs .mm { color: var(--co); font-weight: 600; }
           <li data-step="2">The driver reads the <strong>status</strong> register to check whether the device is idle.</li>
           <li data-step="3">The driver writes a read <strong>command</strong>.</li>
           <li data-step="4">The driver reads <strong>status</strong> again and again until DONE is set.</li>
-          <li data-step="5">The driver copies the <strong>data</strong> register into the program's buffer and returns.</li>
+          <li data-step="5">The driver copies the <strong>data</strong> register into the buffer of the program and returns.</li>
         </ol>
       </div>
       <figure class="fig">
@@ -781,7 +781,7 @@ table.devs .mm { color: var(--co); font-weight: 600; }
   <div class="sec" id="s5-2">
     <h3><span class="sec-no">5.2</span>A polling write, in code</h3>
     <div class="widget" id="pw-w">
-      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Run the driver's write loop</span><button class="w-reset" type="button" id="pw-reset">Reset</button></div>
+      <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Run the write loop of the driver</span><button class="w-reset" type="button" id="pw-reset">Reset</button></div>
       <div class="controls">
         <label class="ctl-label" for="pw-dev">Device takes
           <select id="pw-dev"><option value="3">3 checks (fast)</option><option value="12" selected>12 checks</option><option value="40">40 checks (slow printer)</option></select>
@@ -806,26 +806,26 @@ table.devs .mm { color: var(--co); font-weight: 600; }
   <div class="sec" id="s5-3">
     <h3><span class="sec-no">5.3</span>The problem with polling</h3>
     <div class="prose">
-      <p>The OS spins in a loop <strong>twice</strong>. It waits once for the device to become idle, and once for it to finish so the results can be collected.</p>
-      <p data-step="1">That is <strong>busy waiting</strong>. Every check is a CPU cycle that could have run an application. A device operation that takes 1 ms is about three million loop iterations on a 3 GHz CPU.</p>
+      <p>The OS spins in a loop <strong>twice</strong>. First, it waits for the device to become idle. Second, it waits for the device to finish, so that the results can be collected.</p>
+      <p data-step="1">This is called <strong>busy waiting</strong>. Every check is a CPU cycle that could have run an application. For example, a device operation that takes 1 ms costs about three million loop iterations on a 3 GHz CPU.</p>
     </div>
     <div class="note note-key" data-step="2">
       <span class="note-tag">Key idea</span>
-      <p>We want to <strong>overlap CPU and I/O</strong>. That means we free the CPU while the device works on a read or write, and have the device say when it is done.</p>
+      <p>We want to <strong>overlap CPU and I/O</strong>. In other words, we free the CPU while the device works on a read or write, and the device reports when it is done.</p>
     </div>
   </div>
 
   <div class="sec" id="s5-4">
     <h3><span class="sec-no">5.4</span>Next time, I/O strategies</h3>
     <div class="prose">
-      <p>Under the blocking, non-blocking, synchronous and asynchronous calls of Chapter 3, the device manager can move data in the several ways below.</p>
+      <p>Under the blocking, non-blocking, synchronous, and asynchronous calls of Chapter 3, the device manager can move data in the ways below.</p>
     </div>
     <div class="opts3">
-      <div><span class="tag">Direct I/O with polling</span>The device manager busy-waits. That is this chapter.</div>
-      <div data-step="1"><span class="tag">Direct I/O with interrupts</span>The device raises an interrupt when it finishes, so the CPU runs something else meanwhile. More efficient than busy waiting.</div>
-      <div data-step="2"><span class="tag">DMA with interrupts</span>The controller copies the data to memory itself and interrupts once at the end.</div>
+      <div><span class="tag">Direct I/O with polling</span>The device manager busy-waits. This chapter covers this case.</div>
+      <div data-step="1"><span class="tag">Direct I/O with interrupts</span>The device raises an interrupt when it finishes. Therefore, the CPU runs something else in the meantime. This is more efficient than busy waiting.</div>
+      <div data-step="2"><span class="tag">DMA with interrupts</span>The controller itself copies the data to memory, and it interrupts once at the end.</div>
     </div>
-    <p class="prose small muted" data-step="2">Lecture 18, Device Strategies, takes these apart.</p>
+    <p class="prose small muted" data-step="2">Lecture 18, Device Strategies, examines these strategies in detail.</p>
   </div>
 
   <div class="ch-nav">
@@ -845,17 +845,17 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     <h3><span class="sec-no">∎</span>What to take away</h3>
     <div class="prose">
       <ul>
-        <li>Devices sit behind <span class="f">controllers</span> on buses. The CPU talks to controllers, never to the mechanics.</li>
-        <li>There are four kinds of exceptions. <span class="p">Traps</span> (system calls) and <span class="d">faults</span> are caused by the running instruction. <span class="f">Interrupts</span> come from devices at a time they choose. <span class="bad">Aborts</span> never return. An exception table maps each number to its handler.</li>
+        <li>Devices sit behind <span class="f">controllers</span> on buses. The CPU talks to controllers and never to the mechanics.</li>
+        <li>There are four kinds of exceptions. <span class="p">Traps</span> (system calls) and <span class="d">faults</span> are caused by the running instruction. <span class="f">Interrupts</span> come from devices at a time that the devices choose. <span class="bad">Aborts</span> never return. An exception table maps each number to its handler.</li>
         <li>The <span class="os">device manager</span> gives every device the same interface. Its device-independent layer sits on top of per-device <strong>drivers</strong>.</li>
-        <li>Devices differ as block or character, sequential or random access, and calls on them are blocking, non-blocking or asynchronous. <code>ioctl</code> and <code>fcntl</code> cover everything else.</li>
+        <li>Devices are block or character devices, with sequential or random access. Calls on them are blocking, non-blocking, or asynchronous. <code>ioctl</code> and <code>fcntl</code> cover everything else.</li>
         <li>Each device is a file in <code>/dev</code>. Its major number picks the driver, and its minor number picks the device within that driver.</li>
-        <li>A driver drives a controller through command, status and data registers. Polling the status register works, but it wastes the CPU on busy waiting.</li>
+        <li>A driver operates a controller through command, status, and data registers. Polling the status register works. However, it wastes the CPU on busy waiting.</li>
       </ul>
     </div>
     <div class="note note-lab" data-step="1">
       <span class="note-tag">In the lab</span>
-      <p>Basecamp 5, <em>Everything Is a File</em>. You write a character driver with major number 511, register its <code>struct file_operations</code>, and watch your own user-space tool read it exactly as it reads a regular file.</p>
+      <p>Basecamp 5, <em>Everything Is a File</em>. You write a character driver with major number 511 and register its <code>struct file_operations</code>. Then, you observe that your own user-space tool reads it exactly as it reads a regular file.</p>
     </div>
   </div>
 
@@ -863,19 +863,19 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     <table class="glossary">
       <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
       <tbody>
-        <tr><td>device controller</td><td>The electronics that operate a device, seen by the driver as command, status and data registers.</td></tr>
+        <tr><td>device controller</td><td>The electronics that operate a device, which the driver sees as command, status, and data registers.</td></tr>
         <tr><td>device driver</td><td>Kernel code that implements open/read/write/… for one kind of device by programming its controller.</td></tr>
-        <tr><td>device manager</td><td>The kernel's I/O subsystem, that is, a device-independent layer on top of the drivers.</td></tr>
+        <tr><td>device manager</td><td>The I/O subsystem of the kernel, that is, a device-independent layer on top of the drivers.</td></tr>
         <tr><td>trap</td><td>An intentional exception, such as a system call. It is synchronous and returns to the next instruction.</td></tr>
         <tr><td>fault</td><td>A potentially recoverable error, such as a page fault. It is synchronous and may re-run the current instruction.</td></tr>
         <tr><td>interrupt</td><td>A signal from a device. It is asynchronous and returns to the next instruction.</td></tr>
-        <tr><td>abort</td><td>A nonrecoverable hardware error. Never returns.</td></tr>
-        <tr><td>interrupt vector</td><td>The table mapping exception numbers to handler addresses (the IDT on x86).</td></tr>
+        <tr><td>abort</td><td>A nonrecoverable hardware error. It never returns.</td></tr>
+        <tr><td>interrupt vector</td><td>The table that maps exception numbers to handler addresses (the IDT on x86).</td></tr>
         <tr><td>block / character device</td><td>Addressable fixed-size blocks (disk) / a stream of bytes (keyboard).</td></tr>
         <tr><td>blocking / non-blocking / async</td><td>Wait until done / return what is ready now / return now and finish the whole transfer later.</td></tr>
         <tr><td>ioctl / fcntl</td><td>Device-specific commands / file and I/O settings (POSIX), beyond read and write.</td></tr>
-        <tr><td>major / minor number</td><td>Which driver / which of that driver's devices a <code>/dev</code> node refers to.</td></tr>
-        <tr><td>polling, busy waiting</td><td>Repeatedly reading a status register until it changes, keeping the CPU busy doing nothing useful.</td></tr>
+        <tr><td>major / minor number</td><td>Which driver / which of the devices of that driver a <code>/dev</code> node refers to.</td></tr>
+        <tr><td>polling, busy waiting</td><td>Repeatedly reading a status register until it changes, which keeps the CPU busy without useful work.</td></tr>
       </tbody>
     </table>
   </div>
@@ -945,21 +945,21 @@ table.devs .mm { color: var(--co); font-weight: 600; }
   (function () {
     const EV = [
       { id: 'sys', name: 'read() system call', tag: 'the program asks', cls: 'trap', sync: 'synchronous', ret: 'next',
-        why: 'The program executed a system-call instruction on purpose. The kernel does the read, then returns to the instruction after the call.' },
+        why: 'The program executed a system-call instruction on purpose. The kernel performs the read, and then it returns to the instruction after the call.' },
       { id: 'div', name: 'Divide by zero', tag: 'x = a / 0', cls: 'fault', sync: 'synchronous', ret: 'kill',
-        why: 'The divide instruction itself failed. The handler cannot fix the arithmetic, so on Linux the process gets SIGFPE and, unless it handles the signal, dies.' },
+        why: 'The divide instruction itself failed. The handler cannot fix the arithmetic. Therefore, on Linux, the process receives SIGFPE, and it dies unless it handles the signal.' },
       { id: 'pf', name: 'Page fault', tag: 'page is on disk', cls: 'fault', sync: 'synchronous', ret: 'same',
-        why: 'The load could not finish because its page is not in RAM. The OS loads the page, then re-runs the same load, which now succeeds.' },
+        why: 'The load could not finish, because its page is not in RAM. The OS loads the page and then re-runs the same load, which now succeeds.' },
       { id: 'seg', name: 'Segmentation fault', tag: '*NULL', cls: 'fault', sync: 'synchronous', ret: 'kill',
-        why: 'The address is not valid at all, so there is nothing for the handler to load. The process gets SIGSEGV.' },
+        why: 'The address is not valid at all. Therefore, there is nothing for the handler to load. The process receives SIGSEGV.' },
       { id: 'disk', name: 'Disk read finished', tag: 'from the controller', cls: 'interrupt', sync: 'asynchronous', ret: 'next',
-        why: 'The disk controller raised an interrupt. It landed between two instructions of whatever was running. The handler records the completion, and the interrupted code continues with its next instruction.' },
+        why: 'The disk controller raised an interrupt. The interrupt landed between two instructions of whatever was running. The handler records the completion, and the interrupted code continues with its next instruction.' },
       { id: 'nic', name: 'Packet arrived', tag: 'from the NIC', cls: 'interrupt', sync: 'asynchronous', ret: 'next',
-        why: 'The network card interrupted. The instruction it landed on had nothing to do with the network.' },
+        why: 'The network card raised an interrupt. The instruction that it landed on had nothing to do with the network.' },
       { id: 'tick', name: 'Timer tick', tag: 'every few ms', cls: 'interrupt', sync: 'asynchronous', ret: 'next',
-        why: 'The timer is a device too. Its interrupt is how the scheduler of Lecture 6 takes the CPU back, possibly resuming a different process.' },
+        why: 'The timer is also a device. Through its interrupt, the scheduler of Lecture 6 takes the CPU back and possibly resumes a different process.' },
       { id: 'bus', name: 'Hardware bus failure', tag: 'machine check', cls: 'abort', sync: 'synchronous', ret: 'never',
-        why: 'The hardware cannot be trusted any more. There is no instruction to go back to, so the OS logs what it can and halts or panics.' },
+        why: 'The hardware can no longer be trusted. There is no instruction to go back to. Therefore, the OS logs what it can and then halts or panics.' },
     ];
     const CLS = { trap: ['Trap', 'p'], fault: ['Fault', 'd'], interrupt: ['Interrupt', 'f'], abort: ['Abort', 'bad'] };
     const RET = { next: 'the next instruction', same: 'the same instruction', kill: 'nowhere, because the process is killed', never: 'never returns' };
@@ -1018,9 +1018,9 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     const svg = $('#io-svg');
     const X = (t) => 90 + t * 64, ARR = [[2, 40], [5, 30], [8, 30]];
     const MODES = [
-      { name: 'Blocking', segs: [[0, 8, 'blocked']], calls: [[0, 8, '100']], note: 'The process sits on the device\'s wait queue from t = 0 until all 100 bytes are in, at t = 8. Simple to program, but the process does nothing else meanwhile.' },
-      { name: 'Non-blocking', segs: [[0, 10, 'run']], calls: [[0, 0, '0'], [3, 3, '40'], [6, 6, '30'], [9, 9, '30']], note: 'Every call returns at once with whatever has arrived, namely 0 (EAGAIN), then 40, 30, 30. The program keeps running, but it has to keep asking and stitch the pieces together.' },
-      { name: 'Asynchronous', segs: [[0, 10, 'run']], calls: [[0, 0, 'queued']], done: 8, note: 'The call returns at once with the request queued. The program keeps computing. At t = 8 the kernel reports that all 100 bytes are in the buffer, by a signal or a completion event.' },
+      { name: 'Blocking', segs: [[0, 8, 'blocked']], calls: [[0, 8, '100']], note: 'The process sits on the wait queue of the device from t = 0 until all 100 bytes arrive, at t = 8. This mode is simple to program. However, the process does nothing else in the meantime.' },
+      { name: 'Non-blocking', segs: [[0, 10, 'run']], calls: [[0, 0, '0'], [3, 3, '40'], [6, 6, '30'], [9, 9, '30']], note: 'Every call returns immediately with whatever has arrived, namely 0 (EAGAIN), then 40, 30, and 30. The program keeps running. However, it has to keep asking and put the pieces together.' },
+      { name: 'Asynchronous', segs: [[0, 10, 'run']], calls: [[0, 0, 'queued']], done: 8, note: 'The call returns immediately, and the request is queued. The program keeps computing. At t = 8, the kernel reports through a signal or a completion event that all 100 bytes are in the buffer.' },
     ];
     function render(k) {
       const m = MODES[k];
@@ -1068,11 +1068,11 @@ table.devs .mm { color: var(--co); font-weight: 600; }
   /* ---------- §3.4 /dev node → driver ---------- */
   (function () {
     const DEV = [
-      { perm: 'crw-rw-rw-', grp: 'root', mj: 1, mn: 3, name: '/dev/null', drv: 'mem (drivers/char/mem.c)', fn: 'read_null', does: 'returns 0 immediately, meaning end of file, every time', minor: 'Minor 3 tells the mem driver to act as <code>null</code>. The same driver also serves <code>/dev/zero</code> (minor 5) and <code>/dev/random</code>.' },
-      { perm: 'crw-rw-rw-', grp: 'root', mj: 1, mn: 5, name: '/dev/zero', drv: 'mem (drivers/char/mem.c)', fn: 'read_zero', does: 'fills the buffer with zero bytes, as many as asked', minor: 'Same major number as <code>/dev/null</code>, so the same driver. Minor 5 selects <code>zero</code>.' },
-      { perm: 'brw-rw----', grp: 'disk', mj: 8, mn: 0, name: '/dev/sda', drv: 'sd, the SCSI disk driver', fn: 'blkdev_read_iter', does: 'goes through the block layer and page cache, and on a miss the driver programs the disk controller', minor: 'Minor 0 is the whole first disk.' },
+      { perm: 'crw-rw-rw-', grp: 'root', mj: 1, mn: 3, name: '/dev/null', drv: 'mem (drivers/char/mem.c)', fn: 'read_null', does: 'returns 0 immediately every time, which means end of file', minor: 'Minor 3 tells the mem driver to act as <code>null</code>. The same driver also serves <code>/dev/zero</code> (minor 5) and <code>/dev/random</code>.' },
+      { perm: 'crw-rw-rw-', grp: 'root', mj: 1, mn: 5, name: '/dev/zero', drv: 'mem (drivers/char/mem.c)', fn: 'read_zero', does: 'fills the buffer with as many zero bytes as requested', minor: 'It has the same major number as <code>/dev/null</code>, and therefore the same driver. Minor 5 selects <code>zero</code>.' },
+      { perm: 'brw-rw----', grp: 'disk', mj: 8, mn: 0, name: '/dev/sda', drv: 'sd, the SCSI disk driver', fn: 'blkdev_read_iter', does: 'goes through the block layer and page cache. On a miss, the driver programs the disk controller', minor: 'Minor 0 is the whole first disk.' },
       { perm: 'brw-rw----', grp: 'disk', mj: 8, mn: 1, name: '/dev/sda1', drv: 'sd, the SCSI disk driver', fn: 'blkdev_read_iter', does: 'same path as /dev/sda, with offsets shifted to the start of partition 1', minor: 'Minor 1 is partition 1 of that disk. One driver serves many devices.' },
-      { perm: 'crw-rw-rw-', grp: 'root', mj: 511, mn: 0, name: '/dev/simple_char_driver', drv: 'simple_char_driver (your Basecamp 5 module)', fn: 'scd_read', does: 'copies bytes from its 900-byte kernel buffer with copy_to_user', minor: 'This one is yours. Registering your <code>file_operations</code> against major 511 is what sends <code>read()</code> here.' },
+      { perm: 'crw-r--r--', grp: 'root', mj: 511, mn: 0, name: '/dev/simple_char_driver', drv: 'simple_char_driver (your Basecamp 5 module)', fn: 'scd_read', does: 'copies bytes from its 900-byte kernel buffer with copy_to_user', minor: 'This device is yours. Your <code>file_operations</code>, registered against major 511, send <code>read()</code> here.' },
     ];
     function render(k) {
       const d = DEV[k];
@@ -1097,14 +1097,14 @@ table.devs .mm { color: var(--co); font-weight: 600; }
     let st = 'idle';
     const OK = { idle: { cmd: 'work' }, work: { fin: 'done' }, done: { ack: 'idle' } };
     const MSG = {
-      'idle>cmd': 'The driver wrote a command. The controller sets BUSY, so the device is now working for exactly one app.',
-      'work>fin': 'The device finished. The controller clears BUSY and sets DONE, so results are ready.',
-      'done>ack': 'The driver read the data and status, then cleared DONE. The device is idle and free for the next app.',
-      'idle>fin': 'Nothing to finish, because the device is idle.',
+      'idle>cmd': 'The driver wrote a command. The controller sets BUSY. As such, the device now works for exactly one app.',
+      'work>fin': 'The device finished. The controller clears BUSY and sets DONE. Therefore, the results are ready.',
+      'done>ack': 'The driver read the data and status, and then it cleared DONE. The device is idle and free for the next app.',
+      'idle>fin': 'There is nothing to finish, because the device is idle.',
       'idle>ack': 'There is no result to collect yet.',
-      'work>cmd': 'Rejected. The device is BUSY with another request. A second app has to wait until it is idle again.',
-      'work>ack': 'Too early. DONE is not set yet. A polling driver would keep checking here.',
-      'done>cmd': 'Not yet. The previous results have not been collected. Starting a new command now would overwrite them.',
+      'work>cmd': 'Rejected. The device is BUSY with another request. A second app has to wait until the device is idle again.',
+      'work>ack': 'Too early. DONE is not set yet. A polling driver would keep checking at this point.',
+      'done>cmd': 'Not yet. The previous results have not been collected. A new command now would overwrite them.',
       'done>fin': 'The device already finished.',
     };
     function render(msg, bad) {
@@ -1121,7 +1121,7 @@ table.devs .mm { color: var(--co); font-weight: 600; }
       if (nxt) { st = nxt; render(MSG[key], false); } else render(MSG[key], true);
     }));
     $('#st-reset').addEventListener('click', () => { st = 'idle'; render('Idle. No app is using the device.', false); });
-    render('Idle. No app is using the device. Try the buttons in order, then out of order.', false);
+    render('Idle. No app is using the device. Try the buttons in order, and then out of order.', false);
   })();
 
   /* ---------- §5.2 polling write ---------- */
@@ -1168,7 +1168,7 @@ table.devs .mm { color: var(--co); font-weight: 600; }
         `<span>data[0]</span><span>${S.data}</span><span>command</span><span>${S.cmd}</span>`;
       $('#pw-trace').innerHTML = 'BUSY DONE<br>' + S.trace.map((t) => t.replace(/ /, '&nbsp;&nbsp;&nbsp;&nbsp;')).join('<br>');
       const tot = S.spins + S.useful, pct = tot ? Math.round(S.spins / tot * 100) : 0;
-      $('#pw-out').innerHTML = `useful statements <b>${S.useful}</b> · loop checks <b>${S.spins}</b> · <span class="${pct > 50 ? 'no' : ''}">${pct}% of the CPU's work was spinning</span>` + (S.fin ? ' · <span class="ok">write complete</span>' : '');
+      $('#pw-out').innerHTML = `useful statements <b>${S.useful}</b> · loop checks <b>${S.spins}</b> · <span class="${pct > 50 ? 'no' : ''}">${pct}% of the CPU work was spinning</span>` + (S.fin ? ' · <span class="ok">write complete</span>' : '');
       $('#pw-step').disabled = S.fin || !!timer; $('#pw-run').disabled = S.fin || !!timer;
     }
     function reset() { if (timer) { clearInterval(timer); timer = null; } S = fresh(); render(); }

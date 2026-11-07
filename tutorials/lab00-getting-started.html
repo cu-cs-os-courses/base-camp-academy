@@ -50,7 +50,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="hero-inner">
     <div class="eyebrow"><span class="chip-t">walkthrough</span> &nbsp;Basecamp 0 · Weeks 1–3 · due Sun Jan 17</div>
     <h1>From zero to a <span class="accent">running</span> kernel</h1>
-    <p class="lede">This page walks you through Lab00 step by step. For each step, it describes what to do, how to tell whether it worked, and what usually goes wrong. Note that this page does not do the lab for you. It never shows code for <code>observe.sh</code>, and it never names the file that holds an answer. Instead, it shows you how to search and how to check your own work. This page and the header of <code>submit/observe.sh</code> are the specification for this lab.</p>
+    <p class="lede">This page walks you through Lab00 step by step. Together with the header of <code>submit/observe.sh</code>, it is the specification for this lab.</p>
     <div class="steps-map">
       <div><b>Step 0–1</b>Repository and VM (do this first, because the build takes up to an hour)</div>
       <div><b>Step 2</b>The edit–run loop</div>
@@ -91,7 +91,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 0</div>
     <h2>Get your repository</h2>
-    <p class="ch-lede">You work in your own private copy of the course repository. That copy is what we grade.</p>
+    <p class="ch-lede">The goal of this step is to make your own private copy of the course repository. You work in that copy, and it is what we grade.</p>
   </div>
   <div class="sec">
     <div class="prose">
@@ -116,7 +116,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 1</div>
     <h2>Build and boot the VM</h2>
-    <p class="ch-lede">Start this step on the day the lab opens. The first build takes 30–60 minutes.</p>
+    <p class="ch-lede">The goal of this step is to build the course VM and boot it once. Start this step on the day the lab opens, because the first build takes 30–60 minutes.</p>
   </div>
   <div class="sec">
     <div class="two-up">
@@ -194,7 +194,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 2</div>
     <h2>The edit–run loop</h2>
-    <p class="ch-lede">You edit files on your laptop and run them inside the VM. Follow these steps once now. Every later lab uses the same loop.</p>
+    <p class="ch-lede">The goal of this step is to learn the loop that every lab uses. You edit files on your laptop and run them inside the VM. Follow these steps once now.</p>
   </div>
   <div class="sec">
     <div class="prose">
@@ -242,26 +242,27 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 3</div>
     <h2>Tools for reading /proc</h2>
-    <p class="ch-lede">Every fact is text in a file. In this step, you practice the two skills the lab needs, namely finding the file and cutting out exactly one value. Work in the VM from Step 2.</p>
+    <p class="ch-lede">The goal of this step is to practice the two skills the lab needs, namely finding the file that holds a fact and cutting out exactly one value. Every fact is text in a file. Work in the VM from Step 2.</p>
   </div>
   <div class="sec">
     <div class="prose">
       <ol>
         <li>
           <p><b>In the VM, look around <code>/proc</code>.</b></p>
-          <div class="code"><span class="ln">ls /proc                     <span class="c"># files, and one directory per process</span></span><span class="ln">cat /proc/version</span><span class="ln">ls /proc/1/</span><span class="ln">cat /proc/meminfo | head</span><span class="ln">grep . /proc/sys/kernel/*    <span class="c"># everything here greps like an ordinary file</span></span></div>
-          <p><code>/proc</code> is the kernel's window onto itself. Each numbered directory is one running <span class="ref" data-sec="L01 §5.1" data-title="Process" data-href="../lectures/01-overview.html#s5-1">process<span class="ref-body">A process is a program in execution. The program is a file on disk. Each time you run it, the kernel creates a new process for it. Therefore, every program you start, such as <code>cat</code> or <code>ls</code>, runs as a new process.</span></span>, named by its <span class="ref" data-sec="L03 §1.1" data-title="Process identifier (PID)" data-href="../lectures/03-process.html#s1-1">PID<span class="ref-body">The kernel gives each new process a number, its process identifier (PID). Two processes that exist at the same time never share a PID. Therefore, if you run the same program twice, you get two different PIDs.</span></span>. The eight facts in <code>observe.sh</code> make you look at four different faces of <code>/proc</code>. First, there are system-wide constants, such as the kernel release, the CPUs, and memory. Second, the boot command line, which you can compare with <code>env/run.sh</code>. Third, there are per-process views, namely <code>/proc/&lt;pid&gt;/</code>, and <code>/proc/self</code>, which answers "who is asking?" Fourth, live counters that change every time you look (<code>/proc/stat</code>).</p>
+          <div class="code"><span class="ln">ls /proc                     <span class="c"># files, and one directory per process</span></span><span class="ln">cat /proc/version</span><span class="ln">ls /proc/1/</span><span class="ln">cat /proc/meminfo | head</span></div>
+          <p><code>/proc</code> is the kernel's window onto itself. Each numbered directory is one <span class="ref" data-sec="L01 §5.1" data-title="Process" data-href="../lectures/01-overview.html#s5-1">process<span class="ref-body">A process is a program in execution. The program is a file on disk. Each time you run it, the kernel creates a new process for it. Therefore, every program you start, such as <code>cat</code> or <code>ls</code>, runs as a new process.</span></span>, named by its <span class="ref" data-sec="L03 §1.1" data-title="Process identifier (PID)" data-href="../lectures/03-process.html#s1-1">PID<span class="ref-body">The kernel gives each new process a number, its process identifier (PID). Two processes that exist at the same time never share a PID. Therefore, if you run the same program twice, you get two different PIDs.</span></span>. The eight facts in <code>observe.sh</code> make you look at four different faces of <code>/proc</code>. First, there are system-wide constants, such as the kernel release, the CPUs, and memory. Second, there is a clock, namely <code>/proc/uptime</code>, whose first number is the seconds since boot. Third, there are per-process views, namely <code>/proc/&lt;pid&gt;/</code>. The shell replaces <code>$$</code> with its own PID, so <code>/proc/$$/</code> is the directory of the shell that reads it. Fourth, there are live counters that change every time you look, such as the ones in <code>/proc/stat</code>.</p>
         </li>
         <li>
           <p><b>Find which files mention a word.</b></p>
-          <div class="code"><span class="ln">grep -l -i swap /proc/* 2&gt;/dev/null</span></div>
-          <p><code>-l</code> prints only the names of the files that match, and <code>-i</code> ignores case. <code>2&gt;/dev/null</code> hides the error messages for directories and for files you are not allowed to read.</p>
+          <div class="code"><span class="ln">grep -l -i MemFree /proc/*info 2&gt;/dev/null   <span class="c"># prints /proc/meminfo</span></span></div>
+          <p><code>/proc/*info</code> stands for every name in <code>/proc</code> that ends in <code>info</code>, such as <code>cpuinfo</code> and <code>meminfo</code>. <code>-l</code> prints only the names of the files that match, and <code>-i</code> ignores case. <code>2&gt;/dev/null</code> hides the error messages for files you are not allowed to read. The search finds <code>/proc/meminfo</code>, the file that Recitation 01 read with <code>grep MemFree</code>.</p>
+          <p>Note that a search over all of <code>/proc/*</code> never finishes, because a few files in <code>/proc</code> never end. Therefore, narrow the names with a pattern such as <code>*info</code>, or search one directory such as <code>/proc/sys/kernel</code>. If a command hangs, press <kbd>Control</kbd> and <kbd>c</kbd> together to stop it.</p>
         </li>
         <li>
           <p><b>Practice cutting out one value.</b></p>
-          <p>Run each command below. Then run <code>cat</code> on the same file, and compare. These files are <em>not</em> ones the lab asks about. However, the same patterns apply to the lab's files.</p>
-          <div class="code"><span class="ln">cat /proc/sys/vm/swappiness                      <span class="c"># a whole file that is one value</span></span><span class="ln">awk '{print $1}' /proc/loadavg                   <span class="c"># field 1 of a one-line file</span></span><span class="ln">awk '/^Threads:/ {print $2}' /proc/self/status   <span class="c"># field 2 of the line that starts with "Threads:"</span></span><span class="ln">grep -c '^Vm' /proc/self/status                  <span class="c"># count the lines that match</span></span><span class="ln">ls /proc | wc -l                                 <span class="c"># count directory entries</span></span><span class="ln">readlink /proc/1/exe                             <span class="c"># where a symbolic link points</span></span></div>
-          <p><code>awk</code> splits each line into fields at spaces, and <code>$1</code> is the first field. A pattern between slashes, such as <code>/^Threads:/</code>, keeps only the lines that match it.</p>
+          <p>Run each command below. Then run <code>cat</code> on the same file, and compare. Some of these files hold a fact that you need in Step 4. However, the values cut out here are not the facts, and the same patterns work on every file.</p>
+          <div class="code"><span class="ln">cat /proc/sys/kernel/pid_max                  <span class="c"># PIDs stay below this number</span></span><span class="ln">awk '{print $1}' /proc/uptime                 <span class="c"># field 1 of a one-line file</span></span><span class="ln">awk '/^Threads:/ {print $2}' /proc/$$/status  <span class="c"># field 2 of the "Threads:" line</span></span><span class="ln">grep -c '^Mem' /proc/meminfo                  <span class="c"># count the lines that match</span></span><span class="ln">ls /proc | wc -l                              <span class="c"># count directory entries</span></span></div>
+          <p>The first file is one value, the number that every PID stays below. A system that keeps too many processes can run out of PIDs, as <a href="../lectures/03-process.html#s2-2">L03 §2.2</a> warns. In the second line, <code>awk</code> splits each line into fields at spaces, and <code>$1</code> is the first field, here the seconds since boot. In the third line, a pattern between slashes, such as <code>/^Threads:/</code>, keeps only the lines that match it, and <code>$2</code> is the second field of that line. The fourth line counts the lines of <code>/proc/meminfo</code> that start with <code>Mem</code>, because <code>-c</code> prints a count instead of the lines. The last line counts every entry in <code>/proc</code>, files and directories alike.</p>
         </li>
         <li>
           <p><b>On your laptop, read the header of <code>observe.sh</code>.</b></p>
@@ -276,7 +277,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
   <div class="ch-head">
     <div class="ch-no">Step 4</div>
     <h2>The eight facts, one at a time</h2>
-    <p class="ch-lede">Fill in the eight <code>TODO</code>s in order. For each fact, repeat the five steps below. The table after them says what each fact is, where to start looking, and how to check it.</p>
+    <p class="ch-lede">The goal of this step is to find each of the eight facts where the kernel exposes it, and to check each value a second way. Fill in the eight <code>TODO</code>s in order. For each fact, repeat the five steps below. The table after them says what each fact is, where to start looking, and how to check it.</p>
   </div>
   <div class="sec">
     <div class="prose">
@@ -311,9 +312,9 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
           <tr><td>KERNEL_RELEASE</td><td>The release string of the running kernel, like <code>6.6.87</code>.</td><td>This is one system-wide value. Look for a file whose name contains "release."</td><td><code>uname -r</code></td></tr>
           <tr><td>NPROC</td><td>The number of CPUs the kernel is using, as a single number.</td><td>Find the <code>/proc</code> file that describes the CPUs, with one entry per CPU. Then turn the entries into a count.</td><td><code>nproc</code></td></tr>
           <tr><td>PID1_COMM</td><td>The command name of <span class="ref" data-sec="L03 §1.1" data-title="Process 1" data-href="../lectures/03-process.html#s1-1">process 1<span class="ref-body">After the kernel finishes booting, it starts one process itself, with PID 1. That process starts other processes, and they start more. As such, the processes form a tree, and process 1 is its root.</span></span>, the first process the kernel starts.</td><td>Each process's directory, such as <code>/proc/1/</code>, holds many files. Find the one that holds only the command name.</td><td><code>ps -p 1 -o comm=</code></td></tr>
-          <tr><td>MEM_TOTAL_KB</td><td>Total usable RAM in kB, as a bare number.</td><td>Find the <code>/proc</code> file that reports memory, then the line for the total.</td><td><code>free -k</code>, "total" column</td></tr>
-          <tr><td>BOOT_CMDLINE</td><td>The parameters the kernel was booted with, exactly as passed.</td><td>Look for a file named after "command line." Make sure you pick the kernel's command line, not a process's.</td><td>The <code>-append</code> line in <code>env/run.sh</code></td></tr>
-          <tr><td>SELF_PID</td><td>The PID of the process that reads <code>/proc/self</code>.</td><td><code>/proc/self</code> is a symbolic link. Work out what it points to, and extract the PID from the target.</td><td>Run the script twice. The value changes between runs, and it is never 1.</td></tr>
+          <tr><td>MEM_TOTAL_KB</td><td>The total main memory in kB as the kernel reports it, as a bare number.</td><td>Find the <code>/proc</code> file that reports memory, then the line for the total.</td><td><code>free -k</code>, "total" column</td></tr>
+          <tr><td>UPTIME_S</td><td>The time since boot in whole seconds, such as <code>83</code> when the file says <code>83.42</code>.</td><td>Step 3 printed the first number of the file that counts the seconds since boot, as <a href="../recitations/r02-running-system.html#a">Recitation 02</a> showed. Keep only the digits before the decimal point, without rounding.</td><td>Run the script, type <code>sleep 10</code>, and run it again. The value grows by about 10.</td></tr>
+          <tr><td>SHELL_PPID</td><td>The PID of the <span class="ref" data-sec="L03 §1.1" data-title="Parent" data-href="../lectures/03-process.html#s1-1">parent<span class="ref-body">A process that creates another process is its parent, and the new process is its child. The kernel records the parent's PID for every process, so you can follow parents up the process tree.</span></span> of the bash that runs <code>observe.sh</code>.</td><td>Inside the script, <code>$$</code> is the PID of the bash that runs it. Find the line in that process's status file that names its parent, and cut out the number.</td><td>Type <code>echo $$</code> at the prompt where you ran the script. The two numbers are equal.</td></tr>
           <tr><td>CTXT</td><td>The total number of <span class="ref" data-sec="L03 §4.3" data-title="Context switch" data-href="../lectures/03-process.html#s4-3">context switches<span class="ref-body">Many processes share a few CPUs. When the kernel stops the process running on a CPU and runs another one there, it saves the state of the first and loads the state of the second. This is a context switch. The kernel counts every context switch since boot.</span></span> since boot, as one number.</td><td>The header of <code>observe.sh</code> names the file. Find the line whose name refers to context switches.</td><td>Read it twice, a few seconds apart. The value only grows.</td></tr>
           <tr><td>NUM_PROCS</td><td>The number of processes that exist right now.</td><td>Every process is a directory whose name is all digits, and no other entry in <code>/proc</code> has such a name. Count only those names.</td><td><code>ps aux | wc -l</code> (this includes one header line, so a roughly equal count is correct)</td></tr>
         </tbody>
@@ -325,8 +326,8 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
     <div class="prose">
       <ol start="6">
         <li>
-          <p><b>Make sure that the script never uses <code>uname</code> or <code>nproc</code>, and that <code>SELF_PID</code> comes from <code>/proc/self</code>.</b></p>
-          <p>A check searches your script for the words <code>uname</code> and <code>nproc</code>, even inside a command substitution. It ignores comments. Another check searches for <code>/proc/self</code>, so <code>SELF_PID</code> cannot come from the shell's <code>$$</code>. The point of the lab is to read each fact where the kernel itself exposes it.</p>
+          <p><b>Make sure that the script never uses <code>uname</code> or <code>nproc</code>.</b></p>
+          <p>A check searches your script for the words <code>uname</code> and <code>nproc</code>, even inside a command substitution. It ignores comments. The point of the lab is to read each fact where the kernel itself exposes it.</p>
         </li>
       </ol>
     </div>
@@ -349,11 +350,11 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
         </li>
         <li>
           <p><b>Read the result.</b></p>
-          <p>If every check passes, the last line ends with <code>status=pass passes=14 fails=0</code>. The 14 checks fall into three groups.</p>
+          <p>If every check passes, the last line ends with <code>status=pass passes=12 fails=0</code>. The 12 checks fall into three groups.</p>
           <ul>
-            <li><code>boot</code>, <code>proc-mounted</code>, and <code>tracefs</code> check the VM, not your script. If one of them fails, the environment is broken. Go back to the table in Step 1.</li>
-            <li><code>no-uname</code>, <code>no-nproc</code>, and <code>uses-proc-self</code> check the rules from Step 4.</li>
-            <li><code>kernel-release</code>, <code>nproc</code>, <code>pid1-comm</code>, <code>mem-total</code>, <code>boot-cmdline</code>, <code>self-pid</code>, <code>ctxt</code>, and <code>num-procs</code> check one fact each.</li>
+            <li><code>boot</code> and <code>proc-mounted</code> check the VM, not your script. If one of them fails, the environment is broken. Go back to the table in Step 1.</li>
+            <li><code>no-uname</code> and <code>no-nproc</code> check the rule from Step 4.</li>
+            <li><code>kernel-release</code>, <code>nproc</code>, <code>pid1-comm</code>, <code>mem-total</code>, <code>uptime</code>, <code>shell-ppid</code>, <code>ctxt</code>, and <code>num-procs</code> check one fact each.</li>
           </ul>
         </li>
         <li>
@@ -380,19 +381,19 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
           <p>It goes in <code>submit/</code>, next to <code>observe.sh</code>, because everything in <code>submit/</code> is your submission. Keep it short.</p>
         </li>
         <li>
-          <p><b>Question 1. “Run <code>observe.sh</code> twice. Which values changed, and why? (<code>SELF_PID</code> deserves a sentence of its own. What exactly is <code>/proc/self</code>?)”</b></p>
+          <p><b>Question 1. “Run <code>observe.sh</code> twice from the same shell. Which values changed and which stayed the same? Using <a href="../lectures/01-overview.html#s5-1">L01 §5.1</a> and <a href="../lectures/03-process.html#s1-1">L03 §1.1</a>, explain why <code>SHELL_PPID</code> stayed the same while <code>CTXT</code> grew.”</b></p>
           <p>Boot the VM as in Step 2, and investigate with the commands below.</p>
-          <div class="code"><span class="ln">bash /share/observe.sh</span><span class="ln">bash /share/observe.sh   <span class="c"># compare the two outputs line by line</span></span><span class="ln">ls -l /proc/self</span><span class="ln">ls -l /proc/self         <span class="c"># compare the two link targets</span></span></div>
-          <p>Ask yourself which process reads <code>/proc/self</code> each time. Then write your answer in <code>report.md</code>.</p>
+          <div class="code"><span class="ln">bash /share/observe.sh</span><span class="ln">bash /share/observe.sh   <span class="c"># compare the two outputs line by line</span></span><span class="ln">echo $$                  <span class="c"># the shell you ran both from</span></span></div>
+          <p>For each value that changed, ask what it counts or measures. For <code>SHELL_PPID</code>, ask which process it names, and whether each run of the script is the same process or a new one. Then write your answer in <code>report.md</code>.</p>
         </li>
         <li>
-          <p><b>Question 2. “Even while you type nothing, <code>CTXT</code> keeps growing. Which processes run while you wait, and why does the kernel keep switching between them?”</b></p>
-          <div class="code"><span class="ln">bash /share/observe.sh | grep CTXT</span><span class="ln">sleep 10                            <span class="c"># type nothing</span></span><span class="ln">bash /share/observe.sh | grep CTXT</span><span class="ln">ps -e                               <span class="c"># every process that exists right now</span></span></div>
-          <p>First, subtract the two values. Then look at the list from <code>ps -e</code>. You started only a few of these processes. Reread the card on context switches in Step 4, and <a href="../lectures/01-overview.html#s4-2">L01 §4.2</a> on the timer. Then write your answer.</p>
+          <p><b>Question 2. “While you type nothing for ten seconds, <code>CTXT</code> still grows. Report your two readings and their difference. Using the five process states of <a href="../lectures/03-process.html#s3-1">L03 §3.1</a> and the context switch of <a href="../lectures/03-process.html#s4-3">L03 §4.3</a>, explain how processes that spend almost all their time waiting can still cause context switches.”</b></p>
+          <div class="code"><span class="ln">bash /share/observe.sh | grep CTXT</span><span class="ln">sleep 10                            <span class="c"># type nothing</span></span><span class="ln">bash /share/observe.sh | grep CTXT</span></div>
+          <p>First, subtract the two values. Then follow one process that waits, such as <code>sleep</code> during those ten seconds, through the five states. Ask what the kernel does with the CPU each time a process moves into or out of the running state. Then write your answer.</p>
         </li>
         <li>
-          <p><b>Question 3. “One thing you found in <code>/proc</code> that surprised you.”</b></p>
-          <p>Anything you met in Steps 3 and 4 counts. Say what it is, and why it surprised you.</p>
+          <p><b>Question 3. “Pick one of the eight facts other than <code>CTXT</code>. Name the lecture section that explains what it measures, and describe the second way you checked its value in Step 4.”</b></p>
+          <p>The cards in Steps 3 and 4 link the lecture sections behind several facts. Repeat that fact's check from the last column of the table in Step 4, and write down what you ran and what it printed.</p>
         </li>
       </ol>
     </div>
@@ -426,7 +427,7 @@ table.t td:first-child { font-family: var(--f-mono); font-size: 13px; white-spac
           <p><b>Before the deadline, go through this list.</b></p>
           <ul class="check">
             <li><code>make check LAB=00-getting-started</code> shows no <code>FAIL</code>.</li>
-            <li>The script contains no <code>uname</code> or <code>nproc</code>, and it reads <code>/proc/self</code>.</li>
+            <li>The script contains no <code>uname</code> or <code>nproc</code>.</li>
             <li><code>report.md</code> answers all three questions.</li>
             <li>Both files are visible on GitHub in <em>your</em> private repository, and <code>chenyueqi</code> is a collaborator.</li>
           </ul>

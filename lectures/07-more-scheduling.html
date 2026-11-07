@@ -74,7 +74,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
   <div class="hero-inner">
     <div class="eyebrow">CSCI 3753 · Lecture 07 · Interactive notes</div>
     <h1>Fair is <span class="accent">harder</span> than it looks</h1>
-    <p class="lede">Lecture 06 compared FCFS, SJF and round robin on toy workloads. Real systems mix interactive shells, batch jobs, real-time controllers and dozens of cores. This lecture follows the ideas that handle that mix, namely priorities and aging, queues that learn a process's behavior, the two Linux schedulers before today's, deadlines, and scheduling across many CPUs.</p>
+    <p class="lede">Lecture 06 compared FCFS, SJF, and round robin on toy workloads. However, real systems mix interactive shells, batch jobs, real-time controllers, and dozens of cores. In this lecture, we discuss the ideas that handle this mix, namely priorities and aging, queues that learn a process's behavior, the two Linux schedulers before today's, deadlines, and scheduling across many CPUs.</p>
     <div class="promise">
       <span>Before you start, review</span><span class="mono">FCFS, SJF, RR, the quantum</span><span>from Lecture 06.</span>
     </div>
@@ -115,16 +115,16 @@ table.res td.met { color: var(--good); font-weight: 600; }
   <div class="ch-head">
     <div class="ch-no">Chapter 0</div>
     <h2>Priority scheduling</h2>
-    <p class="ch-lede">Not all processes are equal. Give the CPU to the most important one.</p>
+    <p class="ch-lede">Not all processes are equal. Priority scheduling gives the CPU to the most important one.</p>
   </div>
 
   <div class="sec" id="s0-1">
     <h3><span class="sec-no">0.1</span>Priorities</h3>
     <div class="prose">
       <ul>
-        <li>Each process has an integer <strong>priority</strong>, and the CPU goes to the highest-priority process. Here, as in Linux, a <strong>smaller number means higher priority</strong>.</li>
-        <li>It can be <strong>preemptive</strong> (a newly ready higher-priority process takes the CPU) or <strong>nonpreemptive</strong> (it waits for the current burst to end).</li>
-        <li>SJF is a priority scheduler whose priority is the predicted next CPU burst. The shorter the burst, the higher the priority.</li>
+        <li>Each process has an integer <strong>priority</strong>. The CPU goes to the highest-priority process. Note that here, as in Linux, a <strong>smaller number means higher priority</strong>.</li>
+        <li>Priority scheduling can be <strong>preemptive</strong> (a newly ready higher-priority process takes the CPU) or <strong>nonpreemptive</strong> (the new process waits for the current burst to end).</li>
+        <li>Note that SJF is a priority scheduler whose priority is the predicted next CPU burst. The shorter the burst, the higher the priority.</li>
         <li><strong>The problem is starvation.</strong> A low-priority process may never run if higher-priority work keeps arriving.</li>
         <li><strong>The solution is aging.</strong> The longer a process waits, the higher its priority becomes.</li>
       </ul>
@@ -134,7 +134,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
   <div class="sec" id="s0-2">
     <h3><span class="sec-no">0.2</span>Two examples</h3>
     <div class="prose">
-      <p>All processes arrive at time 0. In the first example, each priority level holds one process, so the schedule is just the priority order, with an average wait of 8.2. The second example has ties. Processes with the same priority take turns round robin (q = 2), and a lower level runs only after every higher level is empty.</p>
+      <p>All processes arrive at time 0. In the first example, each priority level holds one process. Therefore, the schedule is simply the priority order, and the average waiting time is 8.2. The second example has ties. Processes with the same priority take turns in round robin (q = 2). A lower level runs only after every higher level is empty.</p>
     </div>
     <div class="widget" id="pr-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Priority scheduling, with round robin among equals</span><button class="w-reset" type="button" id="pr-reset">Reset</button></div>
@@ -158,7 +158,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
   <div class="sec" id="s0-3">
     <h3><span class="sec-no">0.3</span>Starvation, and aging as the cure</h3>
     <div class="prose">
-      <p>A job <b class="d">L</b> with priority 10 arrives at time 0. A stream of priority-1 jobs arrives too, one every 2 time units, each needing 2 units, so there is always one ready. The scheduler is nonpreemptive priority. Ties go to whichever job arrived first.</p>
+      <p>A job <b class="d">L</b> with priority 10 arrives at time 0. A stream of priority-1 jobs also arrives, one every 2 time units, and each job needs 2 units. As such, a priority-1 job is always ready. The scheduler uses nonpreemptive priority scheduling. Ties go to the job that arrived first.</p>
     </div>
     <div class="widget" id="ag-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Does L ever run?</span><button class="w-reset" type="button" id="ag-reset">Reset</button></div>
@@ -177,8 +177,8 @@ table.res td.met { color: var(--good); font-weight: 600; }
       <div class="quiz-body">
         <div class="q-text">What does aging change?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="The quantum is a round-robin parameter, while aging changes who is picked.">It shrinks the time quantum of old processes.</button>
-          <button type="button" class="q-opt" data-ok>It raises the priority of a process the longer it waits, so it is eventually picked.</button>
+          <button type="button" class="q-opt" data-why="The quantum is a round-robin parameter. In contrast, aging changes which process is picked.">It shrinks the time quantum of old processes.</button>
+          <button type="button" class="q-opt" data-ok>It raises the priority of a process the longer the process waits. As such, the process is eventually picked.</button>
           <button type="button" class="q-opt" data-why="Lowering the priority of long-running jobs is a different idea (the demotion in §1.2). Aging rescues waiting jobs.">It lowers the priority of processes that have run for a long time.</button>
         </div>
         <div class="q-fb ok">Right. A waiting process eventually outranks the stream that starves it.</div>
@@ -198,7 +198,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
   <div class="ch-head">
     <div class="ch-no">Chapter 1</div>
     <h2>Multilevel queues</h2>
-    <p class="ch-lede">Split the ready queue, give each part its own policy, and let processes move between parts.</p>
+    <p class="ch-lede">The ready queue is split into parts, and each part has its own policy. Processes can move between parts.</p>
   </div>
 
   <div class="sec" id="s1-1">
@@ -212,7 +212,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
           <li>how to pick which queue a process enters, and</li>
           <li>scheduling among the queues, usually strict priority, which runs a lower queue only when all higher queues are empty.</li>
         </ul>
-        <p>With priority scheduling, keep one queue per priority. Or prioritize by process type, as in Fig. 1.1.</p>
+        <p>With priority scheduling, the OS keeps one queue per priority. Alternatively, the OS prioritizes by process type, as in Fig. 1.1.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -228,13 +228,13 @@ table.res td.met { color: var(--good); font-weight: 600; }
   <div class="sec" id="s1-2">
     <h3><span class="sec-no">1.2</span>Multilevel feedback queue</h3>
     <div class="prose">
-      <p>In a <strong>multilevel feedback queue</strong> (MLFQ), a process can <em>move</em> between queues. Beyond the four parameters above, it needs rules for when to promote a process and when to demote it. Aging fits naturally. Promote a process that has waited too long.</p>
+      <p>In a <strong>multilevel feedback queue</strong> (MLFQ), a process can <em>move</em> between queues. In addition to the four parameters above, an MLFQ needs rules for when to promote a process and when to demote it. Aging fits naturally into this design. Specifically, the scheduler promotes a process that has waited too long.</p>
       <p>The classic three-queue example is below.</p>
       <ul>
-        <li><b class="p">Q0</b> uses RR with q = 8 ms. Every new process enters here. If it does not finish within 8 ms, it moves to Q1.</li>
-        <li><b class="d">Q1</b> uses RR with q = 16 ms. If it still does not finish, it moves to Q2.</li>
-        <li><b class="f">Q2</b> uses FCFS, run only when Q0 and Q1 are empty.</li>
-        <li>A process arriving in a higher queue preempts one running from a lower queue.</li>
+        <li><b class="p">Q0</b> uses RR with q = 8 ms. Every new process enters here. If a process does not finish within 8 ms, it moves to Q1.</li>
+        <li><b class="d">Q1</b> uses RR with q = 16 ms. If the process still does not finish, it moves to Q2.</li>
+        <li><b class="f">Q2</b> uses FCFS and runs only when Q0 and Q1 are empty.</li>
+        <li>A process arriving in a higher queue preempts a process running from a lower queue.</li>
       </ul>
     </div>
     <div class="widget" id="mf-w">
@@ -250,16 +250,16 @@ table.res td.met { color: var(--good); font-weight: 600; }
       </div>
       <div class="readout" id="mf-out" style="font-family:var(--f-body);font-size:14.5px"></div>
     </div>
-    <p class="small muted prose read-only">A process preempted by a new arrival keeps its place at the head of its queue and the part of its quantum it has already used.</p>
+    <p class="small muted prose read-only">When a new arrival preempts a process, the preempted process keeps its place at the head of its queue. It also keeps the part of its quantum that it has already used.</p>
   </div>
 
   <div class="sec" id="s1-3">
     <h3><span class="sec-no">1.3</span>What MLFQ learns</h3>
     <div class="prose">
       <ul>
-        <li><strong>By age.</strong> With promotion for old processes, a low-priority process eventually reaches the CPU. No starvation.</li>
-        <li><strong>By behavior.</strong> CPU-bound processes use up their quanta and sink. Interactive and I/O-bound processes block before the quantum ends and stay near the top, so they get fast response.</li>
-        <li>Over time, a process settles in the queue whose quantum matches its typical CPU burst. MLFQ gets most of SJF's benefit without being told burst lengths.</li>
+        <li><strong>By age.</strong> If old processes are promoted, a low-priority process eventually reaches the CPU. As such, there is no starvation.</li>
+        <li><strong>By behavior.</strong> CPU-bound processes use up their quanta and sink. Interactive and I/O-bound processes block before the quantum ends and stay near the top. Therefore, they get fast response.</li>
+        <li>Over time, a process settles in the queue whose quantum matches its typical CPU burst. In other words, MLFQ gets most of SJF's benefit without being told burst lengths.</li>
       </ul>
     </div>
   </div>
@@ -268,9 +268,9 @@ table.res td.met { color: var(--good); font-weight: 600; }
     <div class="quiz" data-quiz>
       <div class="quiz-head"><span class="chip">Checkpoint</span><span class="q-title">Where does it live?</span></div>
       <div class="quiz-body">
-        <div class="q-text">In the three-queue MLFQ, a text editor runs about 2 ms of CPU after each keystroke, then blocks waiting for the next key. Where does it spend its life?</div>
+        <div class="q-text">In the three-queue MLFQ, a text editor runs about 2 ms of CPU after each keystroke and then blocks waiting for the next key. Where does it spend its time?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-ok>In Q0, because it never uses a full 8 ms quantum, so it is never demoted.</button>
+          <button type="button" class="q-opt" data-ok>In Q0. It never uses a full 8 ms quantum, so it is never demoted.</button>
           <button type="button" class="q-opt" data-why="It is demoted only when it uses up a whole quantum without finishing its burst.">It moves down to Q2 after a few seconds of editing.</button>
           <button type="button" class="q-opt" data-why="Q1 is for bursts between 8 and 24 ms.">In Q1.</button>
         </div>
@@ -306,10 +306,10 @@ table.res td.met { color: var(--good); font-weight: 600; }
     </figure>
     <div class="prose">
       <ul>
-        <li>Linux has <strong>140 priorities, 0–139</strong>. 0–99 are for real-time tasks and 100–139 for normal (non-RT) tasks. In the O(1) scheduler, higher priority also meant a <strong>longer quantum</strong>. The textbook's figure runs from 200 ms at the top to 10 ms at the bottom.</li>
-        <li>A normal task's priority comes from its <strong>nice value</strong>, <strong>−20 to +19</strong>, where lower is higher priority. A process at nice +15 is "nicer" to the others.</li>
-        <li>To run a heavy computation politely, type <code>nice -n 19 ./compute</code>. Lowering niceness to raise priority usually requires root.</li>
-        <li>Each Linux scheduler uses the nice value in its own way. §2.3 shows how O(1) used it, and §3.4 how CFS does.</li>
+        <li>Linux has <strong>140 priorities, 0–139</strong>. Priorities 0–99 are for real-time tasks, and 100–139 are for normal (non-RT) tasks. In the O(1) scheduler, higher priority also meant a <strong>longer quantum</strong>. The textbook's figure ranges from 200 ms at the top to 10 ms at the bottom.</li>
+        <li>A normal task's priority comes from its <strong>nice value</strong>, <strong>−20 to +19</strong>, where a lower value means higher priority. A process at nice +15 is "nicer" to the others.</li>
+        <li>To run a heavy computation at low priority, type <code>nice -n 19 ./compute</code>. Lowering the nice value to raise priority usually requires root.</li>
+        <li>Each Linux scheduler uses the nice value in its own way. §2.3 shows how O(1) used it, and §3.4 shows how CFS uses it.</li>
       </ul>
     </div>
   </div>
@@ -318,8 +318,8 @@ table.res td.met { color: var(--good); font-weight: 600; }
     <h3><span class="sec-no">2.2</span>O(N), then O(1)</h3>
     <div class="prose">
       <ul>
-        <li><strong>Linux 2.4 was O(N).</strong> Each task had a "goodness", and an interactive task that gave up the CPU early was rewarded with a higher value next time. The list was unordered, so picking the next task meant scanning all N tasks. That does not scale.</li>
-        <li><strong>Linux 2.6 to 2.6.22 was O(1).</strong> Keep one queue per priority. Picking the next task means finding the first nonempty queue among a fixed 140, so the cost is bounded by the number of priorities, not the number of tasks. It is priority-based and preemptive.</li>
+        <li><strong>Linux 2.4 was O(N).</strong> Each task had a "goodness" value. An interactive task that gave up the CPU early received a higher value the next time. The list was unordered. Therefore, picking the next task required scanning all N tasks, which does not scale.</li>
+        <li><strong>Linux 2.6 to 2.6.22 was O(1).</strong> The scheduler keeps one queue per priority. Picking the next task means finding the first nonempty queue among a fixed 140 queues. As such, the cost is bounded by the number of priorities, not the number of tasks. The O(1) scheduler is priority-based and preemptive.</li>
       </ul>
     </div>
   </div>
@@ -328,10 +328,10 @@ table.res td.met { color: var(--good); font-weight: 600; }
     <h3><span class="sec-no">2.3</span>Active and expired arrays</h3>
     <div class="prose">
       <ul>
-        <li>There are two arrays, each indexed by the 140 priorities. The <b class="p">active</b> array holds tasks with quantum left, and the <strong>expired</strong> array holds tasks that have used up theirs.</li>
-        <li>The scheduler runs the first task of the highest-priority nonempty queue in <em>active</em>. At worst it searches 140 levels. The real kernel keeps a 140-bit bitmap of nonempty queues, and one find-first-set-bit instruction per word locates the first one.</li>
-        <li>A task that exhausts its quantum moves to <em>expired</em> and cannot run again until every other task has used up its quantum. When <em>active</em> is empty, the two arrays are <strong>swapped</strong>, which is just a pointer swap.</li>
-        <li>On the move, the priority is recalculated as <strong>nice priority ± f(interactivity)</strong>, at most ±5. Tasks that sleep a lot waiting for I/O get closer to −5, a boost. Compute-bound tasks get closer to +5. Only normal priorities, 100–139, are adjusted.</li>
+        <li>There are two arrays, each indexed by the 140 priorities. The <b class="p">active</b> array holds tasks with quantum left. The <strong>expired</strong> array holds tasks that have used up their quanta.</li>
+        <li>The scheduler runs the first task of the highest-priority nonempty queue in <em>active</em>. At worst, it searches 140 levels. In practice, the kernel keeps a 140-bit bitmap of nonempty queues. One find-first-set-bit instruction per word locates the first nonempty queue.</li>
+        <li>A task that exhausts its quantum moves to <em>expired</em> and cannot run again until every other task has used up its quantum. When <em>active</em> is empty, the two arrays are <strong>swapped</strong>. This swap is only a pointer swap.</li>
+        <li>When a task moves, its priority is recalculated as <strong>nice priority ± f(interactivity)</strong>, at most ±5. Tasks that sleep a lot waiting for I/O get closer to −5, which is a boost. In contrast, compute-bound tasks get closer to +5. Only normal priorities, 100–139, are adjusted.</li>
       </ul>
     </div>
     <div class="widget" id="o1-w">
@@ -350,7 +350,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
     <p class="small muted prose read-only">The tasks are <b>A</b> (nice 0, interactive), <b>B</b> (nice 0, CPU-bound), <b>C</b> (nice −10, CPU-bound), <b>D</b> (nice +10, interactive). The ±5 is shown as its extreme value.</p>
     <div class="note note-honest">
       <span class="note-tag">Why it was replaced</span>
-      <p>"The O(1) scheduler is a collection of heuristics," its author Ingo Molnar said. Deciding who counts as interactive, and by how much, made it hard to maintain and hard to predict.</p>
+      <p>Its author, Ingo Molnar, said, "The O(1) scheduler is a collection of heuristics." Deciding which task counts as interactive, and by how much, made the scheduler hard to maintain and hard to predict.</p>
     </div>
   </div>
 
@@ -360,11 +360,11 @@ table.res td.met { color: var(--good); font-weight: 600; }
       <div class="quiz-body">
         <div class="q-text">Why is the O(1) scheduler's pick constant time?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-why="There were still many tasks, but the pick just does not look at all of them.">It limits the system to 140 tasks.</button>
+          <button type="button" class="q-opt" data-why="The system still had many tasks. However, the pick does not look at all of them.">It limits the system to 140 tasks.</button>
           <button type="button" class="q-opt" data-ok>It searches at most 140 priority queues, however many tasks there are.</button>
           <button type="button" class="q-opt" data-why="The expired array is used only after the swap, and it has the same 140 levels.">It only ever looks at the expired array.</button>
         </div>
-        <div class="q-fb ok">Right. The bound is the number of priorities, a constant.</div>
+        <div class="q-fb ok">Right. The bound is the number of priorities, which is a constant.</div>
         <div class="q-fb no">Not quite.</div>
       </div>
     </div>
@@ -388,9 +388,9 @@ table.res td.met { color: var(--good); font-weight: 600; }
     <h3><span class="sec-no">3.1</span>The ideal CPU</h3>
     <div class="prose">
       <ul>
-        <li>Picture an ideal CPU that runs N tasks <em>truly in parallel</em>, each at 1/N speed. With a 4 GHz processor and four tasks, each gets a 1 GHz processor at every instant. Everyone progresses all the time, which is perfectly fair.</li>
-        <li>A real core runs one task at a time. It gives concurrency, not parallelism.</li>
-        <li>CFS's goal is to approximate the ideal CPU. When a task runs for T, CFS keeps a running balance of how much time is owed to each of the others, as if they had all run on the ideal CPU.</li>
+        <li>Consider an ideal CPU that runs N tasks <em>truly in parallel</em>, each at 1/N speed. For example, with a 4 GHz processor and four tasks, each task gets a 1 GHz processor at every instant. Every task progresses all the time, which is perfectly fair.</li>
+        <li>However, a real core runs one task at a time. In other words, it gives concurrency, not parallelism.</li>
+        <li>The goal of CFS is to approximate the ideal CPU. When a task runs for T, CFS keeps a running balance of how much time is owed to each of the other tasks, as if all tasks had run on the ideal CPU.</li>
         <li>CFS is based on a <em>proportion</em> of CPU time rather than fixed time allotments. It has two scheduling classes, default and real-time.</li>
       </ul>
     </div>
@@ -399,7 +399,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
   <div class="sec" id="s3-2">
     <h3><span class="sec-no">3.2</span>Keeping the books</h3>
     <div class="prose">
-      <p>There are four tasks. In any interval T, the ideal CPU gives each one T/4. When the real CPU gives all of T to T1, T1 is over-allocated by 3T/4 and each of the others is owed T/4. Run them round robin and watch the balance W<sub>i</sub>, the time owed to task i.</p>
+      <p>Consider four tasks. In any interval T, the ideal CPU gives each task T/4. When the real CPU gives all of T to T1, T1 is over-allocated by 3T/4, and each of the other tasks is owed T/4. The widget below runs the tasks in round robin and shows the balance W<sub>i</sub>, namely the time owed to task i.</p>
     </div>
     <div class="widget" id="ow-w">
       <div class="widget-head"><span class="chip">Step through</span><span class="w-title">Time owed to each task</span><button class="w-reset" type="button" id="ow-reset">Reset</button></div>
@@ -420,10 +420,10 @@ table.res td.met { color: var(--good); font-weight: 600; }
     <h3><span class="sec-no">3.3</span>Virtual run time</h3>
     <div class="prose">
       <ul>
-        <li>The bookkeeping simplifies. Sum the run time each task has received, and run the task with the <strong>minimum sum</strong>. That is the same task as the one owed the most on the ideal CPU.</li>
-        <li><strong>The caveat.</strong> A task that was blocked for a long time, or is brand new, has a tiny sum. It would then hog the CPU until its sum caught up, blocking everyone else.</li>
-        <li>So CFS keeps a <strong>virtual run time</strong>, <code>vruntime</code>. When a task joins the run queue, whether new or waking from I/O, its vruntime is raised to at least the <strong>minimum vruntime</strong> in the queue. It becomes the next to run, but only a little ahead of the others.</li>
-        <li>CFS picks the minimum vruntime at every decision. That also makes it responsive, because an interactive task gets the CPU almost immediately after its I/O completes.</li>
+        <li>The bookkeeping can be simplified. CFS sums the run time that each task has received and runs the task with the <strong>minimum sum</strong>. This task is the same as the task owed the most on the ideal CPU.</li>
+        <li><strong>The caveat.</strong> A task that was blocked for a long time, or a new task, has a tiny sum. Such a task would hog the CPU until its sum caught up and block every other task.</li>
+        <li>Therefore, CFS keeps a <strong>virtual run time</strong>, <code>vruntime</code>. When a task joins the run queue, either as a new task or after waking from I/O, its vruntime is raised to at least the <strong>minimum vruntime</strong> in the queue. As such, the task runs next, but it is only a little ahead of the others.</li>
+        <li>CFS picks the minimum vruntime at every decision. This choice also makes CFS responsive, because an interactive task gets the CPU almost immediately after its I/O completes.</li>
       </ul>
     </div>
   </div>
@@ -431,17 +431,17 @@ table.res td.met { color: var(--good); font-weight: 600; }
   <div class="sec" id="s3-4">
     <h3><span class="sec-no">3.4</span>Priorities are weights</h3>
     <div class="prose">
-      <p>Each nice value maps to a <strong>weight</strong>. Nice 0 is 1024, and each step multiplies it by about 1.25. vruntime then advances more slowly for heavier tasks, as shown below.</p>
+      <p>Each nice value maps to a <strong>weight</strong>. The weight of nice 0 is 1024, and each step multiplies it by about 1.25. The formula below shows that vruntime advances more slowly for heavier tasks.</p>
       <div class="formula center">Δvruntime = Δ(actual run time) × 1024 / weight</div>
-      <p>At nice 0, vruntime equals real run time. A higher-priority task has a larger weight, so its vruntime grows more slowly. It stays leftmost longer and runs more often. Over time, each task gets CPU in proportion to <strong>weight<sub>i</sub> / Σ weight</strong>, the weighted round robin share from Lecture 06, but without quanta.</p>
+      <p>At nice 0, vruntime equals real run time. A higher-priority task has a larger weight, so its vruntime grows more slowly. As a result, the task stays leftmost longer and runs more often. Over time, each task gets CPU time in proportion to <strong>weight<sub>i</sub> / Σ weight</strong>. This is the weighted round robin share from Lecture 06, but without quanta.</p>
     </div>
     <div class="table-wrap">
       <table class="pt">
-        <thead><tr><th>nice</th><th>−20</th><th>−10</th><th>−5</th><th>−1</th><th>0</th><th>1</th><th>5</th><th>10</th><th>19</th></tr></thead>
-        <tbody><tr><td>weight</td><td>88761</td><td>9548</td><td>3121</td><td>1277</td><td>1024</td><td>820</td><td>335</td><td>110</td><td>15</td></tr></tbody>
+        <thead><tr><th>nice</th><th>−20</th><th>−10</th><th>−5</th><th>−1</th><th>0</th><th>1</th><th>5</th><th>10</th><th>15</th><th>19</th></tr></thead>
+        <tbody><tr><td>weight</td><td>88761</td><td>9548</td><td>3121</td><td>1277</td><td>1024</td><td>820</td><td>335</td><td>110</td><td>36</td><td>15</td></tr></tbody>
       </table>
     </div>
-    <p class="small muted prose">From the kernel's <code>sched_prio_to_weight[]</code> table.</p>
+    <p class="small muted prose">The values come from the kernel's <code>sched_prio_to_weight[]</code> table.</p>
 
     <div class="widget" id="cf-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">CFS, one 4 ms slice at a time</span><button class="w-reset" type="button" id="cf-reset">Reset</button></div>
@@ -471,8 +471,8 @@ table.res td.met { color: var(--good); font-weight: 600; }
     <div class="two-up">
       <div class="prose">
         <ul>
-          <li>Runnable tasks sit in a <strong>red-black tree</strong> keyed by vruntime. The leftmost node is the next to run, and the kernel caches a pointer to it, so picking is O(1). Inserting a task or reinserting it after it runs is O(log N).</li>
-          <li>All normal tasks share <strong>one tree</strong>, whatever their priority. Priority only changes how fast vruntime grows, so there is no need for 40 run queues, one per nice level.</li>
+          <li>Runnable tasks are stored in a <strong>red-black tree</strong> keyed by vruntime. The leftmost node runs next. The kernel caches a pointer to this node, so picking is O(1). Inserting a task, or reinserting it after it runs, is O(log N).</li>
+          <li>All normal tasks share <strong>one tree</strong>, regardless of their priority. Priority only changes how fast vruntime grows. Therefore, there is no need for 40 run queues, one per nice level.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -489,7 +489,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
   <div class="sec" id="s3-6">
     <h3><span class="sec-no">3.6</span>Fair to whom?</h3>
     <div class="prose">
-      <p>CFS is fair to <em>tasks</em>, not necessarily to <em>applications</em>. If application A1 has 100 threads and the interactive A2 has one, A1 gets 100/101 of the CPU. With <strong>group scheduling</strong>, A1 and A2 are separate groups that split the CPU fairly first. A1's 100 threads then share A1's 50%.</p>
+      <p>CFS is fair to <em>tasks</em>, but not necessarily to <em>applications</em>. For example, if application A1 has 100 threads and the interactive application A2 has one, A1 gets 100/101 of the CPU. With <strong>group scheduling</strong>, A1 and A2 are separate groups, and the two groups first split the CPU fairly. Then, A1's 100 threads share A1's 50%.</p>
     </div>
     <div class="widget" id="gr-w">
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Task fairness vs. group fairness</span><button class="w-reset" type="button" id="gr-reset">Reset</button></div>
@@ -502,7 +502,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
     </div>
     <div class="note note-lab">
       <span class="note-tag">In the lab</span>
-      <p>In Basecamp 2, <em>Sharing the CPU</em>, <code>fairshare.sh</code> pins two spinners at different nice values to one CPU and measures their shares against the weight table. Since Linux 6.6 the fair class is scheduled by CFS's successor, EEVDF. The lab's report asks you to work out, from your own data, what changed and what did not.</p>
+      <p>In Basecamp 2, <em>Sharing the CPU</em>, <code>fairshare.sh</code> pins two spinners at different nice values to one CPU and measures their shares against the weight table.</p>
     </div>
   </div>
 
@@ -528,9 +528,9 @@ table.res td.met { color: var(--good); font-weight: 600; }
       <div class="quiz-body">
         <div class="q-text">A task slept for 10 seconds waiting for the network. When it wakes, why doesn't CFS let it keep its old, tiny vruntime?</div>
         <div class="q-opts">
-          <button type="button" class="q-opt" data-ok>It would have the smallest vruntime by far and hog the CPU until it caught up. So CFS raises it to about the queue's minimum.</button>
-          <button type="button" class="q-opt" data-why="CFS wants woken tasks to run soon, and they do. At the minimum vruntime they are next.">To punish tasks that sleep.</button>
-          <button type="button" class="q-opt" data-why="vruntime is not reset to 0. That is exactly the naive choice in the widget.">It resets vruntime to 0 so the task runs first.</button>
+          <button type="button" class="q-opt" data-ok>It would have the smallest vruntime by far and hog the CPU until it caught up. Therefore, CFS raises it to about the queue's minimum.</button>
+          <button type="button" class="q-opt" data-why="CFS wants woken tasks to run soon, and they do. At the minimum vruntime, they run next.">To punish tasks that sleep.</button>
+          <button type="button" class="q-opt" data-why="vruntime is not reset to 0. Resetting it to 0 is exactly the naive choice in the widget.">It resets vruntime to 0 so the task runs first.</button>
         </div>
         <div class="q-fb ok">Right. Set "0 (naive)" in the §3.4 widget and wake a task to see the hogging.</div>
         <div class="q-fb no">Not quite.</div>
@@ -555,8 +555,8 @@ table.res td.met { color: var(--good); font-weight: 600; }
   <div class="sec" id="s4-1">
     <h3><span class="sec-no">4.1</span>Hard and soft deadlines</h3>
     <div class="pc">
-      <div class="con"><span class="tag">Hard real time</span>Certain tasks must finish by a certain time or the system fails. Robots and self-driving cars need a real-time OS (RTOS) that actuates the arm or turns the steering wheel by the deadline.</div>
-      <div class="pro"><span class="tag">Soft real time</span>Meet most deadlines, allow some misses, perhaps with probabilistic guarantees. For some systems, meeting 60% of deadlines is enough. Linux's priority-based real-time classes are soft real time.</div>
+      <div class="con"><span class="tag">Hard real time</span>Certain tasks must finish by a certain time. Otherwise, the system fails. Robots and self-driving cars need a real-time OS (RTOS) that actuates the arm or turns the steering wheel by the deadline.</div>
+      <div class="pro"><span class="tag">Soft real time</span>The system meets most deadlines and allows some misses, perhaps with probabilistic guarantees. For some systems, meeting 60% of deadlines is enough. Linux's priority-based real-time classes are soft real time.</div>
     </div>
   </div>
 
@@ -564,9 +564,9 @@ table.res td.met { color: var(--good); font-weight: 600; }
     <h3><span class="sec-no">4.2</span>Earliest deadline first</h3>
     <div class="prose">
       <ul>
-        <li><strong>EDF</strong> runs the task with the earliest deadline. In the first example, all tasks arrive at 0 and the order is P3, P1, P2, P4. Every deadline is met.</li>
-        <li>It is preemptive. A newly arrived task with an earlier deadline preempts a running task with a later one. In the second example, the scheduler decides again after every time unit.</li>
-        <li>On one CPU, if any schedule can meet all the deadlines, EDF does. Compare it with FCFS and SJF below.</li>
+        <li><strong>EDF</strong> runs the task with the earliest deadline. In the first example, all tasks arrive at 0, and the order is P3, P1, P2, P4. Every deadline is met.</li>
+        <li>EDF is preemptive. A newly arrived task with an earlier deadline preempts a running task with a later one. In the second example, the scheduler decides again after every time unit.</li>
+        <li>On one CPU, if any schedule can meet all the deadlines, EDF also meets them. You can compare EDF with FCFS and SJF below.</li>
       </ul>
     </div>
     <div class="widget" id="ed-w">
@@ -593,10 +593,10 @@ table.res td.met { color: var(--good); font-weight: 600; }
     <h3><span class="sec-no">4.3</span>Real-time classes in Linux</h3>
     <div class="prose">
       <ul>
-        <li><code>SCHED_FIFO</code> is real-time first-come first-served, soft real time.</li>
-        <li><code>SCHED_RR</code> is real-time round robin, soft real time.</li>
-        <li><code>SCHED_DEADLINE</code> is EDF-based. Each task declares its runtime, period and deadline, and the kernel admits it only if the declared demands fit on the CPUs. It is the closest Linux comes to hard real time, but mainline Linux is not a hard RTOS.</li>
-        <li>FIFO and RR tasks use the real-time priorities, 0–99 in Fig. 2.1. Every real-time task outranks every normal task. A weight only shares the CPU, but a policy ranks tasks (Basecamp 2, Part 3).</li>
+        <li><code>SCHED_FIFO</code> is a real-time first-come first-served policy, and it is soft real time.</li>
+        <li><code>SCHED_RR</code> is a real-time round robin policy, and it is soft real time.</li>
+        <li><code>SCHED_DEADLINE</code> is EDF-based. Each task declares its runtime, period, and deadline. The kernel admits the task only if the declared demands fit on the CPUs. It is the closest Linux comes to hard real time. However, mainline Linux is not a hard RTOS.</li>
+        <li>FIFO and RR tasks use the real-time priorities, 0–99 in Fig. 2.1. Every real-time task outranks every normal task. Note that a weight only shares the CPU. In contrast, a policy ranks tasks (Basecamp 2, Step 5).</li>
       </ul>
     </div>
   </div>
@@ -608,7 +608,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
         <div class="q-text">In the "all at 0" example, which task misses its deadline under FCFS?</div>
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="P1 runs first, 0–3, well before its deadline of 7.">P1</button>
-          <button type="button" class="q-opt" data-ok>P3, which waits behind P1 and P2, finishing at 8 against a deadline of 4</button>
+          <button type="button" class="q-opt" data-ok>P3. It waits behind P1 and P2 and finishes at 8, against a deadline of 4</button>
           <button type="button" class="q-opt" data-why="P4 finishes at 10, exactly on its deadline.">P4</button>
         </div>
         <div class="q-fb ok">Right. EDF runs P3 first and meets every deadline.</div>
@@ -637,8 +637,8 @@ table.res td.met { color: var(--good); font-weight: 600; }
       <div class="prose">
         <p>Multiprocessors come in several forms, such as multicore CPUs, multithreaded cores, NUMA systems, and heterogeneous multiprocessing (fast and slow cores). In <strong>symmetric multiprocessing</strong> (SMP), each processor schedules itself. There are two options.</p>
         <ul>
-          <li>(a) All threads wait in one <strong>common ready queue</strong>. It is simple, but the cores contend for the queue's lock.</li>
-          <li>(b) Each processor has its <strong>own private queue</strong>. There is no contention and caches stay warm, but the queues must be balanced. Linux does this.</li>
+          <li>(a) All threads wait in one <strong>common ready queue</strong>. This design is simple. However, the cores contend for the queue's lock.</li>
+          <li>(b) Each processor has its <strong>own private queue</strong>. There is no contention, and caches stay warm. However, the queues must be balanced. Linux uses this design.</li>
         </ul>
       </div>
       <figure class="fig">
@@ -656,10 +656,10 @@ table.res td.met { color: var(--good); font-weight: 600; }
     <h3><span class="sec-no">5.2</span>Affinity and load balancing</h3>
     <div class="prose">
       <ul>
-        <li>A thread that has been running on a processor has filled that processor's cache with its data. It has <strong>affinity</strong> for that processor.</li>
-        <li><strong>Soft affinity</strong> means the OS tries to keep a thread on the same processor but makes no promise. <strong>Hard affinity</strong> means the process names the set of processors it may run on. Linux supports both. <code>taskset</code> and <code>sched_setaffinity()</code> set hard affinity, and Basecamp 2 uses <code>taskset -c 0</code> to pin its spinners.</li>
-        <li><strong>Load balancing</strong> keeps work evenly spread. In <strong>push migration</strong>, a periodic task checks each CPU's load and pushes tasks off overloaded ones. In <strong>pull migration</strong>, an idle CPU pulls a waiting task from a busy one.</li>
-        <li>These goals conflict. Migrating a thread balances load but throws away its warm cache, which breaks affinity. Spreading work over every core fights power management, which wants to power unused cores down, especially on phones.</li>
+        <li>A thread that has been running on a processor has filled that processor's cache with its data. As such, it has <strong>affinity</strong> for that processor.</li>
+        <li><strong>Soft affinity</strong> means the OS tries to keep a thread on the same processor but makes no promise. <strong>Hard affinity</strong> means the process names the set of processors it may run on. Linux supports both. <code>taskset</code> and <code>sched_setaffinity()</code> set hard affinity. Basecamp 2 uses <code>taskset -c 0</code> to pin its spinners.</li>
+        <li><strong>Load balancing</strong> keeps work evenly spread. In <strong>push migration</strong>, a periodic task checks each CPU's load and pushes tasks off overloaded CPUs. In <strong>pull migration</strong>, an idle CPU pulls a waiting task from a busy one.</li>
+        <li>However, these goals conflict. Migrating a thread balances load, but it throws away the thread's warm cache and thus breaks affinity. Similarly, spreading work over every core conflicts with power management, which wants to power down unused cores, especially on phones.</li>
       </ul>
     </div>
   </div>
@@ -668,7 +668,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
     <h3><span class="sec-no">5.3</span>NUMA-aware scheduling</h3>
     <div class="two-up">
       <div class="prose">
-        <p>On a NUMA machine, each CPU reaches its own memory quickly and the other node's memory slowly, over an interconnect. A <strong>NUMA-aware</strong> OS allocates a thread's memory on the node where the thread runs, and it prefers to keep the thread there. Affinity then covers memory as well as cache.</p>
+        <p>On a NUMA machine, each CPU reaches its own memory quickly. In contrast, it reaches the other node's memory slowly, over an interconnect. A <strong>NUMA-aware</strong> OS allocates a thread's memory on the node where the thread runs, and it prefers to keep the thread there. As such, affinity covers memory as well as cache.</p>
       </div>
       <figure class="fig">
         <div class="fig-frame">
@@ -714,11 +714,11 @@ table.res td.met { color: var(--good); font-weight: 600; }
     <h3><span class="sec-no">∎</span>What to take away</h3>
     <div class="prose">
       <ul>
-        <li>Priority scheduling runs the most important process first. It can starve others, and aging fixes that.</li>
-        <li>Multilevel queues give each class its own queue and policy. Feedback queues move processes by behavior and age, approximating SJF without being told burst lengths.</li>
+        <li>Priority scheduling runs the most important process first. However, it can starve other processes, and aging fixes this problem.</li>
+        <li>Multilevel queues give each class its own queue and policy. Feedback queues move processes by behavior and age. As such, they approximate SJF without being told burst lengths.</li>
         <li>Linux has 140 priorities, with 0–99 real-time and 100–139 for nice −20 to +19. The O(1) scheduler used active and expired arrays and interactivity heuristics.</li>
-        <li>CFS runs the task with the minimum vruntime, which advances at 1024/weight per unit of run time. Shares follow the weights. One red-black tree holds every normal task. Waking tasks start at the minimum vruntime. Groups make it fair across applications.</li>
-        <li>For real time, EDF meets every deadline that can be met on one CPU. Linux offers <code>SCHED_FIFO</code>, <code>SCHED_RR</code> and <code>SCHED_DEADLINE</code>.</li>
+        <li>CFS runs the task with the minimum vruntime, which advances at 1024/weight per unit of run time. Shares follow the weights. One red-black tree holds every normal task. Waking tasks start at the minimum vruntime. Group scheduling makes CFS fair across applications.</li>
+        <li>For real time, EDF meets every deadline that can be met on one CPU. Linux offers <code>SCHED_FIFO</code>, <code>SCHED_RR</code>, and <code>SCHED_DEADLINE</code>.</li>
         <li>Multiprocessors use per-CPU queues, affinity, push and pull migration, NUMA awareness, and trade-offs between them.</li>
       </ul>
     </div>
@@ -815,7 +815,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
       let sw = 0;
       $('#pr-r').innerHTML = '<thead><tr><th>proc</th><th>priority</th><th>burst</th><th>finish</th><th>wait</th></tr></thead><tbody>' + R.map((p) => { const w = p.fin - p.burst; sw += w; return `<tr><td>${p.n}</td><td>${p.pr}</td><td>${p.burst}</td><td>${p.fin}</td><td>${w}</td></tr>`; }).join('') + `<tr class="avg"><td>average</td><td></td><td></td><td></td><td>${f2(sw / R.length)}</td></tr></tbody>`;
       const ties = R.length !== new Set(R.map((p) => p.pr)).size;
-      $('#pr-out').innerHTML = ties ? `Equal priorities take turns with q = ${q}, and a lower level starts only when every higher one is done.` : 'Every priority is distinct, so q does not matter. Each process runs to completion in priority order.';
+      $('#pr-out').innerHTML = ties ? `Processes with equal priorities take turns with q = ${q}. A lower level starts only when every higher level is done.` : 'Every priority is distinct, so q does not matter. Each process runs to completion in priority order.';
     }
     $('#pr-ex').addEventListener('click', (e) => { const b = e.target.closest('[data-e]'); if (b) { load(+b.dataset.e); render(); } });
     $('#pr-in').addEventListener('change', (e) => { const x = e.target.closest('[data-f]'); if (x) { P[+x.dataset.i][x.dataset.f] = Math.max(x.dataset.f === 'pr' ? 0 : 1, Math.floor(+x.value || 0)); render(); } });
@@ -856,8 +856,8 @@ table.res td.met { color: var(--good); font-weight: 600; }
       svg.appendChild(el('path', { d, class: 'wire d', style: 'stroke-width:2.2' }));
       svg.appendChild(el('text', { x: 44, y: Yp(10) - 5, class: 'lbl', style: 'font-size:10.5px;fill:var(--cx-ink)' }, "L's priority"));
       $('#ag-out').innerHTML = Lstart == null
-        ? (on ? `With a raise every ${k} units, L reaches priority 1 only at t = ${9 * k}, after this ${H}-unit window. Faster aging helps.` : `<span class="bad">L starves.</span> There is always a priority-1 job ready, so L's priority 10 never wins.`)
-        : `L's priority climbs to ${eff(jobs[0], Lstart)} and it runs at t = ${Lstart}, winning its tie with the stream because it arrived first. Aging bounds L's wait at about ${9 * k} units instead of forever.`;
+        ? (on ? `With a raise every ${k} units, L reaches priority 1 only at t = ${9 * k}, after this ${H}-unit window. Faster aging helps.` : `<span class="bad">L starves.</span> A priority-1 job is always ready. Therefore, L's priority 10 never wins.`)
+        : `L's priority climbs to ${eff(jobs[0], Lstart)}, and L runs at t = ${Lstart}. L wins its tie with the stream because it arrived first. As such, aging bounds L's wait at about ${9 * k} units instead of forever.`;
     }
     $('#ag-on').addEventListener('change', render); $('#ag-k').addEventListener('input', render);
     $('#ag-reset').addEventListener('click', () => { $('#ag-on').checked = false; $('#ag-k').value = 5; render(); });
@@ -905,7 +905,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
       const ticks = [0]; for (let u = 8; u < end; u += 8) ticks.push(u); ticks.push(end);
       gantt($('#mf-g'), segs, { lanes: ['Q0 q=8', 'Q1 q=16', 'Q2 FCFS'], name: (i) => J[i].n, ticks, marks: R.map((p) => ({ lane: 0, t: p.arr, kind: 'arr' })) });
       $('#mf-r').innerHTML = '<thead><tr><th>job</th><th>arrival</th><th>CPU</th><th>finish</th><th>turnaround</th><th>last queue</th></tr></thead><tbody>' + R.map((p) => `<tr><td>${p.n}</td><td>${p.arr}</td><td>${p.burst}</td><td>${p.fin}</td><td>${p.fin - p.arr}</td><td>Q${p.lvl}</td></tr>`).join('') + '</tbody>';
-      $('#mf-out').innerHTML = (demotions.length ? 'Demoted jobs are ' + demotions.map(([n, t, l]) => `${n} → Q${l} at ${t}`).join(', ') + '. ' : 'No job needed more than 8 ms, so all stayed in Q0. ') + 'Short jobs finish from Q0 almost as if SJF had picked them, and long jobs sink and fill the gaps.';
+      $('#mf-out').innerHTML = (demotions.length ? 'Demoted jobs are ' + demotions.map(([n, t, l]) => `${n} → Q${l} at ${t}`).join(', ') + '. ' : 'No job needed more than 8 ms, so all jobs stayed in Q0. ') + 'Short jobs finish from Q0 almost as if SJF had picked them. Long jobs sink and fill the gaps.';
     }
     $('#mf-in').addEventListener('change', (e) => { const x = e.target.closest('[data-f]'); if (x) { J[+x.dataset.i][x.dataset.f] = Math.max(x.dataset.f === 'arr' ? 0 : 1, Math.floor(+x.value || 0)); render(); } });
     $('#mf-in').addEventListener('click', (e) => { const b = e.target.closest('[data-del]'); if (b) { J.splice(+b.dataset.del, 1); J.forEach((p, i) => { p.n = 'ABCDEF'[i]; }); render(); } if (e.target.id === 'mf-add' && J.length < 6) { J.push({ n: 'ABCDEF'[J.length], arr: 0, burst: 10 }); render(); } });
@@ -942,10 +942,10 @@ table.res td.met { color: var(--good); font-weight: 600; }
         const p = Math.min(...Object.keys(act).map(Number)), n = act[p].shift(); if (!act[p].length) delete act[p];
         const t = T.find((x) => x.n === n), np = Math.max(100, Math.min(139, t.st + t.bonus));
         add(exp, np, n); prio[n] = np;
-        snap(`First set bit is <b>${p}</b>, so run <b>${n}</b> for its quantum. ${n} is ${t.kind}, so on the move to expired its priority becomes ${t.st} ${t.bonus < 0 ? '−' : '+'} 5 = <b>${np}</b>.`, n, p);
+        snap(`The first set bit is <b>${p}</b>, so <b>${n}</b> runs for its quantum. ${n} is ${t.kind}. Therefore, when ${n} moves to expired, its priority becomes ${t.st} ${t.bonus < 0 ? '−' : '+'} 5 = <b>${np}</b>.`, n, p);
       }
       [act, exp] = [exp, act];
-      snap(`Active is empty, so <b>swap the arrays</b> (a pointer swap). ${round ? 'Priorities are now stable. Interactive A and D sit 5 above their nice level, and CPU-bound B and C 5 below.' : 'Round 2 starts with the recomputed priorities. A (interactive) now outranks B, although both are nice 0.'}`, null);
+      snap(`Active is empty, so the scheduler <b>swaps the arrays</b> (a pointer swap). ${round ? 'Priorities are now stable. Interactive A and D sit 5 above their nice level, and CPU-bound B and C sit 5 below.' : 'Round 2 starts with the recomputed priorities. A (interactive) now outranks B, although both are nice 0.'}`, null);
     }
     let i = 0;
     function show(k) {
@@ -973,7 +973,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
     const ROWS = [['T1', [-3, 1, 1, 1]], ['T2', [-2, -2, 2, 2]], ['T3', [-1, -1, -1, 3]], ['T4', [0, 0, 0, 0]]];
     const fr = (v) => v === 0 ? '0' : (v < 0 ? '−' : '') + (Math.abs(v) === 2 ? 'T/2' : Math.abs(v) === 1 ? 'T/4' : Math.abs(v) + 'T/4');
     let i = 0;
-    const TXT = ['There are four tasks and nobody has run yet, so all balances are 0.', 'T1 runs for T. On the ideal CPU each task would have had T/4, so T1 is over-allocated by 3T/4 and the others are each owed T/4.', 'T2 runs next, because it is among those owed the most. Now T3 and T4 are owed T/2 each.', 'T3 runs. T4 is owed 3T/4, the largest balance.', 'T4 runs. After one round, every balance is 0 again. Each task has had T of 4T, its fair share. CFS always runs the task with the largest W<sub>i</sub>, the one owed the most.'];
+    const TXT = ['There are four tasks, and no task has run yet. Therefore, all balances are 0.', 'T1 runs for T. On the ideal CPU, each task would have had T/4. Therefore, T1 is over-allocated by 3T/4, and each of the others is owed T/4.', 'T2 runs next, because it is among the tasks owed the most. Now T3 and T4 are owed T/2 each.', 'T3 runs. T4 is now owed 3T/4, which is the largest balance.', 'T4 runs. After one round, every balance is 0 again. Each task has had T of 4T, which is its fair share. CFS always runs the task with the largest W<sub>i</sub>, namely the task owed the most.'];
     function show(k) {
       i = Math.max(0, Math.min(4, k));
       $('#ow-t').innerHTML = '<thead><tr><th>after running</th><th>W₁</th><th>W₂</th><th>W₃</th><th>W₄</th></tr></thead><tbody>' + ROWS.slice(0, i).map(([n, v], r) => `<tr class="${r === i - 1 ? 'new' : ''}"><td>${n} for T</td>${v.map((x) => `<td class="${x < 0 ? 'neg' : x > 0 ? 'pos' : ''}">${fr(x)}</td>`).join('')}</tr>`).join('') + (i ? '' : '<tr><td class="muted">(nothing yet)</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>') + '</tbody>';
@@ -1010,16 +1010,16 @@ table.res td.met { color: var(--good); font-weight: 600; }
       const sumw = T.reduce((s, t) => s + w(t.nice), 0);
       $('#cf-bars').innerHTML = T.map((t, i) => { const act = total ? t.cpu / total : 0, exp = w(t.nice) / sumw; return `<div class="b"><span>${t.n} (nice ${t.nice})</span><span class="track"><span class="fill${i % 2 ? ' x' : ''}" style="width:${(act * 100).toFixed(1)}%"></span><span class="tick" style="left:${(exp * 100).toFixed(1)}%"></span></span><span class="v">${(act * 100).toFixed(1)}%</span></div>`; }).join('');
       const next = sorted[0];
-      $('#cf-out').innerHTML = `${total} ms run. Next is <b>${next.n}</b> (minimum vruntime ${next.vr.toFixed(1)}). Recent picks are <span class="mono">${hist.join(' ') || '—'}</span>. ${note}`;
+      $('#cf-out').innerHTML = `${total} ms have run. The next task is <b>${next.n}</b> (minimum vruntime ${next.vr.toFixed(1)}). The recent picks are <span class="mono">${hist.join(' ') || '—'}</span>. ${note}`;
     }
     $('#cf-step').addEventListener('click', () => { step(); note = ''; render(); });
-    $('#cf-run').addEventListener('click', () => { for (let k = 0; k < 100; k++) step(); note = 'Run longer and the bars converge on the ticks, at weight / Σweight.'; render(); });
+    $('#cf-run').addEventListener('click', () => { for (let k = 0; k < 100; k++) step(); note = 'If the tasks run longer, the bars converge on the ticks, at weight / Σweight.'; render(); });
     $('#cf-add').addEventListener('click', () => {
       if (T.length >= 5) { note = 'That is enough tasks for this demo.'; render(); return; }
       const naive = $('#cf-place').value === 'zero', t = { n: 'T' + (T.length + 1), nice: 0, vr: naive ? 0 : minvr(), cpu: 0 };
       T.push(t); let wait = 0, run = 0;
       for (let k = 0; k < 400; k++) { const s = step(); if (s === t) run++; else if (run) break; else wait++; }
-      note = naive ? `<span class="bad">${t.n} started at vruntime 0 and ran ${run} slices (${run * SL} ms) in a row</span> while the others waited. That is the caveat in §3.3.` : `${t.n} started at the minimum vruntime, level with the leftmost task. It waited ${wait} slice${wait === 1 ? '' : 's'}, ran ${run}, and then took turns with the rest.`;
+      note = naive ? `<span class="bad">${t.n} started at vruntime 0 and ran ${run} slices (${run * SL} ms) in a row</span>, while the others waited. This is the caveat in §3.3.` : `${t.n} started at the minimum vruntime, level with the leftmost task. It waited ${wait} slice${wait === 1 ? '' : 's'}, ran ${run}, and then took turns with the rest.`;
       render();
     });
     $('#cf-in').addEventListener('change', (e) => { const s = e.target.closest('select'); if (s) { T[+s.dataset.i].nice = +s.value; render(); } });
@@ -1045,7 +1045,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
       const a1 = on ? 0.5 : n / (n + 1), a2 = on ? 0.5 : 1 / (n + 1), per = a1 / n;
       const bar = (lab, v, x) => `<div class="b"><span>${lab}</span><span class="track"><span class="fill${x ? ' x' : ''}" style="width:${(v * 100).toFixed(2)}%"></span></span><span class="v">${(v * 100).toFixed(v < 0.01 ? 2 : 1)}%</span></div>`;
       $('#gr-bars').innerHTML = bar('A1 total', a1, 0) + bar('each A1 thread', per, 0) + bar('A2 (1 thread)', a2, 1);
-      $('#gr-out').innerHTML = on ? `Groups split 50/50 first, and A1's ${n} threads share their half, ${(per * 100).toFixed(2)}% each. A2 is not overwhelmed however many threads A1 spawns.` : `With per-task fairness, all ${n + 1} tasks get 1/${n + 1} each, so A2, the interactive app, gets only ${(a2 * 100).toFixed(2)}%.`;
+      $('#gr-out').innerHTML = on ? `The groups first split the CPU 50/50. Then, A1's ${n} threads share their half, ${(per * 100).toFixed(2)}% each. A2 is not overwhelmed, however many threads A1 spawns.` : `With per-task fairness, all ${n + 1} tasks get 1/${n + 1} each. Therefore, A2, the interactive app, gets only ${(a2 * 100).toFixed(2)}%.`;
     }
     $('#gr-n').addEventListener('input', render); $('#gr-on').addEventListener('change', render);
     $('#gr-reset').addEventListener('click', () => { $('#gr-n').value = 100; $('#gr-on').checked = false; render(); });
@@ -1082,7 +1082,7 @@ table.res td.met { color: var(--good); font-weight: 600; }
       let miss = 0;
       $('#ed-r').innerHTML = '<thead><tr><th>task</th><th>deadline</th><th>finish</th><th>result</th></tr></thead><tbody>' + R.map((p) => { const ok = p.fin <= p.dl; if (!ok) miss++; return `<tr><td>${p.n}</td><td>${p.dl}</td><td>${p.fin}</td><td class="${ok ? 'met' : 'miss'}">${ok ? 'met' : 'missed by ' + (p.fin - p.dl)}</td></tr>`; }).join('') + '</tbody>';
       const order = segs.map((s) => P[s[2]].n).join(' → ');
-      $('#ed-out').innerHTML = `${{ edf: 'EDF (preemptive, decides every unit)', fcfs: 'FCFS (nonpreemptive)', sjf: 'SJF (nonpreemptive)' }[alg]} runs ${order}. ${miss ? `<span class="bad">${miss} deadline${miss > 1 ? 's' : ''} missed.</span>` : 'Every deadline met.'}`;
+      $('#ed-out').innerHTML = `${{ edf: 'EDF (preemptive, decides every unit)', fcfs: 'FCFS (nonpreemptive)', sjf: 'SJF (nonpreemptive)' }[alg]} runs ${order}. ${miss ? `<span class="bad">${miss} deadline${miss > 1 ? 's' : ''} missed.</span>` : 'Every deadline is met.'}`;
     }
     $('#ed-a').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) { alg = b.dataset.a; render(); } });
     $('#ed-ex').addEventListener('click', (e) => { const b = e.target.closest('[data-e]'); if (b) { load(+b.dataset.e); render(); } });
