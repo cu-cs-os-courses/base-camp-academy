@@ -586,7 +586,7 @@
           <tr data-step="2"><td>RAID 3</td><td>bit-interleaved parity on one parity disk</td><td>only one extra disk, and parity is computed in hardware, so writes stay fast</td></tr>
           <tr data-step="2"><td>RAID 4</td><td>block-interleaved parity on one parity disk</td><td>one extra disk, but every write also updates the parity disk</td></tr>
           <tr data-step="3"><td>RAID 5</td><td>block-interleaved <em>distributed</em> parity</td><td>parity is spread over all disks, so there is no parity-disk bottleneck. It is the most common parity RAID</td></tr>
-          <tr data-step="3"><td>RAID 6</td><td>RAID 5 with Reed-Solomon codes instead of parity</td><td>survives two simultaneous disk failures</td></tr>
+          <tr data-step="3"><td>RAID 6</td><td>RAID 5 with Reed-Solomon codes instead of parity</td><td>survives two simultaneous disk failures. It spends two disks of capacity on redundancy, so N disks hold N − 2 disks of data</td></tr>
         </tbody>
       </table>
     </div>
