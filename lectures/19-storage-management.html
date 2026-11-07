@@ -239,7 +239,7 @@
     </div>
     <div class="note note-key" data-step="3">
       <span class="note-tag">The running example</span>
-      <p>Requests arrive for cylinders <b class="mono">98, 183, 37, 122, 14, 124, 65, 67</b>, in that order. The head starts at cylinder <b class="mono">53</b>. Cylinders run from 0 to 200. We compare algorithms by the <strong>total number of cylinders the head crosses</strong>.</p>
+      <p>Requests arrive for cylinders <b class="mono">98, 183, 37, 122, 14, 124, 65, 67</b>, in that order. The head starts at cylinder <b class="mono">53</b>. Cylinders run from 0 to 199. We compare algorithms by the <strong>total number of cylinders the head crosses</strong>.</p>
     </div>
   </div>
 
@@ -274,13 +274,13 @@
     <h3><span class="sec-no">1.4</span>SCAN and C-SCAN</h3>
     <div class="two-up">
       <div class="prose">
-        <p><strong>SCAN</strong> (the elevator) sweeps in one direction to the edge of the disk and then reverses. The path is 53 → 65 → … → 183 → <b>200</b> → 37 → 14, for <b>333</b> cylinders. It approximates OPT, never starves a request, handles new arrivals, and is simple.</p>
+        <p><strong>SCAN</strong> (the elevator) sweeps in one direction to the edge of the disk and then reverses. The path is 53 → 65 → … → 183 → <b>199</b> → 37 → 14, for <b>331</b> cylinders. It approximates OPT, never starves a request, handles new arrivals, and is simple.</p>
         <p data-step="1">However, it only approximates OPT, travels to the edge even when no request is there, and is unfair to the edges. Specifically, after two full sweeps, the middle tracks have been served twice and the edge tracks once.</p>
-        <p data-step="2"><strong>C-SCAN</strong> (circular SCAN) treats the disk as a circular queue. At the edge, the head returns all the way to the other edge <em>without serving anything</em> and keeps scanning in the same direction. The path 53 → … → 183 → 200, return to 0, → 14 → 37 crosses <b>384</b> cylinders, counting the 200-cylinder return. As a result, service times are fairer.</p>
+        <p data-step="2"><strong>C-SCAN</strong> (circular SCAN) treats the disk as a circular queue. At the edge, the head returns all the way to the other edge <em>without serving anything</em> and keeps scanning in the same direction. The path 53 → … → 183 → 199, return to 0, → 14 → 37 crosses <b>382</b> cylinders, counting the 199-cylinder return. As a result, service times are fairer.</p>
       </div>
       <div>
-        <figure class="fig"><div class="fig-frame"><svg class="dia plot" data-algo="SCAN" viewBox="0 0 460 250" width="420" role="img" aria-label="SCAN head movement"></svg></div><figcaption><span class="fno">Fig. 1.4</span>SCAN crosses 333 cylinders.</figcaption></figure>
-        <figure class="fig" data-step="2"><div class="fig-frame"><svg class="dia plot" data-algo="C-SCAN" viewBox="0 0 460 250" width="420" role="img" aria-label="C-SCAN head movement"></svg></div><figcaption><span class="fno">Fig. 1.5</span>C-SCAN crosses 384 cylinders. The dashed return serves nothing.</figcaption></figure>
+        <figure class="fig"><div class="fig-frame"><svg class="dia plot" data-algo="SCAN" viewBox="0 0 460 250" width="420" role="img" aria-label="SCAN head movement"></svg></div><figcaption><span class="fno">Fig. 1.4</span>SCAN crosses 331 cylinders.</figcaption></figure>
+        <figure class="fig" data-step="2"><div class="fig-frame"><svg class="dia plot" data-algo="C-SCAN" viewBox="0 0 460 250" width="420" role="img" aria-label="C-SCAN head movement"></svg></div><figcaption><span class="fno">Fig. 1.5</span>C-SCAN crosses 382 cylinders. The dashed return serves nothing.</figcaption></figure>
       </div>
     </div>
   </div>
@@ -305,7 +305,7 @@
       <div class="widget-head"><span class="chip">Try it</span><span class="w-title">Seven disk schedulers, one queue</span><button class="w-reset" type="button" id="ds-reset">Reset</button></div>
       <div class="controls">
         <label class="ctl-label" for="ds-q">Queue <input id="ds-q" type="text" value="98, 183, 37, 122, 14, 124, 65, 67" style="width:17em" spellcheck="false"></label>
-        <label class="ctl-label" for="ds-h">Head <input id="ds-h" type="number" min="0" max="200" value="53" style="width:5em"></label>
+        <label class="ctl-label" for="ds-h">Head <input id="ds-h" type="number" min="0" max="199" value="53" style="width:5em"></label>
         <span class="seg" aria-label="Initial direction"><button type="button" data-dir="up">moving up</button><button type="button" data-dir="down">moving down</button></span>
         <button type="button" class="btn small" id="ds-rand">Random queue</button>
       </div>
@@ -808,7 +808,7 @@
   })();
 
   /* ---------- disk scheduling core ---------- */
-  const MAXC = 200;
+  const MAXC = 199;
   const ALGOS = ['FCFS', 'SSTF', 'OPT', 'SCAN', 'C-SCAN', 'LOOK', 'C-LOOK'];
   function schedule(algo, head, reqs, dir) {
     // returns { path: [{c, req:boolean, jump:boolean}], order:[...], dist }
@@ -849,7 +849,7 @@
     clear(svg);
     const X = (c) => 30 + c * 2.0, n = res.path.length, Y = (i) => 34 + i * (190 / Math.max(n, 1));
     svg.appendChild(el('path', { d: 'M30 22 H430', class: 'wire thin', style: 'opacity:.4' }));
-    [0, 50, 100, 150, 200].forEach((c) => {
+    [0, 50, 100, 150, 199].forEach((c) => {
       svg.appendChild(el('path', { d: `M${X(c)} 18 V230`, class: 'wire thin', style: 'opacity:.1' }));
       svg.appendChild(el('text', { x: X(c), y: 14, 'text-anchor': 'middle', class: 'lbl mono', style: 'font-size:11px' }, c));
     });
@@ -886,7 +886,7 @@
       $$('#ds-algos [data-a]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.a === algo)));
       $$('#ds-w [data-dir]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.dir === dir)));
       const inp = parse();
-      if (!inp) { $('#ds-out').innerHTML = '<span class="bad">Enter 1–16 cylinders from 0 to 200, separated by commas, and a head position from 0 to 200.</span>'; return; }
+      if (!inp) { $('#ds-out').innerHTML = '<span class="bad">Enter 1–16 cylinders from 0 to 199, separated by commas, and a head position from 0 to 199.</span>'; return; }
       const all = ALGOS.map((a) => schedule(a, inp.h, inp.q, dir));
       const res = all[algo];
       plot(svg, inp.h, inp.q, res);
