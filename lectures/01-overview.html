@@ -434,7 +434,7 @@
         <li><strong>Dual-mode operation</strong> lets the OS protect itself and other components. It has two modes, <strong>user mode</strong> and <strong>kernel mode</strong>.</li>
         <li data-step="1">A <strong>mode bit</strong>, provided by hardware, says whether user code or kernel code is running.</li>
         <li data-step="2">Some instructions are <strong>privileged</strong>. In other words, they are executable only in kernel mode.</li>
-        <li data-step="3">Note that a user program cannot set the mode bit to "kernel" itself. Only a <strong>system call</strong> (a trap) switches to kernel mode, and the trap jumps to kernel code that the OS chose. Returning from the call sets user mode again.</li>
+        <li data-step="3">Note that a user program cannot set the mode bit to "kernel" itself. A user program can enter kernel mode only through a <strong>system call</strong> (a trap), and the trap jumps to kernel code that the OS chose. Returning from the call sets user mode again.</li>
       </ul>
     </div>
   </div>
@@ -476,7 +476,7 @@
         <div class="q-opts">
           <button type="button" class="q-opt" data-why="If it worked, any program could turn the timer off and keep the CPU forever.">The timer is set, and the program gets more CPU time.</button>
           <button type="button" class="q-opt" data-ok>It is a privileged instruction executed in user mode. Therefore, the hardware traps to the OS, which typically terminates the program.</button>
-          <button type="button" class="q-opt" data-why="The mode bit cannot be flipped by user code. Only a trap enters kernel mode, and it jumps to the OS, not to the program.">The CPU switches to kernel mode and executes it.</button>
+          <button type="button" class="q-opt" data-why="The mode bit cannot be flipped by user code. User code enters kernel mode only through a trap, and the trap jumps to the OS, not to the program.">The CPU switches to kernel mode and executes it.</button>
         </div>
         <div class="q-fb ok">Right. That is how dual mode and the timer protect each other.</div>
         <div class="q-fb no">Not quite.</div>

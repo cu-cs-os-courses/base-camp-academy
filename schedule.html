@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spring 2027 Schedule · CSCI 3753</title>
+<meta name="description" content="The week-by-week Spring 2027 schedule of CSCI 3753 Operating Systems at CU Boulder, with lectures, recitations, and the Sundays on which each quiz, problem set, and lab opens and is due.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="assets/academy.css">
+<style>
+.sched-wrap { max-width: 1120px; margin: 0 auto; padding: 24px 16px 60px; }
+.sched-wrap h2 { font-family: var(--f-display); font-size: 24px; margin: 34px 0 8px; }
+.sched-wrap p, .sched-wrap li { max-width: 72ch; }
+.table-wrap { overflow-x: auto; }
+table.sched { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 14px; }
+table.sched th, table.sched td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+table.sched th { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); border-bottom: 2px solid var(--ink); }
+table.sched td.wk b { font-family: var(--f-display); font-size: 20px; display: block; }
+table.sched .dt { display: block; font-family: var(--f-mono); font-size: 11px; color: var(--ink3); margin-bottom: 2px; }
+table.sched .th { display: block; font-size: 12.5px; color: var(--ink2); margin-top: 2px; }
+table.sched a { color: var(--ink); text-decoration: none; }
+table.sched a:hover { text-decoration: underline; }
+table.sched tr.brk td { background: var(--bg); color: var(--ink3); }
+table.sched tr.exam td.wk b { color: var(--cx-ink); }
+.ev { display: inline-block; font-family: var(--f-mono); font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 0 8px; margin: 1px 2px 1px 0; border: 1px solid; }
+.ev.lec { color: var(--cz-ink); border-color: var(--cz); }
+.ev.rec { color: var(--cf-ink); border-color: var(--cf); }
+.ev.lab { color: var(--co); border-color: var(--co); }
+.ev.qz { color: var(--cd); border-color: var(--cd); }
+.ev.ps { color: var(--cx-ink); border-color: var(--cx); }
+.none { color: var(--ink3); font-size: 12.5px; }
+table.t { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.t th, table.t td { border-bottom: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+table.t th { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); border-bottom-color: var(--line2); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="index.html">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M2 18L8 8l4 6 3-4 5 8z" stroke="currentColor" stroke-width="1.4" fill="none"/><circle cx="16" cy="5" r="2" fill="var(--co)"/></svg>
+    <span>CSCI 3753 · Base Camp Academy</span>
+  </a>
+  <span class="spacer"></span>
+  <a class="crumb" href="#top">Spring 2027 schedule</a>
+</header>
+
+<div class="hero" id="top">
+  <div class="hero-inner">
+    <div class="eyebrow">CSCI 3753 Operating Systems · CU Boulder · Spring 2027</div>
+    <h1>The <span class="accent">schedule</span></h1>
+    <p class="lede">This page lists, week by week, the lectures, the recitations, and the Sundays on which each quiz, problem set, and lab opens and is due. Lectures are on Tuesday and Thursday, and recitation is on Friday. Canvas shows the exact time of every deadline.</p>
+  </div>
+</div>
+
+<main class="sched-wrap">
+  <h2>The weekly rhythm</h2>
+  <ul>
+    <li><b>Sunday is the switch.</b> Every quiz, problem set, and lab opens and closes on a Sunday. There are no midweek deadlines. A Sunday often closes one assignment and opens the next.</li>
+    <li><b>Tuesday and Thursday are lectures.</b> Each lecture lists its chapters of the textbook, Silberschatz, Galvin, and Gagne, <i>Operating System Concepts</i>, 10th edition. Read them before or after the lecture. The quizzes assume that you did.</li>
+    <li><b>Friday is recitation.</b> It works one example on the week's material, and then helps with the current lab.</li>
+  </ul>
+
+  <h2>What you hand in, and where</h2>
+  <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>work</th><th>where</th><th>window</th><th>covers</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ev qz">Q1</span>–<span class="ev qz">Q10</span> quizzes</td><td>Canvas</td><td>two weeks, Sunday to Sunday</td><td>Q1 L01–L02, Q2 L03–L04, Q3 L05–L06, Q4 L07–L08, Q5 L09–L10, Q6 L11–L12, Q7 L13–L14, Q8 L15–L16, Q9 L17–L18, Q10 L19–L21</td></tr>
+        <tr><td><span class="ev ps">PS1</span>–<span class="ev ps">PS4</span> problem sets</td><td>Canvas</td><td>PS1 two weeks, PS2 to PS4 three weeks</td><td>PS1 L01–L06, PS2 L07–L12, PS3 L13–L16, PS4 L17–L23</td></tr>
+        <tr><td><a class="ev lab" href="tutorials/lab00-getting-started.html">Lab00</a>–<a class="ev lab" href="tutorials/lab05-storage-and-io.html">Lab05</a> labs</td><td>your private GitHub repository</td><td>two to four weeks</td><td>observing and building on a running Linux system</td></tr>
+        <tr><td><b>Exams</b></td><td>in class, and the registrar's slot for the final</td><td>pre-exam 45 minutes, midterm and final 60 minutes each</td><td>pre-exam C and systems background (not graded), midterm L01–L12, final L13–L23</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Week by week</h2>
+  <p>Each row starts on its Sunday. The Opens and Due columns name the work that opens or is due on that Sunday.</p>
+  <div class="table-wrap">
+    <table class="sched">
+      <thead><tr><th>week</th><th>Tuesday</th><th>Thursday</th><th>Friday</th><th>opens Sunday</th><th>due Sunday</th></tr></thead>
+      <tbody>
+        <tr class="exam"><td class="wk"><b>1</b><span class="dt">Sun Jan 3</span><span class="th">The course</span></td><td class="day"><i>Term starts Thursday</i></td><td class="day"><span class="dt">Jan 7</span><a class="ev lec" href="lectures/00-syllabus.html">L00</a> <a href="lectures/00-syllabus.html">Syllabus</a><br><b>Pre-exam</b>, 45 minutes</td><td class="day"><span class="dt">Jan 8</span><a class="ev rec" href="recitations/r01-c-and-linux.html">R01</a> <a href="recitations/r01-c-and-linux.html">C and the Shell</a></td><td><span class="ev qz">Q1</span> <a class="ev lab" href="tutorials/lab00-getting-started.html">Lab00</a></td><td><span class="none">none</span></td></tr>
+        <tr><td class="wk"><b>2</b><span class="dt">Sun Jan 10</span><span class="th">What an OS is</span></td><td class="day"><span class="dt">Jan 12</span><a class="ev lec" href="lectures/01-overview.html">L01</a> <a href="lectures/01-overview.html">Overview</a></td><td class="day"><span class="dt">Jan 14</span><a class="ev lec" href="lectures/02-os-services.html">L02</a> <a href="lectures/02-os-services.html">OS Services</a></td><td class="day"><span class="dt">Jan 15</span><a class="ev rec" href="recitations/r02-running-system.html">R02</a> <a href="recitations/r02-running-system.html">A Running System</a></td><td><span class="ev qz">Q2</span></td><td><span class="none">none</span></td></tr>
+        <tr><td class="wk"><b>3</b><span class="dt">Sun Jan 17</span><span class="th">Processes</span></td><td class="day"><span class="dt">Jan 19</span><a class="ev lec" href="lectures/03-process.html">L03</a> <a href="lectures/03-process.html">Process</a></td><td class="day"><span class="dt">Jan 21</span><a class="ev lec" href="lectures/04-ipc.html">L04</a> <a href="lectures/04-ipc.html">IPC</a></td><td class="day"><span class="dt">Jan 22</span><a class="ev rec" href="recitations/r03-fork-exec-wait.html">R03</a> <a href="recitations/r03-fork-exec-wait.html">fork, exec, wait</a></td><td><span class="ev qz">Q3</span> <a class="ev lab" href="tutorials/lab01-processes.html">Lab01</a></td><td><span class="ev qz">Q1</span> <a class="ev lab" href="tutorials/lab00-getting-started.html">Lab00</a></td></tr>
+        <tr><td class="wk"><b>4</b><span class="dt">Sun Jan 24</span><span class="th">Threads and scheduling</span></td><td class="day"><span class="dt">Jan 26</span><a class="ev lec" href="lectures/05-thread.html">L05</a> <a href="lectures/05-thread.html">Thread</a></td><td class="day"><span class="dt">Jan 28</span><a class="ev lec" href="lectures/06-scheduling.html">L06</a> <a href="lectures/06-scheduling.html">Scheduling</a></td><td class="day"><span class="dt">Jan 29</span><a class="ev rec" href="recitations/r04-scheduling-by-hand.html">R04</a> <a href="recitations/r04-scheduling-by-hand.html">Scheduling by Hand</a></td><td><span class="ev qz">Q4</span> <span class="ev ps">PS1</span> <a class="ev lab" href="tutorials/lab02-scheduling.html">Lab02</a></td><td><span class="ev qz">Q2</span></td></tr>
+        <tr><td class="wk"><b>5</b><span class="dt">Sun Jan 31</span><span class="th">Scheduling and synchronization</span></td><td class="day"><span class="dt">Feb 2</span><a class="ev lec" href="lectures/07-more-scheduling.html">L07</a> <a href="lectures/07-more-scheduling.html">More Scheduling</a></td><td class="day"><span class="dt">Feb 4</span><a class="ev lec" href="lectures/08-synchronization.html">L08</a> <a href="lectures/08-synchronization.html">Synchronization</a></td><td class="day"><span class="dt">Feb 5</span><a class="ev rec" href="recitations/r05-real-schedulers.html">R05</a> <a href="recitations/r05-real-schedulers.html">Real Schedulers</a></td><td><span class="ev qz">Q5</span> <span class="ev ps">PS2</span> <a class="ev lab" href="tutorials/lab03-concurrency.html">Lab03</a></td><td><span class="ev qz">Q3</span> <a class="ev lab" href="tutorials/lab01-processes.html">Lab01</a></td></tr>
+        <tr><td class="wk"><b>6</b><span class="dt">Sun Feb 7</span><span class="th">Synchronization tools</span></td><td class="day"><span class="dt">Feb 9</span><a class="ev lec" href="lectures/09-semaphore.html">L09</a> <a href="lectures/09-semaphore.html">Semaphores</a></td><td class="day"><span class="dt">Feb 11</span><a class="ev lec" href="lectures/10-monitors.html">L10</a> <a href="lectures/10-monitors.html">Monitors</a></td><td class="day"><span class="dt">Feb 12</span><a class="ev rec" href="recitations/r06-concurrency-bugs.html">R06</a> <a href="recitations/r06-concurrency-bugs.html">Concurrency Bugs</a></td><td><span class="ev qz">Q6</span></td><td><span class="ev qz">Q4</span> <span class="ev ps">PS1</span></td></tr>
+        <tr><td class="wk"><b>7</b><span class="dt">Sun Feb 14</span><span class="th">Classic problems and deadlock</span></td><td class="day"><span class="dt">Feb 16</span><a class="ev lec" href="lectures/11-synchronization-examples.html">L11</a> <a href="lectures/11-synchronization-examples.html">Synchronization Examples</a></td><td class="day"><span class="dt">Feb 18</span><a class="ev lec" href="lectures/12-deadlocks.html">L12</a> <a href="lectures/12-deadlocks.html">Deadlocks</a></td><td class="day"><span class="dt">Feb 19</span><a class="ev rec" href="recitations/r07-deadlock.html">R07</a> <a href="recitations/r07-deadlock.html">Deadlock by Hand</a></td><td><span class="none">none</span></td><td><span class="ev qz">Q5</span> <a class="ev lab" href="tutorials/lab02-scheduling.html">Lab02</a></td></tr>
+        <tr><td class="wk"><b>8</b><span class="dt">Sun Feb 21</span><span class="th">Midterm preparation</span></td><td class="day"><span class="dt">Feb 23</span><b>Q&amp;A</b>, quiz and problem-set review</td><td class="day"><span class="dt">Feb 25</span><i>Reading day, no class</i></td><td class="day"><span class="dt">Feb 26</span>Office hours</td><td><span class="none">none</span></td><td><span class="ev qz">Q6</span> <span class="ev ps">PS2</span></td></tr>
+        <tr class="exam"><td class="wk"><b>9</b><span class="dt">Sun Feb 28</span><span class="th">Midterm and memory</span></td><td class="day"><span class="dt">Mar 2</span><b>Midterm</b>, 60 minutes, L01–L12</td><td class="day"><span class="dt">Mar 4</span><a class="ev lec" href="lectures/13-memory-management.html">L13</a> <a href="lectures/13-memory-management.html">Memory Management</a></td><td class="day"><span class="dt">Mar 5</span><a class="ev rec" href="recitations/r08-address-spaces.html">R08</a> <a href="recitations/r08-address-spaces.html">Where a Program Lives</a></td><td><a class="ev lab" href="tutorials/lab04-virtual-memory.html">Lab04</a></td><td><a class="ev lab" href="tutorials/lab03-concurrency.html">Lab03</a></td></tr>
+        <tr><td class="wk"><b>10</b><span class="dt">Sun Mar 7</span><span class="th">Paging and virtual memory</span></td><td class="day"><span class="dt">Mar 9</span><a class="ev lec" href="lectures/14-paging.html">L14</a> <a href="lectures/14-paging.html">Paging</a></td><td class="day"><span class="dt">Mar 11</span><a class="ev lec" href="lectures/15-virtual-memory.html">L15</a> <a href="lectures/15-virtual-memory.html">Virtual Memory</a></td><td class="day"><span class="dt">Mar 12</span><a class="ev rec" href="recitations/r09-paging-arithmetic.html">R09</a> <a href="recitations/r09-paging-arithmetic.html">Paging Arithmetic</a></td><td><span class="ev qz">Q7</span> <span class="ev ps">PS3</span></td><td><span class="none">none</span></td></tr>
+        <tr class="brk"><td class="wk"><b>11</b><span class="dt">Sun Mar 14</span><span class="th">Spring break</span></td><td class="day"><span class="dt">Mar 16</span><i>Spring break</i></td><td class="day"><span class="dt">Mar 18</span><i>Spring break</i></td><td class="day"><span class="dt">Mar 19</span><i>Campus closed</i></td><td><span class="none">none</span></td><td><span class="none">none</span></td></tr>
+        <tr><td class="wk"><b>12</b><span class="dt">Sun Mar 21</span><span class="th">Paging policy and devices</span></td><td class="day"><span class="dt">Mar 23</span><a class="ev lec" href="lectures/16-paging-policy.html">L16</a> <a href="lectures/16-paging-policy.html">Paging Policy</a></td><td class="day"><span class="dt">Mar 25</span><a class="ev lec" href="lectures/17-device-manager.html">L17</a> <a href="lectures/17-device-manager.html">Device Manager</a></td><td class="day"><span class="dt">Mar 26</span><a class="ev rec" href="recitations/r10-replacement.html">R10</a> <a href="recitations/r10-replacement.html">Replacement by Hand</a></td><td><span class="ev qz">Q8</span> <a class="ev lab" href="tutorials/lab05-storage-and-io.html">Lab05</a></td><td><span class="ev qz">Q7</span></td></tr>
+        <tr><td class="wk"><b>13</b><span class="dt">Sun Mar 28</span><span class="th">Devices and storage</span></td><td class="day"><span class="dt">Mar 30</span><a class="ev lec" href="lectures/18-device-strategies.html">L18</a> <a href="lectures/18-device-strategies.html">Device Strategies</a></td><td class="day"><span class="dt">Apr 1</span><a class="ev lec" href="lectures/19-storage-management.html">L19</a> <a href="lectures/19-storage-management.html">Storage Management</a></td><td class="day"><span class="dt">Apr 2</span><a class="ev rec" href="recitations/r11-kernel-modules.html">R11</a> <a href="recitations/r11-kernel-modules.html">Kernel Modules</a></td><td><span class="ev qz">Q9</span> <span class="ev ps">PS4</span></td><td><a class="ev lab" href="tutorials/lab04-virtual-memory.html">Lab04</a> <span class="ev ps">PS3</span></td></tr>
+        <tr><td class="wk"><b>14</b><span class="dt">Sun Apr 4</span><span class="th">File systems and beyond</span></td><td class="day"><span class="dt">Apr 6</span><a class="ev lec" href="lectures/20-file-system-implementation.html">L20</a> <a href="lectures/20-file-system-implementation.html">File Systems</a></td><td class="day"><span class="dt">Apr 8</span><a class="ev lec" href="lectures/21-network-and-vms.html">L21</a> <a href="lectures/21-network-and-vms.html">Network &amp; VMs</a></td><td class="day"><span class="dt">Apr 9</span><a class="ev rec" href="recitations/r12-file-systems.html">R12</a> <a href="recitations/r12-file-systems.html">File Systems Inside</a></td><td><span class="ev qz">Q10</span></td><td><span class="ev qz">Q8</span></td></tr>
+        <tr><td class="wk"><b>15</b><span class="dt">Sun Apr 11</span><span class="th">Protection and security</span></td><td class="day"><span class="dt">Apr 13</span><a class="ev lec" href="lectures/22-protection.html">L22</a> <a href="lectures/22-protection.html">Protection</a></td><td class="day"><span class="dt">Apr 15</span><a class="ev lec" href="lectures/23-security.html">L23</a> <a href="lectures/23-security.html">Security</a></td><td class="day"><span class="dt">Apr 16</span><a class="ev rec" href="recitations/r13-protection.html">R13</a> <a href="recitations/r13-protection.html">Protection in Practice</a></td><td><span class="none">none</span></td><td><span class="ev qz">Q9</span> <a class="ev lab" href="tutorials/lab05-storage-and-io.html">Lab05</a></td></tr>
+        <tr><td class="wk"><b>16</b><span class="dt">Sun Apr 18</span><span class="th">Wrap-up</span></td><td class="day"><span class="dt">Apr 20</span><span class="ev lec">L24</span> Final Review</td><td class="day"><span class="dt">Apr 22</span><b>Q&amp;A</b>, the last session</td><td class="day"><span class="dt">Apr 23</span><i>Monday schedule, no recitation</i></td><td><span class="none">none</span></td><td><span class="ev qz">Q10</span> <span class="ev ps">PS4</span></td></tr>
+        <tr class="exam"><td class="wk"><b>F</b><span class="dt">Apr 26–30</span><span class="th">Finals week</span></td><td class="day" colspan="5"><b>Final exam</b>, 60 minutes, L13–L23. The registrar sets the time slot, and Canvas shows it once it is published.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Campus is closed on Monday, January 18, for Martin Luther King Jr. Day. No class meets that day.</p>
+</main>
+
+<footer class="footer">
+  CSCI 3753 Operating Systems · University of Colorado Boulder · Spring 2027 schedule. Canvas has the exact deadline times.
+</footer>
+</body>
+</html>
